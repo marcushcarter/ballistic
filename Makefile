@@ -1,7 +1,7 @@
 # === Configuration ===
 # === Compiler ===
 CXX := g++
-CXXFLAGS := -g -lm 
+CXXFLAGS := -std=c++20 -g -lm 
 
 # === Paths ===
 INCLUDES := -Iinclude -I.
