@@ -156,7 +156,10 @@ public:
     std::vector<BE_Vertex> vertices;
     std::vector<GLuint> indices;
     std::vector<BE_Texture> textures;
+    
     BE_VAO vao;
+    BE_VBO* vbo = nullptr;
+    BE_EBO* ebo = nullptr;
 
     BE_Mesh(const std::string& meshName, const std::vector<BE_Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<BE_Texture>& texs);
     ~BE_Mesh();

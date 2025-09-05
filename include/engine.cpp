@@ -387,24 +387,24 @@ void BE_Camera::uploadToShader(GLuint shaderID, const glm::mat4& modelMatrix) {
 BE_Mesh::BE_Mesh(const std::string& meshName, const std::vector<BE_Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<BE_Texture>& texs)
     : name(meshName.empty() ? "new mesh" : meshName), vertices(verts), indices(inds), textures(texs) {
 
-    vao = BE_VAO();
+    // vao = BE_VAO();
     vao.bind();
 
-    BE_VBO vbo(vertices);
-    BE_EBO ebo(indices);
+    vbo = new BE_VBO(vertices);
+    ebo = new BE_EBO(indices);
 
-    vbo.linkVertexAttrib(0, 3, GL_FLOAT, sizeof(BE_Vertex), (void*)0);
-    vbo.linkVertexAttrib(1, 3, GL_FLOAT, sizeof(BE_Vertex), (void*)(3 * sizeof(float)));
-    vbo.linkVertexAttrib(2, 3, GL_FLOAT, sizeof(BE_Vertex), (void*)(6 * sizeof(float)));
-    vbo.linkVertexAttrib(3, 2, GL_FLOAT, sizeof(BE_Vertex), (void*)(9 * sizeof(float)));
+    vbo->linkVertexAttrib(0, 3, GL_FLOAT, sizeof(BE_Vertex), (void*)0);
+    vbo->linkVertexAttrib(1, 3, GL_FLOAT, sizeof(BE_Vertex), (void*)(3 * sizeof(float)));
+    vbo->linkVertexAttrib(2, 3, GL_FLOAT, sizeof(BE_Vertex), (void*)(6 * sizeof(float)));
+    vbo->linkVertexAttrib(3, 2, GL_FLOAT, sizeof(BE_Vertex), (void*)(9 * sizeof(float)));
     
     vao.unbind();
-    vbo.unbind();
-    ebo.unbind();
 }
 
 BE_Mesh::~BE_Mesh() {
-    vao.unbind();
+    delete vbo;
+    delete ebo;
+    
     for (auto& tex : textures) {
         tex.~BE_Texture();
     }
@@ -522,7 +522,7 @@ void BE_Engine::beginFrame() {
 
 void BE_Engine::beginRender() {
     glViewport(0, 0, width, height);
-    glClearColor(0,0,0,0);
+    glClearColor(0.5,0.5,0.5,0.5);
     glClear(GL_COLOR_BUFFER_BIT || GL_DEPTH_BUFFER_BIT);
 }
 
