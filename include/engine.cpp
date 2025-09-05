@@ -296,6 +296,77 @@ void BE_Texture::unbind() { glBindTexture(GL_TEXTURE_2D, 0); }
 
 // ========================================================================
 
+
+BE_Camera::BE_Camera(const std::string& cameraName, int width, int height, float fov, float nearPlane, float farPlane, const glm::vec3& pos, const glm::vec3& dir) 
+    : name(cameraName.empty() ? "new camera" : cameraName), width(width), height(height), fov(fov), nearPlane(nearPlane), farPlane(farPlane), position(pos) {
+
+    glm::vec3 forward = glm::normalize(dir);
+    glm::vec3 defaultForward = glm::vec3(0.0f, 0.0f, -1.0f);
+    orientation = glm::rotation(defaultForward, forward);
+
+    zoom = 1.0f;
+
+    projPersp = glm::mat4(1.0f);
+    projOrtho = glm::mat4(1.0f);
+    viewMatrix = glm::mat4(1.0f);
+}
+
+void BE_Camera::rotate(const glm::vec3& axis, float angle) {
+    glm::quat qrot = glm::angleAxis(angle, axis);
+    orientation = glm::normalize(qrot * orientation);
+}
+
+void BE_Camera::handleInputs(GLFWwindow* window, float dt) {
+    float speed = 2.5f;
+    float sensitivity = 1.5f;
+    glm::vec3 move(0.0f);
+
+    // Direction vectors from orientation
+    glm::vec3 forward = orientation * glm::vec3(0,0,-1);
+    glm::vec3 right   = orientation * glm::vec3(1,0,0);
+    glm::vec3 up      = orientation * glm::vec3(0,1,0);
+
+    glm::vec3 flatForward(forward.x, 0, forward.z);
+    if (glm::length(flatForward) > 1e-6f) flatForward = glm::normalize(flatForward);
+
+    glm::vec3 flatRight(right.x, 0, right.z);
+    flatRight = glm::normalize(flatRight);
+
+    glm::vec3 flatUp(0, up.y, 0);
+
+    // Movement
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) move += flatForward * speed * dt;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) move -= flatForward * speed * dt;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) move -= flatRight * speed * dt;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) move += flatRight * speed * dt;
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) move += flatUp * speed * dt;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) move -= flatUp * speed * dt;
+
+    position += move;
+
+    // Rotation
+    float yawDelta = 0.0f, pitchDelta = 0.0f;
+    if (glfwGetKey(window, GLFW_KEY_LEFT))  yawDelta   = dt * sensitivity;
+    if (glfwGetKey(window, GLFW_KEY_RIGHT)) yawDelta   = -dt * sensitivity;
+    if (glfwGetKey(window, GLFW_KEY_UP))    pitchDelta = dt * sensitivity;
+    if (glfwGetKey(window, GLFW_KEY_DOWN))  pitchDelta = -dt * sensitivity;
+
+    if (std::abs(pitchDelta) > 1e-6f) rotate(glm::vec3(1,0,0), pitchDelta);
+    if (std::abs(yawDelta) > 1e-6f)   rotate(glm::vec3(0,1,0), yawDelta);
+
+}
+
+void BE_Camera::updateViewMatrix() {
+    glm::vec3 forward = orientation * glm::vec3(0,0,-1);
+    glm::vec3 up      = orientation * glm::vec3(0,1,0);
+    viewMatrix = glm::lookAt(position, position + forward, up);
+}
+
+void BE_Camera::uploadToShader(GLuint shaderID, const char* uniform) {
+    glUniform3fv(glGetUniformLocation(shaderID, "camPos"), 1, &position[0]);
+    glUniformMatrix4fv(glGetUniformLocation(shaderID, uniform), 1, GL_FALSE, &projPersp[0][0]);
+}
+
 // ========================================================================
 
 // ========================================================================

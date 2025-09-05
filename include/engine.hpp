@@ -2,7 +2,12 @@
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 #include <stb_image/stb_image.h>
 
@@ -122,6 +127,26 @@ public:
     void setUniformUnit(GLuint shaderID, const char* uniform);
     void bind();
     void unbind();
+
+};
+
+class BE_Camera {
+private:
+public:
+    std::string name;
+    int width, height;
+    float zoom, fov;
+    float nearPlane, farPlane;
+    glm::vec3 position;
+    glm::quat orientation;
+    glm::mat4 projPersp, projOrtho;
+    glm::mat4 viewMatrix;
+
+    BE_Camera(const std::string& cameraName, int width, int height, float fov, float nearPlane, float farPlane, const glm::vec3& pos, const glm::vec3& dir);
+    void rotate(const glm::vec3& axis, float angle);
+    void handleInputs(GLFWwindow* window, float dt);
+    void updateViewMatrix();
+    void uploadToShader(GLuint shaderID, const char* uniform);
 
 };
 
