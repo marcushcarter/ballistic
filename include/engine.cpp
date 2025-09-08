@@ -670,7 +670,7 @@ BE_Engine::BE_Engine(const std::string& title, int width, int height, const std:
     
     // initial scene / resources
 
-    depthShader = std::make_unique<BE_Shader>("DepthShader", &BE::Default::DepthVertexShader);
+    depthShader = std::make_unique<BE_Shader>("DepthShader", &BE::Default::DepthVertexSource);
 
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
