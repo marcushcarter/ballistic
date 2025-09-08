@@ -2,17 +2,18 @@
 #include "engine_default.hpp"
 
 #include <iostream>
+#include <cmath>
 
 struct BE_Light {
-    glm::vec4 position; // xyz = position, w = type (1.0 = point light)
+    glm::vec4 position; // xyz = pos/dir, w = type (0=dir,1=point,2=spot)
     glm::vec4 color;    // rgb = color, a = intensity
+    glm::vec4 extra;    // optional: for spot cutoff/direction padding
 };
 
-struct BE_LightBlock {
-    alignas(16) int numLights;       // must align to 16 bytes in std140
-    alignas(16) BE_Light lights[16]; // max 16 lights
-};
-
+// struct BE_LightBlock {
+//     alignas(16) int numLights;  // std140 requires alignment
+//     alignas(16) BE_Light lights[16];
+// };
 
 const std::string vertexSrc = R"(
 #version 460 core
@@ -39,51 +40,68 @@ void main() {
 
 const std::string fragmentSrc = R"(
 #version 460 core
+
 in vec2 TexCoord;
 in vec3 Normal;
 in vec3 FragPos;
 out vec4 FragColor;
 
 uniform sampler2D diffuse0;
+uniform int numLights;
 
 struct Light {
-    vec4 position; // xyz = pos, w = type (1.0 = point)
+    vec4 position; // xyz = pos/dir, w = type
     vec4 color;    // rgb = color, a = intensity
+    vec4 extra;    // spot direction/cutoff if needed
 };
 
-layout(std140, binding = 0) uniform LightBlock {
-    int numLights;
-    Light lights[16];
+layout(std430, binding = 0) buffer LightBlock {
+    Light lights[];
 };
 
 void main() {
     vec3 texColor = texture(diffuse0, TexCoord).rgb;
     vec3 norm = normalize(Normal);
-
-    vec3 finalColor = vec3(0.2); // ambient fallback
+    vec3 finalColor = vec3(0.2);
 
     for (int i = 0; i < numLights; i++) {
-        vec3 lightDir = normalize(lights[i].position.xyz - FragPos);
-        float diff = max(dot(norm, lightDir), 0.0);
-        float distance = length(lights[i].position.xyz - FragPos);
-        float attenuation = 1.0 / (distance * distance + 0.01);
+        vec3 lightColor = lights[i].color.rgb * lights[i].color.a;
+        float diff = 0.0;
 
-        finalColor += lights[i].color.rgb * lights[i].color.a * diff * attenuation;
+        if (lights[i].position.w == 0.0) {
+            // Directional
+            vec3 lightDir = normalize(-lights[i].position.xyz);
+            diff = max(dot(norm, lightDir), 0.0);
+        } 
+        else if (lights[i].position.w == 1.0) {
+            // Point
+            vec3 lightDir = normalize(lights[i].position.xyz - FragPos);
+            float distance = length(lights[i].position.xyz - FragPos);
+            float attenuation = 1.0 / (distance * distance);
+            diff = max(dot(norm, lightDir), 0.0) * attenuation;
+        } 
+        else if (lights[i].position.w == 2.0) {
+            // Spot
+            vec3 lightDir = normalize(lights[i].position.xyz - FragPos);
+            float theta = dot(lightDir, normalize(-lights[i].extra.xyz));
+            if (theta > lights[i].extra.w) {
+                float distance = length(lights[i].position.xyz - FragPos);
+                float attenuation = 1.0 / (distance * distance);
+                diff = max(dot(norm, lightDir), 0.0) * attenuation;
+            }
+        }
+
+        finalColor += lightColor * diff;
     }
 
     FragColor = vec4(texColor * finalColor, 1.0);
 }
-
 )";
 
 int main() {
 
     BE_Engine engine("Test Cube");
     engine.bind();
-
-    // BE_Texture texture1("box diffuse", "res/textures/box.png", "diffuse", 0);
-    // BE_Texture texture2("box specular", "res/textures/box_specular.png", "specular", 1);
-    // std::vector<BE_Texture> textures = { texture1, texture2 };
 
     BE_Mesh cube("Cube", {}, {}, {});
     cube.loadOBJ("res/models/scene.obj");
@@ -94,22 +112,30 @@ int main() {
     BE_Camera camera("MainCam", engine.width, engine.height, 45.0f, 0.1f, 100.0f, {0,0,3}, {0,0,-1});
     glfwSwapInterval(0);
 
-    unsigned int lightUBO;
-    glGenBuffers(1, &lightUBO);
-    glBindBuffer(GL_UNIFORM_BUFFER, lightUBO);
-    glBufferData(GL_UNIFORM_BUFFER, sizeof(BE_LightBlock), nullptr, GL_DYNAMIC_DRAW);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
-    glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightUBO);
+    unsigned int lightSSBO;
+    glGenBuffers(1, &lightSSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
 
-    // Fill the light block
-    BE_LightBlock lightBlock{};
-    lightBlock.numLights = 1;
-    lightBlock.lights[0].position = glm::vec4(1.5f, 2.0f, 2.0f, 1.0f); // point light
-    lightBlock.lights[0].color = glm::vec4(1.0f, 1.0f, 1.0f, 2.0f);      // white, intensity=2
+    BE_Light lights[1];
 
-    glBindBuffer(GL_UNIFORM_BUFFER, lightUBO);
-    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(BE_LightBlock), &lightBlock);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    // Directional
+    // lights[0].position = glm::vec4(0,-1,0,0);
+    // lights[0].color    = glm::vec4(1,1,1,1.5f);
+    // lights[0].extra    = glm::vec4(0);
+
+    // // Point
+    // lights[1].position = glm::vec4(0,0.5,2,1);
+    // lights[1].color    = glm::vec4(1,0.8,0.6,2);
+    // lights[1].extra    = glm::vec4(0);
+
+    // // Spot
+    // lights[2].position = glm::vec4(-2,2,2,2);
+    // lights[2].color    = glm::vec4(0.6,0.6,1,2);
+    // lights[2].extra    = glm::vec4(1,-1,-1,0.85);
+
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(lights), lights, GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
     while(engine.isRunning()) {
 
@@ -122,11 +148,26 @@ int main() {
 
         // updates
 
+        lights[0].position = glm::vec4(std::sinf(glfwGetTime()), 0.5f, std::cosf(glfwGetTime()), 1);
+        lights[0].color = glm::vec4(
+            std::sinf(glfwGetTime() * 0.5f) * 0.5f + 0.5f, 
+            std::sinf(glfwGetTime() * 0.5f + 2.0943951f) * 0.5f + 0.5f, 
+            std::sinf(glfwGetTime()*0.5f + 4.1887902f) * 0.5f + 0.5f, 
+            1);
+
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(lights), lights, GL_DYNAMIC_DRAW);
+        glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(lights), lights);
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
         engine.beginRender();
 
         shader.activate();
-        GLuint blockIndex = glGetUniformBlockIndex(shader.ID, "LightBlock");
-        glUniformBlockBinding(shader.ID, blockIndex, 0);
+        glUniform1i(glGetUniformLocation(shader.ID,"numLights"), 1);
+
+        // shader.activate();
+        // GLuint blockIndex = glGetUniformBlockIndex(shader.ID, "LightBlock");
+        // glUniformBlockBinding(shader.ID, blockIndex, 0);
 
 
         glm::mat4 model = glm::mat4(1.0f);
