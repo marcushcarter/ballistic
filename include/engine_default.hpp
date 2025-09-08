@@ -2,6 +2,7 @@
 
 namespace BE {
     namespace Default {
+
         inline const std::string DepthVertexShader = R"(
         #version 460 core
         layout (location = 0) in vec3 aPos;
@@ -12,9 +13,7 @@ namespace BE {
         }
         )";
 
-        // inline const std::string template = R"(...)";
-
-        inline std::string fallbackTexture =
+        inline const std::string FallbackTexture =
             std::string(
                 "\x00\x00\x00\xFF"
                 "\xFF\xFF\xFF\xFF"
@@ -22,5 +21,5 @@ namespace BE {
                 "\x00\x00\x00\xFF", 
                 16);
 
-    };
+    }
 };

@@ -401,7 +401,6 @@ void BE_Camera::uploadToShader(GLuint shaderID, const glm::mat4& modelMatrix) {
 BE_Mesh::BE_Mesh(const std::string& meshName, const std::vector<BE_Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<BE_Texture>& texs)
     : name(meshName.empty() ? "new mesh" : meshName), vertices(verts), indices(inds), textures(texs) {
 
-    // vao = BE_VAO();
     vao.bind();
 
     vbo = new BE_VBO(vertices);
@@ -448,7 +447,7 @@ void BE_Mesh::draw(BE_Shader& shader) {
 
 }
 
-int BE_FindOrAddVertex(std::vector<BE_Vertex>& vertices, const BE_Vertex& v) {
+int GetOrAddVertex(std::vector<BE_Vertex>& vertices, const BE_Vertex& v) {
     for (size_t i = 0; i < vertices.size(); i++) {
         if (memcmp(&vertices[i], &v, sizeof(BE_Vertex)) == 0) {
             return static_cast<int>(i);
@@ -548,9 +547,9 @@ void BE_Mesh::loadOBJ(const std::string& objPath) {
 
             // triangulate (fan method)
             for (size_t i = 1; i + 1 < faceVerts.size(); i++) {
-                int i0 = BE_FindOrAddVertex(loadedVerts, faceVerts[0]);
-                int i1 = BE_FindOrAddVertex(loadedVerts, faceVerts[i]);
-                int i2 = BE_FindOrAddVertex(loadedVerts, faceVerts[i + 1]);
+                int i0 = GetOrAddVertex(loadedVerts, faceVerts[0]);
+                int i1 = GetOrAddVertex(loadedVerts, faceVerts[i]);
+                int i2 = GetOrAddVertex(loadedVerts, faceVerts[i + 1]);
 
                 loadedIndices.push_back(i1);
                 loadedIndices.push_back(i0);
@@ -561,12 +560,10 @@ void BE_Mesh::loadOBJ(const std::string& objPath) {
 
     file.close();
 
-    // Replace mesh data
     this->vertices = std::move(loadedVerts);
     this->indices  = std::move(loadedIndices);
-    this->textures = { BE_Texture("fallback", "diffuse", 2, 2, BE::Default::fallbackTexture) };
+    this->textures = { BE_Texture("fallback", "diffuse", 2, 2, BE::Default::FallbackTexture) };
 
-    // Rebuild VAO/VBO/EBO
     vao.bind();
     delete vbo;
     delete ebo;
