@@ -170,6 +170,28 @@ public:
     void loadOBJ(const std::string& objPath);
 };
 
+struct BE_Light {
+    glm::vec4 position;
+    glm::vec4 color;
+    glm::vec4 extra;
+};
+
+class BE_LightManager {
+public:
+    std::vector<BE_Light> lights;
+    size_t maxLights = 64;
+    GLuint lightSSBO = 0;
+    BE_Light* mappedPtr = nullptr;
+
+    BE_LightManager(size_t maxLights = 64);
+    ~BE_LightManager();
+    void bind();
+
+    void updateGPU();
+    void uploadToShader(GLuint shaderID);
+
+};
+
 class BE_Engine {
 public:
     GLFWwindow* window;

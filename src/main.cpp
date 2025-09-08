@@ -4,17 +4,6 @@
 #include <iostream>
 #include <cmath>
 
-struct BE_Light {
-    glm::vec4 position; // xyz = pos/dir, w = type (0=dir,1=point,2=spot)
-    glm::vec4 color;    // rgb = color, a = intensity
-    glm::vec4 extra;    // optional: for spot cutoff/direction padding
-};
-
-// struct BE_LightBlock {
-//     alignas(16) int numLights;  // std140 requires alignment
-//     alignas(16) BE_Light lights[16];
-// };
-
 const std::string vertexSrc = R"(
 #version 460 core
 layout(location = 0) in vec3 aPos;
@@ -111,30 +100,20 @@ int main() {
     BE_Shader shader("CubeShader", &vertexSrc, &fragmentSrc);
     BE_Camera camera("MainCam", engine.width, engine.height, 45.0f, 0.1f, 100.0f, {0,0,3}, {0,0,-1});
     glfwSwapInterval(0);
-    
-    std::vector<BE_Light> lights;
 
-    const size_t maxLights = 64;
-    unsigned int lightSSBO;
-    glGenBuffers(1, &lightSSBO);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(BE_Light) * maxLights, nullptr, GL_DYNAMIC_DRAW);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+    BE_LightManager lights;
 
     BE_Light dirLight{};
-    dirLight.position = glm::vec4(0, -1, 0, 0); // directional
+    dirLight.position = glm::vec4(0, -1, 0, 0);
     dirLight.color = glm::vec4(1, 1, 1, 0);
-    lights.push_back(dirLight);
+    lights.lights.push_back(dirLight);
 
     BE_Light pointLight{};
-    pointLight.position = glm::vec4(0, 0.5, 2, 1); // point
+    pointLight.position = glm::vec4(0, 0.5, 2, 1);
     pointLight.color = glm::vec4(1, 0.8, 0.6, 1);
-    lights.push_back(pointLight);
+    lights.lights.push_back(pointLight);
 
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
-    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, lights.size() * sizeof(BE_Light), lights.data());
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+    lights.updateGPU();
 
     while(engine.isRunning()) {
 
@@ -147,28 +126,20 @@ int main() {
 
         // updates
 
-        lights[1].position = glm::vec4(std::sinf(glfwGetTime()), 0.5f, std::cosf(glfwGetTime()), 1);
-        lights[1].color = glm::vec4(
+        lights.lights[1].position = glm::vec4(std::sinf(glfwGetTime()), 0.5f, std::cosf(glfwGetTime()), 1);
+        lights.lights[1].color = glm::vec4(
             std::sinf(glfwGetTime() * 0.5f) * 0.5f + 0.5f, 
             std::sinf(glfwGetTime() * 0.5f + 2.0943951f) * 0.5f + 0.5f, 
             std::sinf(glfwGetTime()*0.5f + 4.1887902f) * 0.5f + 0.5f, 
             1
         );
 
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
-        glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, lights.size() * sizeof(BE_Light), lights.data());
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+        lights.updateGPU();
 
         engine.beginRender();
 
         shader.activate();
-        glUniform1i(glGetUniformLocation(shader.ID, "numLights"), lights.size());
-
-        // shader.activate();
-        // GLuint blockIndex = glGetUniformBlockIndex(shader.ID, "LightBlock");
-        // glUniformBlockBinding(shader.ID, blockIndex, 0);
-
-
+        lights.uploadToShader(shader.ID);
         glm::mat4 model = glm::mat4(1.0f);
         camera.uploadToShader(shader.ID, model);
         cube.draw(shader);

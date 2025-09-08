@@ -545,7 +545,6 @@ void BE_Mesh::loadOBJ(const std::string& objPath) {
                 faceVerts.push_back(vert);
             }
 
-            // triangulate (fan method)
             for (size_t i = 1; i + 1 < faceVerts.size(); i++) {
                 int i0 = GetOrAddVertex(loadedVerts, faceVerts[0]);
                 int i1 = GetOrAddVertex(loadedVerts, faceVerts[i]);
@@ -581,6 +580,36 @@ void BE_Mesh::loadOBJ(const std::string& objPath) {
 }
 
 // ========================================================================
+
+BE_LightManager::BE_LightManager(size_t maxLights) 
+    : maxLights(maxLights) {
+        
+    glGenBuffers(1, &lightSSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
+    glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(BE_Light) * maxLights, nullptr, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO);
+    mappedPtr = (BE_Light*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, sizeof(BE_Light) * maxLights, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+BE_LightManager::~BE_LightManager() {
+    if (lightSSBO) {
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
+        glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+        glDeleteBuffers(1, &lightSSBO);
+    }
+}
+
+void BE_LightManager::bind() { glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO); }
+
+void BE_LightManager::updateGPU() {
+    for (size_t i = 0; i < lights.size(); ++i)
+        mappedPtr[i] = lights[i];
+}
+
+void BE_LightManager::uploadToShader(GLuint shaderID) {
+    glUniform1i(glGetUniformLocation(shaderID, "numLights"), (int)lights.size());
+}
 
 // ========================================================================
 
