@@ -6,15 +6,19 @@
 
 int main() {
 
-    BE_Engine engine("Test Cube");
+    BE_Engine engine("Light Visual Representation");
     engine.bind();
 
+    BE_Mesh scene("Test Scene", {}, {}, {});
+    scene.loadOBJ("res/models/scene.obj");
+
     BE_Mesh cube("Cube", {}, {}, {});
-    cube.loadOBJ("res/models/scene.obj");
+    cube.loadOBJ("res/models/cube.obj");
 
     BE_Texture texture1("fallback", "diffuse", 2, 2, BE::Default::FallbackTexture);
 
     BE_Shader shader("CubeShader", &BE::Default::SceneVertexSource, &BE::Default::SceneFragmentSource);
+    BE_Shader colorshader("CubeShader", &BE::Default::SceneVertexSource, &BE::Default::ColorFragmentSource);
     BE_Camera camera("MainCam", engine.width, engine.height, 45.0f, 0.1f, 100.0f, {0,0,3}, {0,0,-1});
     glfwSwapInterval(0);
 
@@ -52,7 +56,7 @@ int main() {
         lights.lights[1].color = glm::vec4(
             std::sinf(glfwGetTime() * 0.5f) * 0.5f + 0.5f, 
             std::sinf(glfwGetTime() * 0.5f + 2.0943951f) * 0.5f + 0.5f, 
-            std::sinf(glfwGetTime()*0.5f + 4.1887902f) * 0.5f + 0.5f, 
+            std::sinf(glfwGetTime() * 0.5f + 4.1887902f) * 0.5f + 0.5f, 
             1
         );
 
@@ -60,17 +64,18 @@ int main() {
 
         engine.beginRender();
 
-        shader.activate();
+        lights.draw(colorshader, cube, camera);
 
+        shader.activate();
         lights.updateActiveLightsForObject(glm::vec3(0,0,0), 5.0f);
         lights.uploadToShader(shader.ID);
+
         glm::mat4 model = glm::mat4(1.0f);
         camera.uploadToShader(shader.ID, model);
-        cube.draw(shader);
+        scene.draw(shader);
 
         engine.endFrame();
     }
 
-    engine.~BE_Engine();
     return 0;
 }

@@ -8,6 +8,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <stb_image/stb_image.h>
 
@@ -168,6 +169,7 @@ public:
     ~BE_Mesh();
     void draw(BE_Shader& shader);
     void loadOBJ(const std::string& objPath);
+    void loadOBJSource(const std::string* objSource);
 };
 
 struct BE_Light {
@@ -188,12 +190,13 @@ public:
     BE_LightManager(size_t maxLights = 64);
     ~BE_LightManager();
     void bind();
-
     void updateGPU();
     void uploadToShader(GLuint shaderID);
-
     void updateActiveLightsForObject(const glm::vec3& objPos, float objRadius);
+    void draw(BE_Shader& shader, BE_Mesh& mesh, BE_Camera& camera);
 
+// private:
+//     BE_Mesh lightMesh;
 };
 
 class BE_Engine {

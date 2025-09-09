@@ -460,7 +460,7 @@ int GetOrAddVertex(std::vector<BE_Vertex>& vertices, const BE_Vertex& v) {
 void BE_Mesh::loadOBJ(const std::string& objPath) {
     std::ifstream file(objPath);
     if (!file.is_open()) {
-        std::cerr << "[Mesh] Failed to open OBJ file: " << objPath << std::endl;
+        BE_Message(2, "MESH", "Failed to open OBJ file " + objPath, objPath.c_str(), 1);
         return;
     }
 
@@ -539,7 +539,7 @@ void BE_Mesh::loadOBJ(const std::string& objPath) {
                     vert.texUV    = {0.0f, 0.0f};
 
                 } else {
-                    std::cerr << "[Mesh] Invalid face token at line " << lineNum << ": " << token << std::endl;
+                    BE_Message(1, "MESH", "Invalid face token: " + token, objPath.c_str(), lineNum);
                 }
 
                 faceVerts.push_back(vert);
@@ -576,7 +576,127 @@ void BE_Mesh::loadOBJ(const std::string& objPath) {
 
     vao.unbind();
 
-    std::cout << "[Mesh] OBJ loaded successfully: " << objPath << std::endl;
+    BE_Message(0, "MESH", "OBJ loaded successfully", objPath.c_str(), lineNum);
+}
+
+void BE_Mesh::loadOBJSource(const std::string* objSource) {
+    if (!objSource) {
+        BE_Message(2, "MESH", "Could not find OBJ source", "SOURCE", 1);
+        return;
+    }
+
+    std::vector<glm::vec3> positions;
+    std::vector<glm::vec3> normals;
+    std::vector<glm::vec2> uvs;
+
+    std::vector<BE_Vertex> loadedVerts;
+    std::vector<GLuint> loadedIndices;
+
+    std::istringstream file(*objSource);
+    std::string line;
+    int lineNum = 0;
+
+    while (std::getline(file, line)) {
+        lineNum++;
+
+        if (line.empty() || line[0] == '#' || line.starts_with("o ") || line.starts_with("s "))
+            continue;
+
+        std::istringstream ss(line);
+
+        if (line.starts_with("v ")) {
+            glm::vec3 v;
+            ss.ignore(2);
+            ss >> v.x >> v.y >> v.z;
+            positions.push_back(v);
+
+        } else if (line.starts_with("vt ")) {
+            glm::vec2 vt;
+            ss.ignore(3);
+            ss >> vt.x >> vt.y;
+            uvs.push_back(vt);
+
+        } else if (line.starts_with("vn ")) {
+            glm::vec3 vn;
+            ss.ignore(3);
+            ss >> vn.x >> vn.y >> vn.z;
+            normals.push_back(vn);
+
+        } else if (line.starts_with("f ")) {
+            ss.ignore(2);
+
+            std::vector<BE_Vertex> faceVerts;
+            std::string token;
+
+            while (ss >> token) {
+                BE_Vertex vert{};
+                int vi = 0, vti = 0, vni = 0;
+
+                if (sscanf(token.c_str(), "%d/%d/%d", &vi, &vti, &vni) == 3) {
+                    vi--; vti--; vni--;
+                    vert.position = positions[vi];
+                    vert.normal   = normals[vni];
+                    vert.color    = {1.0f, 1.0f, 1.0f};
+                    vert.texUV    = uvs[vti];
+
+                } else if (sscanf(token.c_str(), "%d//%d", &vi, &vni) == 2) {
+                    vi--; vni--;
+                    vert.position = positions[vi];
+                    vert.normal   = normals[vni];
+                    vert.color    = {1.0f, 1.0f, 1.0f};
+                    vert.texUV    = {0.0f, 0.0f};
+
+                } else if (sscanf(token.c_str(), "%d/%d", &vi, &vti) == 2) {
+                    vi--; vti--;
+                    vert.position = positions[vi];
+                    vert.normal   = {0.0f, 0.0f, 1.0f};
+                    vert.color    = {1.0f, 1.0f, 1.0f};
+                    vert.texUV    = uvs[vti];
+
+                } else if (sscanf(token.c_str(), "%d", &vi) == 1) {
+                    vi--;
+                    vert.position = positions[vi];
+                    vert.normal   = {0.0f, 0.0f, 1.0f};
+                    vert.color    = {1.0f, 1.0f, 1.0f};
+                    vert.texUV    = {0.0f, 0.0f};
+
+                } else {
+                    BE_Message(1, "MESH", "Invalid face token: " + token, "SOURCE", lineNum);
+                }
+
+                faceVerts.push_back(vert);
+            }
+
+            for (size_t i = 1; i + 1 < faceVerts.size(); i++) {
+                int i0 = GetOrAddVertex(loadedVerts, faceVerts[0]);
+                int i1 = GetOrAddVertex(loadedVerts, faceVerts[i]);
+                int i2 = GetOrAddVertex(loadedVerts, faceVerts[i + 1]);
+
+                loadedIndices.push_back(i1);
+                loadedIndices.push_back(i0);
+                loadedIndices.push_back(i2);
+            }
+        }
+    }
+
+    this->vertices = std::move(loadedVerts);
+    this->indices  = std::move(loadedIndices);
+    this->textures = { BE_Texture("fallback", "diffuse", 2, 2, BE::Default::FallbackTexture) };
+
+    vao.bind();
+    delete vbo;
+    delete ebo;
+    vbo = new BE_VBO(this->vertices);
+    ebo = new BE_EBO(this->indices);
+
+    vbo->linkVertexAttrib(0, 3, GL_FLOAT, sizeof(BE_Vertex), (void*)0);
+    vbo->linkVertexAttrib(1, 3, GL_FLOAT, sizeof(BE_Vertex), (void*)(3 * sizeof(float)));
+    vbo->linkVertexAttrib(2, 3, GL_FLOAT, sizeof(BE_Vertex), (void*)(6 * sizeof(float)));
+    vbo->linkVertexAttrib(3, 2, GL_FLOAT, sizeof(BE_Vertex), (void*)(9 * sizeof(float)));
+
+    vao.unbind();
+
+    BE_Message(0, "MESH", "OBJ loaded successfully", "SOURCE", lineNum);
 }
 
 // ========================================================================
@@ -584,6 +704,9 @@ void BE_Mesh::loadOBJ(const std::string& objPath) {
 BE_LightManager::BE_LightManager(size_t maxLights) 
     : maxLights(maxLights) {
 
+    // lightMesh = new BE_Mesh("Light Mesh", {}, {}, {});
+    // lightMesh.loadOBJ("res/models/cube.obj");
+    
     glGenBuffers(1, &lightSSBO);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
     glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(BE_Light) * maxLights, nullptr, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
@@ -624,6 +747,21 @@ void BE_LightManager::updateActiveLightsForObject(const glm::vec3& objPos, float
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
     std::memcpy(mappedPtr, activeLights.data(), activeLights.size() * sizeof(BE_Light));
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+void BE_LightManager::draw(BE_Shader& shader, BE_Mesh& mesh, BE_Camera& camera) {
+    for (int i = 0; i < lights.size(); i++) {
+        // if (lights[i].position.w == 0.0f) continue;
+
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(lights[i].position[0], lights[i].position[1], lights[i].position[2]));
+        model = glm::scale(model, glm::vec3(0.1f));
+
+        glUniform4fv(glGetUniformLocation(shader.ID, "uColor"), 1, glm::value_ptr(lights[i].color));
+        
+        camera.uploadToShader(shader.ID, model);
+        mesh.draw(shader);
+    }
 }
 
 // ========================================================================
