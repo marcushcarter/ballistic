@@ -19,8 +19,9 @@ namespace BE {
         uniform vec4 uColor;
         out vec4 FragColor;
         void main() {
-            vec3 lightColor = uColor.rgb * uColor.a;
-            FragColor = vec4(lightColor, 1);
+            vec3 lightColor = uColor.rgb;
+            float alpha = uColor.a;
+            FragColor = vec4(lightColor, alpha);
         }
         )";
 

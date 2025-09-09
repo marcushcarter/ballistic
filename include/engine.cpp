@@ -701,8 +701,11 @@ void BE_Mesh::loadOBJSource(const std::string* objSource) {
 
 // ========================================================================
 
-BE_Light::BE_Light( float type, const glm::vec3 pos, const glm::vec3 dir, const glm::vec3 col, float inten, float pad1_ ) 
-    : position(pos, type), color(col, inten), direction(dir, pad1_) {}
+BE_Light::BE_Light(float type, const glm::vec3 pos, const glm::vec3 dir, const glm::vec3 col, float inten, float pad1_ ) {
+    position = glm::vec4(pos, (float)type);
+    color = glm::vec4(col, inten);
+    direction = glm::vec4(dir, pad1_);
+}
 
 // ========================================================================
 
@@ -906,11 +909,9 @@ BE_Engine::BE_Engine(const std::string& title, int width, int height, const std:
     glCullFace(GL_FRONT);
     glFrontFace(GL_CCW);
     glDepthFunc(GL_LESS);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glClearColor(0.1f, 0.1f, 0.1f, 0.1f);
 
-    // glCullFace(GL_BACK);
-    // glFrontFace(GL_CW);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     glfwShowWindow(window);
 

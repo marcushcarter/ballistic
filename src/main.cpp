@@ -6,7 +6,7 @@
 
 int main() {
 
-    BE_Engine engine("Light Visual Representation");
+    BE_Engine engine("Light Class and transparency");
     engine.bind();
 
     BE_Mesh scene("Test Scene", {}, {}, {});
@@ -24,13 +24,11 @@ int main() {
 
     BE_LightManager lights(128);
 
-    BE_Light light1;
-
-    // BE_Light pointLight{};
-    // pointLight.position = glm::vec4(0, 0.5, 2, 1);
-    // pointLight.color = glm::vec4(1, 0.8, 0.6, 1);
-    
+    BE_Light light1;    
     lights.addLight(light1);
+    
+    // BE_Light light2;    
+    // lights.addLight(light2);
 
     while(engine.isRunning()) {
 
@@ -43,14 +41,14 @@ int main() {
 
         // updates
 
-        glm::vec3 rainbowColor = glm::vec3(std::sinf(glfwGetTime() * 0.5f) * 0.5f + 0.5f, std::sinf(glfwGetTime() * 0.5f + 2.0943951f) * 0.5f + 0.5f, std::sinf(glfwGetTime() * 0.5f + 4.1887902f) * 0.5f + 0.5f);
-        BE_Light lightnew(1.0f, glm::vec3(std::sinf(glfwGetTime()), 0.5f, std::cosf(glfwGetTime())), glm::vec3(0), rainbowColor, 1.0f, 0.0f);
-        // BE_Light lightnew(1.0f, glm::vec3(0.0f,0.5f,0.0f), glm::vec3(0.0f,0.0f,0.0f), glm::vec3(0.0f,0.0f,0.0f), std::sinf(glfwGetTime()) + 1.0f, 0.0f);
-        lights.updateLight(0, lightnew);
+        // glm::vec3 rainbowColor = glm::vec3(std::sinf(glfwGetTime() * 0.5f) * 0.5f + 0.5f, std::sinf(glfwGetTime() * 0.5f + 2.0943951f) * 0.5f + 0.5f, std::sinf(glfwGetTime() * 0.5f + 4.1887902f) * 0.5f + 0.5f);
+        // BE_Light lightnew(1.0f, glm::vec3(std::sinf(glfwGetTime()), 0.5f, std::cosf(glfwGetTime())), glm::vec3(0), rainbowColor, 1.0f, 0.0f);
+        // lights.updateLight(0, lightnew);
+        
+        BE_Light lightnew2(1.0f, glm::vec3(0,0.5,0), glm::vec3(0), glm::vec3(1), (std::sinf(glfwGetTime()) * 0.5f) + 0.5f, 0.0f);
+        lights.updateLight(0, lightnew2);
 
         engine.beginRender();
-
-        lights.draw(colorshader, cube, camera);
 
         shader.activate();
         lights.updateActiveLightsForObject(glm::vec3(0,0,0), 5.0f);
@@ -59,6 +57,8 @@ int main() {
         glm::mat4 model = glm::mat4(1.0f);
         camera.uploadToShader(shader.ID, model);
         scene.draw(shader);
+        
+        lights.draw(colorshader, cube, camera);
 
         engine.endFrame();
     }
