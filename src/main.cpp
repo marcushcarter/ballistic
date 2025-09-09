@@ -15,31 +15,22 @@ int main() {
     BE_Mesh cube("Cube", {}, {}, {});
     cube.loadOBJ("res/models/cube.obj");
 
-    BE_Texture texture1("fallback", "diffuse", 2, 2, BE::Default::FallbackTexture);
+    BE_Texture texture1("fallback", "diffuse", 4, 4, BE::Default::FallbackTexture);
 
     BE_Shader shader("CubeShader", &BE::Default::SceneVertexSource, &BE::Default::SceneFragmentSource);
     BE_Shader colorshader("CubeShader", &BE::Default::SceneVertexSource, &BE::Default::ColorFragmentSource);
-    BE_Camera camera("MainCam", engine.width, engine.height, 45.0f, 0.1f, 100.0f, {0,0,3}, {0,0,-1});
+    BE_Camera camera("MainCam", engine.width, engine.height, 45.0f, 0.1f, 100.0f, {0,0.5,2}, {0,0,0});
     glfwSwapInterval(0);
 
-    BE_LightManager lights;
+    BE_LightManager lights(128);
 
-    BE_Light dirLight{};
-    dirLight.position = glm::vec4(0, -1, 0, 0);
-    dirLight.color = glm::vec4(1, 1, 1, 0);
-    lights.lights.push_back(dirLight);
+    BE_Light light1;
 
-    BE_Light pointLight{};
-    pointLight.position = glm::vec4(0, 0.5, 2, 1);
-    pointLight.color = glm::vec4(1, 0.8, 0.6, 1);
-    lights.lights.push_back(pointLight);
-
-    BE_Light farLight{};
-    farLight.position = glm::vec4(0, 500, 2, 1);
-    farLight.color = glm::vec4(1, 0.8, 0.6, 1);
-    for (int i = 0; i < 50; i++) { lights.lights.push_back(farLight); }
-
-    lights.updateGPU();
+    // BE_Light pointLight{};
+    // pointLight.position = glm::vec4(0, 0.5, 2, 1);
+    // pointLight.color = glm::vec4(1, 0.8, 0.6, 1);
+    
+    lights.addLight(light1);
 
     while(engine.isRunning()) {
 
@@ -52,15 +43,10 @@ int main() {
 
         // updates
 
-        lights.lights[1].position = glm::vec4(std::sinf(glfwGetTime()), 0.5f, std::cosf(glfwGetTime()), 1);
-        lights.lights[1].color = glm::vec4(
-            std::sinf(glfwGetTime() * 0.5f) * 0.5f + 0.5f, 
-            std::sinf(glfwGetTime() * 0.5f + 2.0943951f) * 0.5f + 0.5f, 
-            std::sinf(glfwGetTime() * 0.5f + 4.1887902f) * 0.5f + 0.5f, 
-            1
-        );
-
-        lights.updateGPU();
+        glm::vec3 rainbowColor = glm::vec3(std::sinf(glfwGetTime() * 0.5f) * 0.5f + 0.5f, std::sinf(glfwGetTime() * 0.5f + 2.0943951f) * 0.5f + 0.5f, std::sinf(glfwGetTime() * 0.5f + 4.1887902f) * 0.5f + 0.5f);
+        BE_Light lightnew(1.0f, glm::vec3(std::sinf(glfwGetTime()), 0.5f, std::cosf(glfwGetTime())), glm::vec3(0), rainbowColor, 1.0f, 0.0f);
+        // BE_Light lightnew(1.0f, glm::vec3(0.0f,0.5f,0.0f), glm::vec3(0.0f,0.0f,0.0f), glm::vec3(0.0f,0.0f,0.0f), std::sinf(glfwGetTime()) + 1.0f, 0.0f);
+        lights.updateLight(0, lightnew);
 
         engine.beginRender();
 

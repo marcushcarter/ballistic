@@ -88,17 +88,21 @@ public:
     std::string name;
     GLuint ID = 0;
 
-    BE_Shader(const std::string& shaderName, 
+    BE_Shader(
+        const std::string& shaderName, 
         const std::string& vertexPath = "", 
         const std::string& fragmentPath = "", 
         const std::string& geometryPath = "", 
-        const std::string& computePath = "");
+        const std::string& computePath = ""
+    );
     
-    BE_Shader(const std::string& shaderName, 
+    BE_Shader(
+        const std::string& shaderName, 
         const std::string* vertexSource = nullptr, 
         const std::string* fragmentSource = nullptr, 
         const std::string* geometrySource = nullptr, 
-        const std::string* computeSource = nullptr);
+        const std::string* computeSource = nullptr
+    );
 
     ~BE_Shader();
     void activate();
@@ -143,9 +147,12 @@ public:
     glm::mat4 viewMatrix;
     glm::mat4 projViewMatrix;
 
-    BE_Camera(const std::string& cameraName, int width = 1440, int height = 900, 
-             float fov = 45.0f, float nearPlane = 0.1f, float farPlane = 100.0f, 
-             const glm::vec3& pos = {0,0,0}, const glm::vec3& dir = {0,0,-1} );
+    BE_Camera(
+        const std::string& cameraName, int width = 1440, int height = 900, 
+        float fov = 45.0f, float nearPlane = 0.1f, float farPlane = 100.0f, 
+        const glm::vec3& pos = {0,0,0}, const glm::vec3& dir = {0,0,-1} 
+    );
+    ~BE_Camera() = default;
 
     void rotate(const glm::vec3& axis, float angle);
     void handleInputs(GLFWwindow* window, float dt);
@@ -172,10 +179,26 @@ public:
     void loadOBJSource(const std::string* objSource);
 };
 
-struct BE_Light {
+class BE_Light {
+public:
     glm::vec4 position;
     glm::vec4 color;
-    glm::vec4 extra;
+    glm::vec4 direction;
+
+    BE_Light(
+        float type = 1.0f, 
+        const glm::vec3 pos = glm::vec3(0), 
+        const glm::vec3 dir = glm::vec3(0,-1,0), 
+        const glm::vec3 col = glm::vec3(1), 
+        float inten = 1.0f, float pad1_ = 0.0f
+    );
+    ~BE_Light() = default;
+};
+
+struct BE_LightMatrix {
+    glm::mat4 matrices[6]; // directional=1, spot=1, point=2, but allow up to 6
+    int count;             // how many are valid (1 or 2 for points)
+    int lightID;           // index to match with your BE_Light
 };
 
 class BE_LightManager {
@@ -184,16 +207,25 @@ public:
     std::vector<BE_Light> activeLights;
     
     size_t maxLights = 64;
+
     GLuint lightSSBO = 0;
     BE_Light* mappedPtr = nullptr;
 
-    BE_LightManager(size_t maxLights = 64);
+    GLuint lightMatrixSSBO = 0;
+    BE_LightMatrix* mappedMatrixPtr = nullptr;
+
+    BE_LightManager(size_t maxLights = 128);
     ~BE_LightManager();
     void bind();
     void updateGPU();
     void uploadToShader(GLuint shaderID);
     void updateActiveLightsForObject(const glm::vec3& objPos, float objRadius);
+    void generateMatrices(const BE_Light& light, BE_LightMatrix& out);
     void draw(BE_Shader& shader, BE_Mesh& mesh, BE_Camera& camera);
+
+    void addLight(const BE_Light& light);
+    void updateLight(size_t index, const BE_Light& light);
+    void removeLight(size_t index);
 
 // private:
 //     BE_Mesh lightMesh;

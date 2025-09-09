@@ -561,7 +561,7 @@ void BE_Mesh::loadOBJ(const std::string& objPath) {
 
     this->vertices = std::move(loadedVerts);
     this->indices  = std::move(loadedIndices);
-    this->textures = { BE_Texture("fallback", "diffuse", 2, 2, BE::Default::FallbackTexture) };
+    this->textures = { BE_Texture("fallback", "diffuse", 4, 4, BE::Default::FallbackTexture) };
 
     vao.bind();
     delete vbo;
@@ -681,7 +681,7 @@ void BE_Mesh::loadOBJSource(const std::string* objSource) {
 
     this->vertices = std::move(loadedVerts);
     this->indices  = std::move(loadedIndices);
-    this->textures = { BE_Texture("fallback", "diffuse", 2, 2, BE::Default::FallbackTexture) };
+    this->textures = { BE_Texture("fallback", "diffuse", 4, 4, BE::Default::FallbackTexture) };
 
     vao.bind();
     delete vbo;
@@ -701,6 +701,11 @@ void BE_Mesh::loadOBJSource(const std::string* objSource) {
 
 // ========================================================================
 
+BE_Light::BE_Light( float type, const glm::vec3 pos, const glm::vec3 dir, const glm::vec3 col, float inten, float pad1_ ) 
+    : position(pos, type), color(col, inten), direction(dir, pad1_) {}
+
+// ========================================================================
+
 BE_LightManager::BE_LightManager(size_t maxLights) 
     : maxLights(maxLights) {
 
@@ -713,6 +718,13 @@ BE_LightManager::BE_LightManager(size_t maxLights)
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO);
     mappedPtr = (BE_Light*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, sizeof(BE_Light) * maxLights, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+    
+    glGenBuffers(1, &lightMatrixSSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightMatrixSSBO);
+    glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(BE_LightMatrix) * maxLights, nullptr, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, lightMatrixSSBO);
+    mappedMatrixPtr = (BE_LightMatrix*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, sizeof(BE_LightMatrix) * maxLights, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
 BE_LightManager::~BE_LightManager() {
@@ -721,11 +733,30 @@ BE_LightManager::~BE_LightManager() {
         glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
         glDeleteBuffers(1, &lightSSBO);
     }
+    if (lightMatrixSSBO) {
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightMatrixSSBO);
+        glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+        glDeleteBuffers(1, &lightMatrixSSBO);
+    }
 }
 
 void BE_LightManager::bind() { glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO); }
 
-void BE_LightManager::updateGPU() { std::memcpy(mappedPtr, lights.data(), lights.size() * sizeof(BE_Light)); }
+void BE_LightManager::updateGPU() { 
+    std::memcpy(mappedPtr, lights.data(), lights.size() * sizeof(BE_Light));
+    // for (size_t i = 0; i < lights.size(); i++) {
+    //     if (lights[i].dirty) {
+    //         // Update light data
+    //         mappedPtr[i] = lights[i];
+
+    //         // Update matrix data if shadow-casting
+    //         if (lights[i].castsShadows) {
+    //             generateMatrices(lights[i], mappedMatrixPtr[i]);
+    //         }
+    //         lights[i].dirty = false;
+    //     }
+    // }
+}
 
 void BE_LightManager::uploadToShader(GLuint shaderID) { glUniform1i(glGetUniformLocation(shaderID, "numLights"), (int)activeLights.size()); }
 
@@ -738,7 +769,7 @@ void BE_LightManager::updateActiveLightsForObject(const glm::vec3& objPos, float
         } 
         else {
             float distance = glm::length(glm::vec3(light.position) - objPos);
-            float range = light.extra.w;
+            float range = light.direction.w;
             if (distance <= objRadius + range)
                 activeLights.push_back(light);
         }
@@ -749,18 +780,75 @@ void BE_LightManager::updateActiveLightsForObject(const glm::vec3& objPos, float
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
+// void BE_LightManager::generateMatrices(const BE_Light& light, BE_LightMatrix& out) {
+//     out.lightID = &light - lights.data();
+//     out.count = 0;
+//
+//     if (light.position.w == 0.0f) { // Directional
+//         glm::vec3 dir = glm::vec3(light.direction);
+//         glm::mat4 proj = glm::ortho(-range, range, -range, range, nearPlane, farPlane);
+//         glm::mat4 view = glm::lookAt(-dir * 20.0f, glm::vec3(0.0f), glm::vec3(0,1,0));
+//         out.matrices[0] = proj * view;
+//         out.count = 1;
+//     } 
+//     else if (light.position.w == 1.0f) { // Point (2 hemispheres)
+//         glm::vec3 pos = glm::vec3(light.position);
+//         glm::mat4 proj = glm::perspective(glm::radians(180.0f), 1.0f, nearPlane, range);
+//
+//         out.matrices[0] = proj * glm::lookAt(pos, pos + glm::vec3(0,0,1), glm::vec3(0,1,0));
+//         out.matrices[1] = proj * glm::lookAt(pos, pos + glm::vec3(0,0,-1), glm::vec3(0,1,0));
+//         out.count = 2;
+//     } 
+//     else if (light.position.w == 2.0f) { // Spot
+//         glm::vec3 pos = glm::vec3(light.position);
+//         glm::vec3 dir = glm::vec3(light.direction);
+//         float cutoff = glm::radians(45.0f); // you may want to store in direction
+//         glm::mat4 proj = glm::perspective(cutoff * 2.0f, 1.0f, nearPlane, range);
+//         glm::mat4 view = glm::lookAt(pos, pos + dir, glm::vec3(0,1,0));
+//         out.matrices[0] = proj * view;
+//         out.count = 1;
+//     }
+// }
+
 void BE_LightManager::draw(BE_Shader& shader, BE_Mesh& mesh, BE_Camera& camera) {
+    GLuint loc = glGetUniformLocation(shader.ID, "uColor");
+    
+    shader.activate();
+    mesh.vao.bind();
+
     for (int i = 0; i < lights.size(); i++) {
-        // if (lights[i].position.w == 0.0f) continue;
 
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(lights[i].position[0], lights[i].position[1], lights[i].position[2]));
         model = glm::scale(model, glm::vec3(0.1f));
 
-        glUniform4fv(glGetUniformLocation(shader.ID, "uColor"), 1, glm::value_ptr(lights[i].color));
+        glUniform4fv(loc, 1, glm::value_ptr(lights[i].color));
         
         camera.uploadToShader(shader.ID, model);
-        mesh.draw(shader);
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(mesh.indices.size()), GL_UNSIGNED_INT, 0);
+    }
+    
+    mesh.vao.unbind();
+}
+
+void BE_LightManager::addLight(const BE_Light& light) {
+    if (lights.size() < maxLights) {
+        lights.push_back(light);
+        updateGPU();
+    }
+}
+
+void BE_LightManager::updateLight(size_t index, const BE_Light& light) {
+    if (index < lights.size()) {
+        lights[index] = light;
+        updateGPU();
+    }
+}
+
+void BE_LightManager::removeLight(size_t index) {
+    if (index < lights.size()) {
+        lights.erase(lights.begin() + index);
+        updateGPU();
     }
 }
 

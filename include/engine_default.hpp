@@ -1,6 +1,7 @@
 #pragma once
 
 namespace BE {
+    
     namespace Default {
 
         inline const std::string DepthVertexSource = R"(
@@ -18,7 +19,8 @@ namespace BE {
         uniform vec4 uColor;
         out vec4 FragColor;
         void main() {
-            FragColor = uColor;
+            vec3 lightColor = uColor.rgb * uColor.a;
+            FragColor = vec4(lightColor, 1);
         }
         )";
 
@@ -99,7 +101,7 @@ namespace BE {
         struct Light {
             vec4 position; // xyz = pos/dir, w = type
             vec4 color;    // rgb = color, a = intensity
-            vec4 extra;    // spot direction/cutoff if needed
+            vec4 direction;    // spot direction/cutoff if needed
         };
 
         layout(std430, binding = 0) buffer LightBlock {
@@ -117,7 +119,7 @@ namespace BE {
 
                 if (lights[i].position.w == 0.0) {
                     // Directional
-                    vec3 lightDir = normalize(-lights[i].position.xyz);
+                    vec3 lightDir = normalize(-lights[i].direction.xyz);
                     diff = max(dot(norm, lightDir), 0.0);
                 } 
                 else if (lights[i].position.w == 1.0) {
@@ -130,8 +132,8 @@ namespace BE {
                 else if (lights[i].position.w == 2.0) {
                     // Spot
                     vec3 lightDir = normalize(lights[i].position.xyz - FragPos);
-                    float theta = dot(lightDir, normalize(-lights[i].extra.xyz));
-                    if (theta > lights[i].extra.w) {
+                    float theta = dot(lightDir, normalize(-lights[i].direction.xyz));
+                    if (theta > lights[i].direction.w) {
                         float distance = length(lights[i].position.xyz - FragPos);
                         float attenuation = 1.0 / (distance * distance);
                         diff = max(dot(norm, lightDir), 0.0) * attenuation;
@@ -147,11 +149,12 @@ namespace BE {
 
         inline const std::string FallbackTexture =
             std::string(
-                "\x00\x00\x00\xFF"
-                "\xFF\xFF\xFF\xFF"
-                "\xFF\xFF\xFF\xFF"
-                "\x00\x00\x00\xFF", 
-                16);
+                "\xFF\x00\xFF\xFF" "\xFF\xFF\xFF\xFF" "\xFF\x00\xFF\xFF" "\xFF\xFF\xFF\xFF"
+                "\xFF\xFF\xFF\xFF" "\xFF\x00\xFF\xFF" "\xFF\xFF\xFF\xFF" "\xFF\x00\xFF\xFF"
+                "\xFF\x00\xFF\xFF" "\xFF\xFF\xFF\xFF" "\xFF\x00\xFF\xFF" "\xFF\xFF\xFF\xFF"
+                "\xFF\xFF\xFF\xFF" "\xFF\x00\xFF\xFF" "\xFF\xFF\xFF\xFF" "\xFF\x00\xFF\xFF",
+                64
+            );
 
     }
 };
