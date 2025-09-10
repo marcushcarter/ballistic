@@ -100,9 +100,10 @@ namespace BE {
         uniform int numLights;
 
         struct Light {
-            vec4 position; // xyz = pos/dir, w = type
-            vec4 color;    // rgb = color, a = intensity
-            vec4 direction;    // spot direction/cutoff if needed
+            vec4 position;
+            vec4 color;
+            vec4 direction;
+            mat4 shadowMatrices[2];
         };
 
         layout(std430, binding = 0) buffer LightBlock {

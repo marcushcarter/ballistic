@@ -705,9 +705,9 @@ BE_Light::BE_Light(float type, const glm::vec3 pos, const glm::vec3 dir, const g
     position = glm::vec4(pos, (float)type);
     color = glm::vec4(col, inten);
     direction = glm::vec4(dir, pad1_);
+    shadowMatrices[0] = glm::mat4(1.0f);
+    shadowMatrices[1] = glm::mat4(1.0f);
 }
-
-// ========================================================================
 
 BE_LightManager::BE_LightManager(size_t maxLights) 
     : maxLights(maxLights) {
@@ -721,13 +721,6 @@ BE_LightManager::BE_LightManager(size_t maxLights)
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO);
     mappedPtr = (BE_Light*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, sizeof(BE_Light) * maxLights, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-    
-    glGenBuffers(1, &lightMatrixSSBO);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightMatrixSSBO);
-    glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(BE_LightMatrix) * maxLights, nullptr, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, lightMatrixSSBO);
-    mappedMatrixPtr = (BE_LightMatrix*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, sizeof(BE_LightMatrix) * maxLights, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
 BE_LightManager::~BE_LightManager() {
@@ -736,29 +729,12 @@ BE_LightManager::~BE_LightManager() {
         glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
         glDeleteBuffers(1, &lightSSBO);
     }
-    if (lightMatrixSSBO) {
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightMatrixSSBO);
-        glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
-        glDeleteBuffers(1, &lightMatrixSSBO);
-    }
 }
 
 void BE_LightManager::bind() { glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO); }
 
 void BE_LightManager::updateGPU() { 
     std::memcpy(mappedPtr, lights.data(), lights.size() * sizeof(BE_Light));
-    // for (size_t i = 0; i < lights.size(); i++) {
-    //     if (lights[i].dirty) {
-    //         // Update light data
-    //         mappedPtr[i] = lights[i];
-
-    //         // Update matrix data if shadow-casting
-    //         if (lights[i].castsShadows) {
-    //             generateMatrices(lights[i], mappedMatrixPtr[i]);
-    //         }
-    //         lights[i].dirty = false;
-    //     }
-    // }
 }
 
 void BE_LightManager::uploadToShader(GLuint shaderID) { glUniform1i(glGetUniformLocation(shaderID, "numLights"), (int)activeLights.size()); }
@@ -783,35 +759,45 @@ void BE_LightManager::updateActiveLightsForObject(const glm::vec3& objPos, float
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
-// void BE_LightManager::generateMatrices(const BE_Light& light, BE_LightMatrix& out) {
-//     out.lightID = &light - lights.data();
-//     out.count = 0;
-//
-//     if (light.position.w == 0.0f) { // Directional
-//         glm::vec3 dir = glm::vec3(light.direction);
-//         glm::mat4 proj = glm::ortho(-range, range, -range, range, nearPlane, farPlane);
-//         glm::mat4 view = glm::lookAt(-dir * 20.0f, glm::vec3(0.0f), glm::vec3(0,1,0));
-//         out.matrices[0] = proj * view;
-//         out.count = 1;
-//     } 
-//     else if (light.position.w == 1.0f) { // Point (2 hemispheres)
-//         glm::vec3 pos = glm::vec3(light.position);
-//         glm::mat4 proj = glm::perspective(glm::radians(180.0f), 1.0f, nearPlane, range);
-//
-//         out.matrices[0] = proj * glm::lookAt(pos, pos + glm::vec3(0,0,1), glm::vec3(0,1,0));
-//         out.matrices[1] = proj * glm::lookAt(pos, pos + glm::vec3(0,0,-1), glm::vec3(0,1,0));
-//         out.count = 2;
-//     } 
-//     else if (light.position.w == 2.0f) { // Spot
-//         glm::vec3 pos = glm::vec3(light.position);
-//         glm::vec3 dir = glm::vec3(light.direction);
-//         float cutoff = glm::radians(45.0f); // you may want to store in direction
-//         glm::mat4 proj = glm::perspective(cutoff * 2.0f, 1.0f, nearPlane, range);
-//         glm::mat4 view = glm::lookAt(pos, pos + dir, glm::vec3(0,1,0));
-//         out.matrices[0] = proj * view;
-//         out.count = 1;
-//     }
-// }
+void BE_LightManager::generateMatrices(BE_Light& light) {
+    glm::vec3 pos = glm::vec3(light.position);
+    glm::vec3 dir = glm::vec3(light.direction);
+
+    if (light.position.w == 0.0f) {
+        float orthoSize = 20.0f;
+        glm::mat4 proj = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, 0.1f, 100.0f);
+        glm::mat4 view = glm::lookAt(pos, pos + dir, glm::vec3(0, 1, 0));
+        light.shadowMatrices[0] = proj * view;
+    }
+
+    else if (light.position.w == 1.0f) {
+        float fov    = glm::radians(180.0f);
+        float aspect = 1.0f;
+        float range  = light.direction.w;
+        glm::mat4 proj = glm::perspective(fov, aspect, 0.1f, range);
+
+        light.shadowMatrices[0] = proj * glm::lookAt(pos, pos + glm::vec3(0, 0,  1), glm::vec3(0, 1, 0));
+        light.shadowMatrices[1] = proj * glm::lookAt(pos, pos + glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
+    }
+
+    else if (light.position.w == 2.0f) {
+        float fov    = glm::radians(45.0f); // adjust if you want wider cone
+        float aspect = 1.0f;
+        float range  = light.direction.w;
+        glm::mat4 proj = glm::perspective(fov, aspect, 0.1f, range);
+        glm::mat4 view = glm::lookAt(pos, pos + dir, glm::vec3(0, 1, 0));
+        light.shadowMatrices[0] = proj * view;
+    }
+
+
+}
+
+void BE_LightManager::generateAllMatrices() {
+    for (auto& light : lights) {
+        generateMatrices(light);
+    }
+    updateGPU();
+}
 
 void BE_LightManager::draw(BE_Shader& shader, BE_Mesh& mesh, BE_Camera& camera) {
     GLuint loc = glGetUniformLocation(shader.ID, "uColor");
@@ -837,6 +823,7 @@ void BE_LightManager::draw(BE_Shader& shader, BE_Mesh& mesh, BE_Camera& camera) 
 void BE_LightManager::addLight(const BE_Light& light) {
     if (lights.size() < maxLights) {
         lights.push_back(light);
+        generateMatrices(lights.back());
         updateGPU();
     }
 }
@@ -844,6 +831,7 @@ void BE_LightManager::addLight(const BE_Light& light) {
 void BE_LightManager::updateLight(size_t index, const BE_Light& light) {
     if (index < lights.size()) {
         lights[index] = light;
+        generateMatrices(lights[index]);
         updateGPU();
     }
 }

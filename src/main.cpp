@@ -6,7 +6,7 @@
 
 int main() {
 
-    BE_Engine engine("Light Class and transparency");
+    BE_Engine engine("Shadow Maps");
     engine.bind();
 
     BE_Mesh scene("Test Scene", {}, {}, {});

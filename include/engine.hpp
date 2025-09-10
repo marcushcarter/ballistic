@@ -184,6 +184,7 @@ public:
     glm::vec4 position;
     glm::vec4 color;
     glm::vec4 direction;
+    glm::mat4 shadowMatrices[2];
 
     BE_Light(
         float type = 1.0f, 
@@ -193,12 +194,6 @@ public:
         float inten = 1.0f, float pad1_ = 0.0f
     );
     ~BE_Light() = default;
-};
-
-struct BE_LightMatrix {
-    glm::mat4 matrices[6]; // directional=1, spot=1, point=2, but allow up to 6
-    int count;             // how many are valid (1 or 2 for points)
-    int lightID;           // index to match with your BE_Light
 };
 
 class BE_LightManager {
@@ -211,16 +206,15 @@ public:
     GLuint lightSSBO = 0;
     BE_Light* mappedPtr = nullptr;
 
-    GLuint lightMatrixSSBO = 0;
-    BE_LightMatrix* mappedMatrixPtr = nullptr;
-
     BE_LightManager(size_t maxLights = 128);
     ~BE_LightManager();
+
     void bind();
     void updateGPU();
     void uploadToShader(GLuint shaderID);
     void updateActiveLightsForObject(const glm::vec3& objPos, float objRadius);
-    void generateMatrices(const BE_Light& light, BE_LightMatrix& out);
+    void generateMatrices(BE_Light& light);
+    void generateAllMatrices();
     void draw(BE_Shader& shader, BE_Mesh& mesh, BE_Camera& camera);
 
     void addLight(const BE_Light& light);
