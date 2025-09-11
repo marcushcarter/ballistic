@@ -398,6 +398,8 @@ void BE_Camera::uploadToShader(GLuint shaderID) {
 
 // ========================================================================
 
+BE_Mesh::BE_Mesh() : vertices(), indices(), textures() {}
+
 BE_Mesh::BE_Mesh(const std::string& meshName, const std::vector<BE_Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<BE_Texture>& texs)
     : name(meshName.empty() ? "new mesh" : meshName), vertices(verts), indices(inds), textures(texs) {
 
@@ -415,14 +417,12 @@ BE_Mesh::BE_Mesh(const std::string& meshName, const std::vector<BE_Vertex>& vert
 }
 
 BE_Mesh::BE_Mesh(const std::string& meshName, const std::string& objPath)
-    : name(meshName.empty() ? "new mesh" : meshName) {
-
+    : name(meshName.empty() ? "new mesh" : meshName), vertices(), indices(), textures() {
     loadOBJ(objPath.c_str());
 }
 
 BE_Mesh::BE_Mesh(const std::string& meshName, const std::string* objSource)
-    : name(meshName.empty() ? "new mesh" : meshName) {
-
+    : name(meshName.empty() ? "new mesh" : meshName), vertices(), indices(), textures() {
     loadOBJSource(objSource);
 }
 
@@ -870,20 +870,60 @@ void BE_LightManager::removeLight(size_t index) {
 
 // ========================================================================
 
-std::shared_ptr<BE_Mesh> BE_ResourceManager::loadMesh(const std::string& name, const std::string& filepath) {
-    auto mesh = std::make_shared<BE_Mesh>(
-        name, 
-        std::vector<BE_Vertex>{}, 
-        std::vector<GLuint>{}, 
-        std::vector<BE_Texture>{}
-    );
-    mesh->loadOBJ(filepath);
+std::shared_ptr<BE_Mesh> BE_ResourceManager::loadMesh(const std::string& meshName, const std::vector<BE_Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<BE_Texture>& texs) {
+    auto mesh = std::make_shared<BE_Mesh>(meshName, verts, inds, texs);
     meshes.push_back(mesh);
     return mesh;
 }
 
-std::shared_ptr<BE_Mesh> BE_ResourceManager::getMesh(size_t index) {
+std::shared_ptr<BE_Mesh> BE_ResourceManager::loadMesh(const std::string& meshName, const std::string& objPath) {
+    auto mesh = std::make_shared<BE_Mesh>(meshName, objPath);
+    meshes.push_back(mesh);
+    return mesh;
+}
+
+std::shared_ptr<BE_Mesh> BE_ResourceManager::loadMesh(const std::string& meshName, const std::string* objSource) {
+    auto mesh = std::make_shared<BE_Mesh>(meshName, objSource);
+    meshes.push_back(mesh);
+    return mesh;
+}
+
+std::shared_ptr<BE_Mesh> BE_ResourceManager::getMeshPtr(size_t index) {
     if (index < meshes.size()) return meshes[index];
+    return nullptr;
+}
+
+std::shared_ptr<BE_Shader> BE_ResourceManager::loadShader(const std::string& shaderName, const std::string& vertexPath, const std::string& fragmentPath, const std::string& geometryPath, const std::string& computePath) {
+    auto shader = std::make_shared<BE_Shader>(shaderName, vertexPath, fragmentPath, geometryPath, computePath);
+    shaders.push_back(shader);
+    return shader;
+}
+
+std::shared_ptr<BE_Shader> BE_ResourceManager::loadShader(const std::string& shaderName, const std::string* vertexSource, const std::string* fragmentSource, const std::string* geometrySource, const std::string* computeSource) {
+    auto shader = std::make_shared<BE_Shader>(shaderName, vertexSource, fragmentSource, geometrySource, computeSource);
+    shaders.push_back(shader);
+    return shader;
+}
+
+std::shared_ptr<BE_Shader> BE_ResourceManager::getShaderPtr(size_t index) {
+    if (index < shaders.size()) return shaders[index];
+    return nullptr;
+}
+
+std::shared_ptr<BE_Texture> BE_ResourceManager::loadTexture(const std::string& textureName, const std::string& imagePath, const std::string& texType, GLuint slot) {
+    auto texture = std::make_shared<BE_Texture>(textureName, imagePath, texType, slot);
+    textures.push_back(texture);
+    return texture;
+}
+
+std::shared_ptr<BE_Texture> BE_ResourceManager::loadTexture(const std::string& textureName, const std::string& texType, int width, int height, const std::string& rawData) {
+    auto texture = std::make_shared<BE_Texture>(textureName, texType, width, height, rawData);
+    textures.push_back(texture);
+    return texture;
+}
+
+std::shared_ptr<BE_Texture> BE_ResourceManager::getTexturePtr(size_t index) {
+    if (index < textures.size()) return textures[index];
     return nullptr;
 }
 
@@ -942,6 +982,8 @@ BE_Engine::BE_Engine(const std::string& title, int width, int height, const std:
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    glfwSwapInterval(0);
 
     glfwShowWindow(window);
 

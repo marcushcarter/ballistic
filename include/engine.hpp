@@ -173,10 +173,12 @@ public:
     BE_VBO* vbo = nullptr;
     BE_EBO* ebo = nullptr;
 
+    BE_Mesh();
     BE_Mesh(const std::string& meshName, const std::vector<BE_Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<BE_Texture>& texs);
     BE_Mesh(const std::string& meshName, const std::string& objPath);
     BE_Mesh(const std::string& meshName, const std::string* objSource);
     ~BE_Mesh();
+
     void draw(BE_Shader& shader, const glm::mat4& modelMatrix);
     void loadOBJ(const std::string& objPath);
     void loadOBJSource(const std::string* objSource);
@@ -230,8 +232,32 @@ public:
 class BE_ResourceManager {
 public:
     std::vector<std::shared_ptr<BE_Mesh>> meshes;
-    std::shared_ptr<BE_Mesh> loadMesh(const std::string& name, const std::string& filepath);
-    std::shared_ptr<BE_Mesh> getMesh(size_t index);
+    std::shared_ptr<BE_Mesh> loadMesh(const std::string& meshName, const std::vector<BE_Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<BE_Texture>& texs);
+    std::shared_ptr<BE_Mesh> loadMesh(const std::string& meshName, const std::string& objPath);
+    std::shared_ptr<BE_Mesh> loadMesh(const std::string& meshName, const std::string* objSource);
+    std::shared_ptr<BE_Mesh> getMeshPtr(size_t index);
+
+    std::vector<std::shared_ptr<BE_Shader>> shaders;
+    std::shared_ptr<BE_Shader> loadShader(
+        const std::string& shaderName,
+        const std::string& vertexPath = nullptr,
+        const std::string& fragmentPath = nullptr,
+        const std::string& geometryPath = nullptr,
+        const std::string& computePath = nullptr
+    );
+    std::shared_ptr<BE_Shader> loadShader(
+        const std::string& shaderName,
+        const std::string* vertexSource = nullptr,
+        const std::string* fragmentSource = nullptr,
+        const std::string* geometrySource = nullptr,
+        const std::string* computeSource = nullptr
+    );
+    std::shared_ptr<BE_Shader> getShaderPtr(size_t index);
+
+    std::vector<std::shared_ptr<BE_Texture>> textures;
+    std::shared_ptr<BE_Texture> loadTexture(const std::string& textureName, const std::string& imagePath, const std::string& texType, GLuint slot);
+    std::shared_ptr<BE_Texture> loadTexture(const std::string& textureName, const std::string& texType, int width, int height, const std::string& rawData);
+    std::shared_ptr<BE_Texture> getTexturePtr(size_t index);
 };
 
 class BE_Engine {

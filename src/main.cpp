@@ -10,20 +10,17 @@ int main() {
     engine.bind();
 
     engine.resources().loadMesh("Test Scene", "res/models/scene.obj");
+    engine.resources().loadMesh("Cube", "res/models/cube.obj");
+    
+    engine.resources().loadShader("Scene", &BE::Default::SceneVertexSource, &BE::Default::SceneFragmentSource);
+    engine.resources().loadShader("Color", &BE::Default::SceneVertexSource, &BE::Default::ColorFragmentSource);
 
-    BE_Mesh cube("Cube", {}, {}, {});
-    cube.loadOBJ("res/models/cube.obj");
+    engine.resources().loadTexture("fallback", "diffuse", 4, 4, BE::Default::FallbackTexture);
 
-    BE_Texture texture1("fallback", "diffuse", 4, 4, BE::Default::FallbackTexture);
-
-    BE_Shader shader("CubeShader", &BE::Default::SceneVertexSource, &BE::Default::SceneFragmentSource);
-    BE_Shader colorshader("Color Shader", &BE::Default::SceneVertexSource, &BE::Default::ColorFragmentSource);
     BE_Camera camera("MainCam", 1440, 900, 45.0f, 0.1f, 100.0f, {0,0.5,2}, {0,0,0});
-    // glfwSwapInterval(0);
 
     BE_LightManager lights(128);
-
-    BE_Light light1;    
+    BE_Light light1;  
     lights.addLight(light1);
 
     while(engine.isRunning()) {
@@ -49,18 +46,15 @@ int main() {
 
         engine.beginRender();
 
-        shader.activate();
-
+        // rendering
+        
+        engine.resources().getShaderPtr(0)->activate();
         lights.updateActiveLightsForObject(glm::vec3(0,0,0), 5.0f);
-        lights.uploadToShader(shader.ID);
-        camera.uploadToShader(shader.ID);
-        
-        auto cubeMesh = engine.resources().getMesh(0);
-        if (cubeMesh) {
-            cubeMesh->draw(shader, model);
-        }
-        
-        lights.draw(colorshader, cube, camera);
+        lights.uploadToShader(engine.resources().getShaderPtr(0)->ID);
+        camera.uploadToShader(engine.resources().getShaderPtr(0)->ID);
+        engine.resources().getMeshPtr(0)->draw(*engine.resources().getShaderPtr(0), model);
+
+        lights.draw(*engine.resources().getShaderPtr(1), *engine.resources().getMeshPtr(1), camera);
 
         engine.endFrame();
     }
