@@ -6,11 +6,20 @@ namespace BE {
 
         inline const std::string DepthVertexSource = R"(
         #version 460 core
-        layout (location = 0) in vec3 aPos;
-        uniform mat4 lightSpaceMatrix;
+        layout(location = 0) in vec3 aPos;
+
+        uniform mat4 uLightMatrix;
         uniform mat4 uModel;
+
         void main() {
-            gl_Position = lightSpaceMatrix * uModel * vec4(aPos, 1.0);
+            gl_Position = uLightMatrix * uModel * vec4(aPos, 1.0);
+        }
+        )";
+
+        inline const std::string DepthFragmentSource = R"(
+        #version 460 core
+        void main() {
+            // nothing here
         }
         )";
 
@@ -73,15 +82,16 @@ namespace BE {
         layout(location = 2) in vec3 aColor;
         layout(location = 3) in vec2 aTex;
 
-        uniform mat4 uMVP;
         uniform mat4 uModel;
+        uniform mat4 uView;
+        uniform mat4 uProjection;
 
         out vec2 TexCoord;
         out vec3 Normal;
         out vec3 FragPos;
 
         void main() {
-            gl_Position = uMVP * vec4(aPos, 1.0);
+            gl_Position = uProjection * uView * uModel * vec4(aPos, 1.0);
             TexCoord = aTex;
             Normal = mat3(transpose(inverse(uModel))) * aNormal;
             FragPos = vec3(uModel * vec4(aPos, 1.0));
@@ -99,6 +109,10 @@ namespace BE {
         uniform sampler2D diffuse0;
         uniform int numLights;
 
+        uniform sampler2D shadowAtlas; // depth texture atlas
+        uniform int tilesPerSide;      // e.g., 4 means 4x4 tiles
+
+
         struct Light {
             vec4 position;
             vec4 color;
@@ -109,6 +123,29 @@ namespace BE {
         layout(std430, binding = 0) buffer LightBlock {
             Light lights[];
         };
+
+        float samplePointShadow(mat4 lightMatrix, vec3 fragPos, int tileIndex) {
+            // Project fragment position to light space
+            vec4 fragPosLight = lightMatrix * vec4(fragPos, 1.0);
+            
+            // Convert from clip space to [0,1] UV
+            vec3 projCoords = fragPosLight.xyz / fragPosLight.w * 0.5 + 0.5;
+            
+            // Compute tile offset in atlas
+            int row = tileIndex / tilesPerSide;
+            int col = tileIndex % tilesPerSide;
+            vec2 tileOffset = vec2(col, row) / float(tilesPerSide);
+            vec2 tileScale  = vec2(1.0 / float(tilesPerSide));
+
+            vec2 uv = projCoords.xy * tileScale + tileOffset;
+
+            float closestDepth = texture(shadowAtlas, uv).r;
+            float currentDepth = projCoords.z;
+
+            // simple shadow bias
+            float bias = 0.005;
+            return currentDepth - bias > closestDepth ? 0.0 : 1.0;
+        }
 
         void main() {
             vec3 texColor = texture(diffuse0, TexCoord).rgb;
@@ -125,11 +162,22 @@ namespace BE {
                     diff = max(dot(norm, lightDir), 0.0);
                 } 
                 else if (lights[i].position.w == 1.0) {
-                    // Point
+                    // // Point
+                    // vec3 lightDir = normalize(lights[i].position.xyz - FragPos);
+                    // float distance = length(lights[i].position.xyz - FragPos);
+                    // float attenuation = 1.0 / (distance * distance);
+                    // diff = max(dot(norm, lightDir), 0.0) * attenuation;
+
                     vec3 lightDir = normalize(lights[i].position.xyz - FragPos);
                     float distance = length(lights[i].position.xyz - FragPos);
                     float attenuation = 1.0 / (distance * distance);
                     diff = max(dot(norm, lightDir), 0.0) * attenuation;
+
+                    // Shadow factor (0 = in shadow, 1 = lit)
+                    int tileIndex = i * 2; // +Z matrix in atlas
+                    float shadow = samplePointShadow(lights[i].shadowMatrices[0], FragPos, tileIndex);
+
+                    diff *= shadow;
                 } 
                 else if (lights[i].position.w == 2.0) {
                     // Spot

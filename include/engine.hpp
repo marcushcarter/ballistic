@@ -158,7 +158,7 @@ public:
     void handleInputs(GLFWwindow* window, float dt);
     void updateViewMatrix();
 
-    void uploadToShader(GLuint shaderID, const glm::mat4& modelMatrix);
+    void uploadToShader(GLuint shaderID);
 };
 
 class BE_Mesh {
@@ -174,7 +174,7 @@ public:
 
     BE_Mesh(const std::string& meshName, const std::vector<BE_Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<BE_Texture>& texs);
     ~BE_Mesh();
-    void draw(BE_Shader& shader);
+    void draw(BE_Shader& shader, const glm::mat4& modelMatrix);
     void loadOBJ(const std::string& objPath);
     void loadOBJSource(const std::string* objSource);
 };
@@ -201,6 +201,8 @@ public:
     std::vector<BE_Light> lights;
     std::vector<BE_Light> activeLights;
     
+    BE_Mesh lightMesh;
+    
     size_t maxLights = 64;
 
     GLuint lightSSBO = 0;
@@ -215,14 +217,13 @@ public:
     void updateActiveLightsForObject(const glm::vec3& objPos, float objRadius);
     void generateMatrices(BE_Light& light);
     void generateAllMatrices();
+
     void draw(BE_Shader& shader, BE_Mesh& mesh, BE_Camera& camera);
 
     void addLight(const BE_Light& light);
     void updateLight(size_t index, const BE_Light& light);
     void removeLight(size_t index);
 
-// private:
-//     BE_Mesh lightMesh;
 };
 
 class BE_Engine {

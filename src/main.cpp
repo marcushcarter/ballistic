@@ -17,8 +17,11 @@ int main() {
 
     BE_Texture texture1("fallback", "diffuse", 4, 4, BE::Default::FallbackTexture);
 
+    // BE_Shader shader("Scene Shader", "shaders/scene.vert", "shaders/scene.frag");
+
     BE_Shader shader("CubeShader", &BE::Default::SceneVertexSource, &BE::Default::SceneFragmentSource);
-    BE_Shader colorshader("CubeShader", &BE::Default::SceneVertexSource, &BE::Default::ColorFragmentSource);
+    BE_Shader colorshader("Color Shader", &BE::Default::SceneVertexSource, &BE::Default::ColorFragmentSource);
+    BE_Shader depthshader("Depth Shader", "shaders/depth.vert","shaders/depth.frag");
     BE_Camera camera("MainCam", engine.width, engine.height, 45.0f, 0.1f, 100.0f, {0,0.5,2}, {0,0,0});
     glfwSwapInterval(0);
 
@@ -45,18 +48,20 @@ int main() {
         // BE_Light lightnew(1.0f, glm::vec3(std::sinf(glfwGetTime()), 0.5f, std::cosf(glfwGetTime())), glm::vec3(0), rainbowColor, 1.0f, 0.0f);
         // lights.updateLight(0, lightnew);
         
-        BE_Light lightnew2(1.0f, glm::vec3(0,0.5,0), glm::vec3(0), glm::vec3(1), (std::sinf(glfwGetTime()) * 0.5f) + 0.5f, 0.0f);
+        BE_Light lightnew2(1.0f, glm::vec3(0,0.5,0), glm::vec3(0), glm::vec3(1), std::sinf(glfwGetTime()) + 1.0f, 0.0f);
+        // BE_Light lightnew2(0.0f, glm::vec3(0,0.5,0), glm::vec3(0, -0.5, 0), glm::vec3(1), 5.0f, 0.0f);
         lights.updateLight(0, lightnew2);
+        
+        glm::mat4 model = glm::mat4(1.0f);
 
         engine.beginRender();
 
         shader.activate();
+
         lights.updateActiveLightsForObject(glm::vec3(0,0,0), 5.0f);
         lights.uploadToShader(shader.ID);
-
-        glm::mat4 model = glm::mat4(1.0f);
-        camera.uploadToShader(shader.ID, model);
-        scene.draw(shader);
+        camera.uploadToShader(shader.ID);
+        scene.draw(shader, model);
         
         lights.draw(colorshader, cube, camera);
 

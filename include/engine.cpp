@@ -385,11 +385,11 @@ void BE_Camera::updateViewMatrix() {
 
 }
 
-void BE_Camera::uploadToShader(GLuint shaderID, const glm::mat4& modelMatrix) {
-    glm::mat4 mvp = projViewMatrix * modelMatrix;
+void BE_Camera::uploadToShader(GLuint shaderID) {
+    // glm::mat4 mvp = projViewMatrix * modelMatrix;
 
-    glUniformMatrix4fv(glGetUniformLocation(shaderID, "uMVP"), 1, GL_FALSE, &mvp[0][0]);
-    glUniformMatrix4fv(glGetUniformLocation(shaderID, "uModel"), 1, GL_FALSE, &modelMatrix[0][0]);
+    // glUniformMatrix4fv(glGetUniformLocation(shaderID, "uMVP"), 1, GL_FALSE, &mvp[0][0]);
+    // glUniformMatrix4fv(glGetUniformLocation(shaderID, "uModel"), 1, GL_FALSE, &modelMatrix[0][0]);
     glUniformMatrix4fv(glGetUniformLocation(shaderID, "uView"), 1, GL_FALSE, &viewMatrix[0][0]);
     glUniformMatrix4fv(glGetUniformLocation(shaderID, "uProjection"), 1, GL_FALSE, &projectionMatrix[0][0]);
 
@@ -423,9 +423,11 @@ BE_Mesh::~BE_Mesh() {
     }
 }
 
-void BE_Mesh::draw(BE_Shader& shader) {
+void BE_Mesh::draw(BE_Shader& shader, const glm::mat4& modelMatrix) {
     shader.activate();
     vao.bind();
+    
+    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uModel"), 1, GL_FALSE, &modelMatrix[0][0]);
 
     unsigned int numDiffuse = 0;
     unsigned int numSpecular = 0;
@@ -733,9 +735,7 @@ BE_LightManager::~BE_LightManager() {
 
 void BE_LightManager::bind() { glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO); }
 
-void BE_LightManager::updateGPU() { 
-    std::memcpy(mappedPtr, lights.data(), lights.size() * sizeof(BE_Light));
-}
+void BE_LightManager::updateGPU() { std::memcpy(mappedPtr, lights.data(), lights.size() * sizeof(BE_Light)); }
 
 void BE_LightManager::uploadToShader(GLuint shaderID) { glUniform1i(glGetUniformLocation(shaderID, "numLights"), (int)activeLights.size()); }
 
@@ -800,24 +800,21 @@ void BE_LightManager::generateAllMatrices() {
 }
 
 void BE_LightManager::draw(BE_Shader& shader, BE_Mesh& mesh, BE_Camera& camera) {
-    GLuint loc = glGetUniformLocation(shader.ID, "uColor");
+    GLuint colorLoc = glGetUniformLocation(shader.ID, "uColor");
     
     shader.activate();
-    mesh.vao.bind();
 
     for (int i = 0; i < lights.size(); i++) {
 
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(lights[i].position[0], lights[i].position[1], lights[i].position[2]));
-        model = glm::scale(model, glm::vec3(0.1f));
+        model = glm::scale(model, glm::vec3(0.1f /* * lights[i].color.w */));
 
-        glUniform4fv(loc, 1, glm::value_ptr(lights[i].color));
+        glUniform4fv(colorLoc, 1, glm::value_ptr(lights[i].color));
         
-        camera.uploadToShader(shader.ID, model);
-        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(mesh.indices.size()), GL_UNSIGNED_INT, 0);
+        camera.uploadToShader(shader.ID);
+        mesh.draw(shader, model);
     }
-    
-    mesh.vao.unbind();
 }
 
 void BE_LightManager::addLight(const BE_Light& light) {
