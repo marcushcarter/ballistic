@@ -326,6 +326,9 @@ void BE_Camera::rotate(const glm::vec3& axis, float angle) {
 }
 
 void BE_Camera::handleInputs(GLFWwindow* window, float dt) {
+    static bool mouseLookActive = false;
+    static double lastX = 0, lastY = 0;
+
     float speed = 2.5f;
     float sensitivity = 1.5f;
 
@@ -333,17 +336,14 @@ void BE_Camera::handleInputs(GLFWwindow* window, float dt) {
     glm::vec3 tmp(0.0f);
     glm::vec3 forward, right, up;
 
-    // Rotate standard axes by the camera quaternion
     forward = orientation * glm::vec3(0, 0, -1);
     right   = orientation * glm::vec3(1, 0, 0);
     up      = orientation * glm::vec3(0, 1, 0);
 
-    // Flatten forward/right vectors for FPS movement
     glm::vec3 flatForward = glm::normalize(glm::vec3(forward.x, 0.0f, forward.z));
     glm::vec3 flatRight   = glm::normalize(glm::vec3(right.x, 0.0f, right.z));
     glm::vec3 flatUp      = glm::vec3(0.0f, 1.0f, 0.0f);
 
-    // Movement
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) move += flatForward * speed * dt;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) move -= flatForward * speed * dt;
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) move -= flatRight * speed * dt;
@@ -353,17 +353,40 @@ void BE_Camera::handleInputs(GLFWwindow* window, float dt) {
 
     position += move;
 
-    // Rotation
-    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  yaw   += dt * sensitivity;
-    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) yaw   -= dt * sensitivity;
-    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    pitch += dt * sensitivity;
-    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  pitch -= dt * sensitivity;
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS && !mouseLookActive) {
+        mouseLookActive = true;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        glfwGetCursorPos(window, &lastX, &lastY);
+    }
 
-    // Clamp pitch to avoid flipping
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS && mouseLookActive) {
+        mouseLookActive = false;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+
+    if (mouseLookActive) {
+        double mouseX, mouseY;
+        glfwGetCursorPos(window, &mouseX, &mouseY);
+
+        float offsetX = static_cast<float>(mouseX - lastX);
+        float offsetY = static_cast<float>(lastY - mouseY);
+
+        lastX = mouseX;
+        lastY = mouseY;
+
+        yaw   -= offsetX * 0.002f * sensitivity;
+        pitch += offsetY * 0.002f * sensitivity;
+
+    } else {
+        if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  yaw   += dt * sensitivity;
+        if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) yaw   -= dt * sensitivity;
+        if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    pitch += dt * sensitivity;
+        if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  pitch -= dt * sensitivity;
+    }
+
     if (pitch > glm::radians(89.9f)) pitch = glm::radians(89.9f);
     if (pitch < glm::radians(-89.9f)) pitch = glm::radians(-89.9f);
 
-    // Build quaternions from pitch and yaw
     glm::quat qPitch = glm::angleAxis(pitch, glm::vec3(1,0,0));
     glm::quat qYaw   = glm::angleAxis(yaw,   glm::vec3(0,1,0));
 
