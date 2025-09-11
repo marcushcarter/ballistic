@@ -9,37 +9,30 @@ int main() {
     BE_Engine engine("Shadow Maps");
     engine.bind();
 
-    BE_Mesh scene("Test Scene", {}, {}, {});
-    scene.loadOBJ("res/models/scene.obj");
+    engine.resources().loadMesh("Test Scene", "res/models/scene.obj");
 
     BE_Mesh cube("Cube", {}, {}, {});
     cube.loadOBJ("res/models/cube.obj");
 
     BE_Texture texture1("fallback", "diffuse", 4, 4, BE::Default::FallbackTexture);
 
-    // BE_Shader shader("Scene Shader", "shaders/scene.vert", "shaders/scene.frag");
-
     BE_Shader shader("CubeShader", &BE::Default::SceneVertexSource, &BE::Default::SceneFragmentSource);
     BE_Shader colorshader("Color Shader", &BE::Default::SceneVertexSource, &BE::Default::ColorFragmentSource);
-    BE_Shader depthshader("Depth Shader", "shaders/depth.vert","shaders/depth.frag");
-    BE_Camera camera("MainCam", engine.width, engine.height, 45.0f, 0.1f, 100.0f, {0,0.5,2}, {0,0,0});
-    glfwSwapInterval(0);
+    BE_Camera camera("MainCam", 1440, 900, 45.0f, 0.1f, 100.0f, {0,0.5,2}, {0,0,0});
+    // glfwSwapInterval(0);
 
     BE_LightManager lights(128);
 
     BE_Light light1;    
     lights.addLight(light1);
-    
-    // BE_Light light2;    
-    // lights.addLight(light2);
 
     while(engine.isRunning()) {
 
         engine.beginFrame();
         
-        if (engine.frameTime.frameCountFPS == 1) std::cout << engine.frameTime.fps << " FPS " << engine.frameTime.ms << " MS" << std::endl;
+        if (engine.getFrameTime().frameCountFPS == 1) std::cout << engine.getFrameTime().fps << " FPS " << engine.getFrameTime().ms << " MS" << std::endl;
 
-        camera.handleInputs(engine.window, engine.frameTime.dt);
+        camera.handleInputs(engine.getWindow(), engine.getFrameTime().dt);
         camera.updateViewMatrix();
 
         // updates
@@ -61,7 +54,11 @@ int main() {
         lights.updateActiveLightsForObject(glm::vec3(0,0,0), 5.0f);
         lights.uploadToShader(shader.ID);
         camera.uploadToShader(shader.ID);
-        scene.draw(shader, model);
+        
+        auto cubeMesh = engine.resources().getMesh(0);
+        if (cubeMesh) {
+            cubeMesh->draw(shader, model);
+        }
         
         lights.draw(colorshader, cube, camera);
 

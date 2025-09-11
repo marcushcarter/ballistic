@@ -17,6 +17,7 @@
 #include <array>
 #include <chrono>
 #include <vector>
+#include <memory>
 
 class BE_FrameTime {
 public:
@@ -173,6 +174,8 @@ public:
     BE_EBO* ebo = nullptr;
 
     BE_Mesh(const std::string& meshName, const std::vector<BE_Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<BE_Texture>& texs);
+    BE_Mesh(const std::string& meshName, const std::string& objPath);
+    BE_Mesh(const std::string& meshName, const std::string* objSource);
     ~BE_Mesh();
     void draw(BE_Shader& shader, const glm::mat4& modelMatrix);
     void loadOBJ(const std::string& objPath);
@@ -201,8 +204,6 @@ public:
     std::vector<BE_Light> lights;
     std::vector<BE_Light> activeLights;
     
-    BE_Mesh lightMesh;
-    
     size_t maxLights = 64;
 
     GLuint lightSSBO = 0;
@@ -226,15 +227,16 @@ public:
 
 };
 
+class BE_ResourceManager {
+public:
+    std::vector<std::shared_ptr<BE_Mesh>> meshes;
+    std::shared_ptr<BE_Mesh> loadMesh(const std::string& name, const std::string& filepath);
+    std::shared_ptr<BE_Mesh> getMesh(size_t index);
+};
+
 class BE_Engine {
 public:
-    GLFWwindow* window;
     std::string title;
-    bool running = true;
-    int width;
-    int height;
-
-    BE_FrameTime frameTime;
 
     /** hello */
     BE_Engine(const std::string& title = "", int width = 1440, int height = 900, const std::source_location& loc = std::source_location::current());
@@ -248,6 +250,25 @@ public:
     void beginRender();
     void endFrame();
 
+    void setSize(int w, int h) {
+        width = w;
+        height = h;
+        glViewport(0, 0, w, h);
+    }
+
+    GLFWwindow* getWindow() { return window; }
+    
+    BE_FrameTime& getFrameTime() { return frameTime; }
+
+    BE_ResourceManager& resources() { return resourceManager; }
+
 private:
-    std::unique_ptr<BE_Shader> depthShader;
+    GLFWwindow* window;
+    bool running = true;
+    int width;
+    int height;
+
+    BE_FrameTime frameTime;
+
+    BE_ResourceManager resourceManager;
 };

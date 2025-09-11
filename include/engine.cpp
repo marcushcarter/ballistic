@@ -414,6 +414,18 @@ BE_Mesh::BE_Mesh(const std::string& meshName, const std::vector<BE_Vertex>& vert
     vao.unbind();
 }
 
+BE_Mesh::BE_Mesh(const std::string& meshName, const std::string& objPath)
+    : name(meshName.empty() ? "new mesh" : meshName) {
+
+    loadOBJ(objPath.c_str());
+}
+
+BE_Mesh::BE_Mesh(const std::string& meshName, const std::string* objSource)
+    : name(meshName.empty() ? "new mesh" : meshName) {
+
+    loadOBJSource(objSource);
+}
+
 BE_Mesh::~BE_Mesh() {
     delete vbo;
     delete ebo;
@@ -844,13 +856,48 @@ void BE_LightManager::removeLight(size_t index) {
 
 // ========================================================================
 
+// ========================================================================
+
+// ========================================================================
+
+// ========================================================================
+
+// ========================================================================
+
+// ========================================================================
+
+// ========================================================================
+
+// ========================================================================
+
+std::shared_ptr<BE_Mesh> BE_ResourceManager::loadMesh(const std::string& name, const std::string& filepath) {
+    auto mesh = std::make_shared<BE_Mesh>(
+        name, 
+        std::vector<BE_Vertex>{}, 
+        std::vector<GLuint>{}, 
+        std::vector<BE_Texture>{}
+    );
+    mesh->loadOBJ(filepath);
+    meshes.push_back(mesh);
+    return mesh;
+}
+
+std::shared_ptr<BE_Mesh> BE_ResourceManager::getMesh(size_t index) {
+    if (index < meshes.size()) return meshes[index];
+    return nullptr;
+}
+
+// ========================================================================
+
+// ========================================================================
+
+// ========================================================================
+
 static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     BE_Engine* engine = static_cast<BE_Engine*>(glfwGetWindowUserPointer(window));
     if (!engine) return;
 
-    engine->width = width;
-    engine->height = height;
-    glViewport(0, 0, width, height);
+    engine->setSize(width, height);
 
     // BE_Message(0, "ENGINE", "Framebuffer resized", __FILE__, __LINE__);
 }
@@ -883,8 +930,6 @@ BE_Engine::BE_Engine(const std::string& title, int width, int height, const std:
     }
     
     // initial scene / resources
-
-    depthShader = std::make_unique<BE_Shader>("DepthShader", &BE::Default::DepthVertexSource);
 
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
