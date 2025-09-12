@@ -249,10 +249,10 @@ public:
     std::vector<std::shared_ptr<BE_Shader>> shaders;
     std::shared_ptr<BE_Shader> loadShader(
         const std::string& shaderName,
-        const std::string& vertexPath = nullptr,
-        const std::string& fragmentPath = nullptr,
-        const std::string& geometryPath = nullptr,
-        const std::string& computePath = nullptr
+        const std::string& vertexPath = "",
+        const std::string& fragmentPath = "",
+        const std::string& geometryPath = "",
+        const std::string& computePath = ""
     );
     std::shared_ptr<BE_Shader> loadShader(
         const std::string& shaderName,

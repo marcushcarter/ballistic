@@ -11,8 +11,8 @@ int main() {
     engine.resources().loadMesh("Test Scene", "res/models/scene.obj");
     engine.resources().loadMesh("Cube", "res/models/cube.obj");
     
-    engine.resources().loadShader("Scene", &BE::Default::SceneVertexSource, &BE::Default::SceneFragmentSource);
-    engine.resources().loadShader("Color", &BE::Default::SceneVertexSource, &BE::Default::ColorFragmentSource);
+    engine.resources().loadShader("Scene", "include/BEngine/shaders/core/sh_core_default.vert", "include/BEngine/shaders/core/sh_core_default.frag");
+    engine.resources().loadShader("Color", "include/BEngine/shaders/core/sh_core_default.vert", "include/BEngine/shaders/core/sh_color_uniform.frag");
 
     engine.resources().loadTexture("fallback", "diffuse", 4, 4, BE::Default::FallbackTexture);
 
@@ -34,7 +34,7 @@ int main() {
         {
             auto shader = engine.resources().getShaderPtr(0);
             if (shader && glfwGetKey(engine.getWindow(), GLFW_KEY_0) == GLFW_PRESS) {
-                shader->recompile("shaders/scene.vert", "shaders/scene.frag");
+                shader->recompile("include/BEngine/shaders/core/sh_core_default.vert", "include/BEngine/shaders/core/sh_core_default.frag");
             }
         }
 
@@ -48,19 +48,49 @@ int main() {
         // BE_Light lightnew2(0.0f, glm::vec3(0,0.5,0), glm::vec3(0, -0.5, 0), glm::vec3(1), 5.0f, 0.0f);
         lights.updateLight(0, lightnew2);
         
-        glm::mat4 model = glm::mat4(1.0f);
 
         engine.beginRender();
 
         // rendering
-        
-        engine.resources().getShaderPtr(0)->activate();
-        lights.updateActiveLightsForObject(glm::vec3(0,0,0), 5.0f);
-        lights.uploadToShader(engine.resources().getShaderPtr(0)->ID);
-        camera.uploadToShader(engine.resources().getShaderPtr(0)->ID);
-        engine.resources().getMeshPtr(0)->draw(*engine.resources().getShaderPtr(0), model);
 
-        lights.draw(*engine.resources().getShaderPtr(1), *engine.resources().getMeshPtr(1), camera);
+        {
+            auto shader = engine.resources().getShaderPtr(0);
+            auto mesh = engine.resources().getMeshPtr(0);
+
+            shader->activate();
+            lights.updateActiveLightsForObject(glm::vec3(0,0,0), 5.0f);
+            lights.uploadToShader(shader->ID);
+            camera.uploadToShader(shader->ID);
+            glm::mat4 model = glm::mat4(1.0f);
+            mesh->draw(*shader, model);
+
+
+
+
+        }
+        
+        // glm::mat4 model = glm::mat4(1.0f);
+        // engine.resources().getShaderPtr(0)->activate();
+        // lights.updateActiveLightsForObject(glm::vec3(0,0,0), 5.0f);
+        // lights.uploadToShader(engine.resources().getShaderPtr(0)->ID);
+        // camera.uploadToShader(engine.resources().getShaderPtr(0)->ID);
+        // engine.resources().getMeshPtr(0)->draw(*engine.resources().getShaderPtr(0), model);
+
+        {
+            auto shader = engine.resources().getShaderPtr(1);
+            auto mesh = engine.resources().getMeshPtr(1);
+
+            shader->activate();
+            camera.uploadToShader(shader->ID);
+            GLuint colorLoc = glGetUniformLocation(shader->ID, "uColor");
+            for (int i = 0; i < lights.lights.size(); i++) {
+                glm::mat4 model2 = glm::mat4(1.0f);
+                model2 = glm::translate(model2, glm::vec3(lights.lights[i].position[0], lights.lights[i].position[1], lights.lights[i].position[2]));
+                model2 = glm::scale(model2, glm::vec3(0.1f));    
+                glUniform4fv(colorLoc, 1, glm::value_ptr(lights.lights[i].color));
+                mesh->draw(*shader, model2);
+            }
+        }
 
         engine.endFrame();
     }

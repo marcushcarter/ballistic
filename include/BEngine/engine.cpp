@@ -861,21 +861,23 @@ void BE_LightManager::generateAllMatrices() {
 }
 
 void BE_LightManager::draw(BE_Shader& shader, BE_Mesh& mesh, BE_Camera& camera) {
-    GLuint colorLoc = glGetUniformLocation(shader.ID, "uColor");
     
-    shader.activate();
+    // shader.activate();
+    // camera.uploadToShader(shader.ID);
+    // GLuint colorLoc = glGetUniformLocation(shader.ID, "uColor");
 
-    for (int i = 0; i < lights.size(); i++) {
+    // glm::mat4 model = glm::mat4(1.0f);
 
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(lights[i].position[0], lights[i].position[1], lights[i].position[2]));
-        model = glm::scale(model, glm::vec3(0.1f /* * lights[i].color.w */));
+    // for (int i = 0; i < lights.size(); i++) {
 
-        glUniform4fv(colorLoc, 1, glm::value_ptr(lights[i].color));
+    //     model = glm::mat4(1.0f);
+    //     model = glm::translate(model, glm::vec3(lights[i].position[0], lights[i].position[1], lights[i].position[2]));
+    //     model = glm::scale(model, glm::vec3(0.1f));
+
+    //     glUniform4fv(colorLoc, 1, glm::value_ptr(lights[i].color));
         
-        camera.uploadToShader(shader.ID);
-        mesh.draw(shader, model);
-    }
+    //     mesh.draw(shader, model);
+    // }
 }
 
 void BE_LightManager::addLight(const BE_Light& light) {
