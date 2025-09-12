@@ -279,9 +279,25 @@ public:
     }
 };
 
+class BE_Scene {
+public:
+    // std::string name;
+    
+    BE_LightManager lights;
+
+    // BE_Camera* activeCamera;
+    // std::vector<BE_Camera> cameras;
+
+    BE_Scene();
+    // ~BE_Scene();
+
+};
+
 class BE_Engine {
 public:
     std::string title;
+
+    // std::vector<BE_Scene> scenes;
 
     /** hello */
     BE_Engine(const std::string& title = "", int width = 1440, int height = 900, const std::source_location& loc = std::source_location::current());
@@ -302,10 +318,15 @@ public:
     }
 
     GLFWwindow* getWindow() { return window; }
-    
     BE_FrameTime& getFrameTime() { return frameTime; }
-
     BE_ResourceManager& resources() { return resourceManager; }
+
+    BE_Camera* activeCamera = nullptr;
+    std::unique_ptr<BE_Camera> freeCamera;
+    void updateActiveCamera() {
+        if (false) {}
+        else { activeCamera = freeCamera.get(); }
+    }
 
 private:
     GLFWwindow* window;

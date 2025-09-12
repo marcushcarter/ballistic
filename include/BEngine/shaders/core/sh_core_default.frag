@@ -22,7 +22,7 @@ layout(std430, binding = 0) buffer LightBlock {
 void main() {
     vec3 texColor = texture(diffuse0, TexCoord).rgb;
     vec3 norm = normalize(Normal);
-    vec3 finalColor = vec3(0.2);
+    vec3 finalColor = vec3(0.05);
 
     for (int i = 0; i < numLights; i++) {
         vec3 lightColor = lights[i].color.rgb * lights[i].color.a;

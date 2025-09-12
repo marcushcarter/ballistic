@@ -982,6 +982,11 @@ std::shared_ptr<BE_Texture> BE_ResourceManager::getTexturePtr(size_t index) {
 
 // ========================================================================
 
+BE_Scene::BE_Scene() 
+    : lights(128) {
+
+}
+
 // ========================================================================
 
 static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
@@ -1023,6 +1028,10 @@ BE_Engine::BE_Engine(const std::string& title, int width, int height, const std:
     // initial scene / resources
 
     resources().loadDefaults();
+    
+    freeCamera = std::make_unique<BE_Camera>("Free Camera", width, height, 45.0f, 0.1f, 100.0f, glm::vec3(0,0.5,2), glm::vec3(0,0,0));
+    updateActiveCamera();
+    // activeCamera = freeCamera.get();
 
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
