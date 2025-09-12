@@ -18,6 +18,7 @@
 #include <chrono>
 #include <vector>
 #include <memory>
+#include <unordered_map>
 
 #include "BEngine/engine_default.hpp"
 
@@ -240,56 +241,55 @@ public:
 
 class BE_ResourceManager {
 public:
-    std::vector<std::shared_ptr<BE_Mesh>> meshes;
-    std::shared_ptr<BE_Mesh> loadMesh(const std::string& meshName, const std::vector<BE_Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<BE_Texture>& texs);
-    std::shared_ptr<BE_Mesh> loadMesh(const std::string& meshName, const std::string& objPath);
-    std::shared_ptr<BE_Mesh> loadMesh(const std::string& meshName, const std::string* objSource);
-    std::shared_ptr<BE_Mesh> getMeshPtr(size_t index);
+    std::unordered_map<std::string, std::shared_ptr<BE_Mesh>> meshes;
+    std::unordered_map<std::string, std::shared_ptr<BE_Shader>> shaders;
+    std::unordered_map<std::string, std::shared_ptr<BE_Texture>> textures;
 
-    std::vector<std::shared_ptr<BE_Shader>> shaders;
+    std::shared_ptr<BE_Mesh> loadMesh(const std::string& name, const std::vector<BE_Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<BE_Texture>& texs, const std::source_location& loc = std::source_location::current());
+    std::shared_ptr<BE_Mesh> loadMesh(const std::string& name, const std::string& objPath, const std::source_location& loc = std::source_location::current());
+    std::shared_ptr<BE_Mesh> loadMesh(const std::string& name, const std::string* objSource, const std::source_location& loc = std::source_location::current());
+    void removeMesh(const std::string& name, const std::source_location& loc = std::source_location::current());
+    std::shared_ptr<BE_Mesh> getMesh(const std::string& name, const std::source_location& loc = std::source_location::current());
+
     std::shared_ptr<BE_Shader> loadShader(
-        const std::string& shaderName,
+        const std::string& name,
         const std::string& vertexPath = "",
         const std::string& fragmentPath = "",
         const std::string& geometryPath = "",
-        const std::string& computePath = ""
+        const std::string& computePath = "",
+        const std::source_location& loc = std::source_location::current()
     );
     std::shared_ptr<BE_Shader> loadShader(
-        const std::string& shaderName,
+        const std::string& name,
         const std::string* vertexSource = nullptr,
         const std::string* fragmentSource = nullptr,
         const std::string* geometrySource = nullptr,
-        const std::string* computeSource = nullptr
+        const std::string* computeSource = nullptr,
+        const std::source_location& loc = std::source_location::current()
     );
-    std::shared_ptr<BE_Shader> getShaderPtr(size_t index);
+    void removeShader(const std::string& name, const std::source_location& loc = std::source_location::current());
+    std::shared_ptr<BE_Shader> getShader(const std::string& name, const std::source_location& loc = std::source_location::current());
 
-    std::vector<std::shared_ptr<BE_Texture>> textures;
-    std::shared_ptr<BE_Texture> loadTexture(const std::string& textureName, const std::string& imagePath, const std::string& texType, GLuint slot);
-    std::shared_ptr<BE_Texture> loadTexture(const std::string& textureName, const std::string& texType, int width, int height, const std::string& rawData);
-    std::shared_ptr<BE_Texture> getTexturePtr(size_t index);
-
-    std::unique_ptr<BE_Mesh> cubeMesh;
-    std::unique_ptr<BE_Shader> sceneShader;
-    std::unique_ptr<BE_Shader> lightShader;
+    std::shared_ptr<BE_Texture> loadTexture(const std::string& name, const std::string& imagePath, const std::string& texType, GLuint slot, const std::source_location& loc = std::source_location::current());
+    std::shared_ptr<BE_Texture> loadTexture(const std::string& name, const std::string& texType, int width, int height, const std::string& rawData, const std::source_location& loc = std::source_location::current());
+    void removeTexture(const std::string& name, const std::source_location& loc = std::source_location::current());
+    std::shared_ptr<BE_Texture> getTexture(const std::string& name, const std::source_location& loc = std::source_location::current());
     
-    void loadDefaults() {
-        cubeMesh = std::make_unique<BE_Mesh>("Cube Mesh", "include/BEngine/meshes/cube.obj");
-        sceneShader = std::make_unique<BE_Shader>("Scene Shader", "include/BEngine/shaders/core/sh_core_default.vert", "include/BEngine/shaders/core/sh_core_default.frag");
-        lightShader = std::make_unique<BE_Shader>("Light Shader", "include/BEngine/shaders/core/sh_core_default.vert", "include/BEngine/shaders/core/sh_color_uniform.frag");
-    }
+    void loadDefaults();
 };
 
 class BE_Scene {
-public:
-    // std::string name;
-    
+public:   
     BE_LightManager lights;
 
-    // BE_Camera* activeCamera;
-    // std::vector<BE_Camera> cameras;
-
+    std::unordered_map<std::string, std::shared_ptr<BE_Camera>> cameras;
+    std::shared_ptr<BE_Camera> activeCamera;
+    
     BE_Scene();
-    // ~BE_Scene();
+
+    std::shared_ptr<BE_Camera> addCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
+    void removeCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
+    std::shared_ptr<BE_Camera> getCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
 
 };
 
@@ -297,7 +297,20 @@ class BE_Engine {
 public:
     std::string title;
 
-    // std::vector<BE_Scene> scenes;
+    // std::vector<std::shared_ptr<BE_Scene>> scenes;
+    // std::shared_ptr<BE_Scene> activeScene;
+    // void addScene() {
+    //     auto scene = std::make_shared<BE_Scene>();
+    //     scenes.push_back(scene);
+    //     if (!activeScene) activeScene = scene;
+    // }
+
+    // BE_Camera* activeCamera = nullptr;
+    // std::unique_ptr<BE_Camera> freeCamera;
+    // void updateActiveCamera() {
+    //     if (false) {}
+    //     else { activeCamera = freeCamera.get(); }
+    // }
 
     /** hello */
     BE_Engine(const std::string& title = "", int width = 1440, int height = 900, const std::source_location& loc = std::source_location::current());
@@ -320,13 +333,6 @@ public:
     GLFWwindow* getWindow() { return window; }
     BE_FrameTime& getFrameTime() { return frameTime; }
     BE_ResourceManager& resources() { return resourceManager; }
-
-    BE_Camera* activeCamera = nullptr;
-    std::unique_ptr<BE_Camera> freeCamera;
-    void updateActiveCamera() {
-        if (false) {}
-        else { activeCamera = freeCamera.get(); }
-    }
 
 private:
     GLFWwindow* window;

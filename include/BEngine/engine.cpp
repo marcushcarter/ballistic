@@ -921,70 +921,192 @@ void BE_LightManager::removeLight(size_t index) {
 
 // ========================================================================
 
-std::shared_ptr<BE_Mesh> BE_ResourceManager::loadMesh(const std::string& meshName, const std::vector<BE_Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<BE_Texture>& texs) {
-    auto mesh = std::make_shared<BE_Mesh>(meshName, verts, inds, texs);
-    meshes.push_back(mesh);
+std::shared_ptr<BE_Mesh> BE_ResourceManager::loadMesh(const std::string& name, const std::vector<BE_Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<BE_Texture>& texs, const std::source_location& loc) {
+    auto it = meshes.find(name);
+    if (it != meshes.end()) {
+        BE_Message(1, "RESOURCE", "Mesh '" + name + "' already exists", loc.file_name(), loc.line());
+        return it->second;
+    }
+    
+    auto mesh = std::make_shared<BE_Mesh>(name, verts, inds, texs);
+    meshes[name] = mesh;
     return mesh;
 }
 
-std::shared_ptr<BE_Mesh> BE_ResourceManager::loadMesh(const std::string& meshName, const std::string& objPath) {
-    auto mesh = std::make_shared<BE_Mesh>(meshName, objPath);
-    meshes.push_back(mesh);
+std::shared_ptr<BE_Mesh> BE_ResourceManager::loadMesh(const std::string& name, const std::string& objPath, const std::source_location& loc) {
+    auto it = meshes.find(name);
+    if (it != meshes.end()) {
+        BE_Message(1, "RESOURCE", "Mesh '" + name + "' already exists", loc.file_name(), loc.line());
+        return it->second;
+    }
+    
+    auto mesh = std::make_shared<BE_Mesh>(name, objPath);
+    meshes[name] = mesh;
     return mesh;
 }
 
-std::shared_ptr<BE_Mesh> BE_ResourceManager::loadMesh(const std::string& meshName, const std::string* objSource) {
-    auto mesh = std::make_shared<BE_Mesh>(meshName, objSource);
-    meshes.push_back(mesh);
+std::shared_ptr<BE_Mesh> BE_ResourceManager::loadMesh(const std::string& name, const std::string* objSource, const std::source_location& loc) {
+    auto it = meshes.find(name);
+    if (it != meshes.end()) {
+        BE_Message(1, "RESOURCE", "Mesh '" + name + "' already exists", loc.file_name(), loc.line());
+        return it->second;
+    }
+    
+    auto mesh = std::make_shared<BE_Mesh>(name, objSource);
+    meshes[name] = mesh;
     return mesh;
 }
 
-std::shared_ptr<BE_Mesh> BE_ResourceManager::getMeshPtr(size_t index) {
-    if (index < meshes.size()) return meshes[index];
-    return nullptr;
+void BE_ResourceManager::removeMesh(const std::string& name, const std::source_location& loc) {
+    auto it = meshes.find(name);
+    if (it != meshes.end()) {
+        meshes.erase(it);
+    } else {
+        BE_Message(2, "RESOURCE", "Could not find mesh '" + name + "'", loc.file_name(), loc.line());
+    }    
 }
 
-std::shared_ptr<BE_Shader> BE_ResourceManager::loadShader(const std::string& shaderName, const std::string& vertexPath, const std::string& fragmentPath, const std::string& geometryPath, const std::string& computePath) {
-    auto shader = std::make_shared<BE_Shader>(shaderName, vertexPath, fragmentPath, geometryPath, computePath);
-    shaders.push_back(shader);
+std::shared_ptr<BE_Mesh> BE_ResourceManager::getMesh(const std::string& name, const std::source_location& loc) {
+    auto it = meshes.find(name);
+    if (it != meshes.end()) {
+        return it->second;
+    } else {
+        BE_Message(2, "RESOURCE", "Could not find mesh '" + name + "'", loc.file_name(), loc.line());
+        return nullptr;
+    }
+}
+
+std::shared_ptr<BE_Shader> BE_ResourceManager::loadShader(const std::string& name, const std::string& vertexPath, const std::string& fragmentPath, const std::string& geometryPath, const std::string& computePath, const std::source_location& loc) {
+    auto it = shaders.find(name);
+    if (it != shaders.end()) {
+        BE_Message(1, "RESOURCE", "Shader '" + name + "' already exists", loc.file_name(), loc.line());
+        return it->second;
+    }
+    
+    auto shader = std::make_shared<BE_Shader>(name, vertexPath, fragmentPath, geometryPath, computePath);
+    shaders[name] = shader;
     return shader;
 }
 
-std::shared_ptr<BE_Shader> BE_ResourceManager::loadShader(const std::string& shaderName, const std::string* vertexSource, const std::string* fragmentSource, const std::string* geometrySource, const std::string* computeSource) {
-    auto shader = std::make_shared<BE_Shader>(shaderName, vertexSource, fragmentSource, geometrySource, computeSource);
-    shaders.push_back(shader);
+std::shared_ptr<BE_Shader> BE_ResourceManager::loadShader(const std::string& name, const std::string* vertexSource, const std::string* fragmentSource, const std::string* geometrySource, const std::string* computeSource, const std::source_location& loc) {
+    auto it = shaders.find(name);
+    if (it != shaders.end()) {
+        BE_Message(1, "RESOURCE", "Shader '" + name + "' already exists", loc.file_name(), loc.line());
+        return it->second;
+    }
+    
+    auto shader = std::make_shared<BE_Shader>(name, vertexSource, fragmentSource, geometrySource, computeSource);
+    shaders[name] = shader;
     return shader;
 }
 
-std::shared_ptr<BE_Shader> BE_ResourceManager::getShaderPtr(size_t index) {
-    if (index < shaders.size()) return shaders[index];
-    return nullptr;
+void BE_ResourceManager::removeShader(const std::string& name, const std::source_location& loc) {
+    auto it = shaders.find(name);
+    if (it != shaders.end()) {
+        shaders.erase(it);
+    } else {
+        BE_Message(2, "RESOURCE", "Could not find shader '" + name + "'", loc.file_name(), loc.line());
+    }    
 }
 
-std::shared_ptr<BE_Texture> BE_ResourceManager::loadTexture(const std::string& textureName, const std::string& imagePath, const std::string& texType, GLuint slot) {
-    auto texture = std::make_shared<BE_Texture>(textureName, imagePath, texType, slot);
-    textures.push_back(texture);
+std::shared_ptr<BE_Shader> BE_ResourceManager::getShader(const std::string& name, const std::source_location& loc) {
+    auto it = shaders.find(name);
+    if (it != shaders.end()) {
+        return it->second;
+    } else {
+        BE_Message(2, "RESOURCE", "Could not find shader '" + name + "'", loc.file_name(), loc.line());
+        return nullptr;
+    }
+}
+
+std::shared_ptr<BE_Texture> BE_ResourceManager::loadTexture(const std::string& name, const std::string& imagePath, const std::string& texType, GLuint slot, const std::source_location& loc) {
+    auto it = textures.find(name);
+    if (it != textures.end()) {
+        BE_Message(1, "RESOURCE", "Texture '" + name + "' already exists", loc.file_name(), loc.line());
+        return it->second;
+    }
+    
+    auto texture = std::make_shared<BE_Texture>(name, imagePath, texType, slot);
+    textures[name] = texture;
     return texture;
 }
 
-std::shared_ptr<BE_Texture> BE_ResourceManager::loadTexture(const std::string& textureName, const std::string& texType, int width, int height, const std::string& rawData) {
-    auto texture = std::make_shared<BE_Texture>(textureName, texType, width, height, rawData);
-    textures.push_back(texture);
+std::shared_ptr<BE_Texture> BE_ResourceManager::loadTexture(const std::string& name, const std::string& texType, int width, int height, const std::string& rawData, const std::source_location& loc) {
+    auto it = textures.find(name);
+    if (it != textures.end()) {
+        BE_Message(1, "RESOURCE", "Texture '" + name + "' already exists", loc.file_name(), loc.line());
+        return it->second;
+    }
+    
+    auto texture = std::make_shared<BE_Texture>(name, texType, width, height, rawData);
+    textures[name] = texture;
     return texture;
 }
 
-std::shared_ptr<BE_Texture> BE_ResourceManager::getTexturePtr(size_t index) {
-    if (index < textures.size()) return textures[index];
-    return nullptr;
+void BE_ResourceManager::removeTexture(const std::string& name, const std::source_location& loc) {
+    auto it = textures.find(name);
+    if (it != textures.end()) {
+        textures.erase(it);
+    } else {
+        BE_Message(2, "RESOURCE", "Could not find texture '" + name + "'", loc.file_name(), loc.line());
+    }    
+}
+
+std::shared_ptr<BE_Texture> BE_ResourceManager::getTexture(const std::string& name, const std::source_location& loc) {
+    auto it = textures.find(name);
+    if (it != textures.end()) {
+        return it->second;
+    } else {
+        BE_Message(2, "RESOURCE", "Could not find texture '" + name + "'", loc.file_name(), loc.line());
+        return nullptr;
+    }
+}
+
+void BE_ResourceManager::loadDefaults() {
+    loadMesh("Default_Cube", "include/BEngine/meshes/cube.obj");
+    loadShader("Default_Scene", "include/BEngine/shaders/core/sh_core_default.vert", "include/BEngine/shaders/core/sh_core_default.frag");
+    loadShader("Default_Light", "include/BEngine/shaders/core/sh_core_default.vert", "include/BEngine/shaders/core/sh_color_uniform.frag");
+    loadTexture("Fallback", "diffuse", 4, 4, BE::Default::FallbackTexture);
 }
 
 // ========================================================================
 
 // ========================================================================
 
-BE_Scene::BE_Scene() 
-    : lights(128) {
+BE_Scene::BE_Scene() : lights(128) { addCamera("Camera1"); }
 
+std::shared_ptr<BE_Camera> BE_Scene::addCamera(const std::string& name, const std::source_location& loc) {
+    auto it = cameras.find(name);
+    if (it != cameras.end()) {
+        BE_Message(1, "RESOURCE", "Camera '" + name + "' already exists", loc.file_name(), loc.line());
+        return it->second;
+    }
+    
+    auto camera = std::make_shared<BE_Camera>(name);
+    cameras[name] = camera;
+    activeCamera = camera;
+    return camera;
+}
+
+void BE_Scene::removeCamera(const std::string& name, const std::source_location& loc) {
+    auto it = cameras.find(name);
+    if (it != cameras.end()) {
+        // if (activeCamera == cameras[index]) activeCamera = nullptr;
+        cameras.erase(it);
+        // activeCamera = cameras[0];
+    } else {
+        BE_Message(2, "RESOURCE", "Could not find camera '" + name + "'", loc.file_name(), loc.line());
+    }   
+}
+
+std::shared_ptr<BE_Camera> BE_Scene::getCamera(const std::string& name, const std::source_location& loc) {
+    auto it = cameras.find(name);
+    if (it != cameras.end()) {
+        return it->second;
+    } else {
+        BE_Message(2, "RESOURCE", "Could not find camera '" + name + "'", loc.file_name(), loc.line());
+        return nullptr;
+    }
 }
 
 // ========================================================================
@@ -1028,10 +1150,6 @@ BE_Engine::BE_Engine(const std::string& title, int width, int height, const std:
     // initial scene / resources
 
     resources().loadDefaults();
-    
-    freeCamera = std::make_unique<BE_Camera>("Free Camera", width, height, 45.0f, 0.1f, 100.0f, glm::vec3(0,0.5,2), glm::vec3(0,0,0));
-    updateActiveCamera();
-    // activeCamera = freeCamera.get();
 
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
