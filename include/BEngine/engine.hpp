@@ -214,7 +214,7 @@ public:
 class BE_LightManager {
 public:
     std::vector<BE_Light> lights;
-    std::vector<BE_Light> activeLights;
+    // std::vector<BE_Light> activeLights;
     
     size_t maxLights = 64;
 
@@ -227,7 +227,7 @@ public:
     void bind();
     void updateGPU();
     void uploadToShader(GLuint shaderID);
-    void updateActiveLightsForObject(const glm::vec3& objPos, float objRadius);
+    // void updateActiveLightsForObject(const glm::vec3& objPos, float objRadius);
     void generateMatrices(BE_Light& light);
     void generateAllMatrices();
 
@@ -296,6 +296,8 @@ public:
 class BE_Engine {
 public:
     std::string title;
+    int width;
+    int height;
 
     // std::vector<std::shared_ptr<BE_Scene>> scenes;
     // std::shared_ptr<BE_Scene> activeScene;
@@ -337,8 +339,6 @@ public:
 private:
     GLFWwindow* window;
     bool running = true;
-    int width;
-    int height;
 
     BE_FrameTime frameTime;
 

@@ -798,27 +798,27 @@ void BE_LightManager::bind() { glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lig
 
 void BE_LightManager::updateGPU() { std::memcpy(mappedPtr, lights.data(), lights.size() * sizeof(BE_Light)); }
 
-void BE_LightManager::uploadToShader(GLuint shaderID) { glUniform1i(glGetUniformLocation(shaderID, "numLights"), (int)activeLights.size()); }
+void BE_LightManager::uploadToShader(GLuint shaderID) { glUniform1i(glGetUniformLocation(shaderID, "numLights"), (int)lights.size()); } // from glUniform1i(glGetUniformLocation(shaderID, "numLights"), (int)activeLights.size());
 
-void BE_LightManager::updateActiveLightsForObject(const glm::vec3& objPos, float objRadius) {
-    activeLights.clear();
-
-    for (auto& light : lights) {
-        if (light.position.w == 0.0f) {
-            activeLights.push_back(light);
-        } 
-        else {
-            float distance = glm::length(glm::vec3(light.position) - objPos);
-            float range = light.direction.w;
-            if (distance <= objRadius + range)
-                activeLights.push_back(light);
-        }
-    }
-
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
-    std::memcpy(mappedPtr, activeLights.data(), activeLights.size() * sizeof(BE_Light));
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-}
+// void BE_LightManager::updateActiveLightsForObject(const glm::vec3& objPos, float objRadius) {
+//     activeLights.clear();
+//
+//     for (auto& light : lights) {
+//         if (light.position.w == 0.0f) {
+//             activeLights.push_back(light);
+//         } 
+//         else {
+//             float distance = glm::length(glm::vec3(light.position) - objPos);
+//             float range = light.direction.w;
+//             if (distance <= objRadius + range)
+//                 activeLights.push_back(light);
+//         }
+//     }
+//
+//     glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
+//     std::memcpy(mappedPtr, activeLights.data(), activeLights.size() * sizeof(BE_Light));
+//     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+// }
 
 void BE_LightManager::generateMatrices(BE_Light& light) {
     glm::vec3 pos = glm::vec3(light.position);
@@ -1068,8 +1068,6 @@ void BE_ResourceManager::loadDefaults() {
     loadShader("Default_Light", "include/BEngine/shaders/core/sh_core_default.vert", "include/BEngine/shaders/core/sh_color_uniform.frag");
     loadTexture("Fallback", "diffuse", 4, 4, BE::Default::FallbackTexture);
 }
-
-// ========================================================================
 
 // ========================================================================
 

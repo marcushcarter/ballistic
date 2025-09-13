@@ -21,6 +21,8 @@ int main() {
         
         if (engine.getFrameTime().frameCountFPS == 1) std::cout << engine.getFrameTime().fps << " FPS " << engine.getFrameTime().ms << " MS" << std::endl;
 
+        scene.activeCamera->width = engine.width;
+        scene.activeCamera->height = engine.height;
         scene.activeCamera->handleInputs(engine.getWindow(), engine.getFrameTime().dt);
         scene.activeCamera->updateViewMatrix();
 
@@ -49,7 +51,7 @@ int main() {
             auto mesh = engine.resources().getMesh("Test Scene");
 
             shader->activate();
-            scene.lights.updateActiveLightsForObject(glm::vec3(0,0,0), 5.0f);
+            // scene.lights.updateActiveLightsForObject(glm::vec3(0,0,0), 5.0f);
             scene.lights.uploadToShader(shader->ID);
             scene.activeCamera->uploadToShader(shader->ID);
             glm::mat4 model = glm::mat4(1.0f);
