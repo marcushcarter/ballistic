@@ -218,6 +218,13 @@ public:
         float inten = 1.0f, float pad1_ = 0.0f
     );
     ~Light() = default;
+
+    void generateMatrices();
+
+    void setPosition(const glm::vec3& position);
+    void setColor(const glm::vec3& color);
+    void setIntensity(float intensity);
+    void setDirection(const glm::vec3& direction);
 };
 
 class LightManager {
@@ -238,18 +245,31 @@ public:
     void updateGPU();
     void uploadToShader(GLuint shaderID);
     // void updateActiveLightsForObject(const glm::vec3& objPos, float objRadius);
-    void generateMatrices(Light& light);
     void generateAllMatrices();
 
     void draw(Shader& shader, Mesh& mesh, Camera& camera);
 
     size_t addLight(const std::string& name, int type, const std::source_location& loc = std::source_location::current());
     void removeLight(const std::string& name, int type, const std::source_location& loc = std::source_location::current());
-    void setLightPosition(const std::string& name, const glm::vec3& position, const std::source_location& loc = std::source_location::current());
-    void setLightColor(const std::string& name, const glm::vec3& color, const std::source_location& loc = std::source_location::current());
-    void setLightIntensity(const std::string& name, float intensity, const std::source_location& loc = std::source_location::current());
-    void setLightDirection(const std::string& name, const glm::vec3& direction, const std::source_location& loc = std::source_location::current());
     Light* getLight(const std::string& name, const std::source_location& loc = std::source_location::current());
+};
+
+class Scene {
+public:
+    std::unordered_map<std::string, std::shared_ptr<Camera>> cameras;
+    std::shared_ptr<Camera> activeCamera;
+    
+    Scene();
+
+    std::shared_ptr<Camera> addCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
+    void removeCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
+    std::shared_ptr<Camera> getCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
+
+    LightManager& lights() { return lightManager; }
+    
+private:
+    LightManager lightManager;
+
 };
 
 class ResourceManager {
@@ -293,29 +313,13 @@ public:
     void loadDefaults();
 };
 
-class Scene {
-public:
-    std::unordered_map<std::string, std::shared_ptr<Camera>> cameras;
-    std::shared_ptr<Camera> activeCamera;
-    
-    Scene();
-
-    std::shared_ptr<Camera> addCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
-    void removeCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
-    std::shared_ptr<Camera> getCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
-
-    LightManager& lights() { return lightManager; }
-    
-private:
-    LightManager lightManager;
-
-};
-
 class Engine {
 public:
     std::string title;
     int width;
     int height;
+
+    FrameTime frameTime;
 
     // std::vector<std::shared_ptr<Scene>> scenes;
     // std::shared_ptr<Scene> activeScene;
@@ -351,14 +355,11 @@ public:
     }
 
     GLFWwindow* getWindow() { return window; }
-    FrameTime& getFrameTime() { return frameTime; }
     ResourceManager& resources() { return resourceManager; }
 
 private:
     GLFWwindow* window;
     bool running = true;
-
-    FrameTime frameTime;
 
     ResourceManager resourceManager;
 };

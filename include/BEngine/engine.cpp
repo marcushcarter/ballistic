@@ -805,6 +805,49 @@ Light::Light(float type, const glm::vec3 pos, const glm::vec3 dir, const glm::ve
     shadowMatrices[1] = glm::mat4(1.0f);
 }
 
+void Light::generateMatrices() {
+    glm::vec3 pos = glm::vec3(position);
+    glm::vec3 dir = glm::vec3(direction);
+
+    if (position.w == 0.0f) {
+        float orthoSize = 20.0f;
+        glm::mat4 proj = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, 0.1f, 100.0f);
+        glm::mat4 view = glm::lookAt(pos, pos + dir, glm::vec3(0, 1, 0));
+        shadowMatrices[0] = proj * view;
+    }
+
+    else if (position.w == 1.0f) {
+        float fov    = glm::radians(180.0f);
+        float aspect = 1.0f;
+        float range  = direction.w;
+        glm::mat4 proj = glm::perspective(fov, aspect, 0.1f, range);
+
+        shadowMatrices[0] = proj * glm::lookAt(pos, pos + glm::vec3(0, 0,  1), glm::vec3(0, 1, 0));
+        shadowMatrices[1] = proj * glm::lookAt(pos, pos + glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
+    }
+
+    else if (position.w == 2.0f) {
+        float fov    = glm::radians(45.0f); // adjust if you want wider cone
+        float aspect = 1.0f;
+        float range  = direction.w;
+        glm::mat4 proj = glm::perspective(fov, aspect, 0.1f, range);
+        glm::mat4 view = glm::lookAt(pos, pos + dir, glm::vec3(0, 1, 0));
+        shadowMatrices[0] = proj * view;
+    }
+
+
+}
+
+void Light::setPosition(const glm::vec3& pos) { position = glm::vec4(pos, position.w); }
+
+void Light::setColor(const glm::vec3& col) { color = glm::vec4(col, color.w); }
+
+void Light::setIntensity(float intensity) { color.w = intensity; }
+
+void Light::setDirection(const glm::vec3& dir) { direction = glm::vec4(dir, direction.w); }
+
+// ========================================================================
+
 LightManager::LightManager(size_t maxLights) 
     : maxLights(maxLights) {
 
@@ -853,42 +896,9 @@ void LightManager::uploadToShader(GLuint shaderID) { glUniform1i(glGetUniformLoc
 //     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 // }
 
-void LightManager::generateMatrices(Light& light) {
-    glm::vec3 pos = glm::vec3(light.position);
-    glm::vec3 dir = glm::vec3(light.direction);
-
-    if (light.position.w == 0.0f) {
-        float orthoSize = 20.0f;
-        glm::mat4 proj = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, 0.1f, 100.0f);
-        glm::mat4 view = glm::lookAt(pos, pos + dir, glm::vec3(0, 1, 0));
-        light.shadowMatrices[0] = proj * view;
-    }
-
-    else if (light.position.w == 1.0f) {
-        float fov    = glm::radians(180.0f);
-        float aspect = 1.0f;
-        float range  = light.direction.w;
-        glm::mat4 proj = glm::perspective(fov, aspect, 0.1f, range);
-
-        light.shadowMatrices[0] = proj * glm::lookAt(pos, pos + glm::vec3(0, 0,  1), glm::vec3(0, 1, 0));
-        light.shadowMatrices[1] = proj * glm::lookAt(pos, pos + glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
-    }
-
-    else if (light.position.w == 2.0f) {
-        float fov    = glm::radians(45.0f); // adjust if you want wider cone
-        float aspect = 1.0f;
-        float range  = light.direction.w;
-        glm::mat4 proj = glm::perspective(fov, aspect, 0.1f, range);
-        glm::mat4 view = glm::lookAt(pos, pos + dir, glm::vec3(0, 1, 0));
-        light.shadowMatrices[0] = proj * view;
-    }
-
-
-}
-
 void LightManager::generateAllMatrices() {
     for (auto& light : lights) {
-        generateMatrices(light);
+        light.generateMatrices();
     }
     updateGPU();
 }
@@ -918,7 +928,7 @@ size_t LightManager::addLight(const std::string& name, int type, const std::sour
     if (lights.size() < maxLights) {
         size_t index = lights.size();
         lights.push_back(light);
-        generateMatrices(lights.back());
+        lights.back().generateMatrices();
         lightLookup[name] = index;
         return index;
     }
@@ -941,48 +951,6 @@ void LightManager::removeLight(const std::string& name, int type, const std::sou
     } else {
         Message(2, "LIGHT", "Could not find light '" + name + "'", loc.file_name(), loc.line());
     }   
-}
-
-void LightManager::setLightPosition(const std::string& name, const glm::vec3& position, const std::source_location& loc) {
-    auto it = lightLookup.find(name);
-    if (it != lightLookup.end()) {
-        lights[it->second].position = glm::vec4(position, lights[it->second].position.w);
-        generateMatrices(lights[it->second]);
-        updateGPU();
-    } else {
-        Message(2, "LIGHT", "Could not find light '" + name + "'", loc.file_name(), loc.line());
-    }
-}
-
-void LightManager::setLightColor(const std::string& name, const glm::vec3& color, const std::source_location& loc) {
-    auto it = lightLookup.find(name);
-    if (it != lightLookup.end()) {
-        lights[it->second].color = glm::vec4(color, lights[it->second].color.w);
-        updateGPU();
-    } else {
-        Message(2, "LIGHT", "Could not find light '" + name + "'", loc.file_name(), loc.line());
-    }
-}
-
-void LightManager::setLightIntensity(const std::string& name, float intensity, const std::source_location& loc) {
-    auto it = lightLookup.find(name);
-    if (it != lightLookup.end()) {
-        lights[it->second].color[3] = intensity;
-        updateGPU();
-    } else {
-        Message(2, "LIGHT", "Could not find light '" + name + "'", loc.file_name(), loc.line());
-    }
-}
-
-void LightManager::setLightDirection(const std::string& name, const glm::vec3& direction, const std::source_location& loc) {
-    auto it = lightLookup.find(name);
-    if (it != lightLookup.end()) {
-        lights[it->second].direction = glm::vec4(direction, lights[it->second].direction.w);
-        generateMatrices(lights[it->second]);
-        updateGPU();
-    } else {
-        Message(2, "LIGHT", "Could not find light '" + name + "'", loc.file_name(), loc.line());
-    }
 }
 
 Light* LightManager::getLight(const std::string& name, const std::source_location& loc) {
@@ -1010,6 +978,42 @@ Light* LightManager::getLight(const std::string& name, const std::source_locatio
 // ========================================================================
 
 // ========================================================================
+
+Scene::Scene() : lightManager(128) { addCamera("Camera1"); }
+
+std::shared_ptr<Camera> Scene::addCamera(const std::string& name, const std::source_location& loc) {
+    auto it = cameras.find(name);
+    if (it != cameras.end()) {
+        Message(1, "RESOURCE", "Camera '" + name + "' already exists", loc.file_name(), loc.line());
+        return it->second;
+    }
+    
+    auto camera = std::make_shared<Camera>(name);
+    cameras[name] = camera;
+    activeCamera = camera;
+    return camera;
+}
+
+void Scene::removeCamera(const std::string& name, const std::source_location& loc) {
+    auto it = cameras.find(name);
+    if (it != cameras.end()) {
+        // if (activeCamera == cameras[index]) activeCamera = nullptr;
+        cameras.erase(it);
+        // activeCamera = cameras[0];
+    } else {
+        Message(2, "RESOURCE", "Could not find camera '" + name + "'", loc.file_name(), loc.line());
+    }   
+}
+
+std::shared_ptr<Camera> Scene::getCamera(const std::string& name, const std::source_location& loc) {
+    auto it = cameras.find(name);
+    if (it != cameras.end()) {
+        return it->second;
+    } else {
+        Message(2, "RESOURCE", "Could not find camera '" + name + "'", loc.file_name(), loc.line());
+        return nullptr;
+    }
+}
 
 // ========================================================================
 
@@ -1306,42 +1310,6 @@ void ResourceManager::loadDefaults() {
 }
 
 // ========================================================================
-
-Scene::Scene() : lightManager(128) { addCamera("Camera1"); }
-
-std::shared_ptr<Camera> Scene::addCamera(const std::string& name, const std::source_location& loc) {
-    auto it = cameras.find(name);
-    if (it != cameras.end()) {
-        Message(1, "RESOURCE", "Camera '" + name + "' already exists", loc.file_name(), loc.line());
-        return it->second;
-    }
-    
-    auto camera = std::make_shared<Camera>(name);
-    cameras[name] = camera;
-    activeCamera = camera;
-    return camera;
-}
-
-void Scene::removeCamera(const std::string& name, const std::source_location& loc) {
-    auto it = cameras.find(name);
-    if (it != cameras.end()) {
-        // if (activeCamera == cameras[index]) activeCamera = nullptr;
-        cameras.erase(it);
-        // activeCamera = cameras[0];
-    } else {
-        Message(2, "RESOURCE", "Could not find camera '" + name + "'", loc.file_name(), loc.line());
-    }   
-}
-
-std::shared_ptr<Camera> Scene::getCamera(const std::string& name, const std::source_location& loc) {
-    auto it = cameras.find(name);
-    if (it != cameras.end()) {
-        return it->second;
-    } else {
-        Message(2, "RESOURCE", "Could not find camera '" + name + "'", loc.file_name(), loc.line());
-        return nullptr;
-    }
-}
 
 // ========================================================================
 

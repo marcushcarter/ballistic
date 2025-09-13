@@ -13,17 +13,17 @@ int main() {
     engine.resources().loadMesh("Test Scene", "res/models/scene.obj");
 
     scene.lights().addLight("light1", 1);
-    scene.lights().setLightPosition("light1", glm::vec3(0,0.5,0));
+    scene.lights().getLight("light1")->setPosition(glm::vec3(0,0.5,0));
 
     while(engine.isRunning()) {
 
         engine.beginFrame();
         
-        if (engine.getFrameTime().frameCountFPS == 1) std::cout << engine.getFrameTime().fps << " FPS " << engine.getFrameTime().ms << " MS" << std::endl;
+        if (engine.frameTime.frameCountFPS == 1) std::cout << engine.frameTime.fps << " FPS " << engine.frameTime.ms << " MS" << std::endl;
 
         scene.activeCamera->width = engine.width;
         scene.activeCamera->height = engine.height;
-        scene.activeCamera->handleInputs(engine.getWindow(), engine.getFrameTime().dt);
+        scene.activeCamera->handleInputs(engine.getWindow(), engine.frameTime.dt);
         scene.activeCamera->updateViewMatrix();
 
         if (glfwGetKey(engine.getWindow(), GLFW_KEY_0) == GLFW_PRESS) {
@@ -36,7 +36,8 @@ int main() {
 
         // updates
 
-        scene.lights().setLightIntensity("light1", std::sinf(glfwGetTime()) + 1.0f);
+        scene.lights().getLight("light1")->setIntensity(std::sinf(glfwGetTime()) + 1.0f);
+        scene.lights().updateGPU();
         
         engine.beginRender();
 
