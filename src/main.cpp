@@ -8,8 +8,6 @@ int main() {
     BE::Engine engine("DSL file shader loading :-0");
     engine.bind();
 
-    BE::Framebuffer framebuffer(1440, 900);
-
     BE::Scene scene;
 
     engine.resources().loadMesh("Test Scene", "res/models/scene.obj");
@@ -44,14 +42,14 @@ int main() {
         
         engine.beginRender();
 
-        framebuffer.bind();
+        scene.framebuffer.bind();
         glClearColor(0.1,0.1,0.1,1);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // rendering
 
         { // test scene model drawing
-            auto shader = engine.resources().getShader("default_scene");
+            auto shader = engine.resources().getShader("__scene");
             auto mesh = engine.resources().getMesh("Test Scene");
 
             shader->activate();
@@ -62,7 +60,7 @@ int main() {
         }
 
         { // drawing lights
-            auto shader = engine.resources().getShader("flat_color");
+            auto shader = engine.resources().getShader("__flat_color");
             auto mesh = engine.resources().getMesh("__cube");
 
             shader->activate();
@@ -79,7 +77,7 @@ int main() {
         
         { // drawing cameras
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-            auto shader = engine.resources().getShader("flat_color");
+            auto shader = engine.resources().getShader("__flat_color");
             auto mesh = engine.resources().getMesh("__camera");
 
             shader->activate();
@@ -92,15 +90,15 @@ int main() {
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
 
-        framebuffer.unbind();
+        scene.framebuffer.unbind();
         
         engine.beginRender();
 
         { // framebuffer loading
-            auto shader = engine.resources().getShader("blit");
+            auto shader = engine.resources().getShader("__blit");
             auto mesh = engine.resources().getMesh("__quad");
 
-            framebuffer.bindTexture(shader->ID, "screenTexture", 3);
+            scene.framebuffer.bindTexture(shader->ID, "screenTexture", 3);
             mesh->draw(*shader, glm::mat4(1));
 
         }

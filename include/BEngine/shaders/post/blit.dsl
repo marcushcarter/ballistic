@@ -23,4 +23,4 @@ void main() {
 
 @end
 
-@program blit vertex_shader fragment_shader
+@program __blit vertex_shader fragment_shader

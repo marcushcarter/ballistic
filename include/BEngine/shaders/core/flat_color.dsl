@@ -26,4 +26,4 @@ void main() {
 
 @end
 
-@program flat_color vertex_shader fragment_shader
+@program __flat_color vertex_shader fragment_shader

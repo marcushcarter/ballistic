@@ -90,6 +90,30 @@ public:
     void unbind();
 };
 
+class Framebuffer {
+public:
+    Framebuffer(int width = 1440, int height = 900);
+    ~Framebuffer();
+
+    void bind();
+    void bindTexture(GLuint shaderID, const char* uniform, int unit);
+    void unbind();
+    
+    GLuint texture = 0;
+
+    void resize(int newWidth, int newHeight);
+
+private:
+    GLuint fbo = 0;
+    GLuint rbo = 0;
+
+    int width;
+    int height;
+    
+    void createFramebuffer();
+    void destroyFramebuffer();
+};
+
 class Shader {
 public:
     std::string name;
@@ -153,35 +177,6 @@ public:
     void unbind();
 };
 
-class Camera {
-public:
-    std::string name;
-    int width, height;
-    float zoom, fov;
-    float nearPlane, farPlane;
-    float yaw, pitch, roll;
-    glm::vec3 position;
-    glm::quat orientation;
-
-    glm::mat4 projectionMatrix;
-    glm::mat4 orthoMatrix;
-    glm::mat4 viewMatrix;
-    glm::mat4 projViewMatrix;
-
-    Camera(
-        const std::string& cameraName, int width = 1440, int height = 900, 
-        float fov = 45.0f, float nearPlane = 0.1f, float farPlane = 100.0f, 
-        const glm::vec3& pos = {0,0,0}, const glm::vec3& dir = {0,0,-1} 
-    );
-    ~Camera() = default;
-
-    void rotate(const glm::vec3& axis, float angle);
-    void handleInputs(GLFWwindow* window, float dt);
-    void updateViewMatrix();
-
-    void uploadToShader(GLuint shaderID);
-};
-
 class Mesh {
 public:
     std::string name;
@@ -202,99 +197,6 @@ public:
     void draw(Shader& shader, const glm::mat4& modelMatrix);
     void loadOBJ(const std::string& objPath);
     void loadOBJSource(const std::string* objSource);
-};
-
-class Light {
-public:
-    glm::vec4 position;
-    glm::vec4 color;
-    glm::vec4 direction;
-    glm::mat4 shadowMatrices[2];
-
-    Light(
-        float type = 1.0f, 
-        const glm::vec3 pos = glm::vec3(0), 
-        const glm::vec3 dir = glm::vec3(0,-1,0), 
-        const glm::vec3 col = glm::vec3(1), 
-        float inten = 1.0f, float pad1_ = 0.0f
-    );
-    ~Light() = default;
-
-    void generateMatrices();
-
-    void setPosition(const glm::vec3& position);
-    void setColor(const glm::vec3& color);
-    void setIntensity(float intensity);
-    void setDirection(const glm::vec3& direction);
-};
-
-class LightManager {
-public:
-    std::vector<Light> lights;
-    std::unordered_map<std::string, size_t> lightLookup;
-    // std::vector<Light> activeLights;
-    
-    size_t maxLights = 64;
-
-    GLuint lightSSBO = 0;
-    Light* mappedPtr = nullptr;
-
-    LightManager(size_t maxLights = 128);
-    ~LightManager();
-
-    void bind();
-    void updateGPU();
-    void uploadToShader(GLuint shaderID);
-    // void updateActiveLightsForObject(const glm::vec3& objPos, float objRadius);
-    void generateAllMatrices();
-
-    void draw(Shader& shader, Mesh& mesh, Camera& camera);
-
-    size_t addLight(const std::string& name, int type, const std::source_location& loc = std::source_location::current());
-    void removeLight(const std::string& name, int type, const std::source_location& loc = std::source_location::current());
-    Light* getLight(const std::string& name, const std::source_location& loc = std::source_location::current());
-};
-
-class Framebuffer {
-public:
-    Framebuffer(int width, int height);
-    ~Framebuffer();
-
-    void bind();
-    void bindTexture(GLuint shaderID, const char* uniform, int unit);
-    void unbind();
-    
-    GLuint texture = 0;
-
-    void resize(int newWidth, int newHeight);
-
-private:
-    GLuint fbo = 0;
-    GLuint rbo = 0;
-
-    int width;
-    int height;
-    
-    void createFramebuffer();
-    void destroyFramebuffer();
-};
-
-class Scene {
-public:
-    std::unordered_map<std::string, std::shared_ptr<Camera>> cameras;
-    std::shared_ptr<Camera> activeCamera;
-    
-    Scene();
-
-    std::shared_ptr<Camera> addCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
-    void removeCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
-    std::shared_ptr<Camera> getCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
-
-    LightManager& lights() { return lightManager; }
-    
-private:
-    LightManager lightManager;
-
 };
 
 class ResourceManager {
@@ -336,6 +238,106 @@ public:
     std::shared_ptr<Texture> getTexture(const std::string& name, const std::source_location& loc = std::source_location::current());
     
     void loadDefaults();
+};
+
+class Camera {
+public:
+    std::string name;
+    int width, height;
+    float zoom, fov;
+    float nearPlane, farPlane;
+    float yaw, pitch, roll;
+    glm::vec3 position;
+    glm::quat orientation;
+
+    glm::mat4 projectionMatrix;
+    glm::mat4 orthoMatrix;
+    glm::mat4 viewMatrix;
+    glm::mat4 projViewMatrix;
+
+    Camera(
+        const std::string& cameraName, int width = 1440, int height = 900, 
+        float fov = 45.0f, float nearPlane = 0.1f, float farPlane = 100.0f, 
+        const glm::vec3& pos = {0,0,0}, const glm::vec3& dir = {0,0,-1} 
+    );
+    ~Camera() = default;
+
+    void rotate(const glm::vec3& axis, float angle);
+    void handleInputs(GLFWwindow* window, float dt);
+    void updateViewMatrix();
+
+    void uploadToShader(GLuint shaderID);
+};
+
+class Light {
+public:
+    glm::vec4 position;
+    glm::vec4 color;
+    glm::vec4 direction;
+    glm::mat4 shadowMatrices[2];
+
+    Light(
+        float type = 1.0f, 
+        const glm::vec3 pos = glm::vec3(0), 
+        const glm::vec3 dir = glm::vec3(0), 
+        const glm::vec3 col = glm::vec3(1), 
+        float inten = 1.0f, float pad1_ = 0.0f
+    );
+    ~Light() = default;
+
+    void generateMatrices();
+
+    void setPosition(const glm::vec3& position);
+    void setColor(const glm::vec3& color);
+    void setIntensity(float intensity);
+    void setDirection(const glm::vec3& direction);
+};
+
+class LightManager {
+public:
+    std::vector<Light> lights;
+    std::unordered_map<std::string, size_t> lightLookup;
+    // std::vector<Light> activeLights;
+    
+    size_t maxLights = 64;
+
+    GLuint lightSSBO = 0;
+    Light* mappedPtr = nullptr;
+
+    LightManager(size_t maxLights = 128);
+    ~LightManager();
+
+    void bind();
+    void updateGPU();
+    void uploadToShader(GLuint shaderID);
+    // void updateActiveLightsForObject(const glm::vec3& objPos, float objRadius);
+    void generateAllMatrices();
+
+    void draw(Shader& shader, Mesh& mesh, Camera& camera);
+
+    size_t addLight(const std::string& name, int type, const std::source_location& loc = std::source_location::current());
+    void removeLight(const std::string& name, int type, const std::source_location& loc = std::source_location::current());
+    Light* getLight(const std::string& name, const std::source_location& loc = std::source_location::current());
+};
+
+class Scene {
+public:
+    Framebuffer framebuffer;
+
+    std::unordered_map<std::string, std::shared_ptr<Camera>> cameras;
+    std::shared_ptr<Camera> activeCamera;
+    
+    Scene();
+
+    std::shared_ptr<Camera> addCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
+    void removeCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
+    std::shared_ptr<Camera> getCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
+
+    LightManager& lights() { return lightManager; }
+    
+private:
+    LightManager lightManager;
+
 };
 
 class Engine {

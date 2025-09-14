@@ -143,6 +143,61 @@ void EBO::unbind() { glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0); }
 
 // ========================================================================
 
+Framebuffer::Framebuffer(int w, int h) : width(w), height(h) { createFramebuffer(); }
+
+Framebuffer::~Framebuffer() { destroyFramebuffer(); }
+
+void Framebuffer::createFramebuffer() {
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        throw std::runtime_error("FRamebuffer not complete");
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Framebuffer::destroyFramebuffer() {
+    if (rbo) glDeleteRenderbuffers(1, &rbo);
+    if (texture) glDeleteTextures(1, &texture);
+    if (fbo) glDeleteFramebuffers(1, &fbo);
+}
+
+void Framebuffer::bind() { glBindFramebuffer(GL_FRAMEBUFFER, fbo); glViewport(0, 0, width, height); }
+
+void Framebuffer::unbind() { glBindFramebuffer(GL_FRAMEBUFFER, 0); /* reset veiwport to window size */ }
+
+void Framebuffer::bindTexture(GLuint shaderID, const char* uniform, int unit) {
+    glUseProgram(shaderID);
+    glActiveTexture(GL_TEXTURE0 + unit);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glUniform1i(glGetUniformLocation(shaderID, uniform), unit);
+}
+
+void Framebuffer::resize(int newWidth, int newHeight) {
+    width = newWidth;
+    height = newHeight;
+    destroyFramebuffer();
+    createFramebuffer();
+}
+
+// ========================================================================
+
 Shader::Shader(const std::string& shaderName, const std::string& vertexPath, const std::string& fragmentPath, const std::string& geometryPath, const std::string& computePath)
     : name(shaderName.empty() ? "new shader" : shaderName) {
 
@@ -363,120 +418,6 @@ void Texture::bind() {
 }
 
 void Texture::unbind() { glBindTexture(GL_TEXTURE_2D, 0); }
-
-// ========================================================================
-
-Camera::Camera(const std::string& cameraName, int width, int height, float fov, float nearPlane, float farPlane, const glm::vec3& pos, const glm::vec3& dir) 
-    : name(cameraName.empty() ? "new camera" : cameraName), width(width), height(height), fov(fov), nearPlane(nearPlane), farPlane(farPlane), position(pos), zoom(1.0f) {
-
-    glm::vec3 forward = glm::normalize(dir);
-    glm::vec3 defaultForward = glm::vec3(0.0f, 0.0f, -1.0f);
-    orientation = glm::rotation(defaultForward, forward);
-
-    projectionMatrix = glm::perspective(glm::radians(fov), static_cast<float>(width) / static_cast<float>(height), nearPlane, farPlane);
-    orthoMatrix = glm::ortho(0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, -1.0f, 1.0f);
-
-    updateViewMatrix();
-}
-
-void Camera::rotate(const glm::vec3& axis, float angle) {
-    glm::quat qrot = glm::angleAxis(angle, axis);
-    orientation = glm::normalize(qrot * orientation);
-}
-
-void Camera::handleInputs(GLFWwindow* window, float dt) {
-    static bool mouseLookActive = false;
-    static double lastX = 0, lastY = 0;
-
-    float speed = 2.5f;
-    float sensitivity = 1.5f;
-
-    glm::vec3 move(0.0f);
-    glm::vec3 tmp(0.0f);
-    glm::vec3 forward, right, up;
-
-    forward = orientation * glm::vec3(0, 0, -1);
-    right   = orientation * glm::vec3(1, 0, 0);
-    up      = orientation * glm::vec3(0, 1, 0);
-
-    glm::vec3 flatForward = glm::normalize(glm::vec3(forward.x, 0.0f, forward.z));
-    glm::vec3 flatRight   = glm::normalize(glm::vec3(right.x, 0.0f, right.z));
-    glm::vec3 flatUp      = glm::vec3(0.0f, 1.0f, 0.0f);
-
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) move += flatForward * speed * dt;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) move -= flatForward * speed * dt;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) move -= flatRight * speed * dt;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) move += flatRight * speed * dt;
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) move += flatUp * speed * dt;
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) move -= flatUp * speed * dt;
-
-    position += move;
-
-    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS && !mouseLookActive) {
-        mouseLookActive = true;
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        glfwGetCursorPos(window, &lastX, &lastY);
-    }
-
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS && mouseLookActive) {
-        mouseLookActive = false;
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }
-
-    if (mouseLookActive) {
-        double mouseX, mouseY;
-        glfwGetCursorPos(window, &mouseX, &mouseY);
-
-        float offsetX = static_cast<float>(mouseX - lastX);
-        float offsetY = static_cast<float>(lastY - mouseY);
-
-        lastX = mouseX;
-        lastY = mouseY;
-
-        yaw   -= offsetX * 0.002f * sensitivity;
-        pitch += offsetY * 0.002f * sensitivity;
-
-    } else {
-        if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  yaw   += dt * sensitivity;
-        if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) yaw   -= dt * sensitivity;
-        if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    pitch += dt * sensitivity;
-        if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  pitch -= dt * sensitivity;
-    }
-
-    if (pitch > glm::radians(89.9f)) pitch = glm::radians(89.9f);
-    if (pitch < glm::radians(-89.9f)) pitch = glm::radians(-89.9f);
-
-    glm::quat qPitch = glm::angleAxis(pitch, glm::vec3(1,0,0));
-    glm::quat qYaw   = glm::angleAxis(yaw,   glm::vec3(0,1,0));
-
-    orientation = glm::normalize(qYaw * qPitch);
-}
-
-void Camera::updateViewMatrix() {
-    glm::vec3 forward = orientation * glm::vec3(0, 0, -1);
-    glm::vec3 up      = orientation * glm::vec3(0, 1,  0);
-    glm::vec3 target  = position + forward;
-
-    viewMatrix = glm::lookAt(position, target, up);
-
-    projectionMatrix = glm::perspective(glm::radians(fov), static_cast<float>(width) / static_cast<float>(height), nearPlane, farPlane);
-
-    projViewMatrix = projectionMatrix * viewMatrix;
-    
-    orthoMatrix = glm::ortho(0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, -1.0f, 1.0f);
-
-}
-
-void Camera::uploadToShader(GLuint shaderID) {
-    // glm::mat4 mvp = projViewMatrix * modelMatrix;
-
-    // glUniformMatrix4fv(glGetUniformLocation(shaderID, "uMVP"), 1, GL_FALSE, &mvp[0][0]);
-    // glUniformMatrix4fv(glGetUniformLocation(shaderID, "uModel"), 1, GL_FALSE, &modelMatrix[0][0]);
-    glUniformMatrix4fv(glGetUniformLocation(shaderID, "uView"), 1, GL_FALSE, &viewMatrix[0][0]);
-    glUniformMatrix4fv(glGetUniformLocation(shaderID, "uProjection"), 1, GL_FALSE, &projectionMatrix[0][0]);
-
-    glUniform3fv(glGetUniformLocation(shaderID, "camPos"), 1, &position[0]);
-}
 
 // ========================================================================
 
@@ -797,279 +738,6 @@ void Mesh::loadOBJSource(const std::string* objSource) {
 
 // ========================================================================
 
-Light::Light(float type, const glm::vec3 pos, const glm::vec3 dir, const glm::vec3 col, float inten, float pad1_ ) {
-    position = glm::vec4(pos, (float)type);
-    color = glm::vec4(col, inten);
-    direction = glm::vec4(dir, pad1_);
-    shadowMatrices[0] = glm::mat4(1.0f);
-    shadowMatrices[1] = glm::mat4(1.0f);
-}
-
-void Light::generateMatrices() {
-    glm::vec3 pos = glm::vec3(position);
-    glm::vec3 dir = glm::vec3(direction);
-
-    if (position.w == 0.0f) {
-        float orthoSize = 20.0f;
-        glm::mat4 proj = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, 0.1f, 100.0f);
-        glm::mat4 view = glm::lookAt(pos, pos + dir, glm::vec3(0, 1, 0));
-        shadowMatrices[0] = proj * view;
-    }
-
-    else if (position.w == 1.0f) {
-        float fov    = glm::radians(180.0f);
-        float aspect = 1.0f;
-        float range  = direction.w;
-        glm::mat4 proj = glm::perspective(fov, aspect, 0.1f, range);
-
-        shadowMatrices[0] = proj * glm::lookAt(pos, pos + glm::vec3(0, 0,  1), glm::vec3(0, 1, 0));
-        shadowMatrices[1] = proj * glm::lookAt(pos, pos + glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
-    }
-
-    else if (position.w == 2.0f) {
-        float fov    = glm::radians(45.0f); // adjust if you want wider cone
-        float aspect = 1.0f;
-        float range  = direction.w;
-        glm::mat4 proj = glm::perspective(fov, aspect, 0.1f, range);
-        glm::mat4 view = glm::lookAt(pos, pos + dir, glm::vec3(0, 1, 0));
-        shadowMatrices[0] = proj * view;
-    }
-
-
-}
-
-void Light::setPosition(const glm::vec3& pos) { position = glm::vec4(pos, position.w); }
-
-void Light::setColor(const glm::vec3& col) { color = glm::vec4(col, color.w); }
-
-void Light::setIntensity(float intensity) { color.w = intensity; }
-
-void Light::setDirection(const glm::vec3& dir) { direction = glm::vec4(dir, direction.w); }
-
-// ========================================================================
-
-LightManager::LightManager(size_t maxLights) 
-    : maxLights(maxLights) {
-
-    // lightMesh = new Mesh("Light Mesh", {}, {}, {});
-    // lightMesh.loadOBJ("res/models/cube.obj");
-    
-    glGenBuffers(1, &lightSSBO);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
-    glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(Light) * maxLights, nullptr, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO);
-    mappedPtr = (Light*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Light) * maxLights, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-}
-
-LightManager::~LightManager() {
-    if (lightSSBO) {
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
-        glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
-        glDeleteBuffers(1, &lightSSBO);
-    }
-}
-
-void LightManager::bind() { glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO); }
-
-void LightManager::updateGPU() { std::memcpy(mappedPtr, lights.data(), lights.size() * sizeof(Light)); }
-
-void LightManager::uploadToShader(GLuint shaderID) { glUniform1i(glGetUniformLocation(shaderID, "numLights"), (int)lights.size()); }
-
-// void LightManager::updateActiveLightsForObject(const glm::vec3& objPos, float objRadius) {
-//     activeLights.clear();
-//
-//     for (auto& light : lights) {
-//         if (light.position.w == 0.0f) {
-//             activeLights.push_back(light);
-//         } 
-//         else {
-//             float distance = glm::length(glm::vec3(light.position) - objPos);
-//             float range = light.direction.w;
-//             if (distance <= objRadius + range)
-//                 activeLights.push_back(light);
-//         }
-//     }
-//
-//     glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
-//     std::memcpy(mappedPtr, activeLights.data(), activeLights.size() * sizeof(Light));
-//     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-// }
-
-void LightManager::generateAllMatrices() {
-    for (auto& light : lights) {
-        light.generateMatrices();
-    }
-    updateGPU();
-}
-
-void LightManager::draw(Shader& shader, Mesh& mesh, Camera& camera) {
-    
-    // shader.activate();
-    // camera.uploadToShader(shader.ID);
-    // GLuint colorLoc = glGetUniformLocation(shader.ID, "uColor");
-
-    // glm::mat4 model = glm::mat4(1.0f);
-
-    // for (int i = 0; i < lights.size(); i++) {
-
-    //     model = glm::mat4(1.0f);
-    //     model = glm::translate(model, glm::vec3(lights[i].position[0], lights[i].position[1], lights[i].position[2]));
-    //     model = glm::scale(model, glm::vec3(0.1f));
-
-    //     glUniform4fv(colorLoc, 1, glm::value_ptr(lights[i].color));
-        
-    //     mesh.draw(shader, model);
-    // }
-}
-
-size_t LightManager::addLight(const std::string& name, int type, const std::source_location& loc) {
-    Light light(type);
-    if (lights.size() < maxLights) {
-        size_t index = lights.size();
-        lights.push_back(light);
-        lights.back().generateMatrices();
-        lightLookup[name] = index;
-        return index;
-    }
-    Message(1, "LIGHT", "No space left for light '" + name + "' in light manager", loc.file_name(), loc.line());
-    return SIZE_MAX;
-}
-
-void LightManager::removeLight(const std::string& name, int type, const std::source_location& loc) {
-    auto it = lightLookup.find(name);
-    if (it != lightLookup.end()) {
-        size_t index = it->second;
-        lights.erase(lights.begin() + index);
-        lightLookup.erase(it);
-
-        for (auto& [key, value] : lightLookup) {
-            if (value > index) value--;
-        }
-
-        updateGPU();
-    } else {
-        Message(2, "LIGHT", "Could not find light '" + name + "'", loc.file_name(), loc.line());
-    }   
-}
-
-Light* LightManager::getLight(const std::string& name, const std::source_location& loc) {
-    auto it = lightLookup.find(name);
-    if (it != lightLookup.end()) {
-        return &lights[it->second];
-    } else {
-        Message(2, "LIGHT", "Could not find light '" + name + "'", loc.file_name(), loc.line());
-        return nullptr;
-    }
-}
-
-// ========================================================================
-
-// ========================================================================
-
-// ========================================================================
-
-// ========================================================================
-
-// ========================================================================
-
-// ========================================================================
-
-// ========================================================================
-
-Framebuffer::Framebuffer(int w, int h) : width(w), height(h) { createFramebuffer(); }
-
-Framebuffer::~Framebuffer() { destroyFramebuffer(); }
-
-void Framebuffer::createFramebuffer() {
-    glGenFramebuffers(1, &fbo);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
-
-    glGenRenderbuffers(1, &rbo);
-    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
-
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        throw std::runtime_error("FRamebuffer not complete");
-    }
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void Framebuffer::destroyFramebuffer() {
-    if (rbo) glDeleteRenderbuffers(1, &rbo);
-    if (texture) glDeleteTextures(1, &texture);
-    if (fbo) glDeleteFramebuffers(1, &fbo);
-}
-
-void Framebuffer::bind() { glBindFramebuffer(GL_FRAMEBUFFER, fbo); glViewport(0, 0, width, height); }
-
-void Framebuffer::unbind() { glBindFramebuffer(GL_FRAMEBUFFER, 0); /* reset veiwport to window size */ }
-
-void Framebuffer::bindTexture(GLuint shaderID, const char* uniform, int unit) {
-    glUseProgram(shaderID);
-    glActiveTexture(GL_TEXTURE0 + unit);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glUniform1i(glGetUniformLocation(shaderID, uniform), unit);
-}
-
-void Framebuffer::resize(int newWidth, int newHeight) {
-    width = newWidth;
-    height = newHeight;
-    destroyFramebuffer();
-    createFramebuffer();
-}
-
-// ========================================================================
-
-Scene::Scene() : lightManager(128) { addCamera("Camera1"); }
-
-std::shared_ptr<Camera> Scene::addCamera(const std::string& name, const std::source_location& loc) {
-    auto it = cameras.find(name);
-    if (it != cameras.end()) {
-        Message(1, "RESOURCE", "Camera '" + name + "' already exists", loc.file_name(), loc.line());
-        return it->second;
-    }
-    
-    auto camera = std::make_shared<Camera>(name);
-    cameras[name] = camera;
-    activeCamera = camera;
-    return camera;
-}
-
-void Scene::removeCamera(const std::string& name, const std::source_location& loc) {
-    auto it = cameras.find(name);
-    if (it != cameras.end()) {
-        // if (activeCamera == cameras[index]) activeCamera = nullptr;
-        cameras.erase(it);
-        // activeCamera = cameras[0];
-    } else {
-        Message(2, "RESOURCE", "Could not find camera '" + name + "'", loc.file_name(), loc.line());
-    }   
-}
-
-std::shared_ptr<Camera> Scene::getCamera(const std::string& name, const std::source_location& loc) {
-    auto it = cameras.find(name);
-    if (it != cameras.end()) {
-        return it->second;
-    } else {
-        Message(2, "RESOURCE", "Could not find camera '" + name + "'", loc.file_name(), loc.line());
-        return nullptr;
-    }
-}
-
-// ========================================================================
-
 std::shared_ptr<Mesh> ResourceManager::loadMesh(const std::string& name, const std::vector<Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<Texture>& texs, const std::source_location& loc) {
     auto it = meshes.find(name);
     if (it != meshes.end()) {
@@ -1369,6 +1037,342 @@ void ResourceManager::loadDefaults() {
 
 // ========================================================================
 
+Camera::Camera(const std::string& cameraName, int width, int height, float fov, float nearPlane, float farPlane, const glm::vec3& pos, const glm::vec3& dir) 
+    : name(cameraName.empty() ? "new camera" : cameraName), width(width), height(height), fov(fov), nearPlane(nearPlane), farPlane(farPlane), position(pos), zoom(1.0f) {
+
+    glm::vec3 forward = glm::normalize(dir);
+    glm::vec3 defaultForward = glm::vec3(0.0f, 0.0f, -1.0f);
+    orientation = glm::rotation(defaultForward, forward);
+
+    projectionMatrix = glm::perspective(glm::radians(fov), static_cast<float>(width) / static_cast<float>(height), nearPlane, farPlane);
+    orthoMatrix = glm::ortho(0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, -1.0f, 1.0f);
+
+    updateViewMatrix();
+}
+
+void Camera::rotate(const glm::vec3& axis, float angle) {
+    glm::quat qrot = glm::angleAxis(angle, axis);
+    orientation = glm::normalize(qrot * orientation);
+}
+
+void Camera::handleInputs(GLFWwindow* window, float dt) {
+    static bool mouseLookActive = false;
+    static double lastX = 0, lastY = 0;
+
+    float speed = 2.5f;
+    float sensitivity = 1.5f;
+
+    glm::vec3 move(0.0f);
+    glm::vec3 tmp(0.0f);
+    glm::vec3 forward, right, up;
+
+    forward = orientation * glm::vec3(0, 0, -1);
+    right   = orientation * glm::vec3(1, 0, 0);
+    up      = orientation * glm::vec3(0, 1, 0);
+
+    glm::vec3 flatForward = glm::normalize(glm::vec3(forward.x, 0.0f, forward.z));
+    glm::vec3 flatRight   = glm::normalize(glm::vec3(right.x, 0.0f, right.z));
+    glm::vec3 flatUp      = glm::vec3(0.0f, 1.0f, 0.0f);
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) move += flatForward * speed * dt;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) move -= flatForward * speed * dt;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) move -= flatRight * speed * dt;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) move += flatRight * speed * dt;
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) move += flatUp * speed * dt;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) move -= flatUp * speed * dt;
+
+    position += move;
+
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS && !mouseLookActive) {
+        mouseLookActive = true;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        glfwGetCursorPos(window, &lastX, &lastY);
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS && mouseLookActive) {
+        mouseLookActive = false;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+
+    if (mouseLookActive) {
+        double mouseX, mouseY;
+        glfwGetCursorPos(window, &mouseX, &mouseY);
+
+        float offsetX = static_cast<float>(mouseX - lastX);
+        float offsetY = static_cast<float>(lastY - mouseY);
+
+        lastX = mouseX;
+        lastY = mouseY;
+
+        yaw   -= offsetX * 0.002f * sensitivity;
+        pitch += offsetY * 0.002f * sensitivity;
+
+    } else {
+        if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  yaw   += dt * sensitivity;
+        if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) yaw   -= dt * sensitivity;
+        if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    pitch += dt * sensitivity;
+        if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  pitch -= dt * sensitivity;
+    }
+
+    if (pitch > glm::radians(89.9f)) pitch = glm::radians(89.9f);
+    if (pitch < glm::radians(-89.9f)) pitch = glm::radians(-89.9f);
+
+    glm::quat qPitch = glm::angleAxis(pitch, glm::vec3(1,0,0));
+    glm::quat qYaw   = glm::angleAxis(yaw,   glm::vec3(0,1,0));
+
+    orientation = glm::normalize(qYaw * qPitch);
+}
+
+void Camera::updateViewMatrix() {
+    glm::vec3 forward = orientation * glm::vec3(0, 0, -1);
+    glm::vec3 up      = orientation * glm::vec3(0, 1,  0);
+    glm::vec3 target  = position + forward;
+
+    viewMatrix = glm::lookAt(position, target, up);
+
+    projectionMatrix = glm::perspective(glm::radians(fov), static_cast<float>(width) / static_cast<float>(height), nearPlane, farPlane);
+
+    projViewMatrix = projectionMatrix * viewMatrix;
+    
+    orthoMatrix = glm::ortho(0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, -1.0f, 1.0f);
+
+}
+
+void Camera::uploadToShader(GLuint shaderID) {
+    // glm::mat4 mvp = projViewMatrix * modelMatrix;
+
+    // glUniformMatrix4fv(glGetUniformLocation(shaderID, "uMVP"), 1, GL_FALSE, &mvp[0][0]);
+    // glUniformMatrix4fv(glGetUniformLocation(shaderID, "uModel"), 1, GL_FALSE, &modelMatrix[0][0]);
+    glUniformMatrix4fv(glGetUniformLocation(shaderID, "uView"), 1, GL_FALSE, &viewMatrix[0][0]);
+    glUniformMatrix4fv(glGetUniformLocation(shaderID, "uProjection"), 1, GL_FALSE, &projectionMatrix[0][0]);
+
+    glUniform3fv(glGetUniformLocation(shaderID, "camPos"), 1, &position[0]);
+}
+
+// ========================================================================
+
+Light::Light(float type, const glm::vec3 pos, const glm::vec3 dir, const glm::vec3 col, float inten, float pad1_ ) {
+    position = glm::vec4(pos, (float)type);
+    color = glm::vec4(col, inten);
+    direction = glm::vec4(dir, pad1_);
+    shadowMatrices[0] = glm::mat4(1.0f);
+    shadowMatrices[1] = glm::mat4(1.0f);
+}
+
+void Light::generateMatrices() {
+    glm::vec3 pos = glm::vec3(position);
+    glm::vec3 dir = glm::vec3(direction);
+
+    if (position.w == 0.0f) {
+        float orthoSize = 20.0f;
+        glm::mat4 proj = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, 0.1f, 100.0f);
+        glm::mat4 view = glm::lookAt(pos, pos + dir, glm::vec3(0, 1, 0));
+        shadowMatrices[0] = proj * view;
+    }
+
+    else if (position.w == 1.0f) {
+        float fov    = glm::radians(180.0f);
+        float aspect = 1.0f;
+        float range  = direction.w;
+        glm::mat4 proj = glm::perspective(fov, aspect, 0.1f, range);
+
+        shadowMatrices[0] = proj * glm::lookAt(pos, pos + glm::vec3(0, 0,  1), glm::vec3(0, 1, 0));
+        shadowMatrices[1] = proj * glm::lookAt(pos, pos + glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
+    }
+
+    else if (position.w == 2.0f) {
+        float fov    = glm::radians(45.0f); // adjust if you want wider cone
+        float aspect = 1.0f;
+        float range  = direction.w;
+        glm::mat4 proj = glm::perspective(fov, aspect, 0.1f, range);
+        glm::mat4 view = glm::lookAt(pos, pos + dir, glm::vec3(0, 1, 0));
+        shadowMatrices[0] = proj * view;
+    }
+
+
+}
+
+void Light::setPosition(const glm::vec3& pos) { position = glm::vec4(pos, position.w); }
+
+void Light::setColor(const glm::vec3& col) { color = glm::vec4(col, color.w); }
+
+void Light::setIntensity(float intensity) { color.w = intensity; }
+
+void Light::setDirection(const glm::vec3& dir) { direction = glm::vec4(dir, direction.w); }
+
+// ========================================================================
+
+LightManager::LightManager(size_t maxLights) 
+    : maxLights(maxLights) {
+
+    // lightMesh = new Mesh("Light Mesh", {}, {}, {});
+    // lightMesh.loadOBJ("res/models/cube.obj");
+    
+    glGenBuffers(1, &lightSSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
+    glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(Light) * maxLights, nullptr, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO);
+    mappedPtr = (Light*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Light) * maxLights, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+LightManager::~LightManager() {
+    if (lightSSBO) {
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
+        glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+        glDeleteBuffers(1, &lightSSBO);
+    }
+}
+
+void LightManager::bind() { glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO); }
+
+void LightManager::updateGPU() { std::memcpy(mappedPtr, lights.data(), lights.size() * sizeof(Light)); }
+
+void LightManager::uploadToShader(GLuint shaderID) { glUniform1i(glGetUniformLocation(shaderID, "numLights"), (int)lights.size()); }
+
+// void LightManager::updateActiveLightsForObject(const glm::vec3& objPos, float objRadius) {
+//     activeLights.clear();
+//
+//     for (auto& light : lights) {
+//         if (light.position.w == 0.0f) {
+//             activeLights.push_back(light);
+//         } 
+//         else {
+//             float distance = glm::length(glm::vec3(light.position) - objPos);
+//             float range = light.direction.w;
+//             if (distance <= objRadius + range)
+//                 activeLights.push_back(light);
+//         }
+//     }
+//
+//     glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
+//     std::memcpy(mappedPtr, activeLights.data(), activeLights.size() * sizeof(Light));
+//     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+// }
+
+void LightManager::generateAllMatrices() {
+    for (auto& light : lights) {
+        light.generateMatrices();
+    }
+    updateGPU();
+}
+
+void LightManager::draw(Shader& shader, Mesh& mesh, Camera& camera) {
+    
+    // shader.activate();
+    // camera.uploadToShader(shader.ID);
+    // GLuint colorLoc = glGetUniformLocation(shader.ID, "uColor");
+
+    // glm::mat4 model = glm::mat4(1.0f);
+
+    // for (int i = 0; i < lights.size(); i++) {
+
+    //     model = glm::mat4(1.0f);
+    //     model = glm::translate(model, glm::vec3(lights[i].position[0], lights[i].position[1], lights[i].position[2]));
+    //     model = glm::scale(model, glm::vec3(0.1f));
+
+    //     glUniform4fv(colorLoc, 1, glm::value_ptr(lights[i].color));
+        
+    //     mesh.draw(shader, model);
+    // }
+}
+
+size_t LightManager::addLight(const std::string& name, int type, const std::source_location& loc) {
+    Light light(type);
+    if (lights.size() < maxLights) {
+        size_t index = lights.size();
+        lights.push_back(light);
+        lights.back().generateMatrices();
+        lightLookup[name] = index;
+        return index;
+    }
+    Message(1, "LIGHT", "No space left for light '" + name + "' in light manager", loc.file_name(), loc.line());
+    return SIZE_MAX;
+}
+
+void LightManager::removeLight(const std::string& name, int type, const std::source_location& loc) {
+    auto it = lightLookup.find(name);
+    if (it != lightLookup.end()) {
+        size_t index = it->second;
+        lights.erase(lights.begin() + index);
+        lightLookup.erase(it);
+
+        for (auto& [key, value] : lightLookup) {
+            if (value > index) value--;
+        }
+
+        updateGPU();
+    } else {
+        Message(2, "LIGHT", "Could not find light '" + name + "'", loc.file_name(), loc.line());
+    }   
+}
+
+Light* LightManager::getLight(const std::string& name, const std::source_location& loc) {
+    auto it = lightLookup.find(name);
+    if (it != lightLookup.end()) {
+        return &lights[it->second];
+    } else {
+        Message(2, "LIGHT", "Could not find light '" + name + "'", loc.file_name(), loc.line());
+        return nullptr;
+    }
+}
+
+// ========================================================================
+
+// ========================================================================
+
+// ========================================================================
+
+// ========================================================================
+
+// ========================================================================
+
+// ========================================================================
+
+// ========================================================================
+
+// ========================================================================
+
+Scene::Scene() : lightManager(128) { addCamera("Camera1"); }
+
+std::shared_ptr<Camera> Scene::addCamera(const std::string& name, const std::source_location& loc) {
+    auto it = cameras.find(name);
+    if (it != cameras.end()) {
+        Message(1, "RESOURCE", "Camera '" + name + "' already exists", loc.file_name(), loc.line());
+        return it->second;
+    }
+    
+    auto camera = std::make_shared<Camera>(name);
+    cameras[name] = camera;
+    activeCamera = camera;
+    return camera;
+}
+
+void Scene::removeCamera(const std::string& name, const std::source_location& loc) {
+    auto it = cameras.find(name);
+    if (it != cameras.end()) {
+        // if (activeCamera == cameras[index]) activeCamera = nullptr;
+        cameras.erase(it);
+        // activeCamera = cameras[0];
+    } else {
+        Message(2, "RESOURCE", "Could not find camera '" + name + "'", loc.file_name(), loc.line());
+    }   
+}
+
+std::shared_ptr<Camera> Scene::getCamera(const std::string& name, const std::source_location& loc) {
+    auto it = cameras.find(name);
+    if (it != cameras.end()) {
+        return it->second;
+    } else {
+        Message(2, "RESOURCE", "Could not find camera '" + name + "'", loc.file_name(), loc.line());
+        return nullptr;
+    }
+}
+
+// ========================================================================
+
+// ========================================================================
+
 // ========================================================================
 
 static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
@@ -1415,9 +1419,9 @@ Engine::Engine(const std::string& title, int width, int height, const std::sourc
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     glEnable(GL_DEPTH_TEST);
-    // glEnable(GL_CULL_FACE);
-    // glCullFace(GL_FRONT);
-    // glFrontFace(GL_CCW);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT);
+    glFrontFace(GL_CCW);
     glDepthFunc(GL_LESS);
 
     glEnable(GL_BLEND);

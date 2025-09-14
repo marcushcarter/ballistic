@@ -87,4 +87,4 @@ void main() {
 
 @end
 
-@program default_scene vertex_shader fragment_shader
+@program __scene vertex_shader fragment_shader
