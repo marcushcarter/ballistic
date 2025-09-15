@@ -459,9 +459,35 @@ Mesh::~Mesh() {
     }
 }
 
+void Mesh::addInstance(const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale) {
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), position) * glm::eulerAngleXYZ(rotation.x, rotation.y, rotation.z) * glm::scale(glm::mat4(1.0f), scale);
+    instanceModels.push_back(model);
+}
 
+void Mesh::addInstance(const glm::mat4& model) {
+    instanceModels.push_back(model);
+}
 
+void Mesh::clearInstances() {
+    instanceModels.clear();
+}
 
+void Mesh::uploadInstances() {
+    if (vboInstance.ID == 0) {
+        glGenBuffers(1, &vboInstance.ID);
+    }
+    glBindVertexArray(vao.ID);
+    glBindBuffer(GL_ARRAY_BUFFER, vboInstance.ID);
+    glBufferData(GL_ARRAY_BUFFER, instanceModels.size() * sizeof(glm::mat4), instanceModels.data(), GL_DYNAMIC_DRAW);
+
+    std::size_t vec4Size = sizeof(glm::vec4);
+    for (int i = 0; i < 4; i++) {
+        glEnableVertexAttribArray(3 + i);
+        glVertexAttribPointer(3 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(i * vec4Size));
+        glVertexAttribDivisor(3 + i, 1);
+    }
+    glBindVertexArray(0);
+}
 
 void Mesh::draw(Shader& shader, const glm::mat4& modelMatrix) {
     shader.activate();
