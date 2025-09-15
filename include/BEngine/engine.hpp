@@ -126,7 +126,9 @@ public:
         const std::string& vertexPath = "", 
         const std::string& fragmentPath = "", 
         const std::string& geometryPath = "", 
-        const std::string& computePath = ""
+        const std::string& computePath = "",
+        const std::string& tessControlPath = "", 
+        const std::string& tessEvaluationPath = ""
     );
     
     Shader(
@@ -134,7 +136,9 @@ public:
         const std::string* vertexSource = nullptr, 
         const std::string* fragmentSource = nullptr, 
         const std::string* geometrySource = nullptr, 
-        const std::string* computeSource = nullptr
+        const std::string* computeSource = nullptr,
+        const std::string* tessControlSource = nullptr,
+        const std::string* tessEvaluationSource = nullptr
     );
 
     ~Shader();
@@ -144,14 +148,18 @@ public:
         const std::string& vertexPath = "", 
         const std::string& fragmentPath = "", 
         const std::string& geometryPath = "", 
-        const std::string& computePath = ""
+        const std::string& computePath = "",
+        const std::string& tessControlPath = "", 
+        const std::string& tessEvaluationPath = ""
     );
 
     void recompile(
         const std::string* vertexSource, 
         const std::string* fragmentSource, 
         const std::string* geometrySource, 
-        const std::string* computeSource
+        const std::string* computeSource,
+        const std::string* tessControlSource,
+        const std::string* tessEvaluationSource
     );
     
 private:
@@ -218,6 +226,11 @@ public:
     std::unordered_map<std::string, std::shared_ptr<Shader>> shaders;
     std::unordered_map<std::string, std::shared_ptr<Texture>> textures;
 
+    // struct ShaderResource {
+    //     std::string vertexPath;
+
+    // }
+
     std::shared_ptr<Mesh> loadMesh(const std::string& name, const std::vector<Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<Texture>& texs, const std::source_location& loc = std::source_location::current());
     std::shared_ptr<Mesh> loadMesh(const std::string& name, const std::string& objPath, const std::source_location& loc = std::source_location::current());
     std::shared_ptr<Mesh> loadMesh(const std::string& name, const std::string* objSource, const std::source_location& loc = std::source_location::current());
@@ -230,6 +243,8 @@ public:
         const std::string& fragmentPath = "",
         const std::string& geometryPath = "",
         const std::string& computePath = "",
+        const std::string& tessControlPath = "", 
+        const std::string& tessEvaluationPath = "",
         const std::source_location& loc = std::source_location::current()
     );
     std::shared_ptr<Shader> loadShader(
@@ -238,10 +253,13 @@ public:
         const std::string* fragmentSource = nullptr,
         const std::string* geometrySource = nullptr,
         const std::string* computeSource = nullptr,
+        const std::string* tessControlSource = nullptr,
+        const std::string* tessEvaluationSource = nullptr,
         const std::source_location& loc = std::source_location::current()
     );
     void removeShader(const std::string& name, const std::source_location& loc = std::source_location::current());
     std::shared_ptr<Shader> getShader(const std::string& name, const std::source_location& loc = std::source_location::current());
+    // void recompileShaders();
 
     void loadShaderDSL(const std::string& filePath, const std::source_location& loc = std::source_location::current());
 

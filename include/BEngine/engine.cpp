@@ -199,21 +199,25 @@ void Framebuffer::resize(int newWidth, int newHeight, bool linearFilter) {
 
 // ========================================================================
 
-Shader::Shader(const std::string& shaderName, const std::string& vertexPath, const std::string& fragmentPath, const std::string& geometryPath, const std::string& computePath)
+Shader::Shader(const std::string& shaderName, const std::string& vertexPath, const std::string& fragmentPath, const std::string& geometryPath, const std::string& computePath, const std::string& tessControlPath, const std::string& tessEvaluationPath)
     : name(shaderName.empty() ? "new shader" : shaderName) {
 
-    GLuint vertexShader = 0, fragmentShader = 0, geometryShader = 0, computeShader = 0;
+    GLuint vertexShader = 0, fragmentShader = 0, geometryShader = 0, computeShader = 0, tessControlShader = 0, tessEvaluationShader = 0;
 
     if (!vertexPath.empty()) vertexShader = compileShader(GL_VERTEX_SHADER, getFileContents(vertexPath));
     if (!fragmentPath.empty()) fragmentShader = compileShader(GL_FRAGMENT_SHADER, getFileContents(fragmentPath));
     if (!geometryPath.empty()) geometryShader = compileShader(GL_GEOMETRY_SHADER, getFileContents(geometryPath));
     if (!computePath.empty()) computeShader = compileShader(GL_COMPUTE_SHADER, getFileContents(computePath));
+    if (!tessControlPath.empty()) tessControlShader = compileShader(GL_TESS_CONTROL_SHADER, getFileContents(tessControlPath));
+    if (!tessEvaluationPath.empty()) tessEvaluationShader = compileShader(GL_TESS_EVALUATION_SHADER, getFileContents(tessEvaluationPath));
 
     ID = glCreateProgram();
     if (vertexShader) glAttachShader(ID, vertexShader);
     if (fragmentShader) glAttachShader(ID, fragmentShader);
     if (geometryShader) glAttachShader(ID, geometryShader);
     if (computeShader) glAttachShader(ID, computeShader);
+    if (tessControlShader) glAttachShader(ID, tessControlShader);
+    if (tessEvaluationShader) glAttachShader(ID, tessEvaluationShader);
     glLinkProgram(ID);
     getCompileErrors(ID, "PROGRAM");
 
@@ -221,26 +225,32 @@ Shader::Shader(const std::string& shaderName, const std::string& vertexPath, con
     if (fragmentShader) glDeleteShader(fragmentShader);
     if (geometryShader) glDeleteShader(geometryShader);
     if (computeShader) glDeleteShader(computeShader);
+    if (tessControlShader) glDeleteShader(tessControlShader);
+    if (tessEvaluationShader) glDeleteShader(tessEvaluationShader);
     
     // Message(0, "SHADER", "Shader '" + shaderName + "' loaded successfully", "PATH", 1);
 
 }
 
-Shader::Shader(const std::string& shaderName, const std::string* vertexSource, const std::string* fragmentSource, const std::string* geometrySource, const std::string* computeSource)
+Shader::Shader(const std::string& shaderName, const std::string* vertexSource, const std::string* fragmentSource, const std::string* geometrySource, const std::string* computeSource, const std::string* tessControlSource, const std::string* tessEvaluationSource)
     : name(shaderName.empty() ? "new shader" : shaderName) {
 
-    GLuint vertexShader = 0, fragmentShader = 0, geometryShader = 0, computeShader = 0;
+    GLuint vertexShader = 0, fragmentShader = 0, geometryShader = 0, computeShader = 0, tessControlShader = 0, tessEvaluationShader = 0;
 
     if (vertexSource) vertexShader = compileShader(GL_VERTEX_SHADER, *vertexSource);
     if (fragmentSource) fragmentShader = compileShader(GL_FRAGMENT_SHADER, *fragmentSource);
     if (geometrySource) geometryShader = compileShader(GL_GEOMETRY_SHADER, *geometrySource);
     if (computeSource) computeShader = compileShader(GL_COMPUTE_SHADER, *computeSource);
+    if (tessControlSource) tessControlShader = compileShader(GL_TESS_CONTROL_SHADER, *tessControlSource);
+    if (tessEvaluationSource) tessEvaluationShader = compileShader(GL_TESS_EVALUATION_SHADER, *tessEvaluationSource);
 
     ID = glCreateProgram();
     if (vertexShader) glAttachShader(ID, vertexShader);
     if (fragmentShader) glAttachShader(ID, fragmentShader);
     if (geometryShader) glAttachShader(ID, geometryShader);
     if (computeShader) glAttachShader(ID, computeShader);
+    if (tessControlShader) glAttachShader(ID, tessControlShader);
+    if (tessEvaluationShader) glAttachShader(ID, tessEvaluationShader);
     glLinkProgram(ID);
     getCompileErrors(ID, "PROGRAM");
 
@@ -248,6 +258,8 @@ Shader::Shader(const std::string& shaderName, const std::string* vertexSource, c
     if (fragmentShader) glDeleteShader(fragmentShader);
     if (geometryShader) glDeleteShader(geometryShader);
     if (computeShader) glDeleteShader(computeShader);
+    if (tessControlShader) glDeleteShader(tessControlShader);
+    if (tessEvaluationShader) glDeleteShader(tessEvaluationShader);
     
     // Message(0, "SHADER", "Shader '" + shaderName + "' loaded successfully", "SOURCE", 1);
 }
@@ -295,24 +307,30 @@ GLuint Shader::compileShader(GLenum type, const std::string& source) {
         case GL_FRAGMENT_SHADER: getCompileErrors(shader, "FRAGMENT"); break;
         case GL_GEOMETRY_SHADER: getCompileErrors(shader, "GEOMETRY"); break;
         case GL_COMPUTE_SHADER:  getCompileErrors(shader, "COMPUTE"); break;
+        case GL_TESS_CONTROL_SHADER:  getCompileErrors(shader, "TESS CONTROL"); break;
+        case GL_TESS_EVALUATION_SHADER:  getCompileErrors(shader, "TESS EVALUATION"); break;
     }
     return shader;
 }
 
-void Shader::recompile(const std::string& vertexPath, const std::string& fragmentPath, const std::string& geometryPath, const std::string& computePath) {
+void Shader::recompile(const std::string& vertexPath, const std::string& fragmentPath, const std::string& geometryPath, const std::string& computePath, const std::string& tessControlPath, const std::string& tessEvaluationPath) {
     
-    GLuint vertexShader = 0, fragmentShader = 0, geometryShader = 0, computeShader = 0;
+    GLuint vertexShader = 0, fragmentShader = 0, geometryShader = 0, computeShader = 0, tessControlShader = 0, tessEvaluationShader = 0;
 
     if (!vertexPath.empty()) vertexShader = compileShader(GL_VERTEX_SHADER, getFileContents(vertexPath));
     if (!fragmentPath.empty()) fragmentShader = compileShader(GL_FRAGMENT_SHADER, getFileContents(fragmentPath));
     if (!geometryPath.empty()) geometryShader = compileShader(GL_GEOMETRY_SHADER, getFileContents(geometryPath));
     if (!computePath.empty()) computeShader = compileShader(GL_COMPUTE_SHADER, getFileContents(computePath));
+    if (!tessControlPath.empty()) tessControlShader = compileShader(GL_TESS_CONTROL_SHADER, getFileContents(tessControlPath));
+    if (!tessEvaluationPath.empty()) tessEvaluationShader = compileShader(GL_TESS_EVALUATION_SHADER, getFileContents(tessEvaluationPath));
 
     GLuint newProgram = glCreateProgram();
     if (vertexShader)   glAttachShader(newProgram, vertexShader);
     if (fragmentShader) glAttachShader(newProgram, fragmentShader);
     if (geometryShader) glAttachShader(newProgram, geometryShader);
     if (computeShader)  glAttachShader(newProgram, computeShader);
+    if (tessControlShader) glAttachShader(ID, tessControlShader);
+    if (tessEvaluationShader) glAttachShader(ID, tessEvaluationShader);
     glLinkProgram(newProgram);
     getCompileErrors(newProgram, "PROGRAM");
 
@@ -323,23 +341,29 @@ void Shader::recompile(const std::string& vertexPath, const std::string& fragmen
     if (fragmentShader) glDeleteShader(fragmentShader);
     if (geometryShader) glDeleteShader(geometryShader);
     if (computeShader)  glDeleteShader(computeShader);
+    if (tessControlShader) glDeleteShader(tessControlShader);
+    if (tessEvaluationShader) glDeleteShader(tessEvaluationShader);
 
 }
 
-void Shader::recompile(const std::string* vertexSource, const std::string* fragmentSource, const std::string* geometrySource, const std::string* computeSource) {
+void Shader::recompile(const std::string* vertexSource, const std::string* fragmentSource, const std::string* geometrySource, const std::string* computeSource, const std::string* tessControlSource, const std::string* tessEvaluationSource) {
     
-    GLuint vertexShader = 0, fragmentShader = 0, geometryShader = 0, computeShader = 0;
+    GLuint vertexShader = 0, fragmentShader = 0, geometryShader = 0, computeShader = 0, tessControlShader = 0, tessEvaluationShader = 0;
 
     if (vertexSource) vertexShader = compileShader(GL_VERTEX_SHADER, *vertexSource);
     if (fragmentSource) fragmentShader = compileShader(GL_FRAGMENT_SHADER, *fragmentSource);
     if (geometrySource) geometryShader = compileShader(GL_GEOMETRY_SHADER, *geometrySource);
     if (computeSource) computeShader = compileShader(GL_COMPUTE_SHADER, *computeSource);
+    if (tessControlSource) tessControlShader = compileShader(GL_TESS_CONTROL_SHADER, *tessControlSource);
+    if (tessEvaluationSource) tessEvaluationShader = compileShader(GL_TESS_EVALUATION_SHADER, *tessEvaluationSource);
 
     GLuint newProgram = glCreateProgram();
     if (vertexShader)   glAttachShader(newProgram, vertexShader);
     if (fragmentShader) glAttachShader(newProgram, fragmentShader);
     if (geometryShader) glAttachShader(newProgram, geometryShader);
     if (computeShader)  glAttachShader(newProgram, computeShader);
+    if (tessControlShader) glAttachShader(ID, tessControlShader);
+    if (tessEvaluationShader) glAttachShader(ID, tessEvaluationShader);
     glLinkProgram(newProgram);
     getCompileErrors(newProgram, "PROGRAM");
 
@@ -350,6 +374,8 @@ void Shader::recompile(const std::string* vertexSource, const std::string* fragm
     if (fragmentShader) glDeleteShader(fragmentShader);
     if (geometryShader) glDeleteShader(geometryShader);
     if (computeShader)  glDeleteShader(computeShader);
+    if (tessControlShader) glDeleteShader(tessControlShader);
+    if (tessEvaluationShader) glDeleteShader(tessEvaluationShader);
 
 }
 
@@ -524,8 +550,6 @@ void Mesh::drawInstanced(Shader& shader) {
     shader.activate();
     uploadInstances();
     vao.bind();
-
-    // glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uModel"), 1, GL_FALSE, &modelMatrix[0][0]);
 
     unsigned int numDiffuse = 0;
     unsigned int numSpecular = 0;
@@ -856,26 +880,26 @@ std::shared_ptr<Mesh> ResourceManager::getMesh(const std::string& name, const st
     }
 }
 
-std::shared_ptr<Shader> ResourceManager::loadShader(const std::string& name, const std::string& vertexPath, const std::string& fragmentPath, const std::string& geometryPath, const std::string& computePath, const std::source_location& loc) {
+std::shared_ptr<Shader> ResourceManager::loadShader(const std::string& name, const std::string& vertexPath, const std::string& fragmentPath, const std::string& geometryPath, const std::string& computePath, const std::string& tessControlPath, const std::string& tessEvaluationPath, const std::source_location& loc) {
     auto it = shaders.find(name);
     if (it != shaders.end()) {
         Message(1, "RESOURCE", "Shader '" + name + "' already exists", loc.file_name(), loc.line());
         return it->second;
     }
     
-    auto shader = std::make_shared<Shader>(name, vertexPath, fragmentPath, geometryPath, computePath);
+    auto shader = std::make_shared<Shader>(name, vertexPath, fragmentPath, geometryPath, computePath, tessControlPath, tessEvaluationPath);
     shaders[name] = shader;
     return shader;
 }
 
-std::shared_ptr<Shader> ResourceManager::loadShader(const std::string& name, const std::string* vertexSource, const std::string* fragmentSource, const std::string* geometrySource, const std::string* computeSource, const std::source_location& loc) {
+std::shared_ptr<Shader> ResourceManager::loadShader(const std::string& name, const std::string* vertexSource, const std::string* fragmentSource, const std::string* geometrySource, const std::string* computeSource, const std::string* tessControlSource, const std::string* tessEvaluationSource, const std::source_location& loc) {
     auto it = shaders.find(name);
     if (it != shaders.end()) {
         Message(1, "RESOURCE", "Shader '" + name + "' already exists", loc.file_name(), loc.line());
         return it->second;
     }
     
-    auto shader = std::make_shared<Shader>(name, vertexSource, fragmentSource, geometrySource, computeSource);
+    auto shader = std::make_shared<Shader>(name, vertexSource, fragmentSource, geometrySource, computeSource, tessControlSource, tessEvaluationSource);
     shaders[name] = shader;
     return shader;
 }
@@ -886,6 +910,8 @@ const char* GLTypeToString(GLenum type) {
         case GL_FRAGMENT_SHADER: return "GL_FRAGMENT_SHADER";
         case GL_GEOMETRY_SHADER: return "GL_GEOMETRY_SHADER";
         case GL_COMPUTE_SHADER: return "GL_COMPUTE_SHADER";
+        case GL_TESS_CONTROL_SHADER: return "GL_TESS_CONTROL_SHADER";
+        case GL_TESS_EVALUATION_SHADER: return "GL_TESS_EVALUATION_SHADER";
         default: return "UNKNOWN_GLENUM";
     }
 }
@@ -962,12 +988,22 @@ void ResourceManager::loadShaderDSL(const std::string& filePath, const std::sour
                 currentShader.type = GL_COMPUTE_SHADER;
                 currentShader.source.clear();
                 writingShader = true;
+            } else if (line.find("@tcs") == 0) {
+                currentName = line.substr(5);
+                currentShader.type = GL_TESS_CONTROL_SHADER;
+                currentShader.source.clear();
+                writingShader = true;
+            } else if (line.find("@tes") == 0) {
+                currentName = line.substr(5);
+                currentShader.type = GL_TESS_EVALUATION_SHADER;
+                currentShader.source.clear();
+                writingShader = true;
             } else if (line.find("@program") == 0) {
                 std::istringstream ss(line.substr(9));
                 std::string programName;
                 ss >> programName;
 
-                std::string vertexName, fragmentName, geometryName, computeName;
+                std::string vertexName, fragmentName, geometryName, computeName, tessControlName, tessEvaluationName;
 
                 std::unordered_map<GLenum, std::string> usedTypes;
 
@@ -992,6 +1028,8 @@ void ResourceManager::loadShaderDSL(const std::string& filePath, const std::sour
                     else if (type == GL_FRAGMENT_SHADER) fragmentName = shaderName;
                     else if (type == GL_GEOMETRY_SHADER) geometryName = shaderName;
                     else if (type == GL_COMPUTE_SHADER) computeName = shaderName;
+                    else if (type == GL_TESS_CONTROL_SHADER) tessControlName = shaderName;
+                    else if (type == GL_TESS_EVALUATION_SHADER) tessEvaluationName = shaderName;
 
                 }
 
@@ -999,12 +1037,14 @@ void ResourceManager::loadShaderDSL(const std::string& filePath, const std::sour
                 const std::string* fsSrc = fragmentName.empty() ? nullptr : &localShaders[fragmentName].source;
                 const std::string* gsSrc = geometryName.empty() ? nullptr : &localShaders[geometryName].source;
                 const std::string* csSrc = computeName.empty() ? nullptr : &localShaders[computeName].source;
+                const std::string* tcsSrc = tessControlName.empty() ? nullptr : &localShaders[tessControlName].source;
+                const std::string* tesSrc = tessEvaluationName.empty() ? nullptr : &localShaders[tessEvaluationName].source;
 
                 auto it = shaders.find(programName);
                 if (it != shaders.end()) {
-                    getShader(programName)->recompile(vsSrc, fsSrc, gsSrc, csSrc);
+                    getShader(programName)->recompile(vsSrc, fsSrc, gsSrc, csSrc, tcsSrc, tesSrc);
                 } else {
-                    loadShader(programName, vsSrc, fsSrc, gsSrc, csSrc, loc);
+                    loadShader(programName, vsSrc, fsSrc, gsSrc, csSrc, tcsSrc, tesSrc, loc);
                 }
 
                 shaderNames.push_back(programName);
@@ -1540,10 +1580,6 @@ Engine::~Engine() {
     glfwTerminate();
 }
 
-
-
-
-
 // std::shared_ptr<Scene> Engine::addScene(const std::string& name, const std::source_location& loc) {
 //     auto it = scenes.find(name);
 //     if (it != scenes.end()) {
@@ -1574,23 +1610,6 @@ Engine::~Engine() {
 //         return nullptr;
 //     }
 // }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 void Engine::bind() { g_boundEngine = this; }
 
