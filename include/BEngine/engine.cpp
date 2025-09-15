@@ -459,6 +459,10 @@ Mesh::~Mesh() {
     }
 }
 
+
+
+
+
 void Mesh::draw(Shader& shader, const glm::mat4& modelMatrix) {
     shader.activate();
     vao.bind();
@@ -481,6 +485,38 @@ void Mesh::draw(Shader& shader, const glm::mat4& modelMatrix) {
     }
 
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
+    vao.unbind();
+
+}
+
+void Mesh::drawInstanced(Shader& shader) {
+    if (instanceModels.empty()) {
+        draw(shader, glm::mat4(1));
+        return;
+    }
+
+    shader.activate();
+    uploadInstances();
+    vao.bind();
+
+    // glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uModel"), 1, GL_FALSE, &modelMatrix[0][0]);
+
+    unsigned int numDiffuse = 0;
+    unsigned int numSpecular = 0;
+
+    for (size_t i = 0; i < textures.size(); i++) {
+        std::string type = textures[i].texType;
+        std::string numStr;
+
+        if (type == "diffuse") { numStr = std::to_string(numDiffuse++); }
+        else if (type == "specular") numStr = std::to_string(numSpecular++);
+
+        std::string uniformName = type + numStr;
+        textures[i].setUniformUnit(shader.ID, uniformName.c_str());
+        textures[i].bind();
+    }
+
+    glDrawElementsInstanced(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0, (GLsizei)instanceModels.size());
     vao.unbind();
 
 }

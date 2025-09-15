@@ -70,6 +70,7 @@ class VBO {
 public:
     GLuint ID = 0;
 
+    VBO() = default;
     VBO(GLfloat* vertices, GLsizeiptr size);
     VBO(const std::vector<Vertex>& vertices);
     ~VBO();
@@ -188,6 +189,9 @@ public:
     VAO vao;
     VBO* vbo = nullptr;
     EBO* ebo = nullptr;
+    VBO vboInstance;
+
+    std::vector<glm::mat4> instanceModels;
 
     Mesh() = default;
     Mesh(const std::string& meshName, const std::vector<Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<Texture>& texs);
@@ -195,9 +199,17 @@ public:
     Mesh(const std::string& meshName, const std::string* objSource);
     ~Mesh();
 
+    void addInstance(const glm::vec3& position = glm::vec3(0), const glm::vec3& rotation = glm::vec3(0), const glm::vec3& scale = glm::vec3(1));
+    void addInstance(const glm::mat4& model = glm::mat4(1));
+    void clearInstances();
+    void uploadInstances();
+
     void draw(Shader& shader, const glm::mat4& modelMatrix);
+    void drawInstanced(Shader& shader);
+
     void loadOBJ(const std::string& objPath);
     void loadOBJSource(const std::string* objSource);
+
 };
 
 class ResourceManager {
