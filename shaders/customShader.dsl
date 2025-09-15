@@ -43,4 +43,4 @@ void main() {
 
 @end
 
-@program scene vertex_shader fragment_shader
+@program scene2 vertex_shader fragment_shader

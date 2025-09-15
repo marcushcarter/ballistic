@@ -13,6 +13,7 @@ int main() {
     engine.resources().loadMesh("Test Scene", "res/models/scene.obj");
     
     engine.resources().loadShaderDSL("shaders/customShader.dsl");
+    engine.resources().loadShader("scene", "shaders/scene.vert", "shaders/scene.frag");
 
     scene.setShader(engine.resources().getShader("scene"));
 
@@ -33,6 +34,7 @@ int main() {
         if (glfwGetKey(engine.getWindow(), GLFW_KEY_0) == GLFW_PRESS) { engine.resources().loadShaderDSL("shaders/customShader.dsl"); }
         if (glfwGetKey(engine.getWindow(), GLFW_KEY_1) == GLFW_PRESS) { scene.removeShader(); }
         if (glfwGetKey(engine.getWindow(), GLFW_KEY_2) == GLFW_PRESS) { scene.setShader(engine.resources().getShader("scene")); }
+        if (glfwGetKey(engine.getWindow(), GLFW_KEY_3) == GLFW_PRESS) { engine.resources().recompileShaders(); }
 
         // updates
 

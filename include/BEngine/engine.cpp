@@ -886,9 +886,23 @@ std::shared_ptr<Shader> ResourceManager::loadShader(const std::string& name, con
         Message(1, "RESOURCE", "Shader '" + name + "' already exists", loc.file_name(), loc.line());
         return it->second;
     }
+
+    ShaderPaths sp;
+    sp.name = name;
+    sp.type = ShaderType::Legacy;
+    sp.vertex = vertexPath;
+    sp.fragment = fragmentPath;
+    sp.geometry = geometryPath;
+    sp.compute = computePath;
+    sp.tessControl = tessControlPath;
+    sp.tessEvaluation = tessEvaluationPath;
+    shaderPaths[name] = sp;
     
     auto shader = std::make_shared<Shader>(name, vertexPath, fragmentPath, geometryPath, computePath, tessControlPath, tessEvaluationPath);
     shaders[name] = shader;
+    
+    Message(0, "RESOURCE", "Shader '" + name + "' loaded successfully from PATHS", loc.file_name(), loc.line());
+
     return shader;
 }
 
@@ -901,6 +915,9 @@ std::shared_ptr<Shader> ResourceManager::loadShader(const std::string& name, con
     
     auto shader = std::make_shared<Shader>(name, vertexSource, fragmentSource, geometrySource, computeSource, tessControlSource, tessEvaluationSource);
     shaders[name] = shader;
+    
+    Message(0, "RESOURCE", "Shader '" + name + "' loaded successfully from STRINGS", loc.file_name(), loc.line());
+
     return shader;
 }
 
@@ -935,7 +952,7 @@ void ResourceManager::loadShaderDSL(const std::string& filePath, const std::sour
     
     std::ifstream file(filePath);
     if (!file.is_open()) {
-        Message(2, "SHADER", "Failed to open DSL file " + filePath, filePath.c_str(), 1);
+        Message(2, "RESOURCE", "Failed to open DSL file " + filePath, loc.file_name(), loc.line());
         return;
     }
 
@@ -1059,9 +1076,14 @@ void ResourceManager::loadShaderDSL(const std::string& filePath, const std::sour
 
     file.close();
 
+    ShaderPaths sp;
+    sp.type = ShaderType::DSL;
+    sp.dslPath = filePath;
+    shaderPaths[filePath] = sp;
+
     std::string namesStr = join_names(shaderNames);
 
-    Message(0, "SHADERS", "DSL shaders " + namesStr + " loaded successfully", filePath.c_str(), lineNum);
+    Message(0, "RESOURCE", "DSL shaders " + namesStr + "loaded successfully", filePath.c_str(), lineNum);
 }
 
 void ResourceManager::removeShader(const std::string& name, const std::source_location& loc) {
@@ -1080,6 +1102,16 @@ std::shared_ptr<Shader> ResourceManager::getShader(const std::string& name, cons
     } else {
         Message(2, "RESOURCE", "Could not find shader '" + name + "'", loc.file_name(), loc.line());
         return nullptr;
+    }
+}
+
+void ResourceManager::recompileShaders(const std::source_location& loc) {
+    for (const auto& [key, shader] : shaderPaths) {
+        if (shader.type == ShaderType::Legacy) {
+            if (getShader(shader.name, loc)) getShader(shader.name, loc)->recompile(shader.vertex, shader.fragment, shader.geometry, shader.compute, shader.tessControl, shader.tessEvaluation);
+        } else if (shader.type == ShaderType::DSL) {
+            loadShaderDSL(shader.dslPath, loc);
+        }
     }
 }
 

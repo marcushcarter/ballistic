@@ -226,10 +226,24 @@ public:
     std::unordered_map<std::string, std::shared_ptr<Shader>> shaders;
     std::unordered_map<std::string, std::shared_ptr<Texture>> textures;
 
-    // struct ShaderResource {
-    //     std::string vertexPath;
+    enum class ShaderType {
+        Legacy = 1,
+        DSL = 2
+    };
 
-    // }
+    struct ShaderPaths {
+        std::string name;
+        std::string vertex;
+        std::string fragment;
+        std::string geometry;
+        std::string compute;
+        std::string tessControl;
+        std::string tessEvaluation;
+        std::string dslPath;
+        ShaderType type; // 0 = paths, 1 = dsl
+    };
+    
+    std::unordered_map<std::string, ShaderPaths> shaderPaths;
 
     std::shared_ptr<Mesh> loadMesh(const std::string& name, const std::vector<Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<Texture>& texs, const std::source_location& loc = std::source_location::current());
     std::shared_ptr<Mesh> loadMesh(const std::string& name, const std::string& objPath, const std::source_location& loc = std::source_location::current());
@@ -259,7 +273,7 @@ public:
     );
     void removeShader(const std::string& name, const std::source_location& loc = std::source_location::current());
     std::shared_ptr<Shader> getShader(const std::string& name, const std::source_location& loc = std::source_location::current());
-    // void recompileShaders();
+    void recompileShaders(const std::source_location& loc = std::source_location::current());
 
     void loadShaderDSL(const std::string& filePath, const std::source_location& loc = std::source_location::current());
 
