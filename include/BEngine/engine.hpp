@@ -262,6 +262,8 @@ public:
     );
     ~Camera() = default;
 
+    // draw(Shader& shader, Mesh& mesh);
+
     void rotate(const glm::vec3& axis, float angle);
     void handleInputs(GLFWwindow* window, float dt);
     void updateViewMatrix();
@@ -284,6 +286,8 @@ public:
         float inten = 1.0f, float pad1_ = 0.0f
     );
     ~Light() = default;
+
+    void draw(Shader& shader, Mesh& mesh, Camera& camera);
 
     void generateMatrices();
 
@@ -329,6 +333,14 @@ public:
     
     Scene();
 
+    // Shader* customShader = nullptr;
+    // setShader(Shader* shader) { setShader(std::shared_ptr<Shader>(shader)); }
+    // setShader(std::shared_ptr<Shader> shader) { customShader = shader; }
+
+    void render(ResourceManager& resources, bool renderToFB = false);
+
+    // void render(Shader& shader, Mesh& mesh);
+
     std::shared_ptr<Camera> addCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
     void removeCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
     std::shared_ptr<Camera> getCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
@@ -373,7 +385,6 @@ public:
 
     void beginFrame();
     void beginRender();
-    void endFrame();
 
     void setSize(int w, int h) {
         width = w;

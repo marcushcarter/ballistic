@@ -26,84 +26,27 @@ int main() {
         scene.activeCamera->handleInputs(engine.getWindow(), engine.frameTime.dt);
         scene.activeCamera->updateViewMatrix();
 
-        if (glfwGetKey(engine.getWindow(), GLFW_KEY_0) == GLFW_PRESS) {
-            engine.resources().loadShaderDSL("include/BEngine/shaders/post/blit.dsl");
-        }
-
-        if (glfwGetKey(engine.getWindow(), GLFW_KEY_1) == GLFW_PRESS) {
-            scene.addCamera("Camera2");
-        }
+        if (glfwGetKey(engine.getWindow(), GLFW_KEY_0) == GLFW_PRESS) { engine.resources().loadShaderDSL("include/BEngine/shaders/post/blit.dsl"); }
+        if (glfwGetKey(engine.getWindow(), GLFW_KEY_1) == GLFW_PRESS) { /* scene.addCamera("Camera2"); */ scene.framebuffer.resize(engine.width, engine.height); }
+        if (glfwGetKey(engine.getWindow(), GLFW_KEY_2) == GLFW_PRESS) { scene.framebuffer.resize(720, 450); }
 
         // updates
 
         scene.lights().getLight("light1")->setIntensity(std::sinf(glfwGetTime()) + 1.0f);
-        // scene.lights().getLight("light1")->setDirection(glm::vec3(0, std::sinf(glfwGetTime()), 0));
+        scene.lights().getLight("light1")->setDirection(glm::vec3(0, std::sinf(glfwGetTime()), 0));
         scene.lights().updateGPU();
-        
-        engine.beginRender();
 
-        scene.framebuffer.bind();
-        glClearColor(0.1,0.1,0.1,1);
+        // engine.beginRender();
+
+        scene.render(engine.resources(), true);
+        
+        glViewport(0, 0, engine.width, engine.height);
+        glClearColor(0,0,0,0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        scene.framebuffer.bindTexture(engine.resources().getShader("__blit")->ID, "screenTexture", 3);
+        engine.resources().getMesh("__quad")->draw(*engine.resources().getShader("__blit"), glm::mat4(1));
 
-        // rendering
-
-        { // test scene model drawing
-            auto shader = engine.resources().getShader("__scene");
-            auto mesh = engine.resources().getMesh("Test Scene");
-
-            shader->activate();
-            scene.lights().uploadToShader(shader->ID);
-            scene.activeCamera->uploadToShader(shader->ID);
-            glm::mat4 model = glm::mat4(1.0f);
-            mesh->draw(*shader, model);
-        }
-
-        { // drawing lights
-            auto shader = engine.resources().getShader("__flat_color");
-            auto mesh = engine.resources().getMesh("__cube");
-
-            shader->activate();
-            scene.activeCamera->uploadToShader(shader->ID);
-            GLuint colorLoc = glGetUniformLocation(shader->ID, "uColor");
-
-            for (int i = 0; i < scene.lights().lights.size(); i++) {
-                const auto& light = scene.lights().lights[i];
-                glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(light.position)) * glm::eulerAngleXYZ(light.direction.x, light.direction.y, light.direction.z) * glm::scale(glm::mat4(1.0f), glm::vec3(0.1f));   
-                glUniform4fv(colorLoc, 1, glm::value_ptr(scene.lights().lights[i].color));
-                mesh->draw(*shader, model);
-            }
-        }
-        
-        { // drawing cameras
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-            auto shader = engine.resources().getShader("__flat_color");
-            auto mesh = engine.resources().getMesh("__camera");
-
-            shader->activate();
-            scene.activeCamera->uploadToShader(shader->ID);
-            glUniform4fv(glGetUniformLocation(shader->ID, "uColor"), 1, glm::value_ptr(glm::vec4(1)));
-            for (auto& [key, camera] : scene.cameras) {
-                glm::mat4 model = glm::translate(glm::mat4(1.0f), camera->position) * glm::mat4_cast(camera->orientation) * glm::scale(glm::mat4(1.0f), glm::vec3(0.25f));
-                mesh->draw(*shader, model);
-            }
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        }
-
-        scene.framebuffer.unbind();
-        
-        engine.beginRender();
-
-        { // framebuffer loading
-            auto shader = engine.resources().getShader("__blit");
-            auto mesh = engine.resources().getMesh("__quad");
-
-            scene.framebuffer.bindTexture(shader->ID, "screenTexture", 3);
-            mesh->draw(*shader, glm::mat4(1));
-
-        }
-
-        engine.endFrame();
+        glfwSwapBuffers(engine.getWindow());
     }
 
     return 0;

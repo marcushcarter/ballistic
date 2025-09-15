@@ -1224,6 +1224,23 @@ LightManager::~LightManager() {
     }
 }
 
+void LightManager::draw(Shader& shader, Mesh& mesh, Camera& camera) {
+    
+    // auto shader = engine.resources().getShader("__flat_color");
+    // auto mesh = engine.resources().getMesh("__cube");
+
+    shader.activate();
+    camera.uploadToShader(shader.ID);
+    GLuint colorLoc = glGetUniformLocation(shader.ID, "uColor");
+
+    for (int i = 0; i < lights.size(); i++) {
+        const auto& light = lights[i];
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(light.position)) * glm::eulerAngleXYZ(light.direction.x, light.direction.y, light.direction.z) * glm::scale(glm::mat4(1.0f), glm::vec3(0.1f));   
+        glUniform4fv(colorLoc, 1, glm::value_ptr(light.color));
+        mesh.draw(shader, model);
+    }
+}
+
 void LightManager::bind() { glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO); }
 
 void LightManager::updateGPU() { std::memcpy(mappedPtr, lights.data(), lights.size() * sizeof(Light)); }
@@ -1255,26 +1272,6 @@ void LightManager::generateAllMatrices() {
         light.generateMatrices();
     }
     updateGPU();
-}
-
-void LightManager::draw(Shader& shader, Mesh& mesh, Camera& camera) {
-    
-    // shader.activate();
-    // camera.uploadToShader(shader.ID);
-    // GLuint colorLoc = glGetUniformLocation(shader.ID, "uColor");
-
-    // glm::mat4 model = glm::mat4(1.0f);
-
-    // for (int i = 0; i < lights.size(); i++) {
-
-    //     model = glm::mat4(1.0f);
-    //     model = glm::translate(model, glm::vec3(lights[i].position[0], lights[i].position[1], lights[i].position[2]));
-    //     model = glm::scale(model, glm::vec3(0.1f));
-
-    //     glUniform4fv(colorLoc, 1, glm::value_ptr(lights[i].color));
-        
-    //     mesh.draw(shader, model);
-    // }
 }
 
 size_t LightManager::addLight(const std::string& name, int type, const std::source_location& loc) {
@@ -1333,7 +1330,65 @@ Light* LightManager::getLight(const std::string& name, const std::source_locatio
 
 // ========================================================================
 
-Scene::Scene() : lightManager(128) { addCamera("Camera1"); }
+Scene::Scene() : lightManager(128) { addCamera("Camera1"); framebuffer.resize(720, 450); }
+
+void Scene::render(ResourceManager& resources, bool renderToFB) {
+    if (renderToFB) {
+        framebuffer.bind();
+        glClearColor(0.1,0.1,0.1,1);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+
+    std::shared_ptr<Shader> shader = nullptr;
+    std::shared_ptr<Mesh> mesh = nullptr;
+
+    // GAME OBJECTS
+
+    shader = resources.getShader("__scene");
+    mesh = resources.getMesh("Test Scene");
+
+    shader->activate();
+    lights().uploadToShader(shader->ID);
+    activeCamera->uploadToShader(shader->ID);
+    glm::mat4 model = glm::mat4(1.0f);
+    mesh->draw(*shader, model);
+
+    // CAMERAS
+
+    shader = resources.getShader("__flat_color");
+    mesh = resources.getMesh("__camera");
+
+    shader->activate();
+    activeCamera->uploadToShader(shader->ID);
+    glUniform4fv(glGetUniformLocation(shader->ID, "uColor"), 1, glm::value_ptr(glm::vec4(1)));
+    
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    for (auto& [key, camera] : cameras) {
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), camera->position) * glm::mat4_cast(camera->orientation) * glm::scale(glm::mat4(1.0f), glm::vec3(0.25f));
+        mesh->draw(*shader, model);
+    }
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+    // LIGHTS
+
+    shader = resources.getShader("__flat_color");
+    mesh = resources.getMesh("__cube");
+
+    shader->activate();
+    activeCamera->uploadToShader(shader->ID);
+    GLuint colorLoc = glGetUniformLocation(shader->ID, "uColor");
+
+    for (int i = 0; i < lights().lights.size(); i++) {
+        const auto& light = lights().lights[i];
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(light.position)) * glm::eulerAngleXYZ(light.direction.x, light.direction.y, light.direction.z) * glm::scale(glm::mat4(1.0f), glm::vec3(0.1f));   
+        glUniform4fv(colorLoc, 1, glm::value_ptr(light.color));
+        mesh->draw(*shader, model);
+    }
+
+    if (renderToFB) framebuffer.unbind();
+}
 
 std::shared_ptr<Camera> Scene::addCamera(const std::string& name, const std::source_location& loc) {
     auto it = cameras.find(name);
@@ -1466,7 +1521,5 @@ void Engine::beginRender() {
     glClearColor(0,0,0,0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
-
-void Engine::endFrame() { glfwSwapBuffers(window); }
 
 } // BE namespace
