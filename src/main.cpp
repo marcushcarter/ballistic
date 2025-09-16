@@ -1,5 +1,9 @@
 #include "BEngine/engine.hpp"
 
+// #include "include/BEngine/imgui/imgui.h"
+// #include "include/BEngine/imgui/imgui_impl_glfw.h"
+// #include "include/BEngine/imgui/imgui_impl_opengl3.h"
+
 #include <iostream>
 #include <cmath>
 
@@ -7,6 +11,16 @@ int main() {
 
     BE::Engine engine("Engine");
     engine.bind();
+    
+    // IMGUI_CHECKVERSION();
+    // ImGui::CreateContext();
+    // ImGuiIO& io = ImGui::GetIO(); (void)io;
+    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    // ImGui::StyleColorsDark();
+
+    // ImGui_ImplGlfw_InitForOpenGL(engine.getWindow(), true);
+    // ImGui_ImplOpenGL3_Init("#version 460");
 
     std::shared_ptr<BE::Scene> scene = std::make_shared<BE::Scene>();
 
@@ -26,6 +40,7 @@ int main() {
     while(engine.isRunning()) {
 
         engine.beginFrame();
+
         vp1.resize(engine.width/2, engine.height/2);
         
         if (engine.frameTime.frameCountFPS == 1) std::cout << engine.frameTime.fps << " FPS " << engine.frameTime.ms << " MS" << std::endl;
@@ -51,8 +66,28 @@ int main() {
         vp1.framebuffer.bindTexture(engine.resources().shaders["__blit"]->ID, "screenTexture", 3);
         engine.resources().meshes["__quad"]->draw(*engine.resources().shaders["__blit"]);
 
+        // ImGui_ImplOpenGL3_NewFrame();
+        // ImGui_ImplGlfw_NewFrame();
+        // ImGui::NewFrame();
+
+        // ImGui::Begin("Hello, ImGui!");
+        // ImGui::Text("This is a test window!");
+        // ImVec2 size = ImGui::GetContentRegionAvail();
+        // ImGui::Image((void*)(intptr_t)vp1.framebuffer.texture, size);
+        // if (ImGui::Button("Click Me!")) {}
+
+        // ImGui::End();
+
+        // ImGui::Render();
+        // glViewport(0, 0, engine.width, engine.height);
+        // ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         glfwSwapBuffers(engine.getWindow());
     }
+
+    // ImGui_ImplOpenGL3_Shutdown();
+    // ImGui_ImplGlfw_Shutdown();
+    // ImGui::DestroyContext();
 
     return 0;
 }
