@@ -435,13 +435,13 @@ Texture::~Texture() { glDeleteTextures(1, &ID); }
 
 void Texture::setUniformUnit(GLuint shaderID, const char* uniform) {
     GLuint loc = glGetUniformLocation(shaderID, uniform);
-    glUseProgram(shaderID);
+    // if (loc == -1) std::cout << "Failed to find 'Uniform Sampler2D " << uniform << "'" << std::endl;
     glUniform1i(loc, unit);
 }
 
 void Texture::bind() {
     glActiveTexture(GL_TEXTURE0 + unit);
-    glBindTexture(type, ID);
+    glBindTexture(GL_TEXTURE_2D, ID);
 }
 
 void Texture::unbind() { glBindTexture(GL_TEXTURE_2D, 0); }
@@ -515,25 +515,28 @@ void Mesh::uploadInstances() {
     glBindVertexArray(0);
 }
 
-void Mesh::draw(Shader& shader, const glm::mat4& modelMatrix) {
+void Mesh::draw(Shader& shader, const glm::mat4& modelMatrix, bool t) {
     shader.activate();
     vao.bind();
     
     glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uModel"), 1, GL_FALSE, &modelMatrix[0][0]);
 
-    unsigned int numDiffuse = 0;
-    unsigned int numSpecular = 0;
+    if (t) {
 
-    for (size_t i = 0; i < textures.size(); i++) {
-        std::string type = textures[i].texType;
-        std::string numStr;
+        unsigned int numDiffuse = 0;
+        unsigned int numSpecular = 0;
 
-        if (type == "diffuse") { numStr = std::to_string(numDiffuse++); }
-        else if (type == "specular") numStr = std::to_string(numSpecular++);
+        for (size_t i = 0; i < textures.size(); i++) {
+            std::string type = textures[i].texType;
+            std::string numStr;
 
-        std::string uniformName = type + numStr;
-        textures[i].setUniformUnit(shader.ID, uniformName.c_str());
-        textures[i].bind();
+            if (type == "diffuse") { numStr = std::to_string(numDiffuse++); }
+            else if (type == "specular") numStr = std::to_string(numSpecular++);
+
+            std::string uniformName = type + numStr;
+            textures[i].setUniformUnit(shader.ID, uniformName.c_str());
+            textures[i].bind();
+        }
     }
 
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
@@ -1572,7 +1575,7 @@ void Engine::renderViewport(Viewport& vp) {
     vp.scene->lights().uploadToShader(shader->ID);
     vp.camera->uploadToShader(shader->ID);
     glm::mat4 model = glm::mat4(1.0f);
-    mesh->draw(*shader, model);
+    mesh->draw(*shader, model, false);
 
     // CAMERAS
 
@@ -1587,7 +1590,7 @@ void Engine::renderViewport(Viewport& vp) {
 
     for (auto& [key, camera] : vp.scene->cameras) {
         glm::mat4 model = glm::translate(glm::mat4(1.0f), camera->position) * glm::mat4_cast(camera->orientation) * glm::scale(glm::mat4(1.0f), glm::vec3(0.25f));
-        mesh->draw(*shader, model);
+        mesh->draw(*shader, model, false);
     }
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

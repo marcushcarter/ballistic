@@ -36,6 +36,8 @@ int main() {
 
     scene->addCamera("camcam");
     scene->activeCamera = scene->cameras["Camera1"];
+    
+    bool show_demo_window = true;
 
     while(engine.isRunning()) {
 
@@ -45,7 +47,7 @@ int main() {
         
         if (engine.frameTime.frameCountFPS == 1) std::cout << engine.frameTime.fps << " FPS " << engine.frameTime.ms << " MS" << std::endl;
 
-        scene->activeCamera->handleInputs(engine.getWindow(), engine.frameTime.dt);
+        // scene->activeCamera->handleInputs(engine.getWindow(), engine.frameTime.dt);
         scene->activeCamera->updateViewMatrix();
 
         if (glfwGetKey(engine.getWindow(), GLFW_KEY_0) == GLFW_PRESS) { engine.resources().recompileShaders(); }
@@ -60,26 +62,25 @@ int main() {
 
         engine.renderViewport(vp1);
         
-        // glViewport(0, 0, engine.width, engine.height);
-        // glClearColor(0,0,0,0);
-        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // vp1.framebuffer.bindTexture(engine.resources().shaders["__blit"]->ID, "screenTexture", 3);
-        // engine.resources().meshes["__quad"]->draw(*engine.resources().shaders["__blit"]);
+        glViewport(0, 0, engine.width, engine.height);
+        glClearColor(0,0,0,0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        vp1.framebuffer.bindTexture(engine.resources().shaders["__blit"]->ID, "screenTexture", 3);
+        engine.resources().meshes["__quad"]->draw(*engine.resources().shaders["__blit"], false);
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+        
+        ImGui::ShowDemoWindow(&show_demo_window);
 
         ImGui::Begin("Hello, ImGui!");
         ImGui::Text("This is a test window!");
         ImVec2 size = ImGui::GetContentRegionAvail();
         ImGui::Image((void*)(intptr_t)vp1.framebuffer.texture, size, ImVec2(0, 1), ImVec2(1, 0));
         if (ImGui::Button("Click Me!")) {}
-
         ImGui::End();
 
-        glClearColor(0,0,0,0);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         ImGui::Render();
         glViewport(0, 0, engine.width, engine.height);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -87,9 +88,9 @@ int main() {
         glfwSwapBuffers(engine.getWindow());
     }
 
-    // ImGui_ImplOpenGL3_Shutdown();
-    // ImGui_ImplGlfw_Shutdown();
-    // ImGui::DestroyContext();
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     return 0;
 }

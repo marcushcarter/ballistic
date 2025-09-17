@@ -212,7 +212,7 @@ public:
     void clearInstances();
     void uploadInstances();
 
-    void draw(Shader& shader, const glm::mat4& modelMatrix = glm::mat4(1));
+    void draw(Shader& shader, const glm::mat4& modelMatrix = glm::mat4(1), bool textures = true);
     void drawInstanced(Shader& shader);
 
     void loadOBJ(const std::string& objPath);
@@ -297,7 +297,7 @@ public:
     Camera(
         const std::string& cameraName, int width = 1440, int height = 900, 
         float fov = 45.0f, float nearPlane = 0.1f, float farPlane = 100.0f, 
-        const glm::vec3& pos = {0,0,0}, const glm::vec3& dir = {0,0,-1} 
+        const glm::vec3& pos = {0,1,1.5}, const glm::vec3& dir = {0,0,-1} 
     );
     ~Camera() = default;
 
