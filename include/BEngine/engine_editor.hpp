@@ -11,6 +11,7 @@ namespace BE {
 class Editor {
 public:
     Editor(Engine* enginePtr);
+    ~Editor();
 
     void beginFrame();
     void showPanels();

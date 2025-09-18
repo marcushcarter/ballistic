@@ -1163,7 +1163,7 @@ void Camera::rotate(const glm::vec3& axis, float angle) {
     orientation = glm::normalize(qrot * orientation);
 }
 
-void Camera::handleInputs(GLFWwindow* window, float dt) {
+void Camera::handleInputs(GLFWwindow* window, float dt, bool focusing) {
     static bool mouseLookActive = false;
     static double lastX = 0, lastY = 0;
 
@@ -1191,18 +1191,18 @@ void Camera::handleInputs(GLFWwindow* window, float dt) {
 
     position += move;
 
-    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS && !mouseLookActive) {
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS && !mouseLookActive && focusing) {
         mouseLookActive = true;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         glfwGetCursorPos(window, &lastX, &lastY);
     }
 
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS && mouseLookActive) {
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS && mouseLookActive && focusing) {
         mouseLookActive = false;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
 
-    if (mouseLookActive) {
+    if (mouseLookActive && focusing) {
         double mouseX, mouseY;
         glfwGetCursorPos(window, &mouseX, &mouseY);
 

@@ -20,25 +20,15 @@ int main() {
 
     scene->lights().addLight("light1", 1);
     scene->lights().getLight("light1")->setPosition(glm::vec3(0,0.5,0));
-    
-    bool show_demo_window = true;
+    scene->lights().updateGPU();
 
     while(engine.isRunning()) {
 
         engine.beginFrame();
 
-        vp1.resize(engine.width/2, engine.height/2);
-        
-        if (engine.frameTime.frameCountFPS == 1) std::cout << engine.frameTime.fps << " FPS " << engine.frameTime.ms << " MS" << std::endl;
-
-        // scene->activeCamera->handleInputs(engine.getWindow(), engine.frameTime.dt);
         scene->activeCamera->updateViewMatrix();
 
         if (glfwGetKey(engine.getWindow(), GLFW_KEY_0) == GLFW_PRESS) { engine.resources().recompileShaders(); }
-
-        scene->lights().getLight("light1")->setIntensity(std::sinf(glfwGetTime()) + 1.0f);
-        scene->lights().getLight("light1")->setDirection(glm::vec3(0, std::sinf(glfwGetTime()), 0));
-        scene->lights().updateGPU();
 
         engine.renderViewportTexture(vp1);
         
@@ -46,26 +36,26 @@ int main() {
         // engine.resources().meshes["__quad"]->draw(*engine.resources().shaders["__blit"], false);
 
         editor.beginFrame();
+        editor.showPanels();
 
-        ImGui::ShowDemoWindow(&show_demo_window);
-
-        ImGui::Begin("Hello, ImGui!");
-        ImGui::Text("This is a test window!");
-        ImVec2 size = ImGui::GetContentRegionAvail();
-        ImGui::Image((void*)(intptr_t)vp1.framebuffer.texture, size, ImVec2(0, 1), ImVec2(1, 0));
-        if (ImGui::Button("Click Me!")) {}
+        ImGui::Begin("Inspector");
+        if (ImGui::DragFloat3("Position", &scene->lights().getLight("light1")->position.x, 0.01f, -3.0f, 3.0f)) { scene->lights().updateGPU(); } // this runs whenever a value is changed
+        if (ImGui::ColorEdit3("Color", &scene->lights().getLight("light1")->color.x)) { scene->lights().updateGPU(); }
+        if (ImGui::DragFloat("intensity", &scene->lights().getLight("light1")->color.w, 0.01f, 0.0f, 2.0f)) { scene->lights().updateGPU(); }
         ImGui::End();
 
-        editor.showPanels();
+        ImGui::Begin("Hello, ImGui!");
+        ImVec2 size = ImGui::GetContentRegionAvail();
+        if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) scene->activeCamera->handleInputs(engine.getWindow(), engine.frameTime.dt);
+        ImGui::Image((void*)(intptr_t)vp1.framebuffer.texture, size, ImVec2(0, 1), ImVec2(1, 0));
+        ImGui::End();
 
         editor.endFrame();
 
+        vp1.resize(size.x, size.y);
+
         glfwSwapBuffers(engine.getWindow());
     }
-
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
 
     return 0;
 }

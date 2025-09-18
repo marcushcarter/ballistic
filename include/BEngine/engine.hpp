@@ -304,7 +304,7 @@ public:
     // draw(Shader& shader, Mesh& mesh);
 
     void rotate(const glm::vec3& axis, float angle);
-    void handleInputs(GLFWwindow* window, float dt);
+    void handleInputs(GLFWwindow* window, float dt, bool focusing = false);
     void updateViewMatrix();
 
     void uploadToShader(GLuint shaderID);
