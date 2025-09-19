@@ -368,11 +368,11 @@ public:
     
     Scene();
 
-    void setShader(std::shared_ptr<Shader> shader) { customShader = shader; }
-    void removeShader() { customShader = nullptr; }
-
     Camera* addCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
     void removeCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
+
+    void setShader(std::shared_ptr<Shader> shader) { customShader = shader; }
+    void removeShader() { customShader = nullptr; }
 
     LightManager& lights() { return lightManager; }
     
@@ -403,14 +403,16 @@ public:
 
     FrameTime frameTime;
 
-    // std::unordered_map<std::string, std::unique_ptr<Scene>> scenes;
+    std::unordered_map<std::string, std::unique_ptr<Scene>> scenes;
+    Scene* activeScene;
 
-    /** hello */
     Engine(const std::string& title = "", int width = 1440, int height = 900, const std::source_location& loc = std::source_location::current());
     ~Engine();
     void bind();
 
-    // scene stuff
+    Scene* addScene(const std::string& name, const std::source_location& loc = std::source_location::current());
+    void removeScene(const std::string& name, const std::source_location& loc = std::source_location::current());
+
     void renderViewportTexture(Viewport& vp);
 
     bool isRunning() const;
@@ -421,8 +423,6 @@ public:
         height = h;
         glViewport(0, 0, w, h);
     }
-
-
 
     GLFWwindow* getWindow() { return window; }
     ResourceManager& resources() { return resourceManager; }

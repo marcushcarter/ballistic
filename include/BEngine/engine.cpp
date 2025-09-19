@@ -1426,7 +1426,7 @@ Scene::Scene() : lightManager(128) { addCamera("Camera1"); }
 Camera* Scene::addCamera(const std::string& name, const std::source_location& loc) {
     auto it = cameras.find(name);
     if (it != cameras.end()) {
-        Message(1, "RESOURCE", "Camera '" + name + "' already exists", loc.file_name(), loc.line());
+        Message(1, "SCENE", "Camera '" + name + "' already exists", loc.file_name(), loc.line());
         return it->second.get();
     }
     
@@ -1444,7 +1444,7 @@ void Scene::removeCamera(const std::string& name, const std::source_location& lo
         cameras.erase(it);
         // activeCamera = cameras[0];
     } else {
-        Message(2, "RESOURCE", "Could not find camera '" + name + "'", loc.file_name(), loc.line());
+        Message(2, "SCENE", "Could not find camera '" + name + "'", loc.file_name(), loc.line());
     }   
 }
 
@@ -1494,6 +1494,8 @@ Engine::Engine(const std::string& title, int width, int height, const std::sourc
 
     resources().loadDefaults();
 
+    addScene("Scene1"); 
+
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
@@ -1516,6 +1518,29 @@ Engine::~Engine() {
     if (window) glfwDestroyWindow(window);
     if (g_boundEngine == this) g_boundEngine = nullptr;
     glfwTerminate();
+}
+
+Scene* Engine::addScene(const std::string& name, const std::source_location& loc) {    
+    auto it = scenes.find(name);
+    if (it != scenes.end()) {
+        Message(1, "SCENE", "Scene '" + name + "' already exists", loc.file_name(), loc.line());
+        return it->second.get();
+    }
+    
+    auto scene = std::make_unique<Scene>();
+    Scene* ptr = scene.get();
+    scenes[name] = std::move(scene);
+    activeScene = ptr;
+    return ptr;
+}
+
+void Engine::removeScene(const std::string& name, const std::source_location& loc) {
+    auto it = scenes.find(name);
+    if (it != scenes.end()) {
+        scenes.erase(it);
+    } else {
+        Message(2, "ENGINE", "Could not find scene '" + name + "'", loc.file_name(), loc.line());
+    }   
 }
 
 // std::unique_ptr<Scene> Engine::addScene(const std::string& name, const std::source_location& loc) {

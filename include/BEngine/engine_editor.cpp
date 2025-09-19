@@ -75,6 +75,7 @@ void Editor::showPanels() {
 
         if (ImGui::BeginMenu("Debug")) {
             if (ImGui::MenuItem("Recompile Shaders")) { engine->resources().recompileShaders(); }
+            if (ImGui::MenuItem("Add Scene")) { engine->addScene("Scene2"); }
             ImGui::EndMenu(); 
         };
         ImGui::EndMainMenuBar();
