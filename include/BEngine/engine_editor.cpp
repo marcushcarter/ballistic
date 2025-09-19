@@ -65,15 +65,18 @@ void Editor::showPanels() {
 
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("New Scene")) {}
-            if (ImGui::MenuItem("Open Scene")) {}
-            if (ImGui::MenuItem("Save Scene")) {}
             if (ImGui::MenuItem("Exit")) { engine->closeWindow(); }
             ImGui::EndMenu(); 
         };
+        
         if (ImGui::BeginMenu("Edit")) { ImGui::EndMenu(); };
         if (ImGui::BeginMenu("View")) { ImGui::EndMenu(); };
         if (ImGui::BeginMenu("Window")) { ImGui::EndMenu(); };
+
+        if (ImGui::BeginMenu("Debug")) {
+            if (ImGui::MenuItem("Recompile Shaders")) { engine->resources().recompileShaders(); }
+            ImGui::EndMenu(); 
+        };
         ImGui::EndMainMenuBar();
 
     }

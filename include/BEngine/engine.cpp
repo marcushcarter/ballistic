@@ -1423,17 +1423,18 @@ Light* LightManager::getLight(const std::string& name, const std::source_locatio
 
 Scene::Scene() : lightManager(128) { addCamera("Camera1"); }
 
-std::shared_ptr<Camera> Scene::addCamera(const std::string& name, const std::source_location& loc) {
+Camera* Scene::addCamera(const std::string& name, const std::source_location& loc) {
     auto it = cameras.find(name);
     if (it != cameras.end()) {
         Message(1, "RESOURCE", "Camera '" + name + "' already exists", loc.file_name(), loc.line());
-        return it->second;
+        return it->second.get();
     }
     
-    auto camera = std::make_shared<Camera>(name);
-    cameras[name] = camera;
-    activeCamera = camera;
-    return camera;
+    auto camera = std::make_unique<Camera>(name);
+    Camera* ptr = camera.get();
+    cameras[name] = std::move(camera);
+    activeCamera = ptr;
+    return ptr;
 }
 
 void Scene::removeCamera(const std::string& name, const std::source_location& loc) {
@@ -1517,7 +1518,7 @@ Engine::~Engine() {
     glfwTerminate();
 }
 
-// std::shared_ptr<Scene> Engine::addScene(const std::string& name, const std::source_location& loc) {
+// std::unique_ptr<Scene> Engine::addScene(const std::string& name, const std::source_location& loc) {
 //     auto it = scenes.find(name);
 //     if (it != scenes.end()) {
 //         Message(1, "ENGINE", "Scene '" + name + "' already exists", loc.file_name(), loc.line());
@@ -1549,6 +1550,8 @@ Engine::~Engine() {
 // }
 
 void Engine::renderViewportTexture(Viewport& vp) {
+
+    if (!vp.camera || !vp.scene) return;
 
     vp.framebuffer.bind();
     

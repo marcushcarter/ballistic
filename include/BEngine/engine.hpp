@@ -301,8 +301,6 @@ public:
     );
     ~Camera() = default;
 
-    // draw(Shader& shader, Mesh& mesh);
-
     void rotate(const glm::vec3& axis, float angle);
     void handleInputs(GLFWwindow* window, float dt, bool focusing = false);
     void updateViewMatrix();
@@ -363,8 +361,8 @@ public:
 
 class Scene {
 public:
-    std::unordered_map<std::string, std::shared_ptr<Camera>> cameras;
-    std::shared_ptr<Camera> activeCamera;
+    std::unordered_map<std::string, std::unique_ptr<Camera>> cameras;
+    Camera* activeCamera;
     
     std::shared_ptr<Shader> customShader = nullptr;
     
@@ -373,9 +371,8 @@ public:
     void setShader(std::shared_ptr<Shader> shader) { customShader = shader; }
     void removeShader() { customShader = nullptr; }
 
-    std::shared_ptr<Camera> addCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
+    Camera* addCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
     void removeCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
-    std::shared_ptr<Camera> getCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
 
     LightManager& lights() { return lightManager; }
     
@@ -385,8 +382,8 @@ private:
 
 class Viewport {
 public:
-    std::shared_ptr<Scene> scene;
-    std::shared_ptr<Camera> camera;
+    Scene* scene = nullptr;
+    Camera* camera = nullptr;
     Framebuffer framebuffer;
 
     int width = 720;
@@ -406,13 +403,7 @@ public:
 
     FrameTime frameTime;
 
-    // std::vector<std::shared_ptr<Scene>> scenes;
-    // std::shared_ptr<Scene> activeScene;
-    // void addScene() {
-    //     auto scene = std::make_shared<Scene>();
-    //     scenes.push_back(scene);
-    //     if (!activeScene) activeScene = scene;
-    // }
+    // std::unordered_map<std::string, std::unique_ptr<Scene>> scenes;
 
     /** hello */
     Engine(const std::string& title = "", int width = 1440, int height = 900, const std::source_location& loc = std::source_location::current());
