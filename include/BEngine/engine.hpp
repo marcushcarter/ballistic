@@ -359,8 +359,39 @@ public:
     Light* getLight(const std::string& name, const std::source_location& loc = std::source_location::current());
 };
 
+
+
+using Anchor = uint32_t;
+
+struct TransformComponent {
+    glm::vec3 position {0.0f};
+    glm::vec3 rotation {0.0f};
+    glm::vec3 scale {1.0f};
+
+    Anchor parent = UINT32_MAX;
+    std::vector<Anchor> children;
+};
+
+struct Registry {
+    std::unordered_map<Anchor, TransformComponent> transforms;
+};
+
 class Scene {
 public:
+
+    // NEW
+
+    std::vector<Anchor> anchors;
+    Registry registry;
+
+    Anchor createAnchor() {
+        Anchor a = nextAnchorID++;
+        anchors.push_back(a);
+        return a;
+    }
+
+    // OLD
+
     std::unordered_map<std::string, std::unique_ptr<Camera>> cameras;
     Camera* activeCamera;
     
@@ -377,6 +408,12 @@ public:
     LightManager& lights() { return lightManager; }
     
 private:
+    // NEW
+
+    Anchor nextAnchorID = 0;
+
+    // OLD
+
     LightManager lightManager;
 };
 

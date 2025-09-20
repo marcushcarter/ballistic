@@ -4,10 +4,44 @@
 #include <iostream>
 #include <cmath>
 
+void drawEntityTree(BE::Scene& scene, BE::Anchor a) {
+    BE::TransformComponent& t = scene.registry.transforms[a];
+    bool node_open = ImGui::TreeNode((void*)(intptr_t)a, "Anchor %d", a);
+
+    if (node_open) {
+        ImGui::DragFloat3("Position##" + a, glm::value_ptr(t.position), 0.1f);
+        ImGui::DragFloat3("Rotation##" + a, glm::value_ptr(t.rotation), 0.1f);
+        ImGui::DragFloat3("Scale##" + a, glm::value_ptr(t.scale), 0.1f);
+
+        for (BE::Anchor child : t.children) {
+            drawEntityTree(scene, child);
+        }
+        ImGui::TreePop();
+    }
+
+}
+
 int main() {
 
     BE::Engine engine("Engine");
     BE::Editor editor(&engine);
+
+    // NEW
+
+    BE::Anchor root = engine.activeScene->createAnchor();
+    engine.activeScene->registry.transforms[root] = BE::TransformComponent{{0,0,0}, {0,0,0}, {1,1,1}};
+
+    BE::Anchor child1 = engine.activeScene->createAnchor();
+    engine.activeScene->registry.transforms[child1] = BE::TransformComponent{{1,0,0}, {0,0,0}, {0.5,0.5,0.5}};
+    engine.activeScene->registry.transforms[child1].parent = root;
+    engine.activeScene->registry.transforms[root].children.push_back(child1);
+
+    BE::Anchor child12 = engine.activeScene->createAnchor();
+    engine.activeScene->registry.transforms[child12] = BE::TransformComponent{{-1,0,0}, {0,0,0}, {0.5,0.5,0.5}};
+    engine.activeScene->registry.transforms[child12].parent = root;
+    engine.activeScene->registry.transforms[root].children.push_back(child12);
+
+    // OLD
 
     engine.resources().loadMesh("Test Scene", "res/models/scene.obj");
 
@@ -35,31 +69,6 @@ int main() {
 
         editor.beginFrame();
         editor.showPanels();
-
-        // ImGui::Begin("Inspector");
-        // for (int i = 0; i < engine.activeScene->lights().lights.size(); i++) {
-        //     auto& light = engine.activeScene->lights().lights[i];
-        //     std::string name = "";
-        //     for (const auto& [key, idx] : engine.activeScene->lights().lightLookup) {
-        //         if (idx == i) {
-        //             name = key;
-        //             break;
-        //         }
-        //     }
-        //
-        //     std::string label = "Light " + std::to_string(i);
-        //     // std::string label2 = engine.activeScene->lights().lightLookup[i];
-        //
-        //     if (ImGui::CollapsingHeader(name.c_str())) {
-        //         ImGui::Text(name.c_str());
-        //         if (ImGui::InputFloat("Type" + i, &light.position.w)) { engine.activeScene->lights().updateGPU(); }
-        //         if (ImGui::DragFloat3("Position" + i, &light.position.x, 0.01f, -3.0f, 3.0f)) { engine.activeScene->lights().updateGPU(); }
-        //         if (ImGui::DragFloat3("Direction" + i, &light.direction.x, 0.01f, -3.1416f, 3.1416f)) { engine.activeScene->lights().updateGPU(); }
-        //         if (ImGui::ColorEdit3("Color" + i, &light.color.x)) { engine.activeScene->lights().updateGPU(); }
-        //         if (ImGui::DragFloat("intensity" + i, &light.color.w, 0.01f, 0.0f, 5.0f)) { engine.activeScene->lights().updateGPU(); }
-        //     }
-        // }
-        // ImGui::End();
 
         ImGui::Begin("Heirarchy");
         for (auto& [key, scene] : engine.scenes) {
@@ -102,33 +111,16 @@ int main() {
                 
                 ImGui::TreePop();
             }
-                
-            // if (ImGui::CollapsingHeader("uqwbue")) {
-            //     if (ImGui::Button(key.c_str() + 1)) { engine.activeScene = scene.get(); }
 
-            //     for (int i = 0; i < scene->lights().lights.size(); i++) {
-            //         auto& light = scene->lights().lights[i];
+        }
+        ImGui::End();
 
-            //         std::string name = "";
-            //         for (const auto& [key, idx] : scene->lights().lightLookup) {
-            //             if (idx == i) {
-            //                 name = key;
-            //                 break;
-            //             }
-            //         }
-                
-            //         if (ImGui::CollapsingHeader(name.c_str())) {
-            //             ImGui::Text(name.c_str());
-            //             if (ImGui::InputFloat("Type" + i, &light.position.w)) { scene->lights().updateGPU(); }
-            //             if (ImGui::DragFloat3("Position" + i, &light.position.x, 0.01f, -3.0f, 3.0f)) { scene->lights().updateGPU(); }
-            //             if (ImGui::DragFloat3("Direction" + i, &light.direction.x, 0.01f, -3.1416f, 3.1416f)) { scene->lights().updateGPU(); }
-            //             if (ImGui::ColorEdit3("Color" + i, &light.color.x)) { scene->lights().updateGPU(); }
-            //             if (ImGui::DragFloat("intensity" + i, &light.color.w, 0.01f, 0.0f, 5.0f)) { scene->lights().updateGPU(); }
-            //         }
-            //     }
-
-            // }
-
+        ImGui::Begin("Hier");
+        for (BE::Anchor a : engine.activeScene->anchors) {
+            BE::TransformComponent& t = engine.activeScene->registry.transforms[a];
+            if (t.parent == UINT32_MAX) {
+                drawEntityTree(*engine.activeScene, a);
+            }
         }
         ImGui::End();
 

@@ -69,7 +69,7 @@ void Editor::showPanels() {
             ImGui::EndMenu(); 
         };
         if (ImGui::BeginMenu("Edit")) {
-            if (ImGui::MenuItem("Add Scene")) { std::string label = "Scene" + std::to_string(engine->scenes.size()+1); engine->addScene(label); }
+            // if (ImGui::MenuItem("Add Scene")) { std::string label = "Scene" + std::to_string(engine->scenes.size()+1); engine->addScene(label); }
             if (ImGui::MenuItem("Add Camera")) { std::string label = "Camera" + std::to_string(engine->activeScene->cameras.size()+1); engine->activeScene->addCamera(label); }
             if (ImGui::MenuItem("Add Light")) { std::string label = "Light" + std::to_string(engine->activeScene->lights().lights.size()+1);  engine->activeScene->lights().addLight(label, 1); }
             ImGui::EndMenu(); 
