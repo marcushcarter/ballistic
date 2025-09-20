@@ -1497,6 +1497,11 @@ Engine::Engine(const std::string& title, int width, int height, const std::sourc
 
     addScene("Scene1"); 
 
+    viewport = std::make_unique<Viewport>();
+    viewport.get()->scene = activeScene;
+    viewport.get()->camera = activeScene->activeCamera;
+    viewport.get()->resize(720, 450);
+
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 

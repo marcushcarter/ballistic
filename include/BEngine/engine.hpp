@@ -406,6 +406,8 @@ public:
     std::unordered_map<std::string, std::unique_ptr<Scene>> scenes;
     Scene* activeScene;
 
+    std::unique_ptr<Viewport> viewport;
+
     Engine(const std::string& title = "", int width = 1440, int height = 900, const std::source_location& loc = std::source_location::current());
     ~Engine();
     void bind();

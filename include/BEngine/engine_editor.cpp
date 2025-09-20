@@ -68,15 +68,17 @@ void Editor::showPanels() {
             if (ImGui::MenuItem("Exit")) { engine->closeWindow(); }
             ImGui::EndMenu(); 
         };
-        
-        if (ImGui::BeginMenu("Edit")) { ImGui::EndMenu(); };
+        if (ImGui::BeginMenu("Edit")) {
+            if (ImGui::MenuItem("Add Scene")) { std::string label = "Scene" + std::to_string(engine->scenes.size()+1); engine->addScene(label); }
+            if (ImGui::MenuItem("Add Camera")) { std::string label = "Camera" + std::to_string(engine->activeScene->cameras.size()+1); engine->activeScene->addCamera(label); }
+            if (ImGui::MenuItem("Add Light")) { std::string label = "Light" + std::to_string(engine->activeScene->lights().lights.size()+1);  engine->activeScene->lights().addLight(label, 1); }
+            ImGui::EndMenu(); 
+        };
         if (ImGui::BeginMenu("View")) { ImGui::EndMenu(); };
         if (ImGui::BeginMenu("Window")) { ImGui::EndMenu(); };
-
         if (ImGui::BeginMenu("Debug")) {
             if (ImGui::MenuItem("Recompile Shaders")) { engine->resources().recompileShaders(); }
-            if (ImGui::MenuItem("Add Scene")) { engine->addScene("Scene##" + engine->scenes.size()); }
-            if (ImGui::MenuItem("Add Light")) { engine->activeScene->lights().addLight("light##" + engine->activeScene->lights().lights.size(), 1); }
+            if (ImGui::MenuItem("Update GPU")) { engine->viewport->scene->lights().updateGPU(); }
             ImGui::EndMenu(); 
         };
         ImGui::EndMainMenuBar();
