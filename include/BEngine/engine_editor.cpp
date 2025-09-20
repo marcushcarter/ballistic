@@ -4,7 +4,13 @@ namespace BE {
     
 Editor::Editor(Engine* enginePtr) : engine(enginePtr) {
     IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
+    
+    ImGuiContext* ctx = ImGui::CreateContext();
+    ImGui::SetCurrentContext(ctx);
+
+    ImPlotContext* ctxpl = ImPlot::CreateContext();
+    ImPlot::SetCurrentContext(ctxpl);
+
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
@@ -92,6 +98,8 @@ void Editor::showPanels() {
     ImGui::Text("ENGINE FPS %.1f MS %.2f", engine->frameTime.fps, engine->frameTime.ms);
     ImGui::Text("IMGUI FPS %.1f MS %.2f", ImGui::GetIO().Framerate, 1000.0f/ImGui::GetIO().Framerate);
     ImGui::End();
+
+    ImPlot::ShowDemoWindow();
 
     // === TERMINAL === //
 

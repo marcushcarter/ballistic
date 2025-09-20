@@ -5,6 +5,7 @@
 #include "BEngine/imgui/imgui.h"
 #include "BEngine/imgui/imgui_impl_glfw.h"
 #include "BEngine/imgui/imgui_impl_opengl3.h"
+#include "BEngine/imgui/implot.h"
 
 namespace BE {
 
