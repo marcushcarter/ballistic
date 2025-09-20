@@ -117,6 +117,29 @@ void Editor::showPanels() {
     // ImGui::End();
 }
 
+void Editor::showHeirarchy() {
+    ImGui::Begin("Heirarchy");
+    for (BE::Anchor a : engine->activeScene->anchors) {
+        
+        bool anchor_open = ImGui::TreeNode((void*)(intptr_t)a, "Anchor %d", a);
+        if (!anchor_open) continue;
+
+        if (engine->activeScene->registry.transforms.find(a) != engine->activeScene->registry.transforms.end()) {
+            BE::TransformComponent& t = engine->activeScene->registry.transforms[a];
+            if (ImGui::CollapsingHeader("Transform")) {
+                ImGui::DragFloat3("Position##" + a, glm::value_ptr(t.position), 0.1f);
+                ImGui::DragFloat3("Rotation##" + a, glm::value_ptr(t.rotation), 0.1f);
+                ImGui::DragFloat3("Scale##" + a, glm::value_ptr(t.scale), 0.1f);
+            }
+
+        }
+
+        ImGui::TreePop();
+        ImGui::Separator();
+    }
+    ImGui::End();
+}
+
 void Editor::endFrame() {
 
     ImGui::Render();

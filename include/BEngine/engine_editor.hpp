@@ -15,6 +15,7 @@ public:
 
     void beginFrame();
     void showPanels();
+    void showHeirarchy();
     void endFrame();
 
 private:

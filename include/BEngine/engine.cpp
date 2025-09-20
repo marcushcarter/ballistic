@@ -1609,7 +1609,18 @@ void Engine::renderViewportTexture(Viewport& vp) {
     vp.scene->lights().uploadToShader(shader->ID);
     vp.camera->uploadToShader(shader->ID);
     glm::mat4 model = glm::mat4(1.0f);
-    mesh->draw(*shader, model, false);
+    // mesh->draw(*shader, model, false);
+
+    for (Anchor a : vp.scene->anchors) {
+        auto it = vp.scene->registry.transforms.find(a);
+        if (it == vp.scene->registry.transforms.end()) continue;
+
+        TransformComponent& t = it->second;
+
+        glm::mat4 model22 = glm::translate(glm::mat4(1.0f), t.position) * glm::eulerAngleXYZ(t.rotation.x, t.rotation.y, t.rotation.z) * glm::scale(glm::mat4(1.0f), t.scale);
+        
+        mesh->draw(*shader, model22, false);
+    }
 
     // CAMERAS
 
