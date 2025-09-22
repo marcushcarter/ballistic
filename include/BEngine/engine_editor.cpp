@@ -274,9 +274,6 @@ void Editor::Inspector() {
         if (engine->activeScene->registry.meshes.find(selectedAnchor) != engine->activeScene->registry.meshes.end()) {
             MeshComponent& m = engine->activeScene->registry.meshes[selectedAnchor];
             if (ImGui::CollapsingHeader("Material")) {
-
-                // meshYaw += engine->frameTime.dt * 0.1;
-                // meshPitch += engine->frameTime.dt * 0.1;
                 
                 static glm::vec2 rotation(0.0f);
                 
@@ -334,15 +331,15 @@ void Editor::Inspector() {
                     if (m.material) {
 
                         if (m.material->diffuseMap) ImGui::Image((void*)(intptr_t)m.material->diffuseMap->ID, ImVec2(avialWidth/4, avialWidth/4), ImVec2(0, 1), ImVec2(1, 0));
-                        else { ImGui::BeginChild("##TransBox1", ImVec2(avialWidth/4, avialWidth/4), false); ImGui::EndChild(); }
+                        else ImGui::Dummy(ImVec2(avialWidth/4, avialWidth/4));
                         ImGui::SameLine();
 
                         if (m.material->normalMap) ImGui::Image((void*)(intptr_t)m.material->normalMap->ID, ImVec2(avialWidth/4, avialWidth/4), ImVec2(0, 1), ImVec2(1, 0));
-                        else { ImGui::BeginChild("##TransBox1", ImVec2(avialWidth/4, avialWidth/4), false); ImGui::EndChild(); }
+                        else ImGui::Dummy(ImVec2(avialWidth/4, avialWidth/4));
                         ImGui::SameLine();
                         
                         if (m.material->roughnessMap) ImGui::Image((void*)(intptr_t)m.material->roughnessMap->ID, ImVec2(avialWidth/4, avialWidth/4), ImVec2(0, 1), ImVec2(1, 0));
-                        else { ImGui::BeginChild("##TransBox1", ImVec2(avialWidth/4, avialWidth/4), false); ImGui::EndChild(); }
+                        else ImGui::Dummy(ImVec2(avialWidth/4, avialWidth/4));
 
                         ImGui::Text("Material Properties:");
                         ImGui::BeginDisabled(true);
@@ -376,10 +373,12 @@ void Editor::Inspector() {
                         auto it = engine->resources().meshes.find(meshName);
                         if (it != engine->resources().meshes.end()) {
                             m.mesh = it->second;
+                            rotation = glm::vec2(0, 0);
                         }
                     }
                     ImGui::EndDragDropTarget();
                 }
+                
                 if (ImGui::BeginDragDropTarget()) {
                     if (const ImGuiPayload* materialPayload = ImGui::AcceptDragDropPayload("MATERIAL")) {
                         const char* materialName = (const char*)materialPayload->Data;
@@ -390,6 +389,7 @@ void Editor::Inspector() {
                     }
                     ImGui::EndDragDropTarget();
                 }
+
                 if (ImGui::BeginDragDropTarget()) {
                     if (const ImGuiPayload* shaderPayload = ImGui::AcceptDragDropPayload("SHADER")) {
                         const char* shaderName = (const char*)shaderPayload->Data;
@@ -400,6 +400,7 @@ void Editor::Inspector() {
                     }
                     ImGui::EndDragDropTarget();
                 }
+
             }
         } else {
             if (ImGui::Button("Add Mesh Component")) {

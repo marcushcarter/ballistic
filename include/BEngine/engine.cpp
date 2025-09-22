@@ -431,7 +431,6 @@ Texture::~Texture() { glDeleteTextures(1, &ID); }
 
 void Texture::setUniformUnit(GLuint shaderID, const char* uniform, GLuint slot) {
     GLuint loc = glGetUniformLocation(shaderID, uniform);
-    // if (loc == -1) std::cout << "Failed to find 'Uniform Sampler2D " << uniform << "'" << std::endl;
     glUniform1i(loc, slot);
 }
 
@@ -526,6 +525,13 @@ void Material::uploadToShader(Shader& shader) {
 
     setCullFace(cull);
 
+    // this->diffuseColor;
+    // this->metallic;
+    // this->roughness;
+    // this->transparent;
+
+    glUniform4fv(glGetUniformLocation(shader.ID, "diffuseColor"), 1, glm::value_ptr(diffuseColor));
+
     if (diffuseMap) {
         diffuseMap->setUniformUnit(shader.ID, "diffuseMap", 0);
         diffuseMap->bind(0);
@@ -583,7 +589,7 @@ void Mesh::draw(Shader& shader, const glm::mat4& modelMatrix) {
     shader.activate();
     vao.bind();
 
-    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uModel"), 1, GL_FALSE, &modelMatrix[0][0]);
+    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uModel"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
 
     vao.unbind();
@@ -628,8 +634,8 @@ void Mesh::makePreview(Framebuffer& fb, Shader& shader, glm::vec2 rotation) {
 
     shader.activate();
 
-    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uView"), 1, GL_FALSE, &view[0][0]);
-    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uProjection"), 1, GL_FALSE, &proj[0][0]);
+    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uView"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uProjection"), 1, GL_FALSE, glm::value_ptr(proj));
 
     draw(shader, model);
 
@@ -1337,14 +1343,9 @@ void Camera::updateViewMatrix() {
 }
 
 void Camera::uploadToShader(GLuint shaderID) {
-    // glm::mat4 mvp = projViewMatrix * modelMatrix;
-
-    // glUniformMatrix4fv(glGetUniformLocation(shaderID, "uMVP"), 1, GL_FALSE, &mvp[0][0]);
-    // glUniformMatrix4fv(glGetUniformLocation(shaderID, "uModel"), 1, GL_FALSE, &modelMatrix[0][0]);
-    glUniformMatrix4fv(glGetUniformLocation(shaderID, "uView"), 1, GL_FALSE, &viewMatrix[0][0]);
-    glUniformMatrix4fv(glGetUniformLocation(shaderID, "uProjection"), 1, GL_FALSE, &projectionMatrix[0][0]);
-
-    glUniform3fv(glGetUniformLocation(shaderID, "camPos"), 1, &position[0]);
+    glUniformMatrix4fv(glGetUniformLocation(shaderID, "uView"), 1, GL_FALSE, glm::value_ptr(viewMatrix));
+    glUniformMatrix4fv(glGetUniformLocation(shaderID, "uProjection"), 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+    glUniform3fv(glGetUniformLocation(shaderID, "camPos"), 1, glm::value_ptr(position));
 }
 
 // ========================================================================
@@ -1659,37 +1660,6 @@ void Engine::removeScene(const std::string& name, const std::source_location& lo
     }   
 }
 
-// std::unique_ptr<Scene> Engine::addScene(const std::string& name, const std::source_location& loc) {
-//     auto it = scenes.find(name);
-//     if (it != scenes.end()) {
-//         Message(1, "ENGINE", "Scene '" + name + "' already exists", loc.file_name(), loc.line());
-//         return it->second;
-//     }
-//
-//     auto scene = std::make_shared<Scene>(name);
-//     scenes[name] = scene;
-//     return scene;
-// }
-
-// void Engine::removeScene(const std::string& name, const std::source_location& loc) {
-//     auto it = scenes.find(name);
-//     if (it != scenes.end()) {
-//         scenes.erase(it);
-//     } else {
-//         Message(2, "ENGINE", "Could not find scene '" + name + "'", loc.file_name(), loc.line());
-//     }   
-// }
-
-// std::shared_ptr<Scene> Engine::getScene(const std::string& name, const std::source_location& loc) {
-//     auto it = scenes.find(name);
-//     if (it != scenes.end()) {
-//         return it->second;
-//     } else {
-//         Message(2, "ENGINE", "Could not find scene '" + name + "'", loc.file_name(), loc.line());
-//         return nullptr;
-//     }
-// }
-
 void Engine::renderViewportTexture(Viewport& vp) {
 
     if (!vp.camera || !vp.scene) return;
@@ -1776,8 +1746,6 @@ void Engine::renderViewportTexture(Viewport& vp) {
 
     vp.framebuffer.unbind();
 }
-
-// void Engine::drawTexture(Texture& texture, int x, int y, int width, int height) {}
 
 void Engine::bind() { g_boundEngine = this; }
 
