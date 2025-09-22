@@ -444,6 +444,18 @@ void Texture::unbind() { glBindTexture(GL_TEXTURE_2D, 0); }
 
 // ========================================================================
 
+bool g_cullEnabled = false;
+
+void setCullFace(bool enable) {
+    if (enable && !g_cullEnabled) {
+        glEnable(GL_CULL_FACE);
+        g_cullEnabled = true;
+    } else if (!enable && g_cullEnabled) {
+        glDisable(GL_CULL_FACE);
+        g_cullEnabled = false;
+    }
+}
+
 Material::Material(const std::string mtlPath) {
 
     diffuseColor = {1,1,1,1};
@@ -512,6 +524,8 @@ Material::Material(const std::string mtlPath) {
 void Material::uploadToShader(Shader& shader) {
     shader.activate();
 
+    setCullFace(cull);
+
     if (diffuseMap) {
         diffuseMap->setUniformUnit(shader.ID, "diffuseMap", 0);
         diffuseMap->bind(0);
@@ -575,12 +589,9 @@ void Mesh::draw(Shader& shader, const glm::mat4& modelMatrix) {
     vao.unbind();
 }
 
-void Mesh::makePreview(Framebuffer& fb, Shader& shader, float dt) {
+void Mesh::makePreview(Framebuffer& fb, Shader& shader, glm::vec2 rotation) {
 
-    static float angle = 0.0f;
-
-    angle += glm::radians(15.0f) * dt;
-    if (angle > glm::two_pi<float>()) angle -= glm::two_pi<float>();
+    setCullFace(false);
 
     fb.bind();
     glClearColor(0.05,0.05,0.05,1);
@@ -601,8 +612,18 @@ void Mesh::makePreview(Framebuffer& fb, Shader& shader, float dt) {
     const float padding = 1.2f;
     float scaleFactor = 2.0f / (maxExtent * padding);
 
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), -center) * glm::scale(glm::mat4(1), glm::vec3(1.0f)) * glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0,1,0));
-    glm::mat4 view = glm::lookAt(glm::normalize(glm::vec3(2,2,2)) * (maxExtent * 2.0f), glm::vec3(0), glm::vec3(0,1,0));
+    glm::vec3 cameraPos(0,0,1);
+
+    glm::vec3 cameraForward = glm::normalize(cameraPos - center);
+    glm::vec3 cameraRight = glm::cross(glm::vec3(0,1,0), cameraForward);
+
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::rotate(model, glm::radians(rotation.y), glm::vec3(1,0,0));
+    model = glm::rotate(model, glm::radians(rotation.x), glm::vec3(0,1,0));
+    model = glm::translate(model, -center);
+
+    // glm::mat4 model = glm::translate(glm::mat4(1.0f), -center) * glm::scale(glm::mat4(1), glm::vec3(1.0f)) * glm::rotate(glm::mat4(1.0f), yaw, glm::vec3(0,1,0)) * glm::rotate(glm::mat4(1.0f), pitch, glm::vec3(1,0,0));
+    glm::mat4 view = glm::lookAt(cameraPos * (maxExtent * 2.0f), glm::vec3(0), glm::vec3(0,1,0));
     glm::mat4 proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, maxExtent * 10.0f);
 
     shader.activate();
@@ -1209,6 +1230,7 @@ void ResourceManager::loadDefaults() {
     materials["material bond"] = std::make_shared<Material>();
     materials["material bond"]->diffuseMap = textures["Box"].get();
     materials["material bond"]->normalMap = textures["Box_specular"].get();
+    materials["material bond"]->cull = true;
 }
 
 // ========================================================================
@@ -1593,7 +1615,8 @@ Engine::Engine(const std::string& title, int width, int height, const std::sourc
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
+    glDisable(GL_CULL_FACE);
+    g_cullEnabled = false;
     glCullFace(GL_FRONT);
     glFrontFace(GL_CCW);
     glDepthFunc(GL_LESS);

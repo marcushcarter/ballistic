@@ -220,7 +220,7 @@ public:
     ~Mesh();
 
     void draw(Shader& shader, const glm::mat4& modelMatrix = glm::mat4(1));
-    void makePreview(Framebuffer& fb, Shader& shader, float dt = 0.0025f);
+    void makePreview(Framebuffer& fb, Shader& shader, glm::vec2 rotation);
 
     void loadOBJ(const std::string& objPath);
     void loadOBJSource(const std::string* objSource);

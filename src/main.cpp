@@ -15,10 +15,6 @@ int main() {
     engine.activeScene->registry.transforms[cube] = BE::TransformComponent{{0,0,0}, {0,0,0}, {1,1,1}};
     engine.activeScene->registry.meshes[cube] = BE::MeshComponent{engine.resources().meshes["__cube"], nullptr, engine.resources().shaders["__scene"]};
 
-    engine.resources().materials["__default_material"]->uploadToShader(
-        *engine.resources().shaders["__scene"].get()
-    );
-
     // OLD
 
     engine.activeScene->lights().addLight("light1", 1);

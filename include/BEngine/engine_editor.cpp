@@ -235,12 +235,14 @@ void Editor::Resources() {
         if (!MatchesSearch(key) && !MatchesSearch("Textures")) continue;
 
         if (ImGui::Selectable(key.c_str())) {}
+        // ImGui::Image((void*)(intptr_t) texture->ID, ImVec2(64, 64), ImVec2(0, 1), ImVec2(1, 0));
         if (ImGui::BeginDragDropSource()) {
             ImGui::SetDragDropPayload("TEXTURE", key.c_str(), key.size() + 1);
             ImGui::Text("Dragging %s", key.c_str());
             ImGui::EndDragDropSource();
         }
     }
+
     ImGui::End();
 }
 
@@ -249,7 +251,10 @@ void Editor::Inspector() {
     ImGui::Begin("Inspector");
     if (selectedAnchor != -1) {
 
+        float avialWidth = ImGui::GetContentRegionAvail().x;
+
         // TRANSFORM COMPONENT
+
         if (engine->activeScene->registry.transforms.find(selectedAnchor) != engine->activeScene->registry.transforms.end()) {
             TransformComponent& t = engine->activeScene->registry.transforms[selectedAnchor];
             if (ImGui::CollapsingHeader("Transform")) {
@@ -265,14 +270,106 @@ void Editor::Inspector() {
         }
 
         // MESH COMPONENT
+
         if (engine->activeScene->registry.meshes.find(selectedAnchor) != engine->activeScene->registry.meshes.end()) {
             MeshComponent& m = engine->activeScene->registry.meshes[selectedAnchor];
             if (ImGui::CollapsingHeader("Material")) {
-                ImGui::Text("Mesh Preview");
-                
-                if (m.mesh != nullptr) m.mesh->makePreview(meshPreviewFB, *engine->resources().shaders["__mesh_preview"].get(), engine->frameTime.dt);
 
-                ImGui::Image((void*)(intptr_t)meshPreviewFB.texture, ImVec2(128, 128), ImVec2(0, 1), ImVec2(1, 0));
+                // meshYaw += engine->frameTime.dt * 0.1;
+                // meshPitch += engine->frameTime.dt * 0.1;
+                
+                static glm::vec2 rotation(0.0f);
+                
+                if (m.mesh != nullptr) m.mesh->makePreview(meshPreviewFB, *engine->resources().shaders["__mesh_preview"].get(), rotation);
+
+                if (ImGui::BeginChild("Section", ImVec2(0, 0), true)) {
+
+                    if (m.mesh) {
+                        ImGui::Text("Mesh Preview:");
+                        ImGui::Image((void*)(intptr_t)meshPreviewFB.texture, ImVec2(avialWidth-10, avialWidth-10), ImVec2(0, 1), ImVec2(1, 0));
+                        
+                        static bool draggingMesh = false;
+                        static ImVec2 lastMousePos;
+
+                        ImGuiIO& io = ImGui::GetIO();
+                        ImVec2 imageMin = ImGui::GetItemRectMin();
+                        ImVec2 imageMax = ImGui::GetItemRectMax(); 
+
+                        bool isHovering = io.MousePos.x >= imageMin.x && io.MousePos.x <= imageMax.x && io.MousePos.y >= imageMin.y && io.MousePos.y <= imageMax.y;
+
+                        if (!draggingMesh && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                            if (isHovering) {
+                                draggingMesh = true;
+                                lastMousePos = io.MousePos;
+                            }
+                        }
+
+                        if (draggingMesh) {
+                            glm::vec2 delta(io.MousePos.x - lastMousePos.x, io.MousePos.y - lastMousePos.y);
+
+                            float sensitivity = 0.5f;
+                            rotation.x += delta.x * sensitivity;
+                            rotation.y += delta.y * sensitivity;
+
+                            if (rotation.y > 89.0f) rotation.y = 89.0f;
+                            if (rotation.y < -89.0f) rotation.y = -89.0f;
+                            
+                            lastMousePos = io.MousePos;
+
+                            if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                                draggingMesh = false;
+                            }
+                        }
+
+                        ImGui::Text("Vertices: %d", m.mesh->vertices.size());
+                        ImGui::Text("Indices: %d", m.mesh->indices.size());
+                        ImGui::Text("Triangles: %d", m.mesh->indices.size()/3);
+                        if (ImGui::Button("Remove Mesh")) { m.mesh = nullptr; }
+                    } else {
+                        ImGui::Text("Drag in a Mesh");
+                    }
+                
+                    ImGui::Separator();
+
+                    if (m.material) {
+
+                        if (m.material->diffuseMap) ImGui::Image((void*)(intptr_t)m.material->diffuseMap->ID, ImVec2(avialWidth/4, avialWidth/4), ImVec2(0, 1), ImVec2(1, 0));
+                        else { ImGui::BeginChild("##TransBox1", ImVec2(avialWidth/4, avialWidth/4), false); ImGui::EndChild(); }
+                        ImGui::SameLine();
+
+                        if (m.material->normalMap) ImGui::Image((void*)(intptr_t)m.material->normalMap->ID, ImVec2(avialWidth/4, avialWidth/4), ImVec2(0, 1), ImVec2(1, 0));
+                        else { ImGui::BeginChild("##TransBox1", ImVec2(avialWidth/4, avialWidth/4), false); ImGui::EndChild(); }
+                        ImGui::SameLine();
+                        
+                        if (m.material->roughnessMap) ImGui::Image((void*)(intptr_t)m.material->roughnessMap->ID, ImVec2(avialWidth/4, avialWidth/4), ImVec2(0, 1), ImVec2(1, 0));
+                        else { ImGui::BeginChild("##TransBox1", ImVec2(avialWidth/4, avialWidth/4), false); ImGui::EndChild(); }
+
+                        ImGui::Text("Material Properties:");
+                        ImGui::BeginDisabled(true);
+                        if (ImGui::SliderFloat("Metallic", &m.material->metallic, 0.0f, 1.0f)) {}
+                        if (ImGui::SliderFloat("Roughness", &m.material->roughness, 0.0f, 1.0f)) {}
+                        if (ImGui::DragFloat3("Diffuse Color",&m.material->diffuseColor.x, 0.01f, 0.0f, 1.0f));
+                        if (ImGui::Checkbox("Cull Faces?", &m.material->cull)) {}
+                        if (ImGui::Checkbox("Transparent?", &m.material->transparent)) {}
+                        ImGui::EndDisabled();
+                        
+                        if (ImGui::Button("Remove Material")) { m.material = nullptr; }
+
+                    } else {
+                        ImGui::Text("Drag in a Material");
+                    }
+
+                    ImGui::Separator();
+
+                    if (m.shader) {
+                        if (ImGui::Button("Remove Shader")) { m.shader = nullptr; }
+                    } else {
+                        ImGui::Text("Drag in a Shader");
+                    }
+            
+                    ImGui::EndChild();
+                }
+
                 if (ImGui::BeginDragDropTarget()) {
                     if (const ImGuiPayload* meshPayload = ImGui::AcceptDragDropPayload("MESH")) {
                         const char* meshName = (const char*)meshPayload->Data;
@@ -283,18 +380,6 @@ void Editor::Inspector() {
                     }
                     ImGui::EndDragDropTarget();
                 }
-                
-                if (ImGui::BeginDragDropTarget()) {
-                    if (const ImGuiPayload* shaderPayload = ImGui::AcceptDragDropPayload("SHADER")) {
-                        const char* shaderName = (const char*)shaderPayload->Data;
-                        auto it = engine->resources().shaders.find(shaderName);
-                        if (it != engine->resources().shaders.end()) {
-                            m.shader = it->second;
-                        }
-                    }
-                    ImGui::EndDragDropTarget();
-                }
-
                 if (ImGui::BeginDragDropTarget()) {
                     if (const ImGuiPayload* materialPayload = ImGui::AcceptDragDropPayload("MATERIAL")) {
                         const char* materialName = (const char*)materialPayload->Data;
@@ -305,26 +390,16 @@ void Editor::Inspector() {
                     }
                     ImGui::EndDragDropTarget();
                 }
-
-                if (ImGui::Button("Remove Mesh")) { m.mesh = nullptr; }
-                if (ImGui::Button("Remove Shader")) { m.shader = nullptr; }
-
-                // material: name
-                // shader dropdown
-                // albedo color
-
-                if (m.material) {
-                    if (m.material->diffuseMap) ImGui::Image((void*)(intptr_t)m.material->diffuseMap->ID, ImVec2(64, 64), ImVec2(0, 1), ImVec2(1, 0));
-                    if (m.material->normalMap) ImGui::Image((void*)(intptr_t)m.material->normalMap->ID, ImVec2(64, 64), ImVec2(0, 1), ImVec2(1, 0));
-                    if (m.material->roughnessMap) ImGui::Image((void*)(intptr_t)m.material->roughnessMap->ID, ImVec2(64, 64), ImVec2(0, 1), ImVec2(1, 0));
-                    if (ImGui::SliderFloat("Metallic", &m.material->metallic, 0.0f, 1.0f)) {}
-                    if (ImGui::SliderFloat("Roughness", &m.material->roughness, 0.0f, 1.0f)) {}
-                    if (ImGui::Button("Remove Material")) { m.material = nullptr; }
-                } else {
-                    ImGui::Text("Drag in a Material");
+                if (ImGui::BeginDragDropTarget()) {
+                    if (const ImGuiPayload* shaderPayload = ImGui::AcceptDragDropPayload("SHADER")) {
+                        const char* shaderName = (const char*)shaderPayload->Data;
+                        auto it = engine->resources().shaders.find(shaderName);
+                        if (it != engine->resources().shaders.end()) {
+                            m.shader = it->second;
+                        }
+                    }
+                    ImGui::EndDragDropTarget();
                 }
-
-                ImGui::Separator();
             }
         } else {
             if (ImGui::Button("Add Mesh Component")) {
