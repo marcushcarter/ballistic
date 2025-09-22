@@ -122,7 +122,7 @@ void Editor::Menu() {
             // if (ImGui::MenuItem("Add Scene")) { std::string label = "Scene" + std::to_string(engine->scenes.size()+1); engine->addScene(label); }
             if (ImGui::MenuItem("Add Camera")) { std::string label = "Camera" + std::to_string(engine->activeScene->cameras.size()+1); engine->activeScene->addCamera(label); }
             if (ImGui::MenuItem("Add Light")) { std::string label = "Light" + std::to_string(engine->activeScene->lights().lights.size()+1);  engine->activeScene->lights().addLight(label, 1); }
-            if (ImGui::MenuItem("Create Anchor")) { engine->activeScene->createAnchor(); }
+            if (ImGui::MenuItem("Create Anchor")) { selectedAnchor = engine->activeScene->createAnchor(); }
             ImGui::EndMenu(); 
         };
         if (ImGui::BeginMenu("View")) { ImGui::EndMenu(); };
@@ -166,6 +166,14 @@ void Editor::Resources() {
         if (ImGui::Selectable(key.c_str())) {}
         if (ImGui::BeginDragDropSource()) {
             ImGui::SetDragDropPayload("MESH", key.c_str(), key.size() + 1);
+            ImGui::Text("Dragging %s", key.c_str());
+            ImGui::EndDragDropSource();
+        }
+    }
+    for (auto& [key, material] : engine->resources().materials) {
+        if (ImGui::Selectable(key.c_str())) {}
+        if (ImGui::BeginDragDropSource()) {
+            ImGui::SetDragDropPayload("MATERIAL", key.c_str(), key.size() + 1);
             ImGui::Text("Dragging %s", key.c_str());
             ImGui::EndDragDropSource();
         }
@@ -240,11 +248,40 @@ void Editor::Inspector() {
                     ImGui::EndDragDropTarget();
                 }
 
+                if (ImGui::BeginDragDropTarget()) {
+                    if (const ImGuiPayload* materialPayload = ImGui::AcceptDragDropPayload("MATERIAL")) {
+                        const char* materialName = (const char*)materialPayload->Data;
+                        auto it = engine->resources().materials.find(materialName);
+                        if (it != engine->resources().materials.end()) {
+                            m.material = it->second;
+                        }
+                    }
+                    ImGui::EndDragDropTarget();
+                }
+
+                if (ImGui::Button("Remove Mesh")) { m.mesh = nullptr; }
+                if (ImGui::Button("Remove Shader")) { m.shader = nullptr; }
+
+                // material: name
+                // shader dropdown
+                // albedo color
+
+                if (m.material) {
+                    if (m.material->diffuseMap) ImGui::Image((void*)(intptr_t)m.material->diffuseMap->ID, ImVec2(64, 64), ImVec2(0, 1), ImVec2(1, 0));
+                    if (m.material->normalMap) ImGui::Image((void*)(intptr_t)m.material->normalMap->ID, ImVec2(64, 64), ImVec2(0, 1), ImVec2(1, 0));
+                    if (m.material->roughnessMap) ImGui::Image((void*)(intptr_t)m.material->roughnessMap->ID, ImVec2(64, 64), ImVec2(0, 1), ImVec2(1, 0));
+                    if (ImGui::SliderFloat("Metallic", &m.material->metallic, 0.0f, 1.0f)) {}
+                    if (ImGui::SliderFloat("Roughness", &m.material->roughness, 0.0f, 1.0f)) {}
+                    if (ImGui::Button("Remove Material")) { m.material = nullptr; }
+                } else {
+                    ImGui::Text("Drag in a Material");
+                }
+
                 ImGui::Separator();
             }
         } else {
             if (ImGui::Button("Add Mesh Component")) {
-                engine->activeScene->registry.meshes[selectedAnchor] = MeshComponent{nullptr, nullptr};
+                engine->activeScene->registry.meshes[selectedAnchor] = MeshComponent{engine->resources().meshes["__cube"], engine->resources().materials["__default_material"], engine->resources().shaders["__scene"]};
             }
         }
     

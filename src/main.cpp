@@ -13,11 +13,11 @@ int main() {
 
     BE::Anchor cube = engine.activeScene->createAnchor();
     engine.activeScene->registry.transforms[cube] = BE::TransformComponent{{0,0,0}, {0,0,0}, {1,1,1}};
-    engine.activeScene->registry.meshes[cube] = BE::MeshComponent{engine.resources().meshes["Test Scene"], engine.resources().shaders["__scene"]};
+    engine.activeScene->registry.meshes[cube] = BE::MeshComponent{engine.resources().meshes["__cube"], nullptr, engine.resources().shaders["__scene"]};
 
-    BE::Anchor sphere = engine.activeScene->createAnchor();
-    engine.activeScene->registry.transforms[sphere] = BE::TransformComponent{{1,0,0}, {0,0,0}, {0.5,0.5,0.5}};
-    engine.activeScene->registry.meshes[sphere] = BE::MeshComponent{engine.resources().meshes["__cube"], engine.resources().shaders["__scene"]};
+    engine.resources().materials["__default_material"]->uploadToShader(
+        *engine.resources().shaders["__scene"].get()
+    );
 
     // BE::Anchor light = engine.activeScene->createAnchor();
     // engine.activeScene->registry.transforms[light] = BE::TransformComponent{{-1,0,0}, {0,0,0}, {0.5,0.5,0.5}};

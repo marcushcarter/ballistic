@@ -118,11 +118,9 @@ private:
 
 class Shader {
 public:
-    std::string name;
     GLuint ID = 0;
 
     Shader(
-        const std::string& shaderName, 
         const std::string& vertexPath = "", 
         const std::string& fragmentPath = "", 
         const std::string& geometryPath = "", 
@@ -132,7 +130,6 @@ public:
     );
     
     Shader(
-        const std::string& shaderName, 
         const std::string* vertexSource = nullptr, 
         const std::string* fragmentSource = nullptr, 
         const std::string* geometrySource = nullptr, 
@@ -171,25 +168,41 @@ private:
 class Texture {
 public:
     GLuint ID = 0;
-    std::string name;
     std::string texType;
-    GLuint unit = 0;
     GLenum type = GL_TEXTURE_2D;
     int width = 0;
     int height = 0;
     int channels = 0;
 
-    Texture(const std::string& textureName, const std::string& imagePath, const std::string& texType, GLuint slot);
-    Texture(const std::string& textureName, const std::string& texType, int width, int height, const std::string& rawData);
+    Texture(const std::string& imagePath, const std::string& texType);
+    Texture(const std::string& texType, int width, int height, const std::string& rawData);
     ~Texture();
-    void setUniformUnit(GLuint shaderID, const char* uniform);
-    void bind();
+    void setUniformUnit(GLuint shaderID, const char* uniform, GLuint slot);
+    void bind(GLuint slot);
     void unbind();
+};
+
+class Material {
+public:
+    Texture* diffuseMap = nullptr;
+    Texture* normalMap = nullptr;
+    Texture* roughnessMap = nullptr;
+
+    glm::vec4 diffuseColor = glm::vec4(1,1,1,1);
+    float metallic = 0.0f;
+    float roughness = 1.0f;
+
+    bool cull = false;
+    bool transparent = false;
+
+    Material() = default;
+    Material(const std::string mtlPath);
+
+    void uploadToShader(Shader& shader);
 };
 
 class Mesh {
 public:
-    std::string name;
     std::vector<Vertex> vertices;
     std::vector<GLuint> indices;
     std::vector<Texture> textures;
@@ -197,24 +210,14 @@ public:
     VAO vao;
     VBO* vbo = nullptr;
     EBO* ebo = nullptr;
-    VBO vboInstance;
-
-    std::vector<glm::mat4> instanceModels;
 
     Mesh() = default;
-    Mesh(const std::string& meshName, const std::vector<Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<Texture>& texs);
-    Mesh(const std::string& meshName, const std::string& objPath);
-    Mesh(const std::string& meshName, const std::string* objSource);
+    Mesh(const std::vector<Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<Texture>& texs);
+    Mesh(const std::string& objPath);
+    Mesh(const std::string* objSource);
     ~Mesh();
 
-    void addInstance(const glm::vec3& position = glm::vec3(0), const glm::vec3& rotation = glm::vec3(0), const glm::vec3& scale = glm::vec3(1));
-    void addInstance(const glm::mat4& model = glm::mat4(1));
-    void clearInstances();
-    void uploadInstances();
-
-    void draw(Shader& shader, const glm::mat4& modelMatrix = glm::mat4(1), bool textures = true);
-    void drawInstanced(Shader& shader);
-
+    void draw(Shader& shader, const glm::mat4& modelMatrix = glm::mat4(1));
     void makePreview(Framebuffer& fb, Shader& shader, float dt = 0.0025f);
 
     void loadOBJ(const std::string& objPath);
@@ -225,6 +228,7 @@ public:
 class ResourceManager {
 public:
     std::unordered_map<std::string, std::shared_ptr<Mesh>> meshes;
+    std::unordered_map<std::string, std::shared_ptr<Material>> materials;
     std::unordered_map<std::string, std::shared_ptr<Shader>> shaders;
     std::unordered_map<std::string, std::shared_ptr<Texture>> textures;
 
@@ -248,6 +252,9 @@ public:
     std::shared_ptr<Mesh> loadMesh(const std::string& name, const std::string& objPath, const std::source_location& loc = std::source_location::current());
     std::shared_ptr<Mesh> loadMesh(const std::string& name, const std::string* objSource, const std::source_location& loc = std::source_location::current());
     void removeMesh(const std::string& name, const std::source_location& loc = std::source_location::current());
+
+    std::shared_ptr<Material> loadMaterial(const std::string& name, const std::string mtlPath, const std::source_location& loc = std::source_location::current());
+    void removeMaterial(const std::string& name, const std::source_location& loc = std::source_location::current());
 
     std::shared_ptr<Shader> loadShader(
         const std::string& name,
@@ -274,7 +281,7 @@ public:
 
     void loadShaderDSL(const std::string& filePath, const std::source_location& loc = std::source_location::current());
 
-    std::shared_ptr<Texture> loadTexture(const std::string& name, const std::string& imagePath, const std::string& texType, GLuint slot, const std::source_location& loc = std::source_location::current());
+    std::shared_ptr<Texture> loadTexture(const std::string& name, const std::string& imagePath, const std::string& texType, const std::source_location& loc = std::source_location::current());
     std::shared_ptr<Texture> loadTexture(const std::string& name, const std::string& texType, int width, int height, const std::string& rawData, const std::source_location& loc = std::source_location::current());
     void removeTexture(const std::string& name, const std::source_location& loc = std::source_location::current());
     
@@ -373,6 +380,7 @@ struct TransformComponent {
 
 struct MeshComponent {
     std::shared_ptr<Mesh> mesh;
+    std::shared_ptr<Material> material;
     std::shared_ptr<Shader> shader;
 };
 

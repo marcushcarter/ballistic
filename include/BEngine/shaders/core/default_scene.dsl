@@ -32,7 +32,7 @@ in vec3 Normal;
 in vec3 FragPos;
 out vec4 FragColor;
 
-uniform sampler2D diffuse0;
+uniform sampler2D diffuseMap;
 
 uniform int numLights;
 struct Light {
@@ -47,7 +47,7 @@ layout(std430, binding = 0) buffer LightBlock {
 };
 
 void main() {
-    vec3 texColor = texture(diffuse0, TexCoord).rgb;
+    vec3 texColor = texture(diffuseMap, TexCoord).rgb;
     vec3 norm = normalize(Normal);
     vec3 finalColor = vec3(0.2);
 

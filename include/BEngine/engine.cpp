@@ -199,8 +199,7 @@ void Framebuffer::resize(int newWidth, int newHeight, bool linearFilter) {
 
 // ========================================================================
 
-Shader::Shader(const std::string& shaderName, const std::string& vertexPath, const std::string& fragmentPath, const std::string& geometryPath, const std::string& computePath, const std::string& tessControlPath, const std::string& tessEvaluationPath)
-    : name(shaderName.empty() ? "new shader" : shaderName) {
+Shader::Shader(const std::string& vertexPath, const std::string& fragmentPath, const std::string& geometryPath, const std::string& computePath, const std::string& tessControlPath, const std::string& tessEvaluationPath) {
 
     GLuint vertexShader = 0, fragmentShader = 0, geometryShader = 0, computeShader = 0, tessControlShader = 0, tessEvaluationShader = 0;
 
@@ -232,8 +231,7 @@ Shader::Shader(const std::string& shaderName, const std::string& vertexPath, con
 
 }
 
-Shader::Shader(const std::string& shaderName, const std::string* vertexSource, const std::string* fragmentSource, const std::string* geometrySource, const std::string* computeSource, const std::string* tessControlSource, const std::string* tessEvaluationSource)
-    : name(shaderName.empty() ? "new shader" : shaderName) {
+Shader::Shader(const std::string* vertexSource, const std::string* fragmentSource, const std::string* geometrySource, const std::string* computeSource, const std::string* tessControlSource, const std::string* tessEvaluationSource) {
 
     GLuint vertexShader = 0, fragmentShader = 0, geometryShader = 0, computeShader = 0, tessControlShader = 0, tessEvaluationShader = 0;
 
@@ -381,20 +379,18 @@ void Shader::recompile(const std::string* vertexSource, const std::string* fragm
 
 // ========================================================================
 
-Texture::Texture(const std::string& textureName, const std::string& imagePath, const std::string& texType, GLuint slot)
-    : name(textureName.empty() ? "new texture" : textureName), texType(texType), unit(slot)  {
+Texture::Texture(const std::string& imagePath, const std::string& texType)
+    : texType(texType) {
 
     type = GL_TEXTURE_2D;
 
     stbi_set_flip_vertically_on_load(true);
     unsigned char* data = stbi_load(imagePath.c_str(), &width, &height, &channels, 0);
     if (!data) {
-        Message(2, "TEXTURE", "Failed to load texture " + textureName, imagePath.c_str(), 1);
+        Message(2, "TEXTURE", "Failed to load texture", imagePath.c_str(), 1);
     }
 
     glGenTextures(1, &ID);
-    glActiveTexture(GL_TEXTURE0 + slot);
-    unit = slot;
     glBindTexture(type, ID);
 
     glTexParameteri(type, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -418,8 +414,8 @@ Texture::Texture(const std::string& textureName, const std::string& imagePath, c
     glBindTexture(type, 0);
 }
 
-Texture::Texture(const std::string& textureName, const std::string& texType, int width, int height, const std::string& rawData)
-    : name(textureName), texType(texType) {
+Texture::Texture(const std::string& texType, int width, int height, const std::string& rawData)
+    : texType(texType) {
 
     glGenTextures(1, &ID);
     glBindTexture(GL_TEXTURE_2D, ID);
@@ -433,14 +429,14 @@ Texture::Texture(const std::string& textureName, const std::string& texType, int
 
 Texture::~Texture() { glDeleteTextures(1, &ID); }
 
-void Texture::setUniformUnit(GLuint shaderID, const char* uniform) {
+void Texture::setUniformUnit(GLuint shaderID, const char* uniform, GLuint slot) {
     GLuint loc = glGetUniformLocation(shaderID, uniform);
     // if (loc == -1) std::cout << "Failed to find 'Uniform Sampler2D " << uniform << "'" << std::endl;
-    glUniform1i(loc, unit);
+    glUniform1i(loc, slot);
 }
 
-void Texture::bind() {
-    glActiveTexture(GL_TEXTURE0 + unit);
+void Texture::bind(GLuint slot) {
+    glActiveTexture(GL_TEXTURE0 + slot);
     glBindTexture(GL_TEXTURE_2D, ID);
 }
 
@@ -448,10 +444,94 @@ void Texture::unbind() { glBindTexture(GL_TEXTURE_2D, 0); }
 
 // ========================================================================
 
-// Mesh::Mesh() : vertices(), indices(), textures() {}
+Material::Material(const std::string mtlPath) {
 
-Mesh::Mesh(const std::string& meshName, const std::vector<Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<Texture>& texs)
-    : name(meshName.empty() ? "new mesh" : meshName), vertices(verts), indices(inds), textures(texs) {
+    diffuseColor = {1,1,1,1};
+    metallic = 0.0f;
+    roughness = 1.0f;
+    cull = true;
+    transparent = false;
+
+    
+    std::ifstream file(mtlPath);
+    if (!file.is_open()) {
+        Message(2, "MATERIAL", "Failed to open MTL file " + mtlPath, mtlPath.c_str(), 1);
+        return;
+    }
+
+    std::string line;
+    int lineNum = 0;
+
+    while (std::getline(file, line)) {
+        lineNum++;
+
+        if (line.empty() || line[0] == '#' || line.starts_with("o ") || line.starts_with("s ")) continue;
+
+        std::istringstream ss(line);
+        std::string cmd;
+        ss >> cmd;
+
+        if (cmd == "Kd") {
+            float r, g, b;
+            ss >> r >> g >> b;
+            diffuseColor = glm::vec4(r, g, b, 1);
+
+        } else if (cmd == "map_Kd") {
+            std::string texFile;
+            ss >> texFile;
+            diffuseMap = new Texture(texFile, "diffuse");
+
+        } else if (cmd == "map_Bump") {
+            std::string texFile;
+            ss >> texFile;
+            normalMap = new Texture(texFile, "normal");
+
+        } else if (cmd == "map_Pr") {
+            std::string texFile;
+            ss >> texFile;
+            roughnessMap = new Texture(texFile, "height");
+
+        } else if (cmd == "d") {
+            float opacity;
+            ss >> opacity;
+            transparent = (opacity < 1.0f);
+
+        } else if (cmd == "Tr") {
+            float tr;
+            ss >> tr;
+            transparent = (tr > 0.0f);
+
+        }
+    }
+
+    file.close();
+    Message(0, "MATERIAL", "MTL loaded successfully", mtlPath.c_str(), lineNum);
+
+}
+
+void Material::uploadToShader(Shader& shader) {
+    shader.activate();
+
+    if (diffuseMap) {
+        diffuseMap->setUniformUnit(shader.ID, "diffuseMap", 0);
+        diffuseMap->bind(0);
+    }
+
+    if (normalMap) {
+        normalMap->setUniformUnit(shader.ID, "normalMap", 1);
+        normalMap->bind(1);
+    }
+
+    if (roughnessMap) {
+        roughnessMap->setUniformUnit(shader.ID, "roughnessMap", 2);
+        roughnessMap->bind(2);
+    }
+}
+
+// ========================================================================
+
+Mesh::Mesh(const std::vector<Vertex>& verts, const std::vector<GLuint>& inds, const std::vector<Texture>& texs)
+    : vertices(verts), indices(inds), textures(texs) {
 
     vao.bind();
 
@@ -466,13 +546,13 @@ Mesh::Mesh(const std::string& meshName, const std::vector<Vertex>& verts, const 
     vao.unbind();
 }
 
-Mesh::Mesh(const std::string& meshName, const std::string& objPath)
-    : name(meshName.empty() ? "new mesh" : meshName), vertices(), indices(), textures() {
+Mesh::Mesh(const std::string& objPath)
+    : vertices(), indices(), textures() {
     loadOBJ(objPath.c_str());
 }
 
-Mesh::Mesh(const std::string& meshName, const std::string* objSource)
-    : name(meshName.empty() ? "new mesh" : meshName), vertices(), indices(), textures() {
+Mesh::Mesh(const std::string* objSource)
+    : vertices(), indices(), textures() {
     loadOBJSource(objSource);
 }
 
@@ -485,93 +565,14 @@ Mesh::~Mesh() {
     }
 }
 
-void Mesh::addInstance(const glm::vec3& position, const glm::vec3& rotation, const glm::vec3& scale) {
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), position) * glm::eulerAngleXYZ(rotation.x, rotation.y, rotation.z) * glm::scale(glm::mat4(1.0f), scale);
-    instanceModels.push_back(model);
-}
-
-void Mesh::addInstance(const glm::mat4& model) {
-    instanceModels.push_back(model);
-}
-
-void Mesh::clearInstances() {
-    instanceModels.clear();
-}
-
-void Mesh::uploadInstances() {
-    if (vboInstance.ID == 0) {
-        glGenBuffers(1, &vboInstance.ID);
-    }
-    glBindVertexArray(vao.ID);
-    glBindBuffer(GL_ARRAY_BUFFER, vboInstance.ID);
-    glBufferData(GL_ARRAY_BUFFER, instanceModels.size() * sizeof(glm::mat4), instanceModels.data(), GL_DYNAMIC_DRAW);
-
-    std::size_t vec4Size = sizeof(glm::vec4);
-    for (int i = 0; i < 4; i++) {
-        glEnableVertexAttribArray(3 + i);
-        glVertexAttribPointer(3 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(i * vec4Size));
-        glVertexAttribDivisor(3 + i, 1);
-    }
-    glBindVertexArray(0);
-}
-
-void Mesh::draw(Shader& shader, const glm::mat4& modelMatrix, bool t) {
+void Mesh::draw(Shader& shader, const glm::mat4& modelMatrix) {
     shader.activate();
     vao.bind();
-    
+
     glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uModel"), 1, GL_FALSE, &modelMatrix[0][0]);
-
-    if (t) {
-
-        unsigned int numDiffuse = 0;
-        unsigned int numSpecular = 0;
-
-        for (size_t i = 0; i < textures.size(); i++) {
-            std::string type = textures[i].texType;
-            std::string numStr;
-
-            if (type == "diffuse") { numStr = std::to_string(numDiffuse++); }
-            else if (type == "specular") numStr = std::to_string(numSpecular++);
-
-            std::string uniformName = type + numStr;
-            textures[i].setUniformUnit(shader.ID, uniformName.c_str());
-            textures[i].bind();
-        }
-    }
-
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
+
     vao.unbind();
-
-}
-
-void Mesh::drawInstanced(Shader& shader) {
-    if (instanceModels.empty()) {
-        draw(shader, glm::mat4(1));
-        return;
-    }
-
-    shader.activate();
-    uploadInstances();
-    vao.bind();
-
-    unsigned int numDiffuse = 0;
-    unsigned int numSpecular = 0;
-
-    for (size_t i = 0; i < textures.size(); i++) {
-        std::string type = textures[i].texType;
-        std::string numStr;
-
-        if (type == "diffuse") { numStr = std::to_string(numDiffuse++); }
-        else if (type == "specular") numStr = std::to_string(numSpecular++);
-
-        std::string uniformName = type + numStr;
-        textures[i].setUniformUnit(shader.ID, uniformName.c_str());
-        textures[i].bind();
-    }
-
-    glDrawElementsInstanced(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0, (GLsizei)instanceModels.size());
-    vao.unbind();
-
 }
 
 void Mesh::makePreview(Framebuffer& fb, Shader& shader, float dt) {
@@ -609,7 +610,7 @@ void Mesh::makePreview(Framebuffer& fb, Shader& shader, float dt) {
     glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uView"), 1, GL_FALSE, &view[0][0]);
     glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uProjection"), 1, GL_FALSE, &proj[0][0]);
 
-    draw(shader, model, false);
+    draw(shader, model);
 
     fb.unbind();
 }
@@ -644,31 +645,28 @@ void Mesh::loadOBJ(const std::string& objPath) {
     while (std::getline(file, line)) {
         lineNum++;
 
-        if (line.empty() || line[0] == '#' || line.starts_with("o ") || line.starts_with("s "))
-            continue;
+        if (line.empty() || line[0] == '#' || line.starts_with("o ") || line.starts_with("s ")) continue;
 
         std::istringstream ss(line);
+        std::string cmd;
+        ss >> cmd;
 
         if (line.starts_with("v ")) {
             glm::vec3 v;
-            ss.ignore(2);
             ss >> v.x >> v.y >> v.z;
             positions.push_back(v);
 
         } else if (line.starts_with("vt ")) {
             glm::vec2 vt;
-            ss.ignore(3);
             ss >> vt.x >> vt.y;
             uvs.push_back(vt);
 
         } else if (line.starts_with("vn ")) {
             glm::vec3 vn;
-            ss.ignore(3);
             ss >> vn.x >> vn.y >> vn.z;
             normals.push_back(vn);
 
         } else if (line.starts_with("f ")) {
-            ss.ignore(2);
 
             std::vector<Vertex> faceVerts;
             std::string token;
@@ -728,7 +726,7 @@ void Mesh::loadOBJ(const std::string& objPath) {
 
     this->vertices = std::move(loadedVerts);
     this->indices  = std::move(loadedIndices);
-    this->textures = { Texture("fallback", "diffuse", 4, 4, BE::Default::FallbackTexture) };
+    this->textures = { Texture("diffuse", 4, 4, BE::Default::FallbackTexture) };
 
     vao.bind();
     delete vbo;
@@ -770,27 +768,25 @@ void Mesh::loadOBJSource(const std::string* objSource) {
             continue;
 
         std::istringstream ss(line);
+        std::string cmd;
+        ss >> cmd;
 
         if (line.starts_with("v ")) {
             glm::vec3 v;
-            ss.ignore(2);
             ss >> v.x >> v.y >> v.z;
             positions.push_back(v);
 
         } else if (line.starts_with("vt ")) {
             glm::vec2 vt;
-            ss.ignore(3);
             ss >> vt.x >> vt.y;
             uvs.push_back(vt);
 
         } else if (line.starts_with("vn ")) {
             glm::vec3 vn;
-            ss.ignore(3);
             ss >> vn.x >> vn.y >> vn.z;
             normals.push_back(vn);
 
         } else if (line.starts_with("f ")) {
-            ss.ignore(2);
 
             std::vector<Vertex> faceVerts;
             std::string token;
@@ -848,7 +844,7 @@ void Mesh::loadOBJSource(const std::string* objSource) {
 
     this->vertices = std::move(loadedVerts);
     this->indices  = std::move(loadedIndices);
-    this->textures = { Texture("fallback", "diffuse", 4, 4, BE::Default::FallbackTexture) };
+    this->textures = { Texture("diffuse", 4, 4, BE::Default::FallbackTexture) };
 
     vao.bind();
     delete vbo;
@@ -875,7 +871,7 @@ std::shared_ptr<Mesh> ResourceManager::loadMesh(const std::string& name, const s
         return it->second;
     }
     
-    auto mesh = std::make_shared<Mesh>(name, verts, inds, texs);
+    auto mesh = std::make_shared<Mesh>(verts, inds, texs);
     meshes[name] = mesh;
     return mesh;
 }
@@ -887,7 +883,7 @@ std::shared_ptr<Mesh> ResourceManager::loadMesh(const std::string& name, const s
         return it->second;
     }
     
-    auto mesh = std::make_shared<Mesh>(name, objPath);
+    auto mesh = std::make_shared<Mesh>(objPath);
     meshes[name] = mesh;
     return mesh;
 }
@@ -899,7 +895,7 @@ std::shared_ptr<Mesh> ResourceManager::loadMesh(const std::string& name, const s
         return it->second;
     }
     
-    auto mesh = std::make_shared<Mesh>(name, objSource);
+    auto mesh = std::make_shared<Mesh>(objSource);
     meshes[name] = mesh;
     return mesh;
 }
@@ -910,6 +906,27 @@ void ResourceManager::removeMesh(const std::string& name, const std::source_loca
         meshes.erase(it);
     } else {
         Message(2, "RESOURCE", "Could not find mesh '" + name + "'", loc.file_name(), loc.line());
+    }    
+}
+
+std::shared_ptr<Material> ResourceManager::loadMaterial(const std::string& name, const std::string mtlPath, const std::source_location& loc) {
+    auto it = materials.find(name);
+    if (it != materials.end()) {
+        Message(1, "RESOURCE", "Material '" + name + "' already exists", loc.file_name(), loc.line());
+        return it->second;
+    }
+    
+    auto material = std::make_shared<Material>(mtlPath);
+    materials[name] = material;
+    return material;
+}
+
+void ResourceManager::removeMaterial(const std::string& name, const std::source_location& loc) {
+    auto it = materials.find(name);
+    if (it != materials.end()) {
+        materials.erase(it);
+    } else {
+        Message(2, "RESOURCE", "Could not find Material '" + name + "'", loc.file_name(), loc.line());
     }    
 }
 
@@ -931,7 +948,7 @@ std::shared_ptr<Shader> ResourceManager::loadShader(const std::string& name, con
     sp.tessEvaluation = tessEvaluationPath;
     shaderPaths[name] = sp;
     
-    auto shader = std::make_shared<Shader>(name, vertexPath, fragmentPath, geometryPath, computePath, tessControlPath, tessEvaluationPath);
+    auto shader = std::make_shared<Shader>(vertexPath, fragmentPath, geometryPath, computePath, tessControlPath, tessEvaluationPath);
     shaders[name] = shader;
     
     // Message(0, "RESOURCE", "Shader '" + name + "' loaded successfully from PATHS", loc.file_name(), loc.line());
@@ -946,7 +963,7 @@ std::shared_ptr<Shader> ResourceManager::loadShader(const std::string& name, con
         return it->second;
     }
     
-    auto shader = std::make_shared<Shader>(name, vertexSource, fragmentSource, geometrySource, computeSource, tessControlSource, tessEvaluationSource);
+    auto shader = std::make_shared<Shader>(vertexSource, fragmentSource, geometrySource, computeSource, tessControlSource, tessEvaluationSource);
     shaders[name] = shader;
     
     // Message(0, "RESOURCE", "Shader '" + name + "' loaded successfully from STRINGS", loc.file_name(), loc.line());
@@ -1138,14 +1155,14 @@ void ResourceManager::recompileShaders(const std::source_location& loc) {
     }
 }
 
-std::shared_ptr<Texture> ResourceManager::loadTexture(const std::string& name, const std::string& imagePath, const std::string& texType, GLuint slot, const std::source_location& loc) {
+std::shared_ptr<Texture> ResourceManager::loadTexture(const std::string& name, const std::string& imagePath, const std::string& texType, const std::source_location& loc) {
     auto it = textures.find(name);
     if (it != textures.end()) {
         Message(1, "RESOURCE", "Texture '" + name + "' already exists", loc.file_name(), loc.line());
         return it->second;
     }
     
-    auto texture = std::make_shared<Texture>(name, imagePath, texType, slot);
+    auto texture = std::make_shared<Texture>(imagePath, texType);
     textures[name] = texture;
     return texture;
 }
@@ -1157,7 +1174,7 @@ std::shared_ptr<Texture> ResourceManager::loadTexture(const std::string& name, c
         return it->second;
     }
     
-    auto texture = std::make_shared<Texture>(name, texType, width, height, rawData);
+    auto texture = std::make_shared<Texture>(texType, width, height, rawData);
     textures[name] = texture;
     return texture;
 }
@@ -1181,7 +1198,18 @@ void ResourceManager::loadDefaults() {
     loadShaderDSL("include/BEngine/shaders/core/flat_color.dsl");
     loadShaderDSL("include/BEngine/shaders/post/blit.dsl");
 
-    loadTexture("Fallback", "diffuse", 4, 4, BE::Default::FallbackTexture);
+    auto texture = std::make_shared<Texture>("diffuse", 4, 4, BE::Default::FallbackTexture);
+    textures["Fallback"] = texture;
+
+    loadTexture("Box", "res/textures/box.png", "diffuse");
+    loadTexture("Box_specular", "res/textures/box_specular.png", "diffuse");
+
+    materials["__default_material"] = std::make_shared<Material>();
+    materials["__default_material"]->diffuseMap = textures["Fallback"].get();
+    
+    materials["material bond"] = std::make_shared<Material>();
+    materials["material bond"]->diffuseMap = textures["Box"].get();
+    materials["material bond"]->normalMap = textures["Box_specular"].get();
 }
 
 // ========================================================================
@@ -1658,10 +1686,14 @@ void Engine::renderViewportTexture(Viewport& vp) {
         TransformComponent& t = vp.scene->registry.transforms.find(a)->second;
         MeshComponent& m = vp.scene->registry.meshes.find(a)->second;
 
-        glm::mat4 model22 = glm::translate(glm::mat4(1.0f), t.position) * glm::eulerAngleXYZ(t.rotation.x, t.rotation.y, t.rotation.z) * glm::scale(glm::mat4(1.0f), t.scale);
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), t.position) * glm::eulerAngleXYZ(t.rotation.x, t.rotation.y, t.rotation.z) * glm::scale(glm::mat4(1.0f), t.scale);
 
         if (vp.scene->registry.meshes.find(a) != vp.scene->registry.meshes.end() && m.mesh != nullptr && m.shader != nullptr) {
-            m.mesh->draw(*m.shader, model22, false);
+            
+            if (m.material != nullptr) m.material->uploadToShader(*m.shader); 
+            else resources().materials["__default_material"]->uploadToShader(*m.shader);
+
+            m.mesh->draw(*m.shader, model);
             continue;
         }
         
@@ -1669,37 +1701,37 @@ void Engine::renderViewportTexture(Viewport& vp) {
 
     // CAMERAS
 
-    shader = resources().shaders["__flat_color"];
-    mesh = resources().meshes["__cube"];
+    // shader = resources().shaders["__flat_color"];
+    // mesh = resources().meshes["__cube"];
 
-    shader->activate();
-    vp.camera->uploadToShader(shader->ID);
-    glUniform4fv(glGetUniformLocation(shader->ID, "uColor"), 1, glm::value_ptr(glm::vec4(1)));
+    // shader->activate();
+    // vp.camera->uploadToShader(shader->ID);
+    // glUniform4fv(glGetUniformLocation(shader->ID, "uColor"), 1, glm::value_ptr(glm::vec4(1)));
     
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-    for (auto& [key, camera] : vp.scene->cameras) {
-        glm::mat4 model = glm::translate(glm::mat4(1.0f), camera->position) * glm::mat4_cast(camera->orientation) * glm::scale(glm::mat4(1.0f), glm::vec3(0.25f));
-        mesh->draw(*shader, model, false);
-    }
+    // for (auto& [key, camera] : vp.scene->cameras) {
+    //     glm::mat4 model = glm::translate(glm::mat4(1.0f), camera->position) * glm::mat4_cast(camera->orientation) * glm::scale(glm::mat4(1.0f), glm::vec3(0.25f));
+    //     mesh->draw(*shader, model, false);
+    // }
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     // LIGHTS
 
-    shader = resources().shaders["__flat_color"];
-    mesh = resources().meshes["__cube"];
+    // shader = resources().shaders["__flat_color"];
+    // mesh = resources().meshes["__cube"];
 
-    shader->activate();
-    vp.camera->uploadToShader(shader->ID);
-    GLuint colorLoc = glGetUniformLocation(shader->ID, "uColor");
+    // shader->activate();
+    // vp.camera->uploadToShader(shader->ID);
+    // GLuint colorLoc = glGetUniformLocation(shader->ID, "uColor");
 
-    for (int i = 0; i < vp.scene->lights().lights.size(); i++) {
-        const auto& light = vp.scene->lights().lights[i];
-        glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(light.position)) * glm::eulerAngleXYZ(light.direction.x, light.direction.y, light.direction.z) * glm::scale(glm::mat4(1.0f), glm::vec3(0.1f));   
-        glUniform4fv(colorLoc, 1, glm::value_ptr(light.color));
-        mesh->draw(*shader, model);
-    }
+    // for (int i = 0; i < vp.scene->lights().lights.size(); i++) {
+    //     const auto& light = vp.scene->lights().lights[i];
+    //     glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(light.position)) * glm::eulerAngleXYZ(light.direction.x, light.direction.y, light.direction.z) * glm::scale(glm::mat4(1.0f), glm::vec3(0.1f));   
+    //     glUniform4fv(colorLoc, 1, glm::value_ptr(light.color));
+    //     mesh->draw(*shader, model);
+    // }
 
     vp.framebuffer.unbind();
 }
