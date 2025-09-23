@@ -33,6 +33,9 @@ in vec3 FragPos;
 out vec4 FragColor;
 
 uniform sampler2D diffuseMap;
+uniform sampler2D normalMap;
+uniform sampler2D roughnessMap;
+uniform vec4 diffuseColor;
 
 uniform int numLights;
 struct Light {
@@ -82,7 +85,7 @@ void main() {
         finalColor += lightColor * diff;
     }
 
-    FragColor = vec4(texColor * finalColor, 1.0);
+    FragColor = vec4(texColor * finalColor, 1.0) * diffuseColor;
 }
 
 @end

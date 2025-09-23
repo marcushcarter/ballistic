@@ -1221,8 +1221,6 @@ void ResourceManager::loadDefaults() {
 
     loadShaderDSL("include/BEngine/shaders/core/mesh_preview.dsl");
     loadShaderDSL("include/BEngine/shaders/core/default_scene.dsl");
-    loadShaderDSL("include/BEngine/shaders/core/flat_color.dsl");
-    loadShaderDSL("include/BEngine/shaders/post/blit.dsl");
 
     auto texture = std::make_shared<Texture>("diffuse", 4, 4, BE::Default::FallbackTexture);
     textures["Fallback"] = texture;
