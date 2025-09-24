@@ -1415,111 +1415,7 @@ void Light::generateMatrices() {
 
 }
 
-void Light::setPosition(const glm::vec3& pos) { position = glm::vec4(pos, position.w); }
-
-void Light::setColor(const glm::vec3& col) { color = glm::vec4(col, color.w); }
-
-void Light::setIntensity(float intensity) { color.w = intensity; }
-
-void Light::setDirection(const glm::vec3& dir) { direction = glm::vec4(dir, direction.w); }
-
 // ========================================================================
-
-LightManager::LightManager(size_t maxLights) 
-    : maxLights(maxLights) {
-
-    // lightMesh = new Mesh("Light Mesh", {}, {}, {});
-    // lightMesh.loadOBJ("res/models/cube.obj");
-    
-    glGenBuffers(1, &lightSSBO);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
-    glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(Light) * maxLights, nullptr, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO);
-    mappedPtr = (Light*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Light) * maxLights, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-}
-
-LightManager::~LightManager() {
-    if (lightSSBO) {
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
-        glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
-        glDeleteBuffers(1, &lightSSBO);
-    }
-}
-
-void LightManager::bind() { glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO); }
-
-void LightManager::updateGPU() { std::memcpy(mappedPtr, lights.data(), lights.size() * sizeof(Light)); }
-
-void LightManager::uploadToShader(GLuint shaderID) { glUniform1i(glGetUniformLocation(shaderID, "numLights"), (int)lights.size()); }
-
-// void LightManager::updateActiveLightsForObject(const glm::vec3& objPos, float objRadius) {
-//     activeLights.clear();
-//
-//     for (auto& light : lights) {
-//         if (light.position.w == 0.0f) {
-//             activeLights.push_back(light);
-//         } 
-//         else {
-//             float distance = glm::length(glm::vec3(light.position) - objPos);
-//             float range = light.direction.w;
-//             if (distance <= objRadius + range)
-//                 activeLights.push_back(light);
-//         }
-//     }
-//
-//     glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
-//     std::memcpy(mappedPtr, activeLights.data(), activeLights.size() * sizeof(Light));
-//     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-// }
-
-void LightManager::generateAllMatrices() {
-    for (auto& light : lights) {
-        light.generateMatrices();
-    }
-    updateGPU();
-}
-
-size_t LightManager::addLight(const std::string& name, int type, const std::source_location& loc) {
-    Light light(type);
-    if (lights.size() < maxLights) {
-        size_t index = lights.size();
-        lights.push_back(light);
-        lights.back().generateMatrices();
-        lightLookup[name] = index;
-        updateGPU();
-        return index;
-    }
-    Message(1, "LIGHT", "No space left for light '" + name + "' in light manager", loc.file_name(), loc.line());\
-    return SIZE_MAX;
-}
-
-void LightManager::removeLight(const std::string& name, int type, const std::source_location& loc) {
-    auto it = lightLookup.find(name);
-    if (it != lightLookup.end()) {
-        size_t index = it->second;
-        lights.erase(lights.begin() + index);
-        lightLookup.erase(it);
-
-        for (auto& [key, value] : lightLookup) {
-            if (value > index) value--;
-        }
-
-        updateGPU();
-    } else {
-        Message(2, "LIGHT", "Could not find light '" + name + "'", loc.file_name(), loc.line());
-    }   
-}
-
-Light* LightManager::getLight(const std::string& name, const std::source_location& loc) {
-    auto it = lightLookup.find(name);
-    if (it != lightLookup.end()) {
-        return &lights[it->second];
-    } else {
-        Message(2, "LIGHT", "Could not find light '" + name + "'", loc.file_name(), loc.line());
-        return nullptr;
-    }
-}
 
 // ========================================================================
 
@@ -1537,7 +1433,7 @@ Light* LightManager::getLight(const std::string& name, const std::source_locatio
 
 // ========================================================================
 
-Scene::Scene() : lightManager(128) { addCamera("Camera1"); }
+Scene::Scene() { addCamera("Camera1"); }
 
 Anchor Scene::createAnchor() {
     Anchor a = nextAnchorID++;
@@ -1650,6 +1546,15 @@ Engine::Engine(const std::string& title, int width, int height, const std::sourc
     viewport.get()->camera = activeScene->activeCamera;
     viewport.get()->resize(720, 450);
 
+    maxLights = 128;
+    
+    glGenBuffers(1, &lightSSBO);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
+    glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(Light) * maxLights, nullptr, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO);
+    mappedPtr = (Light*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, sizeof(Light) * maxLights, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
@@ -1710,6 +1615,27 @@ void Engine::renderViewportTexture(Viewport& vp) {
     vp.camera->width = vp.framebuffer.width;
     vp.camera->height = vp.framebuffer.height;
 
+    // LIGHT UPLOAD
+
+    static std::vector<Light> lights;
+    lights.clear();
+
+    for (Anchor a : vp.scene->anchors) {
+        if ( vp.scene->registry.transforms.find(a) != vp.scene->registry.transforms.end() && vp.scene->registry.lights.find(a) != vp.scene->registry.lights.end() ) {
+            
+            TransformComponent& t = vp.scene->registry.transforms.find(a)->second;
+            LightComponent& l = vp.scene->registry.lights.find(a)->second;
+
+            Light gpu(l.type, t.position, t.rotation, l.color, l.intensity, 0.0f);
+            gpu.generateMatrices();
+
+            lights.push_back(gpu);
+        }
+    }
+
+    std::memcpy(mappedPtr, lights.data(), lights.size() * sizeof(Light));
+    int numActiveLights = lights.size();
+
     // ANCHORS
 
     static std::vector<GLuint> updatedShaders;
@@ -1732,8 +1658,8 @@ void Engine::renderViewportTexture(Viewport& vp) {
 
             if (std::find(updatedShaders.begin(), updatedShaders.end(), shader->ID) == updatedShaders.end()) {
                 shader->activate();
+                glUniform1i(glGetUniformLocation(shader->ID, "numLights"), numActiveLights);
                 vp.camera->uploadToShader(shader->ID);
-                vp.scene->lights().uploadToShader(shader->ID);
                 updatedShaders.push_back(shader->ID);
             }
             
@@ -1762,22 +1688,6 @@ void Engine::renderViewportTexture(Viewport& vp) {
     // }
 
     // glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-    // LIGHTS
-
-    // shader = resources().shaders["__flat_color"];
-    // mesh = resources().meshes["default_cube"];
-
-    // shader->activate();
-    // vp.camera->uploadToShader(shader->ID);
-    // GLuint colorLoc = glGetUniformLocation(shader->ID, "uColor");
-
-    // for (int i = 0; i < vp.scene->lights().lights.size(); i++) {
-    //     const auto& light = vp.scene->lights().lights[i];
-    //     glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(light.position)) * glm::eulerAngleXYZ(light.direction.x, light.direction.y, light.direction.z) * glm::scale(glm::mat4(1.0f), glm::vec3(0.1f));   
-    //     glUniform4fv(colorLoc, 1, glm::value_ptr(light.color));
-    //     mesh->draw(*shader, model);
-    // }
 
     vp.framebuffer.unbind();
 }
@@ -1808,5 +1718,7 @@ void Engine::beginFrame() {
     glClearColor(0,0,0,0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
+
+// void Engine::bindSSBO() { glBindBufferBAse(GL_SHADER_STORAGE_BUFFER, 0, lightSSBO); }
 
 } // BE namespace

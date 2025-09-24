@@ -325,6 +325,7 @@ public:
     glm::vec4 direction;
     glm::mat4 shadowMatrices[2];
 
+    ~Light() = default;
     Light(
         float type = 1.0f, 
         const glm::vec3 pos = glm::vec3(0), 
@@ -332,42 +333,10 @@ public:
         const glm::vec3 col = glm::vec3(1), 
         float inten = 1.0f, float pad1_ = 0.0f
     );
-    ~Light() = default;
-
-    void draw(Shader& shader, Mesh& mesh, Camera& camera);
 
     void generateMatrices();
-
-    void setPosition(const glm::vec3& position);
-    void setColor(const glm::vec3& color);
-    void setIntensity(float intensity);
-    void setDirection(const glm::vec3& direction);
 };
 
-class LightManager {
-public:
-    std::vector<Light> lights;
-    std::unordered_map<std::string, size_t> lightLookup;
-    // std::vector<Light> activeLights;
-    
-    size_t maxLights = 64;
-
-    GLuint lightSSBO = 0;
-    Light* mappedPtr = nullptr;
-
-    LightManager(size_t maxLights = 128);
-    ~LightManager();
-
-    void bind();
-    void updateGPU();
-    void uploadToShader(GLuint shaderID);
-    // void updateActiveLightsForObject(const glm::vec3& objPos, float objRadius);
-    void generateAllMatrices();
-
-    size_t addLight(const std::string& name, int type, const std::source_location& loc = std::source_location::current());
-    void removeLight(const std::string& name, int type, const std::source_location& loc = std::source_location::current());
-    Light* getLight(const std::string& name, const std::source_location& loc = std::source_location::current());
-};
 
 
 
@@ -394,10 +363,17 @@ struct MeshComponent {
     std::shared_ptr<Shader> shader;
 };
 
+struct LightComponent {
+    glm::vec3 color; 
+    float intensity;
+    int type;
+};
+
 struct Registry {
     std::unordered_map<Anchor, TagComponent> tags;
     std::unordered_map<Anchor, TransformComponent> transforms;
     std::unordered_map<Anchor, MeshComponent> meshes;
+    std::unordered_map<Anchor, LightComponent> lights;
 };
 
 class Scene {
@@ -416,26 +392,13 @@ public:
     std::unordered_map<std::string, std::unique_ptr<Camera>> cameras;
     Camera* activeCamera;
     
-    std::shared_ptr<Shader> customShader = nullptr;
-    
     Scene();
 
     Camera* addCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
     void removeCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
-
-    void setShader(std::shared_ptr<Shader> shader) { customShader = shader; }
-    void removeShader() { customShader = nullptr; }
-
-    LightManager& lights() { return lightManager; }
     
 private:
-    // NEW
-
     Anchor nextAnchorID = 0;
-
-    // OLD
-
-    LightManager lightManager;
 };
 
 class Viewport {
@@ -492,6 +455,21 @@ private:
     bool running = true;
 
     ResourceManager resourceManager;
+
+
+
+    GLuint lightSSBO = 0;
+    Light* mappedPtr = nullptr;
+    size_t maxLights = 128;
+
+    Light makeGPULight(const LightComponent& l, const TransformComponent& t) {
+        Light gpu;
+        gpu.position = glm::vec4(t.position, (float)l.type);
+        gpu.color = glm::vec4(l.color, l.intensity);
+        return gpu;
+    }
+
+
 };
 
 } // BE namespace

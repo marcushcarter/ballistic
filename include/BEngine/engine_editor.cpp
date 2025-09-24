@@ -75,12 +75,12 @@ void Editor::showPanels() {
 
     // === PERFORMANCE == //
 
-    // ImGui::SetNextWindowBgAlpha(0.35f);
-    // ImGui::Begin("Performance Overlay", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDocking );
-    // ImGui::Text("ENGINE FPS %.1f MS %.2f", engine->frameTime.fps, engine->frameTime.ms);
-    // ImGui::Text("IMGUI FPS %.1f MS %.2f", ImGui::GetIO().Framerate, 1000.0f/ImGui::GetIO().Framerate);
-    // ImGui::Text("SELECTED ANCHOR %d", selectedAnchor);
-    // ImGui::End();
+    ImGui::SetNextWindowBgAlpha(0.35f);
+    ImGui::Begin("Performance Overlay", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDocking );
+    ImGui::Text("ENGINE FPS %.1f MS %.2f", engine->frameTime.fps, engine->frameTime.ms);
+    ImGui::Text("IMGUI FPS %.1f MS %.2f", ImGui::GetIO().Framerate, 1000.0f/ImGui::GetIO().Framerate);
+    ImGui::Text("SELECTED ANCHOR %d", selectedAnchor);
+    ImGui::End();
 }
 
 void Editor::endFrame() {
@@ -127,6 +127,20 @@ bool DragFloat3(const char *label, float *v, float v_speed = (1.0f), float v_min
 
 }
 
+void Mat4(const char* label, glm::mat4& mat) {
+    if (ImGui::CollapsingHeader(label)) {
+        for (int row = 0; row < 4; row++) {
+            float tmp[4] = { mat[row][0], mat[row][1], mat[row][2], mat[row][3] };
+            if (ImGui::InputFloat4(("Row " + std::to_string(row) + "##" + *label).c_str(), tmp)) {
+                mat[row][0] = tmp[0];
+                mat[row][1] = tmp[1];
+                mat[row][2] = tmp[2];
+                mat[row][3] = tmp[3];
+            }
+        }
+    }
+}
+
 } // UI namespace
 
 // === Panels === //
@@ -141,7 +155,6 @@ void Editor::Menu() {
         if (ImGui::BeginMenu("Edit")) {
             // if (ImGui::MenuItem("Add Scene")) { std::string label = "Scene" + std::to_string(engine->scenes.size()+1); engine->addScene(label); }
             if (ImGui::MenuItem("Add Camera")) { std::string label = "Camera" + std::to_string(engine->activeScene->cameras.size()+1); engine->activeScene->addCamera(label); }
-            if (ImGui::MenuItem("Add Light")) { std::string label = "Light" + std::to_string(engine->activeScene->lights().lights.size()+1);  engine->activeScene->lights().addLight(label, 1); }
             if (ImGui::MenuItem("Create Anchor")) { selectedAnchor = engine->activeScene->createAnchor(); }
             ImGui::EndMenu(); 
         };
@@ -149,7 +162,6 @@ void Editor::Menu() {
         if (ImGui::BeginMenu("Window")) { ImGui::EndMenu(); };
         if (ImGui::BeginMenu("Debug")) {
             if (ImGui::MenuItem("Recompile Shaders")) { engine->resources().recompileShaders(); }
-            if (ImGui::MenuItem("Update GPU")) { engine->viewport->scene->lights().updateGPU(); }
             ImGui::EndMenu(); 
         };
         ImGui::EndMainMenuBar();
@@ -287,10 +299,12 @@ void Editor::Inspector() {
 
         float avialWidth = ImGui::GetContentRegionAvail().x;
 
-        // TAG COMPONENT
+        // NAME COMPONENT
 
         if (engine->activeScene->registry.tags.find(selectedAnchor) != engine->activeScene->registry.tags.end()) {
             TagComponent& t = engine->activeScene->registry.tags[selectedAnchor];
+
+            ImGui::BeginGroup();
 
             char buffer[256];
             std::strncpy(buffer, t.name.c_str(), sizeof(buffer));
@@ -301,13 +315,18 @@ void Editor::Inspector() {
 
             const char* typeLabels[] = { "None", "Player" };
             int currentType = static_cast<int>(t.type);
-            if (ImGui::Combo("Type", &currentType, typeLabels, IM_ARRAYSIZE(typeLabels))) {
+            if (ImGui::Combo("Anchor Type", &currentType, typeLabels, IM_ARRAYSIZE(typeLabels))) {
                 t.type = static_cast<AnchorType>(currentType);
             }
 
+            if (ImGui::Button("Remove Name Component")) {
+                engine->activeScene->registry.tags.erase(selectedAnchor);
+            }
+
             ImGui::Separator();
-        } else if (ImGui::Button("Add Tag Component")) 
-            engine->activeScene->registry.tags[selectedAnchor] = TagComponent{std::string("Anchor" + std::to_string(selectedAnchor)).c_str(), AnchorType::None};
+            
+            ImGui::EndGroup();
+        }
 
         // TRANSFORM COMPONENT
 
@@ -316,16 +335,25 @@ void Editor::Inspector() {
             if (ImGui::CollapsingHeader("Transform")) {
                 ImGui::BeginGroup();
 
-                ImGui::DragFloat3("Position", glm::value_ptr(t.position), 0.1f);
-                ImGui::DragFloat3("Rotation", glm::value_ptr(t.rotation), 0.1f);
+                if (
+                    ImGui::DragFloat3("Position", glm::value_ptr(t.position), 0.1f) || 
+                    ImGui::DragFloat3("Rotation", glm::value_ptr(t.rotation), 0.1f) &&
+                    engine->activeScene->registry.lights.find(selectedAnchor) != engine->activeScene->registry.lights.end()
+                ) {
+                    // Update GPU
+                }
+
                 ImGui::DragFloat3("Scale", glm::value_ptr(t.scale), 0.1f);
-                // UI::DragFloat3("Posiasoia", glm::value_ptr(t.position), 0.1f);
+
+                if (ImGui::Button("Remove Transform Component")) {
+                    engine->activeScene->registry.transforms.erase(selectedAnchor);
+                }
+                
                 ImGui::Separator();
 
                 ImGui::EndGroup();
             }
-        } else if (ImGui::Button("Add Transform Component")) 
-            engine->activeScene->registry.transforms[selectedAnchor] = TransformComponent{{0,0,0}, {0,0,0}, {1,1,1}};
+        }
 
         // MESH COMPONENT
 
@@ -484,6 +512,10 @@ void Editor::Inspector() {
             
                     ImGui::Separator();
                 }
+
+                if (ImGui::Button("Remove Mesh Component")) {
+                    engine->activeScene->registry.meshes.erase(selectedAnchor);
+                }
         
                 ImGui::EndGroup();
 
@@ -522,9 +554,51 @@ void Editor::Inspector() {
                 }
 
             }
-        } else if (ImGui::Button("Add Mesh Component")) 
-            engine->activeScene->registry.meshes[selectedAnchor] = MeshComponent{nullptr, nullptr, nullptr};
+        }
+
+        // LIGHT COMPONENT
+
+        if (engine->activeScene->registry.lights.find(selectedAnchor) != engine->activeScene->registry.lights.end()) {
+            if (ImGui::CollapsingHeader("Light")) {
+                ImGui::BeginGroup();
+
+                LightComponent& l = engine->activeScene->registry.lights[selectedAnchor];
+
+                if (ImGui::ColorPicker3("Light Color", &l.color.x)) {}
+                if (ImGui::DragFloat("Light Intensity", &l.intensity)) {}
+
+                const char* typeLabels[] = { "Directlight", "Pointlight", "Spotlight" };
+                // int currentType = l.type;
+                if (ImGui::Combo("Light Type", &l.type, typeLabels, IM_ARRAYSIZE(typeLabels))) {
+                    // l.type = currentType;
+                }
+
+                if (ImGui::Button("Remove Light Component")) {
+                    engine->activeScene->registry.lights.erase(selectedAnchor);
+                }
+
+                ImGui::Separator();
+
+                ImGui::EndGroup();
+            }
+        }
+
+        if (engine->activeScene->registry.tags.find(selectedAnchor) == engine->activeScene->registry.tags.end() ) 
+            if (ImGui::Button("Add Name Component")) 
+                engine->activeScene->registry.tags[selectedAnchor] = TagComponent{std::string("Anchor" + std::to_string(selectedAnchor)).c_str(), AnchorType::None};
     
+        if (engine->activeScene->registry.transforms.find(selectedAnchor) == engine->activeScene->registry.transforms.end()) 
+            if (ImGui::Button("Add Transform Component"))  
+                engine->activeScene->registry.transforms[selectedAnchor] = TransformComponent{{0,0,0}, {0,0,0}, {1,1,1}};
+
+        if (engine->activeScene->registry.meshes.find(selectedAnchor) == engine->activeScene->registry.meshes.end()) 
+            if (ImGui::Button("Add Mesh Component")) 
+                engine->activeScene->registry.meshes[selectedAnchor] = MeshComponent{nullptr, nullptr, nullptr};
+
+        if (engine->activeScene->registry.lights.find(selectedAnchor) == engine->activeScene->registry.lights.end()) 
+            if (ImGui::Button("Add Light Component")) 
+                engine->activeScene->registry.lights[selectedAnchor] = LightComponent{ glm::vec3(1,1,1), 1.0f, 1 };
+
     }
     ImGui::End();
 }

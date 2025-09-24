@@ -12,14 +12,15 @@ int main() {
     engine.resources().loadMesh("Test Scene", "res/models/scene.obj");
 
     editor.selectedAnchor = engine.activeScene->createAnchor();
+    engine.activeScene->registry.tags[editor.selectedAnchor] = BE::TagComponent{"Test Scene", BE::AnchorType::None};
     engine.activeScene->registry.transforms[editor.selectedAnchor] = BE::TransformComponent{{0,0,0}, {0,0,0}, {1,1,1}};
-    engine.activeScene->registry.meshes[editor.selectedAnchor] = BE::MeshComponent{engine.resources().meshes["default_cube"], nullptr, nullptr};
+    engine.activeScene->registry.meshes[editor.selectedAnchor] = BE::MeshComponent{engine.resources().meshes["Test Scene"], nullptr, nullptr};
 
-    // OLD
-
-    engine.activeScene->lights().addLight("light1", 1);
-    engine.activeScene->lights().getLight("light1")->setPosition(glm::vec3(0,0.5,0));
-    engine.activeScene->lights().updateGPU();
+    BE::Anchor light = engine.activeScene->createAnchor();
+    engine.activeScene->registry.tags[light] = BE::TagComponent{"Light", BE::AnchorType::None};
+    engine.activeScene->registry.transforms[light] = BE::TransformComponent{{0,0.5f,0}, {0,0,0}, {0.1,0.1,0.1}};
+    engine.activeScene->registry.meshes[light] = BE::MeshComponent{engine.resources().meshes["default_cube"], nullptr, engine.resources().shaders["default_color"]};
+    engine.activeScene->registry.lights[light] = BE::LightComponent{glm::vec3(1,1,1), 1.0f, 1};
 
     while(engine.isRunning()) {
 
@@ -29,10 +30,7 @@ int main() {
 
         engine.viewport.get()->scene = engine.activeScene;
         engine.viewport.get()->camera = engine.activeScene->activeCamera;
-        engine.viewport->scene->lights().updateGPU();
         engine.renderViewportTexture(*engine.viewport.get());
-
-        engine.viewport->scene->lights().updateGPU();
 
         editor.Frame();
 
