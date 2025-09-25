@@ -7,6 +7,8 @@
 #include "BEngine/imgui/imgui_impl_opengl3.h"
 #include "BEngine/imgui/implot.h"
 
+#include "BEngine/imgui/ImGuiFileDialog.h"
+
 namespace BE {
 
 class Editor {

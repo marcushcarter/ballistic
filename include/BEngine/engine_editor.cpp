@@ -217,37 +217,71 @@ void Editor::Resources() {
 
             float avialWidth = ImGui::GetContentRegionAvail().x;
 
-            static Material mat;
+            static Material m;
+            
+            static char buffer[256];
+            // std::strncpy(buffer, t.name.c_str(), sizeof(buffer));
+            // buffer[sizeof(buffer) - 1] = '\0';
+            if (ImGui::InputText("Name", buffer, sizeof(buffer))) {}
 
-            if (mat.diffuseMap != nullptr) ImGui::Image((void*)(intptr_t)mat.diffuseMap->ID, ImVec2(64, 64));
+            if (m.diffuseMap) ImGui::Image((void*)(intptr_t)m.diffuseMap->ID, ImVec2(avialWidth/4, avialWidth/4), ImVec2(0, 1), ImVec2(1, 0));
+            else ImGui::Dummy(ImVec2(avialWidth/4, avialWidth/4));
+            ImGui::SameLine();
+
             if (ImGui::BeginDragDropTarget()) {
-                if (const ImGuiPayload* texturePayload = ImGui::AcceptDragDropPayload("TEXTURE")) {
-                    const char* textureName = (const char*)texturePayload->Data;
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEXTURE")) {
+                    const char* textureName = (const char*)payload->Data;
                     auto it = engine->resources().textures.find(textureName);
                     if (it != engine->resources().textures.end()) {
-                        mat.diffuseMap = it->second.get();
+                        m.diffuseMap = it->second.get();
                     }
                 }
                 ImGui::EndDragDropTarget();
             }
-            ImGui::SameLine();    
 
-            
-            if (mat.diffuseMap) ImGui::Image((void*)(intptr_t)mat.diffuseMap->ID, ImVec2(avialWidth/4, avialWidth/4), ImVec2(0, 1), ImVec2(1, 0));
+            if (m.normalMap) ImGui::Image((void*)(intptr_t)m.normalMap->ID, ImVec2(avialWidth/4, avialWidth/4), ImVec2(0, 1), ImVec2(1, 0));
             else ImGui::Dummy(ImVec2(avialWidth/4, avialWidth/4));
             ImGui::SameLine();
 
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEXTURE")) {
+                    const char* textureName = (const char*)payload->Data;
+                    auto it = engine->resources().textures.find(textureName);
+                    if (it != engine->resources().textures.end()) {
+                        m.normalMap = it->second.get();
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+            
+            if (m.roughnessMap) ImGui::Image((void*)(intptr_t)m.roughnessMap->ID, ImVec2(avialWidth/4, avialWidth/4), ImVec2(0, 1), ImVec2(1, 0));
+            else ImGui::Dummy(ImVec2(avialWidth/4, avialWidth/4));
+
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEXTURE")) {
+                    const char* textureName = (const char*)payload->Data;
+                    auto it = engine->resources().textures.find(textureName);
+                    if (it != engine->resources().textures.end()) {
+                        m.roughnessMap = it->second.get();
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+
+            ImGui::Text("Material Properties:");
+            if (ImGui::SliderFloat("Metallic", &m.metallic, 0.0f, 1.0f)) {}
+            if (ImGui::SliderFloat("Roughness", &m.roughness, 0.0f, 1.0f)) {}
+            if (ImGui::ColorPicker4("Diffuse Color", &m.diffuseColor.x)) {}
+            if (ImGui::Checkbox("Cull Faces?", &m.cull)) {}
+            if (ImGui::Checkbox("Transparent?", &m.transparent)) {}
+                
             if (ImGui::Button("Submit")) {
                 materialEditorOpen = false;
                 
-                // auto it = materials.find(name);
-                // if (it != materials.end()) {
-                //     Message(1, "RESOURCE", "Material '" + name + "' already exists", loc.file_name(), loc.line());
-                //     return it->second;
-                // }
-                
-                auto material = std::make_shared<Material>(mat);
-                engine->resources().materials["Material0"] = material;
+                auto material = std::make_shared<Material>(m);
+                engine->resources().materials[buffer] = material;
+                // m = engine->resources().materials["default_material"].get();
+
             }
             
             ImGui::End();
