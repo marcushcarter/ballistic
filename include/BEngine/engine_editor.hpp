@@ -25,6 +25,7 @@ public:
     void Menu();
     void Viewport();
     void Heirarchy();
+    void Popups();
     void Resources();
     void Inspector();
 

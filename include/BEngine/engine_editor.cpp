@@ -203,7 +203,56 @@ void Editor::Heirarchy() {
     ImGui::End();
 }
 
+void Editor::Popups() {
+
+}
+
 void Editor::Resources() {
+
+    static bool materialEditorOpen = false;
+
+    if (materialEditorOpen) {
+
+        if (ImGui::Begin("Edit Material", &materialEditorOpen)) {
+
+            float avialWidth = ImGui::GetContentRegionAvail().x;
+
+            static Material mat;
+
+            if (mat.diffuseMap != nullptr) ImGui::Image((void*)(intptr_t)mat.diffuseMap->ID, ImVec2(64, 64));
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* texturePayload = ImGui::AcceptDragDropPayload("TEXTURE")) {
+                    const char* textureName = (const char*)texturePayload->Data;
+                    auto it = engine->resources().textures.find(textureName);
+                    if (it != engine->resources().textures.end()) {
+                        mat.diffuseMap = it->second.get();
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+            ImGui::SameLine();    
+
+            
+            if (mat.diffuseMap) ImGui::Image((void*)(intptr_t)mat.diffuseMap->ID, ImVec2(avialWidth/4, avialWidth/4), ImVec2(0, 1), ImVec2(1, 0));
+            else ImGui::Dummy(ImVec2(avialWidth/4, avialWidth/4));
+            ImGui::SameLine();
+
+            if (ImGui::Button("Submit")) {
+                materialEditorOpen = false;
+                
+                // auto it = materials.find(name);
+                // if (it != materials.end()) {
+                //     Message(1, "RESOURCE", "Material '" + name + "' already exists", loc.file_name(), loc.line());
+                //     return it->second;
+                // }
+                
+                auto material = std::make_shared<Material>(mat);
+                engine->resources().materials["Material0"] = material;
+            }
+            
+            ImGui::End();
+        }
+    }
     
     ImGui::Begin("Resources");
 
@@ -229,10 +278,12 @@ void Editor::Resources() {
     ImGui::Separator();
 
     if (ImGui::BeginPopup("AddResourcePopup")) {
+
         if (ImGui::MenuItem("Add Mesh")) {}
         if (ImGui::MenuItem("Add Shader")) {}
         if (ImGui::MenuItem("Add Texture")) {}
-        if (ImGui::MenuItem("Add Material")) {}
+        if (ImGui::MenuItem("Add Material")) { materialEditorOpen = true; }
+
         ImGui::EndPopup();
     }
 

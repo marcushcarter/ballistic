@@ -2,7 +2,7 @@
 CXX := g++
 CXXFLAGS := -std=c++20 -O2
 INCLUDES := -Iinclude -Iinclude/BEngine -Iinclude/BEngine/imgui
-LDFLAGS := -Llib -lengine -lglfw3dll -lopengl32
+LDFLAGS := -Llib -lengine -lopengl32 -lglfw3 -lgdi32
 SRCS := src/main.cpp include/BEngine/engine.cpp include/BEngine/engine_editor.cpp
 OUT := engine.exe
 
