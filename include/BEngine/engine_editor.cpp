@@ -12,6 +12,8 @@ Editor::Editor(Engine* enginePtr) : engine(enginePtr) {
     ImPlot::SetCurrentContext(ctxpl);
 
     ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.IniFilename = nullptr;
+    ImGui::LoadIniSettingsFromMemory(BE::Default::ini.c_str(), BE::Default::ini.size());
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
@@ -42,26 +44,18 @@ void Editor::beginFrame() {
     ImGui::SetNextWindowSize(viewport->WorkSize);
     ImGui::SetNextWindowViewport(viewport->ID);
 
-    // ImGui::DockSpaceOverViewport(
-    //     ImGui::GetMainViewport(),
-    //     ImGuiDockNodeFlags_PassthruCentralNode
-    // );
-
-    // ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.2f, 0.0f, 0.2f, 1.0f));
-
-    window_flags |= 
-        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
-        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
-    ImGui::Begin("Dockspace", nullptr, window_flags);
+    ImGui::Begin(
+        "Dockspace", nullptr, 
+        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus
+    );
     ImGui::PopStyleVar(2);
 
-    ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
-    ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f));
+    ImGui::DockSpace(ImGui::GetID("MyDockSpace"), ImVec2(0.0f, 0.0f));
     ImGui::End();
 }
 
