@@ -32,5 +32,5 @@ support-lib: $(ENGINE_LIB)
 $(ENGINE_LIB): $(ENGINE_OBJS)
 	ar rcs $@ $^
 
-clear: $(ENGINE_LIB) $(ENGINE_OBJS)
+clear:
 	for %%f in ($(ENGINE_OBJS)) do del %%f

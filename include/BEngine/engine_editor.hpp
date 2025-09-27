@@ -34,6 +34,8 @@ public:
     void Resources();
     void Inspector();
 
+    void FileFolders();
+
 private:
     Engine* engine;
 

@@ -148,8 +148,9 @@ void Editor::Menu() {
         };
         if (ImGui::BeginMenu("Edit")) {
             // if (ImGui::MenuItem("Add Scene")) { std::string label = "Scene" + std::to_string(engine->scenes.size()+1); engine->addScene(label); }
-            if (ImGui::MenuItem("Add Camera")) { std::string label = "Camera" + std::to_string(engine->activeScene->cameras.size()+1); engine->activeScene->addCamera(label); }
             if (ImGui::MenuItem("Create Anchor")) { selectedAnchor = engine->activeScene->createAnchor(); }
+            if (ImGui::MenuItem("Import")) { FileFolders(); }
+            if (ImGui::MenuItem("Add Camera")) { std::string label = "Camera" + std::to_string(engine->activeScene->cameras.size()+1); engine->activeScene->addCamera(label); }
             ImGui::EndMenu(); 
         };
         if (ImGui::BeginMenu("View")) { ImGui::EndMenu(); };
@@ -696,6 +697,34 @@ void Editor::Inspector() {
 
     }
     ImGui::End();
+}
+
+void Editor::FileFolders() {
+    const char* filePath = tinyfd_openFileDialog("Open a File", "", 0, nullptr, nullptr, 0); 
+    if (!filePath) return;
+
+    std::string path = filePath;
+
+    std::string fileName;
+    if (path.find_last_of("/\\") != std::string::npos) {
+        fileName = path.substr(path.find_last_of("/\\") + 1);
+    } else {
+        fileName = filePath;
+    }
+
+    std::string ext;
+    size_t dot = path.find_last_of('.');
+    if (dot != std::string::npos) ext = path.substr(dot + 1);
+
+    if (ext == "obj") {
+        engine->resources().loadMesh(fileName, path);
+    } else if (ext == "dsl" || ext == "besl") {
+        engine->resources().loadShaderDSL(path);
+    } else if (ext == "png" || ext == "jpg") {
+        engine->resources().loadTexture(fileName, path, "diffuse");
+    } else if (ext == "mtl") {
+        engine->resources().loadMaterial(fileName, path);
+    }
 }
 
 }; // BE namespace

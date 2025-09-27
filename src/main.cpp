@@ -20,9 +20,6 @@ int main() {
     engine.activeScene->registry.meshes[light] = BE::MeshComponent{engine.resources().meshes["default_cube"], nullptr, engine.resources().shaders["default_color"]};
     engine.activeScene->registry.lights[light] = BE::LightComponent{glm::vec3(1,1,1), 1.0f, 1};
 
-    const char* filePath;
-    filePath = tinyfd_openFileDialog("Open a File", "", 0, nullptr, nullptr, 0);
-
     while(engine.isRunning()) {
 
         engine.beginFrame();
