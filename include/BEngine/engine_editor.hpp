@@ -10,6 +10,8 @@
 
 #include "BEngine/imgui/ImGuiFileDialog.h"
 
+#include "BEngine/tfd/tfd.hpp"
+
 namespace BE {
 
 class Editor {
