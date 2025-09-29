@@ -240,6 +240,15 @@ private:
     void ComputeAABB();
 };
 
+struct CreatedShader {
+    enum class BaseType { Scene, Post };
+
+    char name[256];
+    BaseType type;
+    char globalSource[8192];
+    char mainSource[8192];
+};
+
 class ResourceManager {
 public:
     std::unordered_map<std::string, std::shared_ptr<Mesh>> meshes;

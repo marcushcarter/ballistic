@@ -1848,6 +1848,8 @@ void Engine::render() {
             if (std::find(updatedShaders.begin(), updatedShaders.end(), shader->ID) == updatedShaders.end()) {
                 shader->activate();
                 glUniform1i(glGetUniformLocation(shader->ID, "numLights"), numActiveLights);
+                glUniform1f(glGetUniformLocation(shader->ID, "ambientLight"), 0.2f);
+                glUniform1i(glGetUniformLocation(shader->ID, "enableLights"), true);
                 viewport->camera->uploadToShader(shader->ID);
                 updatedShaders.push_back(shader->ID);
             }

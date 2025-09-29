@@ -47,6 +47,8 @@ uniform vec4 diffuseColor;
 
 uniform uint objectID;
 
+uniform bool enableLights;
+uniform float ambientLight;
 uniform int numLights;
 struct Light {
     vec4 position;
@@ -59,44 +61,51 @@ layout(std430, binding = 0) buffer LightBlock {
     Light lights[];
 };
 
-void main() {
-    vec3 texColor = texture(diffuseMap, TexCoord).rgb;
-    vec3 norm = normalize(Normal);
-    vec3 finalColor = vec3(0.2);
+vec3 calcLight(int index) {
+    vec3 lightColor = lights[index].color.rgb * lights[index].color.a;
+    float diff = 0.0;
 
-    for (int i = 0; i < numLights; i++) {
-        vec3 lightColor = lights[i].color.rgb * lights[i].color.a;
-        float diff = 0.0;
+    if (lights[index].position.w == 0.0) {
+        vec3 lightDir = normalize(-lights[index].direction.xyz);
+        diff = max(dot(normalize(Normal), lightDir), 0.0);
+    } 
+    else if (lights[index].position.w == 1.0) {
+        vec3 lightDir = normalize(lights[index].position.xyz - FragPos);
+        float distance = length(lights[index].position.xyz - FragPos);
+        float attenuation = 1.0 / (distance * distance);
+        diff = max(dot(normalize(Normal), lightDir), 0.0) * attenuation;
 
-        if (lights[i].position.w == 0.0) {
-            // Directional
-            vec3 lightDir = normalize(-lights[i].direction.xyz);
-            diff = max(dot(norm, lightDir), 0.0);
-        } 
-        else if (lights[i].position.w == 1.0) {
-            // Point
-            vec3 lightDir = normalize(lights[i].position.xyz - FragPos);
-            float distance = length(lights[i].position.xyz - FragPos);
+    } 
+    else if (lights[index].position.w == 2.0) {
+        vec3 lightDir = normalize(lights[index].position.xyz - FragPos);
+        float theta = dot(lightDir, normalize(-lights[index].direction.xyz));
+        if (theta > lights[index].direction.w) {
+            float distance = length(lights[index].position.xyz - FragPos);
             float attenuation = 1.0 / (distance * distance);
-            diff = max(dot(norm, lightDir), 0.0) * attenuation;
-
-        } 
-        else if (lights[i].position.w == 2.0) {
-            // Spot
-            vec3 lightDir = normalize(lights[i].position.xyz - FragPos);
-            float theta = dot(lightDir, normalize(-lights[i].direction.xyz));
-            if (theta > lights[i].direction.w) {
-                float distance = length(lights[i].position.xyz - FragPos);
-                float attenuation = 1.0 / (distance * distance);
-                diff = max(dot(norm, lightDir), 0.0) * attenuation;
-            }
+            diff = max(dot(normalize(Normal), lightDir), 0.0) * attenuation;
         }
-
-        finalColor += lightColor * diff;
     }
 
-    FragColor = vec4(texColor * finalColor, 1.0) * diffuseColor;
+    return lightColor * diff;
+}
+
+void main() {
     outID = objectID + 1;
+
+    vec4 textureColor = vec4(texture(diffuseMap, TexCoord).rgb, 1.0);
+
+    vec4 lightColor = vec4(1);
+    if (enableLights) {
+        vec3 finalColor = vec3(ambientLight);
+        for (int i = 0; i < numLights; i++) {
+            finalColor += calcLight(i);
+        }
+        lightColor = vec4(finalColor, 1);
+    }
+
+    vec4 baseColor = textureColor * lightColor * diffuseColor;
+
+    FragColor = baseColor;
 }
 
 @end
@@ -123,22 +132,9 @@ void main() {
 
 @end
 
-@fs picking_fragment
-
-#version 460 core
-#extension GL_ARB_gpu_shader_int64 : enable
-layout(location = 0) out uint FragID;
-uniform uint objectID;
-void main() {
-    FragID = objectID;
-}
-
-@end
-
 @program default_basic vertex_shader scene_fragment
 @program default_uv vertex_shader uv_fragment
 @program default_color vertex_shader color_fragment
-@program default_picking vertex_shader picking_fragment
 
 )";
 
@@ -433,5 +429,118 @@ DockSpace                   ID=0x382E4429 Window=0x260A4489 Pos=188,134 Size=142
     DockNode                ID=0x0000000C Parent=0x0000000E SizeRef=336,846 Selected=0x36DC96AB
 
 )";
+
+};
+
+namespace BE::Default {
+    
+inline const std::string baseSceneVertex = R"(
+
+    #version 460 core
+    layout(location = 0) in vec3 aPos;
+    layout(location = 1) in vec3 aNormal;
+    layout(location = 2) in vec3 aColor;
+    layout(location = 3) in vec2 aTex;
+
+    uniform mat4 uModel;
+    uniform mat4 uView;
+    uniform mat4 uProjection;
+
+    out vec2 TexCoord;
+    out vec3 Normal;
+    out vec3 FragPos;
+
+    void main() {
+        gl_Position = uProjection * uView * uModel * vec4(aPos, 1.0);
+        TexCoord = aTex;
+        Normal = mat3(transpose(inverse(uModel))) * aNormal;
+        FragPos = vec3(uModel * vec4(aPos, 1.0));
+    }
+
+)";
+
+inline const std::string baseSceneFragmentGlobal = R"(
+
+    #version 460 core
+
+    layout(location = 0) out vec4 FragColor;
+    layout(location = 1) out uint outID;
+
+    in vec2 TexCoord;
+    in vec3 Normal;
+    in vec3 FragPos;
+
+    uniform sampler2D diffuseMap;
+    uniform sampler2D normalMap;
+    uniform sampler2D roughnessMap;
+    uniform vec4 diffuseColor;
+
+    uniform uint objectID;
+
+    uniform bool enableLights;
+    uniform float ambientLight;
+    uniform int numLights;
+    struct Light {
+        vec4 position;
+        vec4 color;
+        vec4 direction;
+        mat4 shadowMatrices[2];
+    };
+
+    layout(std430, binding = 0) buffer LightBlock {
+        Light lights[];
+    };
+
+    vec3 calcLight(int index) {
+        vec3 lightColor = lights[index].color.rgb * lights[index].color.a;
+        float diff = 0.0;
+
+        if (lights[index].position.w == 0.0) {
+            vec3 lightDir = normalize(-lights[index].direction.xyz);
+            diff = max(dot(normalize(Normal), lightDir), 0.0);
+        } 
+        else if (lights[index].position.w == 1.0) {
+            vec3 lightDir = normalize(lights[index].position.xyz - FragPos);
+            float distance = length(lights[index].position.xyz - FragPos);
+            float attenuation = 1.0 / (distance * distance);
+            diff = max(dot(normalize(Normal), lightDir), 0.0) * attenuation;
+
+        } 
+        else if (lights[index].position.w == 2.0) {
+            vec3 lightDir = normalize(lights[index].position.xyz - FragPos);
+            float theta = dot(lightDir, normalize(-lights[index].direction.xyz));
+            if (theta > lights[index].direction.w) {
+                float distance = length(lights[index].position.xyz - FragPos);
+                float attenuation = 1.0 / (distance * distance);
+                diff = max(dot(normalize(Normal), lightDir), 0.0) * attenuation;
+            }
+        }
+
+        return lightColor * diff;
+    }
+
+)";
+
+inline const std::string baseSceneFragmentMain = R"(
+
+    void main() {
+        outID = objectID + 1;
+
+        vec4 textureColor = vec4(texture(diffuseMap, TexCoord).rgb, 1.0);
+
+        vec4 lightColor = vec4(1);
+        if (enableLights) {
+            vec3 finalColor = vec3(ambientLight);
+            for (int i = 0; i < numLights; i++) {
+                finalColor += calcLight(i);
+            }
+            lightColor = vec4(finalColor, 1);
+        }
+
+        vec4 baseColor = textureColor * lightColor * diffuseColor;
+
+)";
+
+// inline const std::string baseSceneVertex = R"()";
 
 };

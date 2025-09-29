@@ -95,6 +95,7 @@ void Editor::showPanels() {
     Resources();
     Inspector();
     Settings();
+    Popups();
 
     // === PERFORMANCE == //
 
@@ -195,7 +196,14 @@ void Editor::Menu() {
 
 void Editor::Viewport() {
 
-    ImGui::Begin("Hello, ImGui!");
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGuiWindowFlags window_flags = 
+        ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_NoScrollbar |
+        ImGuiWindowFlags_NoScrollWithMouse |
+        ImGuiWindowFlags_NoMove;
+
+    ImGui::Begin("Hello, ImGui!", nullptr, window_flags);
 
     ImVec2 viewportPos = ImGui::GetCursorScreenPos();
     ImVec2 viewportSize = ImGui::GetContentRegionAvail();
@@ -268,6 +276,7 @@ void Editor::Viewport() {
     }
 
     ImGui::End();
+    ImGui::PopStyleVar();
 }
 
 void Editor::Heirarchy() {
@@ -294,88 +303,49 @@ void Editor::Heirarchy() {
 
 void Editor::Popups() {
 
+    if (ImGui::Begin("Create Shader")) {
+
+        static CreatedShader shader;
+        
+        ImGui::InputText("Name", shader.name, sizeof(shader.name));
+
+        const char* typeLabels[] = { "Scene", "Post" };
+        int currentType = static_cast<int>(shader.type);
+        if (ImGui::Combo("Base Shader", &currentType, typeLabels, IM_ARRAYSIZE(typeLabels))) {
+            shader.type = static_cast<CreatedShader::BaseType>(currentType);
+        }
+
+        ImGui::InputTextMultiline("##functionSOurce", shader.globalSource, sizeof(shader.globalSource), ImVec2(-FLT_MIN, 400), ImGuiInputTextFlags_AllowTabInput);
+        ImGui::InputTextMultiline("##mianSOurce", shader.mainSource, sizeof(shader.mainSource), ImVec2(-FLT_MIN, 400), ImGuiInputTextFlags_AllowTabInput);
+
+        if (ImGui::Button("Reset")) {
+            shader.type = BE::CreatedShader::BaseType::Scene;
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Submit")) {
+
+            std::string vertexSource = "";
+            if (shader.type == CreatedShader::BaseType::Scene) vertexSource = BE::Default::baseSceneVertex;
+
+            std::string fragmentSource = BE::Default::baseSceneFragmentGlobal + shader.globalSource + BE::Default::baseSceneFragmentMain + shader.mainSource + "\n}";
+
+            engine->resources().loadShader(shader.name, &vertexSource, &fragmentSource);
+
+            shader.type = BE::CreatedShader::BaseType::Scene;
+
+            std::cout << fragmentSource << std::endl;
+        
+        }
+
+        ImGui::End();
+    
+    }
+
 }
 
 void Editor::Resources() {
-
-    static bool materialEditorOpen = false;
-
-    if (materialEditorOpen) {
-
-        if (ImGui::Begin("Edit Material", &materialEditorOpen)) {
-
-            float avialWidth = ImGui::GetContentRegionAvail().x;
-
-            static Material m;
-            
-            static char buffer[256];
-            // std::strncpy(buffer, t.name.c_str(), sizeof(buffer));
-            // buffer[sizeof(buffer) - 1] = '\0';
-            if (ImGui::InputText("Name", buffer, sizeof(buffer))) {}
-
-            if (m.diffuseMap) ImGui::Image((void*)(intptr_t)m.diffuseMap->ID, ImVec2(avialWidth/4, avialWidth/4), ImVec2(0, 1), ImVec2(1, 0));
-            else ImGui::Dummy(ImVec2(avialWidth/4, avialWidth/4));
-            ImGui::SameLine();
-
-            if (ImGui::BeginDragDropTarget()) {
-                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEXTURE")) {
-                    const char* textureName = (const char*)payload->Data;
-                    auto it = engine->resources().textures.find(textureName);
-                    if (it != engine->resources().textures.end()) {
-                        m.diffuseMap = it->second.get();
-                    }
-                }
-                ImGui::EndDragDropTarget();
-            }
-
-            if (m.normalMap) ImGui::Image((void*)(intptr_t)m.normalMap->ID, ImVec2(avialWidth/4, avialWidth/4), ImVec2(0, 1), ImVec2(1, 0));
-            else ImGui::Dummy(ImVec2(avialWidth/4, avialWidth/4));
-            ImGui::SameLine();
-
-            if (ImGui::BeginDragDropTarget()) {
-                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEXTURE")) {
-                    const char* textureName = (const char*)payload->Data;
-                    auto it = engine->resources().textures.find(textureName);
-                    if (it != engine->resources().textures.end()) {
-                        m.normalMap = it->second.get();
-                    }
-                }
-                ImGui::EndDragDropTarget();
-            }
-            
-            if (m.roughnessMap) ImGui::Image((void*)(intptr_t)m.roughnessMap->ID, ImVec2(avialWidth/4, avialWidth/4), ImVec2(0, 1), ImVec2(1, 0));
-            else ImGui::Dummy(ImVec2(avialWidth/4, avialWidth/4));
-
-            if (ImGui::BeginDragDropTarget()) {
-                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("TEXTURE")) {
-                    const char* textureName = (const char*)payload->Data;
-                    auto it = engine->resources().textures.find(textureName);
-                    if (it != engine->resources().textures.end()) {
-                        m.roughnessMap = it->second.get();
-                    }
-                }
-                ImGui::EndDragDropTarget();
-            }
-
-            ImGui::Text("Material Properties:");
-            if (ImGui::SliderFloat("Metallic", &m.metallic, 0.0f, 1.0f)) {}
-            if (ImGui::SliderFloat("Roughness", &m.roughness, 0.0f, 1.0f)) {}
-            if (ImGui::ColorPicker4("Diffuse Color", &m.diffuseColor.x)) {}
-            if (ImGui::Checkbox("Cull Faces?", &m.cull)) {}
-            if (ImGui::Checkbox("Transparent?", &m.transparent)) {}
-                
-            if (ImGui::Button("Submit")) {
-                materialEditorOpen = false;
-                
-                auto material = std::make_shared<Material>(m);
-                engine->resources().materials[buffer] = material;
-                // m = engine->resources().materials["default_material"].get();
-
-            }
-            
-            ImGui::End();
-        }
-    }
     
     ImGui::Begin("Resources");
 
@@ -405,7 +375,7 @@ void Editor::Resources() {
         if (ImGui::MenuItem("Add Mesh")) {}
         if (ImGui::MenuItem("Add Shader")) {}
         if (ImGui::MenuItem("Add Texture")) {}
-        if (ImGui::MenuItem("Add Material")) { materialEditorOpen = true; }
+        if (ImGui::MenuItem("Add Material")) {}
 
         ImGui::EndPopup();
     }
@@ -653,7 +623,7 @@ void Editor::Inspector() {
 
                 if (m.material) {
                     
-                    ImGui::BeginDisabled(true);
+                    ImGui::BeginDisabled(false);
 
                     if (m.material->diffuseMap) ImGui::Image((void*)(intptr_t)m.material->diffuseMap->ID, ImVec2(avialWidth/4, avialWidth/4), ImVec2(0, 1), ImVec2(1, 0));
                     else ImGui::Dummy(ImVec2(avialWidth/4, avialWidth/4));
