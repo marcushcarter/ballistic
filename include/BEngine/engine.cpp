@@ -1521,115 +1521,6 @@ void ResourceManager::loadDefaults() {
 
 // ========================================================================
 
-Camera::Camera(const std::string& cameraName, int width, int height, float fov, float nearPlane, float farPlane, const glm::vec3& pos, const glm::vec3& dir) 
-    : name(cameraName.empty() ? "new camera" : cameraName), width(width), height(height), fov(fov), nearPlane(nearPlane), farPlane(farPlane), position(pos), zoom(1.0f) {
-
-    glm::vec3 forward = glm::normalize(dir);
-    glm::vec3 defaultForward = glm::vec3(0.0f, 0.0f, -1.0f);
-    orientation = glm::rotation(defaultForward, forward);
-
-    projectionMatrix = glm::perspective(glm::radians(fov), static_cast<float>(width) / static_cast<float>(height), nearPlane, farPlane);
-    orthoMatrix = glm::ortho(0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, -1.0f, 1.0f);
-
-    updateViewMatrix();
-}
-
-void Camera::rotate(const glm::vec3& axis, float angle) {
-    glm::quat qrot = glm::angleAxis(angle, axis);
-    orientation = glm::normalize(qrot * orientation);
-}
-
-void Camera::handleInputs(GLFWwindow* window, float dt, bool focusing) {
-    static bool mouseLookActive = false;
-    static double lastX = 0, lastY = 0;
-
-    float speed = 2.5f;
-    float sensitivity = 1.5f;
-
-    glm::vec3 move(0.0f);
-    glm::vec3 tmp(0.0f);
-    glm::vec3 forward, right, up;
-
-    forward = orientation * glm::vec3(0, 0, -1);
-    right   = orientation * glm::vec3(1, 0, 0);
-    up      = orientation * glm::vec3(0, 1, 0);
-
-    glm::vec3 flatForward = glm::normalize(glm::vec3(forward.x, 0.0f, forward.z));
-    glm::vec3 flatRight   = glm::normalize(glm::vec3(right.x, 0.0f, right.z));
-    glm::vec3 flatUp      = glm::vec3(0.0f, 1.0f, 0.0f);
-
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) move += flatForward * speed * dt;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) move -= flatForward * speed * dt;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) move -= flatRight * speed * dt;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) move += flatRight * speed * dt;
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) move += flatUp * speed * dt;
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) move -= flatUp * speed * dt;
-
-    position += move;
-
-    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS && !mouseLookActive && focusing) {
-        mouseLookActive = true;
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        glfwGetCursorPos(window, &lastX, &lastY);
-    }
-
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS && mouseLookActive && focusing) {
-        mouseLookActive = false;
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }
-
-    if (mouseLookActive && focusing) {
-        double mouseX, mouseY;
-        glfwGetCursorPos(window, &mouseX, &mouseY);
-
-        float offsetX = static_cast<float>(mouseX - lastX);
-        float offsetY = static_cast<float>(lastY - mouseY);
-
-        lastX = mouseX;
-        lastY = mouseY;
-
-        yaw   -= offsetX * 0.002f * sensitivity;
-        pitch += offsetY * 0.002f * sensitivity;
-
-    } else {
-        if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)  yaw   += dt * sensitivity;
-        if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) yaw   -= dt * sensitivity;
-        if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)    pitch += dt * sensitivity;
-        if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)  pitch -= dt * sensitivity;
-    }
-
-    if (pitch > glm::radians(89.9f)) pitch = glm::radians(89.9f);
-    if (pitch < glm::radians(-89.9f)) pitch = glm::radians(-89.9f);
-
-    glm::quat qPitch = glm::angleAxis(pitch, glm::vec3(1,0,0));
-    glm::quat qYaw   = glm::angleAxis(yaw,   glm::vec3(0,1,0));
-
-    orientation = glm::normalize(qYaw * qPitch);
-}
-
-void Camera::updateViewMatrix() {
-    glm::vec3 forward = orientation * glm::vec3(0, 0, -1);
-    glm::vec3 up      = orientation * glm::vec3(0, 1,  0);
-    glm::vec3 target  = position + forward;
-
-    viewMatrix = glm::lookAt(position, target, up);
-
-    projectionMatrix = glm::perspective(glm::radians(fov), static_cast<float>(width) / static_cast<float>(height), nearPlane, farPlane);
-
-    projViewMatrix = projectionMatrix * viewMatrix;
-    
-    orthoMatrix = glm::ortho(0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, -1.0f, 1.0f);
-
-}
-
-void Camera::uploadToShader(GLuint shaderID) {
-    glUniformMatrix4fv(glGetUniformLocation(shaderID, "uView"), 1, GL_FALSE, glm::value_ptr(viewMatrix));
-    glUniformMatrix4fv(glGetUniformLocation(shaderID, "uProjection"), 1, GL_FALSE, glm::value_ptr(projectionMatrix));
-    glUniform3fv(glGetUniformLocation(shaderID, "camPos"), 1, glm::value_ptr(position));
-}
-
-// ========================================================================
-
 Light::Light(float type, const glm::vec3 pos, const glm::vec3 dir, const glm::vec3 col, float inten, float pad1_ ) {
     
     position = glm::vec4(pos, (float)type);
@@ -1681,7 +1572,7 @@ void Light::generateMatrices() {
 
 // ========================================================================
 
-TEMPCamera::TEMPCamera(const TransformComponent& t, const CameraComponent& c, float aspectRatio) {   
+Camera::Camera(const TransformComponent& t, const CameraComponent& c, float aspectRatio) {   
 
     if (c.isPerspective) {
         projectionMatrix = glm::perspective(
@@ -1709,7 +1600,7 @@ TEMPCamera::TEMPCamera(const TransformComponent& t, const CameraComponent& c, fl
     viewMatrix = glm::lookAt(t.position, target, up);
 }
 
-TEMPCamera::TEMPCamera(glm::vec3 position, glm::vec3 direction, float fov, float near, float far, bool isPerspective, float aspectRatio) {
+Camera::Camera(glm::vec3 position, glm::vec3 direction, float fov, float near, float far, bool isPerspective, float aspectRatio) {
 
     if (isPerspective) {
         projectionMatrix = glm::perspective(
@@ -1737,14 +1628,51 @@ TEMPCamera::TEMPCamera(glm::vec3 position, glm::vec3 direction, float fov, float
     viewMatrix = glm::lookAt(position, target, up);
 }
 
-void TEMPCamera::uploadToShader(GLuint shaderID) {
+Camera::Camera(glm::vec2 orbit, glm::vec3 target, float radius, float near, float far, float aspectRatio) {
+    
+    projectionMatrix = glm::perspective(
+        glm::radians(60.0f),
+        aspectRatio,
+        near,
+        far
+    );
+    
+    float yaw = orbit.x;
+    float pitch = glm::clamp(orbit.y, -glm::radians(89.0f), glm::radians(89.0f));
+
+    float x = radius * cosf(pitch) * cosf(yaw);
+    float y = radius * sinf(pitch);
+    float z = radius * cosf(pitch) * sinf(yaw);
+
+    glm::vec3 position = target + glm::vec3(x,y,z);
+
+    viewMatrix = glm::lookAt(position, target, glm::vec3(0,1,0));
+}
+
+Camera::Camera(EditorCamera& camera, float near, float far, float aspectRatio) {
+    
+    projectionMatrix = glm::perspective(glm::radians(60.0f), aspectRatio, near, far);
+    
+    float yaw = camera.orbit.x;
+    float pitch = glm::clamp(camera.orbit.y, -glm::radians(89.0f), glm::radians(89.0f));
+
+    float x = camera.radius * cosf(pitch) * cosf(yaw);
+    float y = camera.radius * sinf(pitch);
+    float z = camera.radius * cosf(pitch) * sinf(yaw);
+
+    glm::vec3 position = camera.target + glm::vec3(x,y,z);
+
+    viewMatrix = glm::lookAt(position, camera.target, glm::vec3(0,1,0));
+}
+
+void Camera::uploadToShader(GLuint shaderID) {
     glUniformMatrix4fv(glGetUniformLocation(shaderID, "uView"), 1, GL_FALSE, glm::value_ptr(viewMatrix));
     glUniformMatrix4fv(glGetUniformLocation(shaderID, "uProjection"), 1, GL_FALSE, glm::value_ptr(projectionMatrix));
 }
 
 // ========================================================================
 
-Scene::Scene() { addCamera("Camera1"); }
+Scene::Scene() {}
 
 Anchor Scene::createAnchor() {
     Anchor a = nextAnchorID++;
@@ -1757,33 +1685,6 @@ void Scene::removeAnchor(Anchor a) {
     anchors.erase(std::remove(anchors.begin(), anchors.end(), a), anchors.end());
     registry.transforms.erase(a);
     registry.meshes.erase(a);
-}
-
-
-
-Camera* Scene::addCamera(const std::string& name, const std::source_location& loc) {
-    auto it = cameras.find(name);
-    if (it != cameras.end()) {
-        Message(1, "SCENE", "Camera '" + name + "' already exists", loc.file_name(), loc.line());
-        return it->second.get();
-    }
-    
-    auto camera = std::make_unique<Camera>(name);
-    Camera* ptr = camera.get();
-    cameras[name] = std::move(camera);
-    activeCamera = ptr;
-    return ptr;
-}
-
-void Scene::removeCamera(const std::string& name, const std::source_location& loc) {
-    auto it = cameras.find(name);
-    if (it != cameras.end()) {
-        // if (activeCamera == cameras[index]) activeCamera = nullptr;
-        cameras.erase(it);
-        // activeCamera = cameras[0];
-    } else {
-        Message(2, "SCENE", "Could not find camera '" + name + "'", loc.file_name(), loc.line());
-    }   
 }
 
 // ========================================================================
@@ -1832,7 +1733,6 @@ Engine::Engine(const std::string& title, int width, int height, const std::sourc
 
     viewport = std::make_unique<Viewport>(width, height);
     viewport->scene = activeScene;
-    viewport->camera = activeScene->activeCamera;
     viewport->resize(720, 450);
 
     maxLights = 128;
@@ -1891,21 +1791,16 @@ void Engine::removeScene(const std::string& name, const std::source_location& lo
 
 void Engine::render() {
 
-    if (!viewport->camera || !viewport->scene) return;
+    if (!viewport->scene) return;
 
     viewport->bind();
 
     glViewport(0, 0, viewport->width, viewport->height);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    viewport->camera->width = viewport->width;
-    viewport->camera->height = viewport->height;
-
     // CAMERA UPLOAD
 
-    viewport->camera2 = TEMPCamera(viewport->camera->position, glm::eulerAngles(viewport->camera->orientation), viewport->camera->fov, viewport->camera->nearPlane, viewport->camera->farPlane, !glfwGetKey(this->getWindow(), GLFW_KEY_3), ((float)viewport->width / (float)viewport->height));
-
-    // TEMPCamera camera(viewport->camera->position, glm::eulerAngles(viewport->camera->orientation), viewport->camera->fov, viewport->camera->nearPlane, viewport->camera->farPlane, !glfwGetKey(this->getWindow(), GLFW_KEY_3), ((float)viewport->width / (float)viewport->height));
+    viewport->camera2 = Camera(editorCamera, 0.1f, 1000.0f, ((float)viewport->width / (float)viewport->height));
 
     for (Anchor a : viewport->scene->anchors) {
         
@@ -1914,7 +1809,10 @@ void Engine::render() {
             TransformComponent& t = viewport->scene->registry.transforms.find(a)->second;
             CameraComponent& c = viewport->scene->registry.cameras.find(a)->second;
 
-            if (c.isMain) viewport->camera2 = TEMPCamera(t, c, ((float)viewport->width / (float)viewport->height));
+            if (c.isMain) {
+                viewport->camera2 = Camera(t, c, ((float)viewport->width / (float)viewport->height));
+                break;
+            }
         }
 
     }

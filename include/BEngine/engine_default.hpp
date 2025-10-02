@@ -114,8 +114,11 @@ void main() {
 
 #version 460 core
 in vec2 TexCoord;
-out vec4 FragColor;
+layout(location = 0) out vec4 FragColor;
+layout(location = 1) out uint outID;
+uniform uint objectID;
 void main() {
+    outID = objectID + 1;
     float colormix = 0.5 * TexCoord.x + 0.5 * TexCoord.y;
     FragColor = vec4(TexCoord, 1, 1.0);
 }
@@ -124,9 +127,12 @@ void main() {
 
 @fs color_fragment
 #version 460 core
-out vec4 FragColor;
+layout(location = 0) out vec4 FragColor;
+layout(location = 1) out uint outID;
 uniform vec4 diffuseColor;
+uniform uint objectID;
 void main() {
+    outID = objectID + 1;
     FragColor = vec4(diffuseColor.xyz, 1.0);
 }
 

@@ -39,16 +39,28 @@ Editor::Editor(Engine* enginePtr)
 
     // defaults
 
-    selectedAnchor = engine->activeScene->createAnchor();
-    engine->activeScene->registry.tags[selectedAnchor] = BE::NameComponent{"Test Cube", BE::AnchorType::None};
-    engine->activeScene->registry.transforms[selectedAnchor] = BE::TransformComponent{{0,0,0}, {0,0,0}, {1,1,1}};
-    engine->activeScene->registry.meshes[selectedAnchor] = BE::MeshComponent{engine->resources().meshes["default_cube"], nullptr, nullptr};
+    BE::Anchor cube = engine->activeScene->createAnchor();
+    engine->activeScene->registry.tags[cube] = BE::NameComponent{"cube", BE::AnchorType::None};
+    engine->activeScene->registry.transforms[cube] = BE::TransformComponent{{0,0,0}, {0,0,0}, {1,1,1}};
+    engine->activeScene->registry.meshes[cube] = BE::MeshComponent{engine->resources().meshes["default_cube"], nullptr, nullptr};
+    
+    BE::Anchor skybox = engine->activeScene->createAnchor();
+    engine->activeScene->registry.tags[skybox] = BE::NameComponent{"skybox", BE::AnchorType::None};
+    engine->activeScene->registry.transforms[skybox] = BE::TransformComponent{{0,0,0}, {0,0,0}, {10,10,10}};
+    engine->activeScene->registry.meshes[skybox] = BE::MeshComponent{engine->resources().meshes["default_cube"], nullptr, nullptr};
 
     BE::Anchor light = engine->activeScene->createAnchor();
-    engine->activeScene->registry.tags[light] = BE::NameComponent{"Point Light", BE::AnchorType::None};
+    engine->activeScene->registry.tags[light] = BE::NameComponent{"light", BE::AnchorType::None};
     engine->activeScene->registry.transforms[light] = BE::TransformComponent{{0,1.3f,0}, {0,0,0}, {0.1,0.1,0.1}};
     engine->activeScene->registry.meshes[light] = BE::MeshComponent{engine->resources().meshes["default_cube"], nullptr, nullptr};
     engine->activeScene->registry.lights[light] = BE::LightComponent{glm::vec3(1,1,1), 1.0f, 1};
+
+    BE::Anchor camera = engine->activeScene->createAnchor();
+    engine->activeScene->registry.tags[camera] = BE::NameComponent{"camera", BE::AnchorType::None};
+    engine->activeScene->registry.transforms[camera] = BE::TransformComponent{{-3,3,3}, {-0.6f,-0.8f,0}, {1,1,1}};
+    engine->activeScene->registry.cameras[camera] = BE::CameraComponent{ 45.0f, 0.1f, 100.0f, 1.0f, true, true };
+
+    selectedAnchor = -1;
 }
 
 Editor::~Editor() {
@@ -100,15 +112,9 @@ void Editor::showPanels() {
     // === PERFORMANCE == //
 
     ImGui::SetNextWindowBgAlpha(0.35f);
-    ImGui::Begin("Performance Overlay", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDocking );
+    ImGui::Begin("Performance Overlay", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDocking );
     ImGui::Text("ENGINE FPS %.1f MS %.2f", engine->frameTime.fps, engine->frameTime.ms);
     ImGui::Text("IMGUI FPS %.1f MS %.2f", ImGui::GetIO().Framerate, 1000.0f/ImGui::GetIO().Framerate);
-    ImGui::BeginDisabled(true);
-    glm::vec3 dire = Math::QuatToEuler(engine->viewport->camera->orientation);
-    glm::vec3 dir = glm::eulerAngles(engine->viewport->camera->orientation);
-    ImGui::DragFloat3("camera direction", glm::value_ptr(dir));
-    ImGui::EndDisabled();
-    ImGui::Text("SELECTED ANCHOR %d", selectedAnchor);
     ImGui::End();
 }
 
@@ -185,7 +191,6 @@ void Editor::Menu() {
             // if (ImGui::MenuItem("Add Scene")) { std::string label = "Scene" + std::to_string(engine->scenes.size()+1); engine->addScene(label); }
             if (ImGui::MenuItem("Create Anchor")) { selectedAnchor = engine->activeScene->createAnchor(); }
             if (ImGui::MenuItem("Import")) { FileFolders(); }
-            if (ImGui::MenuItem("Add Camera")) { std::string label = "Camera" + std::to_string(engine->activeScene->cameras.size()+1); engine->activeScene->addCamera(label); }
             ImGui::EndMenu(); 
         };
         if (ImGui::BeginMenu("View")) { ImGui::EndMenu(); };
@@ -217,7 +222,7 @@ void Editor::Viewport() {
     bool resizing = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) && ImGui::IsMouseDown(ImGuiMouseButton_Left);
     if (!resizing) engine->viewport->resize(viewportSize.x/2, viewportSize.y/2);
     
-    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) engine->viewport->camera->handleInputs(engine->getWindow(), engine->frameTime.dt);
+    // if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) engine->viewport->camera->handleInputs(engine->getWindow(), engine->frameTime.dt);
     ImGui::Image((void*)(intptr_t) engine->viewport->getColorTexture(), viewportSize, ImVec2(0, 1), ImVec2(1, 0));
 
     ImVec2 relativePos = ImVec2(mousePos.x - viewportPos.x, mousePos.y - viewportPos.y);

@@ -324,35 +324,6 @@ public:
     void loadDefaults();
 };
 
-class Camera {
-public:
-    std::string name;
-    int width, height;
-    float zoom, fov;
-    float nearPlane, farPlane;
-    float yaw, pitch, roll;
-    glm::vec3 position;
-    glm::quat orientation;
-
-    glm::mat4 projectionMatrix;
-    glm::mat4 orthoMatrix;
-    glm::mat4 viewMatrix;
-    glm::mat4 projViewMatrix;
-
-    Camera(
-        const std::string& cameraName, int width = 1440, int height = 900, 
-        float fov = 45.0f, float nearPlane = 0.1f, float farPlane = 100.0f, 
-        const glm::vec3& pos = {0,1,1.5}, const glm::vec3& dir = {0,0,-1} 
-    );
-    ~Camera() = default;
-
-    void rotate(const glm::vec3& axis, float angle);
-    void handleInputs(GLFWwindow* window, float dt, bool focusing = false);
-    void updateViewMatrix();
-
-    void uploadToShader(GLuint shaderID);
-};
-
 using Anchor = uint32_t;
 
 enum class AnchorType { None, Player };
@@ -407,25 +378,30 @@ public:
 struct CameraComponent {
     float fov = 45.0f;
     float nearPlane = 0.1f;
-    float farPlane = 100.0f;
+    float farPlane = 1000.0f;
     float zoom = 1.0f;
 
     bool isMain = false;
     bool isPerspective = true;
 };
 
-class TEMPCamera {
+struct EditorCamera {
+    glm::vec2 orbit = glm::vec2(glm::radians(-45.0f), glm::radians(-30.0f));
+    float radius = 5.0f;
+    glm::vec3 target {0, 0, 0};
+    // float fov = 45.0f;
+};
+
+class Camera {
 public:
     glm::mat4 projectionMatrix;
     glm::mat4 viewMatrix;
 
-    TEMPCamera() = default;
-    TEMPCamera(glm::vec3 position, glm::vec3 direction, float fov, float near, float far, bool isPerspective, float aspectRatio);
-    TEMPCamera(
-        const TransformComponent& t,
-        const CameraComponent& c,
-        float aspectRatio
-    );
+    Camera() = default;
+    Camera(glm::vec3 position, glm::vec3 direction, float fov, float near, float far, bool isPerspective, float aspectRatio);
+    Camera(const TransformComponent& t, const CameraComponent& c, float aspectRatio);
+    Camera(glm::vec2 orbit, glm::vec3 target, float radius, float near, float far, float aspectRatio);
+    Camera(EditorCamera& camera, float near, float far, float aspectRatio);
 
     void uploadToShader(GLuint shaderID);
 
@@ -447,14 +423,8 @@ public:
 
     Anchor createAnchor();
     void removeAnchor(Anchor a);
-
-    std::unordered_map<std::string, std::unique_ptr<Camera>> cameras;
-    Camera* activeCamera;
     
     Scene();
-
-    Camera* addCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
-    void removeCamera(const std::string& name, const std::source_location& loc = std::source_location::current());
     
 private:
     Anchor nextAnchorID = 0;
@@ -467,8 +437,7 @@ public:
     bool useMSAA;
 
     Scene* scene = nullptr;
-    Camera* camera = nullptr;
-    TEMPCamera camera2;
+    Camera camera2;
 
     Viewport(int w, int h, bool msaa = false) : width(w), height(h), useMSAA(msaa), fbo(w, h, buildAttachments(), msaa ? 4 : 1) {}
 
@@ -509,6 +478,7 @@ public:
     std::unordered_map<std::string, std::unique_ptr<Scene>> scenes;
     Scene* activeScene;
 
+    EditorCamera editorCamera;
     std::unique_ptr<Viewport> viewport;
 
     Engine(const std::string& title = "", int width = 1440, int height = 900, const std::source_location& loc = std::source_location::current());
