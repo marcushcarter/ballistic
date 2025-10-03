@@ -11,33 +11,31 @@
 #include <stack>
 
 namespace BE {
-
-RenderStats g_renderStats = {0};
    
 namespace Math {
 
-glm::quat EulerToQuat(glm::vec3 euler) {
-    float yaw = euler.y;
-    float pitch = euler.x;
-    float roll = euler.z;
+    glm::quat EulerToQuat(glm::vec3 euler) {
+        float yaw = euler.y;
+        float pitch = euler.x;
+        float roll = euler.z;
 
-    float cy = cosf(yaw * 0.5f);
-    float sy = sinf(yaw * 0.5f);
-    float cp = cosf(pitch * 0.5f);
-    float sp = sinf(pitch * 0.5f);
-    float cr = cosf(roll * 0.5f);
-    float sr = sinf(roll * 0.5f);
+        float cy = cosf(yaw * 0.5f);
+        float sy = sinf(yaw * 0.5f);
+        float cp = cosf(pitch * 0.5f);
+        float sp = sinf(pitch * 0.5f);
+        float cr = cosf(roll * 0.5f);
+        float sr = sinf(roll * 0.5f);
 
-    glm::quat q;
-    q.w = cr * cp * cy + sr * sp * sy;
-    q.x = sr * cp * cy + cr * sp * sy;
-    q.y = cr * sp * cy + sr * cp * sy;
-    q.z = cr * cp * sy + sr * sp * cy;
+        glm::quat q;
+        q.w = cr * cp * cy + sr * sp * sy;
+        q.x = sr * cp * cy + cr * sp * sy;
+        q.y = cr * sp * cy + sr * cp * sy;
+        q.z = cr * cp * sy + sr * sp * cy;
 
-    return q;
-}
+        return q;
+    }
 
-glm::vec3 QuatToEuler(glm::quat quat) {
+    glm::vec3 QuatToEuler(glm::quat quat) {
     glm::vec3 euler;
 
     float sinr_cosp = 2.0f * (quat.w * quat.x + quat.y * quat.z);
@@ -56,6 +54,48 @@ glm::vec3 QuatToEuler(glm::quat quat) {
     
     return euler;
 }
+
+};
+
+namespace GL {
+    
+    GLState g_glState = {0};
+
+    void enableCullFace(bool enable) {
+        if (enable && !g_glState.cullEnabled) {
+            glEnable(GL_CULL_FACE);
+            g_glState.cullEnabled = true;
+        } else if (!enable && g_glState.cullEnabled) {
+            glDisable(GL_CULL_FACE);
+            g_glState.cullEnabled = false;
+        }
+    }
+
+    void enableDepthTest(bool enable) {
+        if (enable && !g_glState.depthEnabled) {
+            glEnable(GL_DEPTH_TEST);
+            g_glState.depthEnabled = true;
+        } else if (!enable && g_glState.depthEnabled) {
+            glDisable(GL_DEPTH_TEST);
+            g_glState.depthEnabled = false;
+        }
+    }
+
+    void enableBlend(bool enable) {
+        if (enable && !g_glState.blendEnabled) {
+            glEnable(GL_BLEND);
+            g_glState.blendEnabled = true;
+        } else if (!enable && g_glState.blendEnabled) {
+            glDisable(GL_BLEND);
+            g_glState.blendEnabled = false;
+        }
+    }
+
+};
+
+namespace Stats {
+
+    RenderStats g_renderStats = {0};
 
 };
 
@@ -138,19 +178,17 @@ VAO::VAO() { glGenVertexArrays(1, &ID); }
 
 VAO::~VAO() { glDeleteVertexArrays(1, &ID); }
 
-static GLuint boundVAO = -1;
-
 void VAO::bind() {
-    if (boundVAO != ID) {
+    if (GL::g_glState.boundVAO != ID) {
         glBindVertexArray(ID);
-        boundVAO = ID;
-        g_renderStats.vaoBinds++;
+        GL::g_glState.boundVAO = ID;
+        Stats::g_renderStats.vaoBinds++;
     }
 }
 
 void VAO::unbind() {
     glBindVertexArray(0);
-    boundVAO = -1;
+    GL::g_glState.boundVAO = 0;
 
 }
 
@@ -170,19 +208,17 @@ VBO::VBO(const std::vector<Vertex>& vertices) {
 
 VBO::~VBO() { glDeleteBuffers(1, &ID); }
 
-static GLuint boundVBO = -1;
-
 void VBO::bind() {
-    if (boundVBO != ID) {
+    if (GL::g_glState.boundVBO != ID) {
         glBindBuffer(GL_ARRAY_BUFFER, ID);
-        boundVBO = ID;
-        g_renderStats.vboBinds++;
+        GL::g_glState.boundVBO = ID;
+        Stats::g_renderStats.vboBinds++;
     }
 }
 
 void VBO::unbind() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    boundVBO = -1;
+    GL::g_glState.boundVBO = 0;
 }
 
 void VBO::linkVertexAttrib(GLuint layout, GLuint numComponents, GLenum type, GLsizeiptr stride, void* offset) {
@@ -208,29 +244,25 @@ EBO::EBO(const std::vector<GLuint>& indices) {
 
 EBO::~EBO() { glDeleteBuffers(1, &ID); }
 
-static GLuint boundEBO = -1;
-
 void EBO::bind() {
-    if (boundEBO != ID) {
+    if (GL::g_glState.boundEBO != ID) {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ID);
-        boundEBO = ID;
-        g_renderStats.eboBinds++;
+        GL::g_glState.boundEBO = ID;
+        Stats::g_renderStats.eboBinds++;
     }
 }
 
 void EBO::unbind() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    boundEBO = -1;
+    GL::g_glState.boundEBO = 0;
 }
 
 // ========================================================================
 
 Framebuffer::Framebuffer(int w, int h, const std::vector<AttachmentDesc>& descs, int msaaSamples) : width(w), height(h), samples(msaaSamples), descriptors(descs) { create(); }
 
-static GLuint boundFramebuffer = -1;
-
 void Framebuffer::bind() {
-    if (boundFramebuffer != ID) {
+    if (GL::g_glState.boundFramebuffer != ID) {
         glBindFramebuffer(GL_FRAMEBUFFER, ID);
         glViewport(0, 0, width, height);
 
@@ -244,14 +276,14 @@ void Framebuffer::bind() {
 
         glDrawBuffers(drawBuffers.size(), drawBuffers.data());
     
-        boundFramebuffer = ID;
-        g_renderStats.framebufferBinds++;
+        GL::g_glState.boundFramebuffer = ID;
+        Stats::g_renderStats.framebufferBinds++;
     }
 }
 
 void Framebuffer::unbind() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    boundFramebuffer = -1;
+    GL::g_glState.boundFramebuffer = 0;
 }
 
 void Framebuffer::bindTexture(int unit, int index) {
@@ -414,14 +446,17 @@ Shader::Shader(const std::string* vertexSource, const std::string* fragmentSourc
 
 Shader::~Shader() { glDeleteProgram(ID); }
 
-static GLuint boundShader = -1;
-
 void Shader::activate() {
-    if (boundShader != ID) {
+    if (GL::g_glState.activatedShader != ID) {
         glUseProgram(ID); 
-        boundShader = ID;
-        g_renderStats.shaderBinds++;
+        GL::g_glState.activatedShader = ID;
+        Stats::g_renderStats.shaderBinds++;
     }
+}
+
+void Shader::deactivate() {
+    glUseProgram(0);
+    GL::g_glState.activatedShader = 0;
 }
 
 std::string Shader::getFileContents(const std::string& filename) {
@@ -596,48 +631,10 @@ void Texture::bind(GLuint slot) {
     glActiveTexture(GL_TEXTURE0 + slot);
     glBindTexture(GL_TEXTURE_2D, ID);
 
-    g_renderStats.textureBinds++;
+    Stats::g_renderStats.textureBinds++;
 }
 
 void Texture::unbind() { glBindTexture(GL_TEXTURE_2D, 0); }
-
-// ========================================================================
-
-static bool g_cullEnabled = false;
-
-void enableCull(bool enable) {
-    if (enable && !g_cullEnabled) {
-        glEnable(GL_CULL_FACE);
-        g_cullEnabled = true;
-    } else if (!enable && g_cullEnabled) {
-        glDisable(GL_CULL_FACE);
-        g_cullEnabled = false;
-    }
-}
-
-static bool g_depthEnabled = false;
-
-void enableDepthTest(bool enable) {
-    if (enable && !g_depthEnabled) {
-        glEnable(GL_DEPTH_TEST);
-        g_depthEnabled = true;
-    } else if (!enable && g_depthEnabled) {
-        glDisable(GL_DEPTH_TEST);
-        g_depthEnabled = false;
-    }
-}
-
-static bool g_blendEnabled = false;
-
-void enableBlend(bool enable) {
-    if (enable && !g_blendEnabled) {
-        glEnable(GL_BLEND);
-        g_blendEnabled = true;
-    } else if (!enable && g_blendEnabled) {
-        glDisable(GL_BLEND);
-        g_blendEnabled = false;
-    }
-}
 
 // ========================================================================
 
@@ -709,7 +706,7 @@ Material::Material(const std::string mtlPath) {
 void Material::uploadToShader(Shader& shader) {
     shader.activate();
 
-    enableCull(cull);
+    GL::enableCullFace(cull);
 
     // this->diffuseColor;
     // this->metallic;
@@ -793,20 +790,20 @@ void Mesh::draw(Shader& shader, const glm::mat4& modelMatrix) {
     shader.activate();
     vao.bind();
 
-    enableDepthTest(true);
+    GL::enableDepthTest(true);
 
     glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uModel"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
 
-    g_renderStats.drawCalls++;
-    g_renderStats.vertices += vertices.size();
-    g_renderStats.indices += indices.size();
-    g_renderStats.triangles += indices.size()/3;
+    Stats::g_renderStats.drawCalls++;
+    Stats::g_renderStats.vertices += vertices.size();
+    Stats::g_renderStats.indices += indices.size();
+    Stats::g_renderStats.triangles += indices.size()/3;
 }
 
 void Mesh::makePreview(Framebuffer& fb, Shader& shader, glm::vec2 rotation, bool cull) {
 
-    enableCull(cull);
+    GL::enableCullFace(cull);
 
     fb.bind();
 
@@ -849,7 +846,7 @@ void Mesh::makePreview(Framebuffer& fb, Shader& shader, glm::vec2 rotation, bool
     shader.activate();
     vao.bind();
 
-    enableDepthTest(true);
+    GL::enableDepthTest(true);
 
     glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uModel"), 1, GL_FALSE, glm::value_ptr(model));
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
@@ -1792,8 +1789,6 @@ static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) 
     engine->editorCamera.scrollDelta.y += (float)yoffset;
 }
 
-static Engine* g_boundEngine = nullptr;
-
 Engine::Engine(const std::string& title, int width, int height, const std::source_location& loc) 
     : title(title.empty() ? "new engine" : title), width(width), height(height), running(true), window(nullptr) {
     
@@ -1846,7 +1841,7 @@ Engine::Engine(const std::string& title, int width, int height, const std::sourc
     glDepthFunc(GL_LESS);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    enableBlend(true);
+    GL::enableBlend(true);
     
     glfwSwapInterval(0);
 
@@ -1856,7 +1851,6 @@ Engine::Engine(const std::string& title, int width, int height, const std::sourc
 
 Engine::~Engine() {
     if (window) glfwDestroyWindow(window);
-    if (g_boundEngine == this) g_boundEngine = nullptr;
     glfwTerminate();
 }
 
@@ -1975,8 +1969,6 @@ void Engine::render() {
     viewport->unbind();
 }
 
-void Engine::bind() { g_boundEngine = this; }
-
 bool Engine::isRunning() const {
     return running && !glfwWindowShouldClose(window);
 }
@@ -1987,7 +1979,7 @@ void Engine::closeWindow() {
 
 void Engine::beginFrame() {
 
-    g_renderStats.reset();
+    Stats::g_renderStats.reset();
 
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);

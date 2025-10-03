@@ -789,22 +789,22 @@ void Editor::Settings() {
 
 void Editor::RenderStats() {
     ImGui::Begin("Render Stats");
-    ImGui::Text("draw calls: %d", g_renderStats.drawCalls);
-    ImGui::Text("triangles: %d", g_renderStats.triangles);
-    ImGui::Text("vertices: %d", g_renderStats.vertices);
-    ImGui::Text("indices: %d", g_renderStats.indices);
+    ImGui::Text("draw calls: %d", Stats::g_renderStats.drawCalls);
+    ImGui::Text("triangles: %d", Stats::g_renderStats.triangles);
+    ImGui::Text("vertices: %d", Stats::g_renderStats.vertices);
+    ImGui::Text("indices: %d", Stats::g_renderStats.indices);
 
     ImGui::Separator();
     
-    ImGui::Text("shader binds: %d", g_renderStats.shaderBinds);
-    ImGui::Text("texture binds: %d", g_renderStats.textureBinds);
-    ImGui::Text("framebuffer binds: %d", g_renderStats.framebufferBinds);
+    ImGui::Text("shader binds: %d", Stats::g_renderStats.shaderBinds);
+    ImGui::Text("texture binds: %d", Stats::g_renderStats.textureBinds);
+    ImGui::Text("framebuffer binds: %d", Stats::g_renderStats.framebufferBinds);
 
     ImGui::Separator();
     
-    ImGui::Text("vao binds: %d", g_renderStats.vaoBinds);
-    ImGui::Text("vbo binds: %d", g_renderStats.vboBinds);
-    ImGui::Text("ebo binds: %d", g_renderStats.eboBinds);
+    ImGui::Text("vao binds: %d", Stats::g_renderStats.vaoBinds);
+    ImGui::Text("vbo binds: %d", Stats::g_renderStats.vboBinds);
+    ImGui::Text("ebo binds: %d", Stats::g_renderStats.eboBinds);
 
     ImGui::Separator();
     

@@ -29,12 +29,74 @@ namespace BE {
 
 namespace Math {
 
-#define DEG2RAD 0.017453292519943295f
-#define RAD2DEG 57.29577951308232f
+    #define DEG2RAD 0.017453292519943295f
+    #define RAD2DEG 57.29577951308232f
 
-glm::quat EulerToQuat(glm::vec3 euler);
+    glm::quat EulerToQuat(glm::vec3 euler);
 
-glm::vec3 QuatToEuler(glm::quat quat);
+    glm::vec3 QuatToEuler(glm::quat quat);
+
+};
+
+namespace GL {
+    
+    struct GLState {
+        GLuint boundVAO = 0;
+        GLuint boundVBO = 0;
+        GLuint boundEBO = 0;
+
+        GLuint boundFramebuffer = 0;
+        GLuint activatedShader = 0;
+
+        bool cullEnabled = false;
+        bool depthEnabled = false;
+        bool blendEnabled = false;   
+        
+    };
+
+    extern GLState g_glState;
+
+    void enableCullFace(bool enable);
+    void enableDepthTest(bool enable);
+    void enableBlend(bool enable);
+
+}
+
+namespace Stats {
+    
+    struct RenderStats {
+
+        unsigned int drawCalls;
+        unsigned int triangles;
+        unsigned int vertices;
+        unsigned int indices;
+
+        unsigned int shaderBinds;
+        unsigned int textureBinds;
+        unsigned int framebufferBinds;
+
+        unsigned int vaoBinds;
+        unsigned int vboBinds;
+        unsigned int eboBinds;
+
+        void reset() {
+            drawCalls = 0;
+            triangles = 0;
+            vertices = 0;
+            indices = 0;
+
+            shaderBinds = 0;
+            textureBinds = 0;
+            framebufferBinds = 0;
+
+            vaoBinds = 0;
+            vboBinds = 0;
+            eboBinds = 0;
+        }
+
+    };
+
+    extern RenderStats g_renderStats;
 
 };
 
@@ -61,40 +123,6 @@ private:
     std::chrono::steady_clock::time_point currentTime;
 
 };
-
-struct RenderStats {
-
-    unsigned int drawCalls;
-    unsigned int triangles;
-    unsigned int vertices;
-    unsigned int indices;
-
-    unsigned int shaderBinds;
-    unsigned int textureBinds;
-    unsigned int framebufferBinds;
-
-    unsigned int vaoBinds;
-    unsigned int vboBinds;
-    unsigned int eboBinds;
-
-    void reset() {
-        drawCalls = 0;
-        triangles = 0;
-        vertices = 0;
-        indices = 0;
-
-        shaderBinds = 0;
-        textureBinds = 0;
-        framebufferBinds = 0;
-
-        vaoBinds = 0;
-        vboBinds = 0;
-        eboBinds = 0;
-    }
-
-};
-
-extern RenderStats g_renderStats;
 
 struct Vertex {
     glm::vec3 position;
@@ -197,7 +225,9 @@ public:
     );
 
     ~Shader();
+
     void activate();
+    void deactivate();
 
     void recompile(
         const std::string& vertexPath = "", 
@@ -525,7 +555,6 @@ public:
 
     Engine(const std::string& title = "", int width = 1440, int height = 900, const std::source_location& loc = std::source_location::current());
     ~Engine();
-    void bind();
 
     Scene* addScene(const std::string& name, const std::source_location& loc = std::source_location::current());
     void removeScene(const std::string& name, const std::source_location& loc = std::source_location::current());
