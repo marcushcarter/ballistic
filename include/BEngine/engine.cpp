@@ -11,51 +11,53 @@
 #include <stack>
 
 namespace BE {
+
+RenderStats g_renderStats = {0};
    
-    namespace Math {
+namespace Math {
 
-    glm::quat EulerToQuat(glm::vec3 euler) {
-        float yaw = euler.y;
-        float pitch = euler.x;
-        float roll = euler.z;
+glm::quat EulerToQuat(glm::vec3 euler) {
+    float yaw = euler.y;
+    float pitch = euler.x;
+    float roll = euler.z;
 
-        float cy = cosf(yaw * 0.5f);
-        float sy = sinf(yaw * 0.5f);
-        float cp = cosf(pitch * 0.5f);
-        float sp = sinf(pitch * 0.5f);
-        float cr = cosf(roll * 0.5f);
-        float sr = sinf(roll * 0.5f);
+    float cy = cosf(yaw * 0.5f);
+    float sy = sinf(yaw * 0.5f);
+    float cp = cosf(pitch * 0.5f);
+    float sp = sinf(pitch * 0.5f);
+    float cr = cosf(roll * 0.5f);
+    float sr = sinf(roll * 0.5f);
 
-        glm::quat q;
-        q.w = cr * cp * cy + sr * sp * sy;
-        q.x = sr * cp * cy + cr * sp * sy;
-        q.y = cr * sp * cy + sr * cp * sy;
-        q.z = cr * cp * sy + sr * sp * cy;
+    glm::quat q;
+    q.w = cr * cp * cy + sr * sp * sy;
+    q.x = sr * cp * cy + cr * sp * sy;
+    q.y = cr * sp * cy + sr * cp * sy;
+    q.z = cr * cp * sy + sr * sp * cy;
 
-        return q;
-    }
+    return q;
+}
 
-    glm::vec3 QuatToEuler(glm::quat quat) {
-        glm::vec3 euler;
+glm::vec3 QuatToEuler(glm::quat quat) {
+    glm::vec3 euler;
 
-        float sinr_cosp = 2.0f * (quat.w * quat.x + quat.y * quat.z);
-        float cosr_cosp = 1.0f - 2.0f * (quat.x * quat.x + quat.y * quat.z);
-        euler.x = atan2f(sinr_cosp, cosr_cosp);
+    float sinr_cosp = 2.0f * (quat.w * quat.x + quat.y * quat.z);
+    float cosr_cosp = 1.0f - 2.0f * (quat.x * quat.x + quat.y * quat.z);
+    euler.x = atan2f(sinr_cosp, cosr_cosp);
 
-        float sinp = 2.0f * (quat.w * quat.y - quat.z * quat.x);
-        if (fabsf(sinp) >= 1)
-            euler.y = copysignf(90.0f, sinp);
-        else 
-            euler.y = asinf(sinp);
+    float sinp = 2.0f * (quat.w * quat.y - quat.z * quat.x);
+    if (fabsf(sinp) >= 1)
+        euler.y = copysignf(90.0f, sinp);
+    else 
+        euler.y = asinf(sinp);
 
-        float siny_cosp = 2.0f * (quat.w * quat.z + quat.x * quat.y);
-        float cosy_cosp = 1.0f - 2.0f * (quat.y * quat.y + quat.z * quat.z);
-        euler.x = atan2f(siny_cosp, cosy_cosp);
-        
-        return euler;
-    }
+    float siny_cosp = 2.0f * (quat.w * quat.z + quat.x * quat.y);
+    float cosy_cosp = 1.0f - 2.0f * (quat.y * quat.y + quat.z * quat.z);
+    euler.x = atan2f(siny_cosp, cosy_cosp);
+    
+    return euler;
+}
 
-    };
+};
 
 static void Message(int severity, const std::string& module, const std::string& message, const std::string& file = "", int line = 0, const std::source_location& loc = std::source_location::current()) {
     std::string displayFile;
@@ -104,7 +106,7 @@ static void Message(int severity, const std::string& module, const std::string& 
 
 // ========================================================================
 
-float FrameTime::update() {
+float TimeStep::update() {
     currentTime = std::chrono::steady_clock::now();
     dt = std::chrono::duration<float>(currentTime - previousTime).count();
     previousTime = currentTime;
@@ -136,9 +138,21 @@ VAO::VAO() { glGenVertexArrays(1, &ID); }
 
 VAO::~VAO() { glDeleteVertexArrays(1, &ID); }
 
-void VAO::bind() { glBindVertexArray(ID); }
+static GLuint boundVAO = -1;
 
-void VAO::unbind() { glBindVertexArray(0); }
+void VAO::bind() {
+    if (boundVAO != ID) {
+        glBindVertexArray(ID);
+        boundVAO = ID;
+        g_renderStats.vaoBinds++;
+    }
+}
+
+void VAO::unbind() {
+    glBindVertexArray(0);
+    boundVAO = -1;
+
+}
 
 // ========================================================================
 
@@ -156,9 +170,20 @@ VBO::VBO(const std::vector<Vertex>& vertices) {
 
 VBO::~VBO() { glDeleteBuffers(1, &ID); }
 
-void VBO::bind() { glBindBuffer(GL_ARRAY_BUFFER, ID); }
+static GLuint boundVBO = -1;
 
-void VBO::unbind() { glBindBuffer(GL_ARRAY_BUFFER, 0); }
+void VBO::bind() {
+    if (boundVBO != ID) {
+        glBindBuffer(GL_ARRAY_BUFFER, ID);
+        boundVBO = ID;
+        g_renderStats.vboBinds++;
+    }
+}
+
+void VBO::unbind() {
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    boundVBO = -1;
+}
 
 void VBO::linkVertexAttrib(GLuint layout, GLuint numComponents, GLenum type, GLsizeiptr stride, void* offset) {
     bind();
@@ -183,30 +208,51 @@ EBO::EBO(const std::vector<GLuint>& indices) {
 
 EBO::~EBO() { glDeleteBuffers(1, &ID); }
 
-void EBO::bind() { glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ID); }
+static GLuint boundEBO = -1;
 
-void EBO::unbind() { glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0); }
+void EBO::bind() {
+    if (boundEBO != ID) {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ID);
+        boundEBO = ID;
+        g_renderStats.eboBinds++;
+    }
+}
+
+void EBO::unbind() {
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    boundEBO = -1;
+}
 
 // ========================================================================
 
 Framebuffer::Framebuffer(int w, int h, const std::vector<AttachmentDesc>& descs, int msaaSamples) : width(w), height(h), samples(msaaSamples), descriptors(descs) { create(); }
 
+static GLuint boundFramebuffer = -1;
+
 void Framebuffer::bind() {
-    glBindFramebuffer(GL_FRAMEBUFFER, ID); 
-    glViewport(0, 0, width, height);
+    if (boundFramebuffer != ID) {
+        glBindFramebuffer(GL_FRAMEBUFFER, ID);
+        glViewport(0, 0, width, height);
 
-    std::vector<GLenum> drawBuffers;
-    for (auto& desc : descriptors) {
-            drawBuffers.push_back(desc.type);
-        if (desc.type != GL_DEPTH_ATTACHMENT) {
-            drawBuffers.push_back(desc.type);
+        std::vector<GLenum> drawBuffers;
+        for (auto& desc : descriptors) {
+                drawBuffers.push_back(desc.type);
+            if (desc.type != GL_DEPTH_ATTACHMENT) {
+                drawBuffers.push_back(desc.type);
+            }
         }
-    }
 
-    glDrawBuffers(drawBuffers.size(), drawBuffers.data());
+        glDrawBuffers(drawBuffers.size(), drawBuffers.data());
+    
+        boundFramebuffer = ID;
+        g_renderStats.framebufferBinds++;
+    }
 }
 
-void Framebuffer::unbind() { glBindFramebuffer(GL_FRAMEBUFFER, 0); }
+void Framebuffer::unbind() {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    boundFramebuffer = -1;
+}
 
 void Framebuffer::bindTexture(int unit, int index) {
     // assert(index < (int)attachments.size());
@@ -246,7 +292,7 @@ void Framebuffer::destroy() {
 
 void Framebuffer::create() {
     glGenFramebuffers(1, &ID);
-    glBindFramebuffer(GL_FRAMEBUFFER, ID);
+    bind();
 
     GLenum texTarget = (samples > 1) ? GL_TEXTURE_BINDING_2D_MULTISAMPLE : GL_TEXTURE_2D;
     std::vector<GLenum> drawBuffers;
@@ -298,7 +344,7 @@ void Framebuffer::create() {
         std::cerr << "Framebuffer incomplete" << std::endl;
     }
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    unbind();
 }
 
 // ========================================================================
@@ -368,7 +414,15 @@ Shader::Shader(const std::string* vertexSource, const std::string* fragmentSourc
 
 Shader::~Shader() { glDeleteProgram(ID); }
 
-void Shader::activate() { glUseProgram(ID); }
+static GLuint boundShader = -1;
+
+void Shader::activate() {
+    if (boundShader != ID) {
+        glUseProgram(ID); 
+        boundShader = ID;
+        g_renderStats.shaderBinds++;
+    }
+}
 
 std::string Shader::getFileContents(const std::string& filename) {
     std::ifstream file(filename, std::ios::binary);
@@ -541,6 +595,8 @@ void Texture::setUniformUnit(GLuint shaderID, const char* uniform, GLuint slot) 
 void Texture::bind(GLuint slot) {
     glActiveTexture(GL_TEXTURE0 + slot);
     glBindTexture(GL_TEXTURE_2D, ID);
+
+    g_renderStats.textureBinds++;
 }
 
 void Texture::unbind() { glBindTexture(GL_TEXTURE_2D, 0); }
@@ -714,8 +770,6 @@ Mesh::Mesh(const std::vector<Vertex>& verts, const std::vector<GLuint>& inds)
     vbo->linkVertexAttrib(1, 3, GL_FLOAT, sizeof(Vertex), (void*)(3 * sizeof(float)));
     vbo->linkVertexAttrib(2, 3, GL_FLOAT, sizeof(Vertex), (void*)(6 * sizeof(float)));
     vbo->linkVertexAttrib(3, 2, GL_FLOAT, sizeof(Vertex), (void*)(9 * sizeof(float)));
-    
-    vao.unbind();
 
     ComputeAABB();
 }
@@ -744,7 +798,10 @@ void Mesh::draw(Shader& shader, const glm::mat4& modelMatrix) {
     glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uModel"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
 
-    vao.unbind();
+    g_renderStats.drawCalls++;
+    g_renderStats.vertices += vertices.size();
+    g_renderStats.indices += indices.size();
+    g_renderStats.triangles += indices.size()/3;
 }
 
 void Mesh::makePreview(Framebuffer& fb, Shader& shader, glm::vec2 rotation, bool cull) {
@@ -781,7 +838,6 @@ void Mesh::makePreview(Framebuffer& fb, Shader& shader, glm::vec2 rotation, bool
     model = glm::rotate(model, glm::radians(rotation.x), glm::vec3(0,1,0));
     model = glm::translate(model, -center);
 
-    // glm::mat4 model = glm::translate(glm::mat4(1.0f), -center) * glm::scale(glm::mat4(1), glm::vec3(1.0f)) * glm::rotate(glm::mat4(1.0f), yaw, glm::vec3(0,1,0)) * glm::rotate(glm::mat4(1.0f), pitch, glm::vec3(1,0,0));
     glm::mat4 view = glm::lookAt(cameraPos * (maxExtent * 2.0f), glm::vec3(0), glm::vec3(0,1,0));
     glm::mat4 proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, maxExtent * 10.0f);
 
@@ -790,7 +846,13 @@ void Mesh::makePreview(Framebuffer& fb, Shader& shader, glm::vec2 rotation, bool
     glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uView"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uProjection"), 1, GL_FALSE, glm::value_ptr(proj));
 
-    draw(shader, model);
+    shader.activate();
+    vao.bind();
+
+    enableDepthTest(true);
+
+    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uModel"), 1, GL_FALSE, glm::value_ptr(model));
+    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
 
     fb.unbind();
 }
@@ -918,8 +980,6 @@ void Mesh::loadOBJ(const std::string& objPath) {
     vbo->linkVertexAttrib(2, 3, GL_FLOAT, sizeof(Vertex), (void*)(6 * sizeof(float)));
     vbo->linkVertexAttrib(3, 2, GL_FLOAT, sizeof(Vertex), (void*)(9 * sizeof(float)));
 
-    vao.unbind();
-
     ComputeAABB();
 
     Message(0, "MESH", "OBJ loaded successfully", objPath.c_str(), lineNum);
@@ -1036,8 +1096,6 @@ void Mesh::loadOBJSource(const std::string* objSource) {
     vbo->linkVertexAttrib(1, 3, GL_FLOAT, sizeof(Vertex), (void*)(3 * sizeof(float)));
     vbo->linkVertexAttrib(2, 3, GL_FLOAT, sizeof(Vertex), (void*)(6 * sizeof(float)));
     vbo->linkVertexAttrib(3, 2, GL_FLOAT, sizeof(Vertex), (void*)(9 * sizeof(float)));
-
-    vao.unbind();
 
     ComputeAABB();
 
@@ -1665,7 +1723,7 @@ void Camera::uploadToShader(GLuint shaderID) {
 
 void EditorCamera::inputs() {
 
-    float orbitSpeed = 0.005f;
+    float orbitSpeed = 0.01f;
     float zoomSpeed = 0.01f;
     float panSpeed = 0.01f * radius;
 
@@ -1929,15 +1987,16 @@ void Engine::closeWindow() {
 
 void Engine::beginFrame() {
 
+    g_renderStats.reset();
+
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetScrollCallback(window, scroll_callback);
     
     glfwPollEvents();
-    editorCamera.inputs();
     editorCamera.ctrlPressed = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL);
     editorCamera.shiftPressed = glfwGetKey(window, GLFW_KEY_LEFT_SHIFT);
-    frameTime.update();
+    ts.update();
     // update audio engine
     //set listener position to camera
 

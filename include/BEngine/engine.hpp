@@ -25,7 +25,9 @@
 
 #include "BEngine/engine_default.hpp"
 
-namespace BE::Math {
+namespace BE {
+
+namespace Math {
 
 #define DEG2RAD 0.017453292519943295f
 #define RAD2DEG 57.29577951308232f
@@ -36,9 +38,7 @@ glm::vec3 QuatToEuler(glm::quat quat);
 
 };
 
-namespace BE {
-
-class FrameTime {
+struct TimeStep {
 public:
     
     static constexpr int FPS_HISTORY_COUNT = 100;
@@ -61,6 +61,40 @@ private:
     std::chrono::steady_clock::time_point currentTime;
 
 };
+
+struct RenderStats {
+
+    unsigned int drawCalls;
+    unsigned int triangles;
+    unsigned int vertices;
+    unsigned int indices;
+
+    unsigned int shaderBinds;
+    unsigned int textureBinds;
+    unsigned int framebufferBinds;
+
+    unsigned int vaoBinds;
+    unsigned int vboBinds;
+    unsigned int eboBinds;
+
+    void reset() {
+        drawCalls = 0;
+        triangles = 0;
+        vertices = 0;
+        indices = 0;
+
+        shaderBinds = 0;
+        textureBinds = 0;
+        framebufferBinds = 0;
+
+        vaoBinds = 0;
+        vboBinds = 0;
+        eboBinds = 0;
+    }
+
+};
+
+extern RenderStats g_renderStats;
 
 struct Vertex {
     glm::vec3 position;
@@ -481,7 +515,7 @@ public:
     int width;
     int height;
 
-    FrameTime frameTime;
+    TimeStep ts;
 
     std::unordered_map<std::string, std::unique_ptr<Scene>> scenes;
     Scene* activeScene;

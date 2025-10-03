@@ -27,9 +27,6 @@ public:
     
     void Frame();
 
-    void pickingPass();
-    void PickObject(ImVec2 local, ImVec2 size);
-
     void Menu();
     void Viewport();
     void Heirarchy();
@@ -37,6 +34,7 @@ public:
     void Resources();
     void Inspector();
     void Settings();
+    void RenderStats();
 
     void FileFolders();
 

@@ -105,22 +105,16 @@ void Editor::beginFrame() {
 }
 
 void Editor::showPanels() {
+    
+    RenderStats();
 
     Menu();
     Viewport();
     Heirarchy();
     Resources();
     Inspector();
-    Settings();
-    Popups();
-
-    // === PERFORMANCE == //
-
-    ImGui::SetNextWindowBgAlpha(0.35f);
-    ImGui::Begin("Performance Overlay", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDocking );
-    ImGui::Text("ENGINE FPS %.1f MS %.2f", engine->frameTime.fps, engine->frameTime.ms);
-    ImGui::Text("IMGUI FPS %.1f MS %.2f", ImGui::GetIO().Framerate, 1000.0f/ImGui::GetIO().Framerate);
-    ImGui::End();
+    // Settings();
+    // Popups();
 }
 
 void Editor::endFrame() {
@@ -181,6 +175,7 @@ void Mat4(const char* label, glm::mat4& mat) {
     }
 }
 
+
 } // UI namespace
 
 // === Panels === //
@@ -220,14 +215,20 @@ void Editor::Viewport() {
 
     ImGui::Begin("Hello, ImGui!", nullptr, window_flags);
 
+    if (ImGui::IsWindowHovered()) { 
+        engine->editorCamera.inputs();
+    } else {
+        engine->editorCamera.scrollDelta = glm::vec2(0,0);
+    }
+
     ImVec2 viewportPos = ImGui::GetCursorScreenPos();
     ImVec2 viewportSize = ImGui::GetContentRegionAvail();
     ImVec2 mousePos = ImGui::GetMousePos();
 
     bool resizing = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) && ImGui::IsMouseDown(ImGuiMouseButton_Left);
-    if (!resizing) engine->viewport->resize(viewportSize.x/2, viewportSize.y/2);
+    if (!resizing) engine->viewport->resize(viewportSize.x, viewportSize.y);
     
-    // if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) engine->viewport->camera->handleInputs(engine->getWindow(), engine->frameTime.dt);
+    // if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) engine->viewport->camera->handleInputs(engine->getWindow(), engine->ts.dt);
     ImGui::Image((void*)(intptr_t) engine->viewport->getColorTexture(), viewportSize, ImVec2(0, 1), ImVec2(1, 0));
 
     ImVec2 relativePos = ImVec2(mousePos.x - viewportPos.x, mousePos.y - viewportPos.y);
@@ -318,7 +319,7 @@ void Editor::Heirarchy() {
 
 void Editor::Popups() {
 
-    if (ImGui::Begin("Create Shader")) {
+    ImGui::Begin("Create Shader");
 
         static CreatedShader shader;
         
@@ -356,7 +357,6 @@ void Editor::Popups() {
 
         ImGui::End();
     
-    }
 
 }
 
@@ -757,8 +757,7 @@ void Editor::Inspector() {
             }
         }
 
-
-        if (!openLight) engine->activeScene->registry.lights.erase(selectedAnchor);
+        if (!openCamera) engine->activeScene->registry.cameras.erase(selectedAnchor);
 
         if (!hasName || !hasTransform || !hasMesh || !hasLight || !hasCamera) {
 
@@ -785,6 +784,32 @@ void Editor::Settings() {
 
     ImGui::SliderInt("Preview Resolution", &previewResolution, 1.0f, 256.0f);
     
+    ImGui::End();
+}
+
+void Editor::RenderStats() {
+    ImGui::Begin("Render Stats");
+    ImGui::Text("draw calls: %d", g_renderStats.drawCalls);
+    ImGui::Text("triangles: %d", g_renderStats.triangles);
+    ImGui::Text("vertices: %d", g_renderStats.vertices);
+    ImGui::Text("indices: %d", g_renderStats.indices);
+
+    ImGui::Separator();
+    
+    ImGui::Text("shader binds: %d", g_renderStats.shaderBinds);
+    ImGui::Text("texture binds: %d", g_renderStats.textureBinds);
+    ImGui::Text("framebuffer binds: %d", g_renderStats.framebufferBinds);
+
+    ImGui::Separator();
+    
+    ImGui::Text("vao binds: %d", g_renderStats.vaoBinds);
+    ImGui::Text("vbo binds: %d", g_renderStats.vboBinds);
+    ImGui::Text("ebo binds: %d", g_renderStats.eboBinds);
+
+    ImGui::Separator();
+    
+    ImGui::Text("Engine FPS: %.1f MS: %.2f", engine->ts.fps, engine->ts.ms);
+    ImGui::Text("ImGui FPS: %.1f MS: %.2f", ImGui::GetIO().Framerate, 1000.0f/ImGui::GetIO().Framerate);
     ImGui::End();
 }
 
