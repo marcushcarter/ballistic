@@ -293,26 +293,26 @@ class Mesh {
 public:
     std::vector<Vertex> vertices;
     std::vector<GLuint> indices;
-
-    glm::vec3 aabbMin, aabbMax;
     
     VAO vao;
     VBO* vbo = nullptr;
     EBO* ebo = nullptr;
 
     Mesh() = default;
-    Mesh(const std::vector<Vertex>& verts, const std::vector<GLuint>& inds);
-    Mesh(const std::string& objPath);
-    Mesh(const std::string* objSource);
+    
+    void loadData(const std::vector<Vertex>& verts, const std::vector<GLuint>& inds);
+    void loadOBJ(const std::string& objPath);
+    void loadOBJ(const std::string* objSource);
+    
     ~Mesh();
 
     void draw(Shader& shader, const glm::mat4& modelMatrix = glm::mat4(1));
     void makePreview(Framebuffer& fb, Shader& shader, glm::vec2 rotation, bool cull = false);
 
-    void loadOBJ(const std::string& objPath);
-    void loadOBJSource(const std::string* objSource);
-private:
-    void ComputeAABB();
+public:
+    void parseOBJString(const std::string* objSource, std::vector<Vertex>& outVerts, std::vector<GLuint>& outIndices);
+    void updateGPU();
+    int GetOrAddVertex(std::vector<Vertex>& vertices, const Vertex& v);
 };
 
 struct CreatedShader {

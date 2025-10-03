@@ -735,133 +735,10 @@ void Material::uploadToShader(Shader& shader) {
 
 // ========================================================================
 
-void Mesh::ComputeAABB() {
-    if (vertices.empty()) return;
-
-    glm::vec3 min(FLT_MAX);
-    glm::vec3 max(-FLT_MAX);
-
-    for (const auto& v : vertices) {
-        min.x = std::min(min.x, v.position.x);
-        min.y = std::min(min.y, v.position.y);
-        min.z = std::min(min.z, v.position.z);
-
-        max.x = std::max(max.x, v.position.x);
-        max.y = std::max(max.y, v.position.y);
-        max.z = std::max(max.z, v.position.z);
-    }
-
-    aabbMin = min;
-    aabbMax = max;
-}
-
-Mesh::Mesh(const std::vector<Vertex>& verts, const std::vector<GLuint>& inds)
-    : vertices(verts), indices(inds) {
-
-    vao.bind();
-
-    vbo = new VBO(vertices);
-    ebo = new EBO(indices);
-
-    vbo->linkVertexAttrib(0, 3, GL_FLOAT, sizeof(Vertex), (void*)0);
-    vbo->linkVertexAttrib(1, 3, GL_FLOAT, sizeof(Vertex), (void*)(3 * sizeof(float)));
-    vbo->linkVertexAttrib(2, 3, GL_FLOAT, sizeof(Vertex), (void*)(6 * sizeof(float)));
-    vbo->linkVertexAttrib(3, 2, GL_FLOAT, sizeof(Vertex), (void*)(9 * sizeof(float)));
-
-    ComputeAABB();
-}
-
-Mesh::Mesh(const std::string& objPath)
-    : vertices(), indices() {
-    loadOBJ(objPath.c_str());
-}
-
-Mesh::Mesh(const std::string* objSource)
-    : vertices(), indices() {
-    loadOBJSource(objSource);
-}
-
-Mesh::~Mesh() {
-    delete vbo;
-    delete ebo;
-}
-
-void Mesh::draw(Shader& shader, const glm::mat4& modelMatrix) {
-    shader.activate();
-    vao.bind();
-
-    GL::enableDepthTest(true);
-
-    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uModel"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
-    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
-
-    Stats::g_renderStats.drawCalls++;
-    Stats::g_renderStats.vertices += vertices.size();
-    Stats::g_renderStats.indices += indices.size();
-    Stats::g_renderStats.triangles += indices.size()/3;
-}
-
-void Mesh::makePreview(Framebuffer& fb, Shader& shader, glm::vec2 rotation, bool cull) {
-
-    GL::enableCullFace(cull);
-
-    fb.bind();
-
-    glClearColor(0.05,0.05,0.05,1);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glm::vec3 minBounds(FLT_MAX);
-    glm::vec3 maxBounds(-FLT_MAX);
-
-    for (auto& v : vertices) {
-        minBounds = glm::min(minBounds, v.position);
-        maxBounds = glm::max(maxBounds, v.position);
-    }
-
-    glm::vec3 center = (minBounds + maxBounds) * 0.5f;
-    glm::vec3 extents = maxBounds - minBounds;
-    float maxExtent = glm::compMax(extents);
-
-    const float padding = 1.2f;
-    float scaleFactor = 2.0f / (maxExtent * padding);
-
-    glm::vec3 cameraPos(0,0,1);
-
-    glm::vec3 cameraForward = glm::normalize(cameraPos - center);
-    glm::vec3 cameraRight = glm::cross(glm::vec3(0,1,0), cameraForward);
-
-    glm::mat4 model = glm::mat4(1.0f);
-    model = glm::rotate(model, glm::radians(rotation.y), glm::vec3(1,0,0));
-    model = glm::rotate(model, glm::radians(rotation.x), glm::vec3(0,1,0));
-    model = glm::translate(model, -center);
-
-    glm::mat4 view = glm::lookAt(cameraPos * (maxExtent * 2.0f), glm::vec3(0), glm::vec3(0,1,0));
-    glm::mat4 proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, maxExtent * 10.0f);
-
-    shader.activate();
-
-    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uView"), 1, GL_FALSE, glm::value_ptr(view));
-    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uProjection"), 1, GL_FALSE, glm::value_ptr(proj));
-
-    shader.activate();
-    vao.bind();
-
-    GL::enableDepthTest(true);
-
-    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uModel"), 1, GL_FALSE, glm::value_ptr(model));
-    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
-
-    fb.unbind();
-}
-
-int GetOrAddVertex(std::vector<Vertex>& vertices, const Vertex& v) {
-    for (size_t i = 0; i < vertices.size(); i++) {
-        if (memcmp(&vertices[i], &v, sizeof(Vertex)) == 0) {
-            return static_cast<int>(i);
-        }
-    }
-    vertices.push_back(v);
-    return static_cast<int>(vertices.size() - 1);
+void Mesh::loadData(const std::vector<Vertex>& verts, const std::vector<GLuint>& inds) {
+    vertices = verts;
+    indices = inds;
+    updateGPU();
 }
 
 void Mesh::loadOBJ(const std::string& objPath) {
@@ -871,129 +748,22 @@ void Mesh::loadOBJ(const std::string& objPath) {
         return;
     }
 
-    std::vector<glm::vec3> positions;
-    std::vector<glm::vec3> normals;
-    std::vector<glm::vec2> uvs;
-
-    std::vector<Vertex> loadedVerts;
-    std::vector<GLuint> loadedIndices;
-
-    std::string line;
-    int lineNum = 0;
-
-    while (std::getline(file, line)) {
-        lineNum++;
-
-        if (line.empty() || line[0] == '#' || line.starts_with("o ") || line.starts_with("s ")) continue;
-
-        std::istringstream ss(line);
-        std::string cmd;
-        ss >> cmd;
-
-        if (line.starts_with("v ")) {
-            glm::vec3 v;
-            ss >> v.x >> v.y >> v.z;
-            positions.push_back(v);
-
-        } else if (line.starts_with("vt ")) {
-            glm::vec2 vt;
-            ss >> vt.x >> vt.y;
-            uvs.push_back(vt);
-
-        } else if (line.starts_with("vn ")) {
-            glm::vec3 vn;
-            ss >> vn.x >> vn.y >> vn.z;
-            normals.push_back(vn);
-
-        } else if (line.starts_with("f ")) {
-
-            std::vector<Vertex> faceVerts;
-            std::string token;
-
-            while (ss >> token) {
-                Vertex vert{};
-                int vi = 0, vti = 0, vni = 0;
-
-                if (sscanf(token.c_str(), "%d/%d/%d", &vi, &vti, &vni) == 3) {
-                    vi--; vti--; vni--;
-                    vert.position = positions[vi];
-                    vert.normal   = normals[vni];
-                    vert.color    = {1.0f, 1.0f, 1.0f};
-                    vert.texUV    = uvs[vti];
-
-                } else if (sscanf(token.c_str(), "%d//%d", &vi, &vni) == 2) {
-                    vi--; vni--;
-                    vert.position = positions[vi];
-                    vert.normal   = normals[vni];
-                    vert.color    = {1.0f, 1.0f, 1.0f};
-                    vert.texUV    = {0.0f, 0.0f};
-
-                } else if (sscanf(token.c_str(), "%d/%d", &vi, &vti) == 2) {
-                    vi--; vti--;
-                    vert.position = positions[vi];
-                    vert.normal   = {0.0f, 0.0f, 1.0f};
-                    vert.color    = {1.0f, 1.0f, 1.0f};
-                    vert.texUV    = uvs[vti];
-
-                } else if (sscanf(token.c_str(), "%d", &vi) == 1) {
-                    vi--;
-                    vert.position = positions[vi];
-                    vert.normal   = {0.0f, 0.0f, 1.0f};
-                    vert.color    = {1.0f, 1.0f, 1.0f};
-                    vert.texUV    = {0.0f, 0.0f};
-
-                } else {
-                    Message(1, "MESH", "Invalid face token: " + token, objPath.c_str(), lineNum);
-                }
-
-                faceVerts.push_back(vert);
-            }
-
-            for (size_t i = 1; i + 1 < faceVerts.size(); i++) {
-                int i0 = GetOrAddVertex(loadedVerts, faceVerts[0]);
-                int i1 = GetOrAddVertex(loadedVerts, faceVerts[i]);
-                int i2 = GetOrAddVertex(loadedVerts, faceVerts[i + 1]);
-
-                loadedIndices.push_back(i1);
-                loadedIndices.push_back(i0);
-                loadedIndices.push_back(i2);
-            }
-        }
-    }
-
-    file.close();
-
-    this->vertices = std::move(loadedVerts);
-    this->indices  = std::move(loadedIndices);
-
-    vao.bind();
-    delete vbo;
-    delete ebo;
-    vbo = new VBO(this->vertices);
-    ebo = new EBO(this->indices);
-
-    vbo->linkVertexAttrib(0, 3, GL_FLOAT, sizeof(Vertex), (void*)0);
-    vbo->linkVertexAttrib(1, 3, GL_FLOAT, sizeof(Vertex), (void*)(3 * sizeof(float)));
-    vbo->linkVertexAttrib(2, 3, GL_FLOAT, sizeof(Vertex), (void*)(6 * sizeof(float)));
-    vbo->linkVertexAttrib(3, 2, GL_FLOAT, sizeof(Vertex), (void*)(9 * sizeof(float)));
-
-    ComputeAABB();
-
-    Message(0, "MESH", "OBJ loaded successfully", objPath.c_str(), lineNum);
+    std::string source((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    
+    parseOBJString(&source, vertices, indices);
+    updateGPU();
 }
 
-void Mesh::loadOBJSource(const std::string* objSource) {
-    if (!objSource) {
-        Message(2, "MESH", "Could not find OBJ source", "SOURCE", 1);
-        return;
-    }
+void Mesh::loadOBJ(const std::string* objSource) {
+    parseOBJString(objSource, vertices, indices);
+    updateGPU();
+}
 
+void Mesh::parseOBJString(const std::string* objSource, std::vector<Vertex>& outVerts, std::vector<GLuint>& outIndices) {
+    
     std::vector<glm::vec3> positions;
     std::vector<glm::vec3> normals;
     std::vector<glm::vec2> uvs;
-
-    std::vector<Vertex> loadedVerts;
-    std::vector<GLuint> loadedIndices;
 
     std::istringstream file(*objSource);
     std::string line;
@@ -1069,34 +839,116 @@ void Mesh::loadOBJSource(const std::string* objSource) {
             }
 
             for (size_t i = 1; i + 1 < faceVerts.size(); i++) {
-                int i0 = GetOrAddVertex(loadedVerts, faceVerts[0]);
-                int i1 = GetOrAddVertex(loadedVerts, faceVerts[i]);
-                int i2 = GetOrAddVertex(loadedVerts, faceVerts[i + 1]);
+                int i0 = GetOrAddVertex(outVerts, faceVerts[0]);
+                int i1 = GetOrAddVertex(outVerts, faceVerts[i]);
+                int i2 = GetOrAddVertex(outVerts, faceVerts[i + 1]);
 
-                loadedIndices.push_back(i1);
-                loadedIndices.push_back(i0);
-                loadedIndices.push_back(i2);
+                outIndices.push_back(i1);
+                outIndices.push_back(i0);
+                outIndices.push_back(i2);
             }
         }
     }
+}
 
-    this->vertices = std::move(loadedVerts);
-    this->indices  = std::move(loadedIndices);
-
+void Mesh::updateGPU() {
+    
     vao.bind();
     delete vbo;
     delete ebo;
-    vbo = new VBO(this->vertices);
-    ebo = new EBO(this->indices);
+    vbo = new VBO(vertices);
+    ebo = new EBO(indices);
 
     vbo->linkVertexAttrib(0, 3, GL_FLOAT, sizeof(Vertex), (void*)0);
     vbo->linkVertexAttrib(1, 3, GL_FLOAT, sizeof(Vertex), (void*)(3 * sizeof(float)));
     vbo->linkVertexAttrib(2, 3, GL_FLOAT, sizeof(Vertex), (void*)(6 * sizeof(float)));
     vbo->linkVertexAttrib(3, 2, GL_FLOAT, sizeof(Vertex), (void*)(9 * sizeof(float)));
 
-    ComputeAABB();
+    Message(0, "MESH", "OBJ loaded successfully", "STRING", 1);
 
-    Message(0, "MESH", "OBJ loaded successfully", "SOURCE", lineNum);
+}
+
+int Mesh::GetOrAddVertex(std::vector<Vertex>& vertices, const Vertex& v) {
+    for (size_t i = 0; i < vertices.size(); i++) {
+        if (memcmp(&vertices[i], &v, sizeof(Vertex)) == 0) {
+            return static_cast<int>(i);
+        }
+    }
+    vertices.push_back(v);
+    return static_cast<int>(vertices.size() - 1);
+}
+
+void Mesh::draw(Shader& shader, const glm::mat4& modelMatrix) {
+    shader.activate();
+    vao.bind();
+
+    GL::enableDepthTest(true);
+
+    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uModel"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
+    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
+
+    Stats::g_renderStats.drawCalls++;
+    Stats::g_renderStats.vertices += vertices.size();
+    Stats::g_renderStats.indices += indices.size();
+    Stats::g_renderStats.triangles += indices.size()/3;
+}
+
+void Mesh::makePreview(Framebuffer& fb, Shader& shader, glm::vec2 rotation, bool cull) {
+
+    GL::enableCullFace(cull);
+
+    fb.bind();
+
+    glClearColor(0.05,0.05,0.05,1);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glm::vec3 minBounds(FLT_MAX);
+    glm::vec3 maxBounds(-FLT_MAX);
+
+    for (auto& v : vertices) {
+        minBounds = glm::min(minBounds, v.position);
+        maxBounds = glm::max(maxBounds, v.position);
+    }
+
+    glm::vec3 center = (minBounds + maxBounds) * 0.5f;
+    glm::vec3 extents = maxBounds - minBounds;
+    float maxExtent = glm::compMax(extents);
+
+    const float padding = 1.2f;
+    float scaleFactor = 2.0f / (maxExtent * padding);
+
+    glm::vec3 cameraPos(0,0,1);
+
+    glm::vec3 cameraForward = glm::normalize(cameraPos - center);
+    glm::vec3 cameraRight = glm::cross(glm::vec3(0,1,0), cameraForward);
+
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::rotate(model, glm::radians(rotation.y), glm::vec3(1,0,0));
+    model = glm::rotate(model, glm::radians(rotation.x), glm::vec3(0,1,0));
+    model = glm::translate(model, -center);
+
+    glm::mat4 view = glm::lookAt(cameraPos * (maxExtent * 2.0f), glm::vec3(0), glm::vec3(0,1,0));
+    glm::mat4 proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, maxExtent * 10.0f);
+
+    shader.activate();
+
+    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uView"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uProjection"), 1, GL_FALSE, glm::value_ptr(proj));
+
+    shader.activate();
+    vao.bind();
+
+    GL::enableDepthTest(true);
+
+    glUniformMatrix4fv(glGetUniformLocation(shader.ID, "uModel"), 1, GL_FALSE, glm::value_ptr(model));
+    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
+
+    fb.unbind();
+}
+
+Mesh::~Mesh() {
+    delete vbo;
+    delete ebo;
 }
 
 // ========================================================================
@@ -1108,7 +960,8 @@ std::shared_ptr<Mesh> ResourceManager::loadMesh(const std::string& name, const s
         return it->second;
     }
     
-    auto mesh = std::make_shared<Mesh>(verts, inds);
+    auto mesh = std::make_shared<Mesh>();
+    mesh->loadData(verts, inds);
     meshes[name] = mesh;
     return mesh;
 }
@@ -1120,7 +973,8 @@ std::shared_ptr<Mesh> ResourceManager::loadMesh(const std::string& name, const s
         return it->second;
     }
     
-    auto mesh = std::make_shared<Mesh>(objPath);
+    auto mesh = std::make_shared<Mesh>();
+    mesh->loadOBJ(objPath);
     meshes[name] = mesh;
     return mesh;
 }
@@ -1132,7 +986,8 @@ std::shared_ptr<Mesh> ResourceManager::loadMesh(const std::string& name, const s
         return it->second;
     }
     
-    auto mesh = std::make_shared<Mesh>(objSource);
+    auto mesh = std::make_shared<Mesh>();
+    mesh->loadOBJ(objSource);
     meshes[name] = mesh;
     return mesh;
 }
