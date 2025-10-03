@@ -23,6 +23,11 @@
 #include <filesystem>
 #include <cctype>
 
+#include <thread>
+#include <atomic>
+#include <mutex>
+#include <optional>
+
 #include "BEngine/engine_default.hpp"
 
 namespace BE {
@@ -303,16 +308,24 @@ public:
     void loadData(const std::vector<Vertex>& verts, const std::vector<GLuint>& inds);
     void loadOBJ(const std::string& objPath);
     void loadOBJ(const std::string* objSource);
+    void loadOBJAsync(const std::string& objPath);
+    void loadOBJAsync(const std::string* objSource);
+    
+    void updateGPU();
+    void updateGPUAsync();
     
     ~Mesh();
 
     void draw(Shader& shader, const glm::mat4& modelMatrix = glm::mat4(1));
     void makePreview(Framebuffer& fb, Shader& shader, glm::vec2 rotation, bool cull = false);
 
-public:
     void parseOBJString(const std::string* objSource, std::vector<Vertex>& outVerts, std::vector<GLuint>& outIndices);
-    void updateGPU();
-    int GetOrAddVertex(std::vector<Vertex>& vertices, const Vertex& v);
+
+    std::mutex parseMutex;
+    std::optional<std::pair<std::vector<Vertex>, std::vector<GLuint>>> parseData;
+    std::atomic<bool> parsing{false};
+    std::atomic<bool> ready{false};
+
 };
 
 struct CreatedShader {

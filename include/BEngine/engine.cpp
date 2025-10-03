@@ -759,6 +759,58 @@ void Mesh::loadOBJ(const std::string* objSource) {
     updateGPU();
 }
 
+void Mesh::updateGPU() {
+    
+    vao.bind();
+    delete vbo;
+    delete ebo;
+    vbo = new VBO(vertices);
+    ebo = new EBO(indices);
+
+    vbo->linkVertexAttrib(0, 3, GL_FLOAT, sizeof(Vertex), (void*)0);
+    vbo->linkVertexAttrib(1, 3, GL_FLOAT, sizeof(Vertex), (void*)(3 * sizeof(float)));
+    vbo->linkVertexAttrib(2, 3, GL_FLOAT, sizeof(Vertex), (void*)(6 * sizeof(float)));
+    vbo->linkVertexAttrib(3, 2, GL_FLOAT, sizeof(Vertex), (void*)(9 * sizeof(float)));
+
+    Message(0, "MESH", "OBJ loaded successfully", "STRING", 1);
+}
+
+void Mesh::updateGPUAsync() {
+    if (!ready) return;
+
+    std::lock_guard<std::mutex> lock(parseMutex);
+    if (!parseData.has_value()) return;
+
+    auto& [verts, inds] = *parseData;
+    
+    vao.bind();
+    delete vbo;
+    delete ebo;
+    vbo = new VBO(vertices);
+    ebo = new EBO(indices);
+
+    vbo->linkVertexAttrib(0, 3, GL_FLOAT, sizeof(Vertex), (void*)0);
+    vbo->linkVertexAttrib(1, 3, GL_FLOAT, sizeof(Vertex), (void*)(3 * sizeof(float)));
+    vbo->linkVertexAttrib(2, 3, GL_FLOAT, sizeof(Vertex), (void*)(6 * sizeof(float)));
+    vbo->linkVertexAttrib(3, 2, GL_FLOAT, sizeof(Vertex), (void*)(9 * sizeof(float)));
+
+    Message(0, "MESH", "OBJ loaded successfully", "STRING", 1);
+
+    parseData.reset();
+    ready = false;
+
+}
+
+int GetOrAddVertex(std::vector<Vertex>& vertices, const Vertex& v) {
+    for (size_t i = 0; i < vertices.size(); i++) {
+        if (memcmp(&vertices[i], &v, sizeof(Vertex)) == 0) {
+            return static_cast<int>(i);
+        }
+    }
+    vertices.push_back(v);
+    return static_cast<int>(vertices.size() - 1);
+}
+
 void Mesh::parseOBJString(const std::string* objSource, std::vector<Vertex>& outVerts, std::vector<GLuint>& outIndices) {
     
     std::vector<glm::vec3> positions;
@@ -851,33 +903,6 @@ void Mesh::parseOBJString(const std::string* objSource, std::vector<Vertex>& out
     }
 }
 
-void Mesh::updateGPU() {
-    
-    vao.bind();
-    delete vbo;
-    delete ebo;
-    vbo = new VBO(vertices);
-    ebo = new EBO(indices);
-
-    vbo->linkVertexAttrib(0, 3, GL_FLOAT, sizeof(Vertex), (void*)0);
-    vbo->linkVertexAttrib(1, 3, GL_FLOAT, sizeof(Vertex), (void*)(3 * sizeof(float)));
-    vbo->linkVertexAttrib(2, 3, GL_FLOAT, sizeof(Vertex), (void*)(6 * sizeof(float)));
-    vbo->linkVertexAttrib(3, 2, GL_FLOAT, sizeof(Vertex), (void*)(9 * sizeof(float)));
-
-    Message(0, "MESH", "OBJ loaded successfully", "STRING", 1);
-
-}
-
-int Mesh::GetOrAddVertex(std::vector<Vertex>& vertices, const Vertex& v) {
-    for (size_t i = 0; i < vertices.size(); i++) {
-        if (memcmp(&vertices[i], &v, sizeof(Vertex)) == 0) {
-            return static_cast<int>(i);
-        }
-    }
-    vertices.push_back(v);
-    return static_cast<int>(vertices.size() - 1);
-}
-
 void Mesh::draw(Shader& shader, const glm::mat4& modelMatrix) {
     shader.activate();
     vao.bind();
@@ -944,6 +969,58 @@ void Mesh::makePreview(Framebuffer& fb, Shader& shader, glm::vec2 rotation, bool
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
 
     fb.unbind();
+}
+
+void Mesh::loadOBJAsync(const std::string& objPath) {
+    if (parsing) return;
+
+    parsing = true;
+    ready = false;
+
+    std::thread([this, objPath]() {
+        std::vector<Vertex> verts;
+        std::vector<GLuint> inds;
+        
+        std::ifstream file(objPath);
+        if (!file.is_open()) {
+            Message(2, "MESH", "Failed to open OBJ file " + objPath, objPath.c_str(), 1);
+            return;
+        }
+
+        std::string source((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+        parseOBJString(&source, verts, inds);
+
+        {
+            std::lock_guard<std::mutex> lock(parseMutex);
+            parseData = std::make_pair(std::move(verts), std::move(inds));
+        }
+
+        parsing = false;
+        ready = true;
+    }).detach();
+}
+
+void Mesh::loadOBJAsync(const std::string* objSource) {
+    if (parsing) return;
+
+    parsing = true;
+    ready = false;
+
+    std::thread([this, objSource]() {
+        std::vector<Vertex> verts;
+        std::vector<GLuint> inds;
+
+        parseOBJString(objSource, verts, inds);
+
+        {
+            std::lock_guard<std::mutex> lock(parseMutex);
+            parseData = std::make_pair(std::move(verts), std::move(inds));
+        }
+
+        parsing = false;
+        ready = true;
+    }).detach();
 }
 
 Mesh::~Mesh() {

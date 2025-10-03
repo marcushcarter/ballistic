@@ -97,11 +97,6 @@ void Editor::beginFrame() {
 
     ImGui::DockSpace(ImGui::GetID("MyDockSpace"), ImVec2(0.0f, 0.0f));
     ImGui::End();
-
-    if (glfwGetKey(engine->getWindow(), GLFW_KEY_W)) currentGizmoOperation = ImGuizmo::TRANSLATE;
-    if (glfwGetKey(engine->getWindow(), GLFW_KEY_E)) currentGizmoOperation = ImGuizmo::ROTATE;
-    if (glfwGetKey(engine->getWindow(), GLFW_KEY_R)) currentGizmoOperation = ImGuizmo::SCALE;
-    if (glfwGetKey(engine->getWindow(), GLFW_KEY_T)) currentGizmoOperation = ImGuizmo::UNIVERSAL;
 }
 
 void Editor::showPanels() {
@@ -217,6 +212,11 @@ void Editor::Viewport() {
 
     if (ImGui::IsWindowHovered()) { 
         engine->editorCamera.inputs();
+        
+        if (glfwGetKey(engine->getWindow(), GLFW_KEY_W)) currentGizmoOperation = ImGuizmo::TRANSLATE;
+        if (glfwGetKey(engine->getWindow(), GLFW_KEY_E)) currentGizmoOperation = ImGuizmo::ROTATE;
+        if (glfwGetKey(engine->getWindow(), GLFW_KEY_R)) currentGizmoOperation = ImGuizmo::SCALE;
+        if (glfwGetKey(engine->getWindow(), GLFW_KEY_T)) currentGizmoOperation = ImGuizmo::UNIVERSAL;
     } else {
         engine->editorCamera.scrollDelta = glm::vec2(0,0);
     }
@@ -228,7 +228,6 @@ void Editor::Viewport() {
     bool resizing = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) && ImGui::IsMouseDown(ImGuiMouseButton_Left);
     if (!resizing) engine->viewport->resize(viewportSize.x, viewportSize.y);
     
-    // if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) engine->viewport->camera->handleInputs(engine->getWindow(), engine->ts.dt);
     ImGui::Image((void*)(intptr_t) engine->viewport->getColorTexture(), viewportSize, ImVec2(0, 1), ImVec2(1, 0));
 
     ImVec2 relativePos = ImVec2(mousePos.x - viewportPos.x, mousePos.y - viewportPos.y);
@@ -260,6 +259,7 @@ void Editor::Viewport() {
             );
 
             if (ImGuizmo::IsUsing()) {
+
                 glm::vec3 translation, rotation, scale;
                 ImGuizmo::DecomposeMatrixToComponents(
                     glm::value_ptr(t.model),
@@ -401,6 +401,10 @@ void Editor::Resources() {
 
     ImGui::SeparatorText("Meshes");
     for (auto& [key, mesh] : engine->resources().meshes) {
+        if (mesh->ready) {
+            mesh->updateGPUAsync();
+        }
+
         if (!MatchesSearch(key) && !MatchesSearch("Meshes")) continue;
 
         if (ImGui::Selectable(std::string(key + "##Mesh").c_str())) {}
