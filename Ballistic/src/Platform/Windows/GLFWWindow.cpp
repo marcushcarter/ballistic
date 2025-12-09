@@ -1,8 +1,5 @@
 #include "Platform/Windows/GLFWWindow.h"
 
-#include <GLFW/glfw3.h>
-#include "Core/IWindow.h"
-
 namespace Ballistic {
 
 	GLFWWindowIMPL::GLFWWindowIMPL(const WindowProps& windowProps) {

@@ -1,11 +1,6 @@
 #include "Core/Application.h"
 #include "Core/IWindow.h"
 
-#include <Platform/Windows/GLFWWindow.h>
-#include <memory>
-
-#include <iostream>
-
 namespace Ballistic {
 
 	Application::Application() {

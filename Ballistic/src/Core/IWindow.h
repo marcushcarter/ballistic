@@ -25,8 +25,6 @@ namespace Ballistic {
 		
 		virtual bool shouldClose() = 0;
 
-		// ex virtual minimize() = 0;
-
 		static std::shared_ptr<IWindow> createWindow(const WindowProps windowProps = {});
 	};
 }
