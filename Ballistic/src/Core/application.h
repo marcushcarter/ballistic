@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lrpch.h"
-#include "Core/IWindow.h"
+#include "Platform/Windows/GLFWWindow.h"
 
 namespace Ballistic {
 
@@ -13,9 +13,7 @@ namespace Ballistic {
 
 	private:
 
-		std::shared_ptr<IWindow> _IWindow;
-
-		// void Shutdown();
+		std::shared_ptr<GLFWWindowIMPL> _IWindow;
 	};
 
 };	
