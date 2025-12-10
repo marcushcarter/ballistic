@@ -1,4 +1,4 @@
-#include "Platform/OpenGL/ComputeTexture.h"
+#include "ComputeTexture.h"
 
 ComputeTexture::ComputeTexture(int width, int height, GLenum internalFormat) {
     m_Width = width;

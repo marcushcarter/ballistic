@@ -4,18 +4,23 @@
 #include "Platform/GLFW/Window.h"
 
 namespace Ballistic {
+	class Layer;
+	class LayerStack;
+}
+
+namespace Ballistic {
 
 	class Application {
 	public:
 		Application();
 		virtual ~Application() = default;
+		
 		void run();
+		virtual void Shutdown();
 
 	protected:
-
-		std::shared_ptr<Window> _IWindow;
-
-		virtual void Shutdown();
+		std::shared_ptr<Window> m_Window;
+    	std::shared_ptr<LayerStack> m_LayerStack;
 	};
 
 	Application* CreateApplication();

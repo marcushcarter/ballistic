@@ -1,4 +1,4 @@
-#include "Project/Assets/AssetManager.h"
+#include "AssetManager.h"
 
 #include <../Thirdparty/tinyobjloader/tiny_obj_loader.h>
 

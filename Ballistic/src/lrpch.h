@@ -7,6 +7,7 @@
 #include <memory>
 #include <filesystem>
 #include <string>
+#include <algorithm>
 
 #include <unordered_map>
 #include <string>

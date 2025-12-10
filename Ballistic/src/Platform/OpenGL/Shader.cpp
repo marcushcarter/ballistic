@@ -1,4 +1,4 @@
-#include "Platform/OpenGL/Shader.h"
+#include "Shader.h"
 
 Shader::Shader() {
     m_RendererID = glCreateProgram();

@@ -1,4 +1,4 @@
-#include "Platform/OpenGL/Buffer.h"
+#include "Buffer.h"
 
 #include <cstring>
 #include <cstdio>

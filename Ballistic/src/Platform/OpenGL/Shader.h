@@ -1,7 +1,6 @@
 #pragma once
 
 #include "lrpch.h"
-#include <glad/glad.h>
 
 class Shader {
 public:

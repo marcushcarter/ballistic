@@ -1,6 +1,9 @@
 #pragma once
 
 #include "Core/application.h"
+#include "Core/Layers/Layer.h"
+#include "Core/Layers/LayerStack.h"
+#include "Core/Layers/RenderLayer.h"
 
 #include "Project/Scene/Scene.h"
 #include "Project/Scene/Components.h"

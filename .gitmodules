@@ -10,3 +10,9 @@
 [submodule "Ballistic/Thirdparty/tinyobjloader"]
 	path = Ballistic/Thirdparty/tinyobjloader
 	url = https://github.com/tinyobjloader/tinyobjloader.git
+[submodule "BallisticEditor/Thirdparty/ImGuizmo"]
+	path = BallisticEditor/Thirdparty/ImGuizmo
+	url = https://github.com/CedricGuillemet/ImGuizmo.git
+[submodule "BallisticEditor/Thirdparty/tinyfiledialogs"]
+	path = BallisticEditor/Thirdparty/tinyfiledialogs
+	url = https://github.com/native-toolkit/libtinyfiledialogs.git

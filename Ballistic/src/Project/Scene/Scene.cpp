@@ -1,4 +1,4 @@
-#include "Project/Scene/Scene.h"
+#include "Scene.h"
 
 namespace Ballistic {
 
