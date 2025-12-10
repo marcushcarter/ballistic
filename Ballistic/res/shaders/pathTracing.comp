@@ -1,0 +1,98 @@
+
+#version 460
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(rgba32f, binding = 0) uniform image2D computeOutput;
+layout(r32ui, binding = 1) uniform uimage2D pickingOutput;
+
+layout (std140, binding = 0) uniform uniformParameters {
+    vec3 camPos;
+    float camFovTan;
+    mat4 camRot;
+    
+    int numInstances;
+    int numSpheres;
+};
+
+struct Triangle {
+    vec3 v0, v1, v2;
+    vec3 n0, n1, n2;
+};
+layout(std430, binding = 1) buffer TriangleBuffer { Triangle tris[]; };
+
+struct Mesh {
+    int startTriangle;
+    int numTriangles;
+    float pad[2];
+};
+layout(std430, binding = 2) buffer MeshBuffer { Mesh meshes[]; };
+
+struct Material {
+    vec3 albedo;
+    float roughness;
+    vec3 emissionColor;
+    float emissionStrength;
+};
+layout(std430, binding = 3) buffer MaterialBuffer { Material mats[]; };
+
+struct Instance {
+    mat4 transform;
+    int meshID;
+    int materialID;
+    uint entityID;
+    float pad[1];
+};
+layout(std430, binding = 4) buffer InstanceBuffer { Instance insts[]; };
+
+struct Sphere {
+    vec3 center;
+    float radius;
+    int materialID;
+    uint entityID;
+    float pad[2];
+};
+layout(std430, binding = 5) buffer SphereBuffer { Sphere sphs[]; };
+
+struct Ray {
+    vec3 origin;
+    vec3 dir;
+};
+
+float intersectSphere(vec3 o, vec3 d, vec3 center, float radius) {
+    vec3 oc = o - center;
+    float b = dot(oc, d);
+    float cTerm = dot(oc, oc) - radius * radius;
+    float discriminant = b * b - cTerm;
+    if (discriminant < 0.0) return -1.0;
+    return -b - sqrt(discriminant);
+}
+
+void main() {
+    ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 texSize = imageSize(computeOutput);
+    vec2 uv = vec2(gl_GlobalInvocationID.xy) / vec2(texSize);
+
+    vec2 ndc = (vec2(pixel) + 0.5) / vec2(texSize) * 2.0 - 1.0;
+    ndc.x *= float(texSize.x) / float(texSize.y);
+
+    Ray ray;
+    ray.dir = normalize(mat3(camRot) * normalize(vec3(ndc.x * camFovTan, ndc.y * camFovTan, -1.0)));
+    ray.origin = camPos;
+
+    vec3 color = ray.dir;
+    uint pickedID = 0u;
+
+    float closestT = 1e30;
+    for (int i = 0; i < numSpheres; i++) {
+        float t = intersectSphere(ray.origin, ray.dir, sphs[i].center, sphs[i].radius);
+        if (t > 0.0 && t < closestT) {
+            closestT = t;
+            color = mats[sphs[i].materialID].albedo;
+            pickedID = sphs[i].entityID;
+        }
+    }
+
+    imageStore(computeOutput, pixel, vec4(color, 1.0));
+    imageStore(pickingOutput, pixel, uvec4(pickedID, 0, 0, 0));
+}

@@ -1,3 +1,12 @@
 [submodule "Ballistic/Thirdparty/glew"]
 	path = Ballistic/Thirdparty/glew
 	url = https://github.com/Perlmint/glew-cmake
+[submodule "Ballistic/Thirdparty/glm"]
+	path = Ballistic/Thirdparty/glm
+	url = https://github.com/g-truc/glm
+[submodule "Ballistic/Thirdparty/entt"]
+	path = Ballistic/Thirdparty/entt
+	url = https://github.com/skypjack/entt.git
+[submodule "Ballistic/Thirdparty/tinyobjloader"]
+	path = Ballistic/Thirdparty/tinyobjloader
+	url = https://github.com/tinyobjloader/tinyobjloader.git

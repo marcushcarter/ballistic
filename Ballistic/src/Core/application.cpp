@@ -3,7 +3,7 @@
 namespace Ballistic {
 
 	Application::Application() {
-		_IWindow = GLFWWindowIMPL::createWindow();
+		_IWindow = Window::createWindow();
 	}
 
 	void Application::run() {
@@ -13,4 +13,6 @@ namespace Ballistic {
 		}
 	}
 
-};	
+	void Application::Shutdown() {}
+
+};
