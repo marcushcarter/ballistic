@@ -23,6 +23,7 @@
 
 #include <cmath>
 #include <sstream>
+#include <iterator>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <../Thirdparty/glm/glm/glm.hpp>

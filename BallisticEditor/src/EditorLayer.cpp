@@ -1,16 +1,16 @@
-// #include "EditorLayer.h"
+#include "EditorLayer.h"
 
-// namespace Ballistic {
+namespace Ballistic {
 
-//     void EditorLayer::OnAttach() {
-//         // init renderer stuff here
-//     }
+    void EditorLayer::OnAttach() {
+        // init renderer stuff here
+    }
 
-//     void EditorLayer::OnDetach() {
-//     }
+    void EditorLayer::OnDetach() {
+    }
 
-//     void EditorLayer::OnUpdate() {
-//         // call renderer->RenderScene();
-//     }
+    void EditorLayer::OnUpdate() {
+        // call renderer->RenderScene();
+    }
 
-// }
+}

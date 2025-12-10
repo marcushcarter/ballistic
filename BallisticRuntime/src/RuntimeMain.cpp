@@ -6,13 +6,12 @@ namespace Ballistic {
 
 	class BallisticRuntime : public Application {
 	public:
-		BallisticRuntime() {}
-
-		void Shutdown() override {
-			Application::Shutdown();
+		BallisticRuntime() {
+			m_LayerStack->PushLayer(std::make_shared<RuntimeLayer>());
 		}
 		
 		~BallisticRuntime() {
+			
 		}
 
 	};

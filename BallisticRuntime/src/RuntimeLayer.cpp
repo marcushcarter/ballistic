@@ -1,16 +1,14 @@
-// #include "RuntimeLayer.h"
+#include "RuntimeLayer.h"
 
-// namespace Ballistic {
+namespace Ballistic {
 
-//     void RuntimeLayer::OnAttach() {
-//         // init renderer stuff here
-//     }
+    void RuntimeLayer::OnAttach() {
+    }
 
-//     void RuntimeLayer::OnDetach() {
-//     }
+    void RuntimeLayer::OnDetach() {
+    }
 
-//     void RuntimeLayer::OnUpdate() {
-//         // call renderer->RenderScene();
-//     }
+    void RuntimeLayer::OnUpdate() {
+    }
 
-// }
+}

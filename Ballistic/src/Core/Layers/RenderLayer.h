@@ -2,6 +2,7 @@
 
 #include "lrpch.h"
 #include "Layer.h"
+#include "../../Renderer/Renderer.h"
 
 namespace Ballistic {
 
@@ -12,6 +13,9 @@ namespace Ballistic {
         void OnAttach() override;
         void OnDetach() override;
         void OnUpdate() override;
+
+    private:
+        Renderer m_Renderer;
     };
 
 }
