@@ -7,7 +7,7 @@ namespace Ballistic {
 	class BallisticRuntime : public Application {
 	public:
 		BallisticRuntime() {
-			m_LayerStack->PushLayer(std::make_shared<RuntimeLayer>());
+			m_LayerStack->PushLayer(std::make_shared<RuntimeLayer>(m_LayerStack));
 		}
 		
 		~BallisticRuntime() {

@@ -3,7 +3,7 @@
 namespace Ballistic {
 
 	LayerStack::~LayerStack() {
-	    for (auto& layer : m_Layers)
+	    for (std::shared_ptr<Layer>& layer : m_Layers)
 	        layer->OnDetach();
 	}
 
@@ -13,21 +13,26 @@ namespace Ballistic {
 	}
 
 	void LayerStack::PopLayer(std::shared_ptr<Layer> layer) {
-	    auto it = std::remove(m_Layers.begin(), m_Layers.end(), layer);
-	    if (it != m_Layers.end()) {
-	        (*it)->OnDetach();
-	        m_Layers.erase(it, m_Layers.end());
-	    }
+        m_Layers.erase(std::remove(m_Layers.begin(), m_Layers.end(), layer), m_Layers.end());
+        layer->OnDetach();
 	}
 
 	void LayerStack::OnUpdate() {
-	    for (auto& layer : m_Layers)
+	    for (std::shared_ptr<Layer>& layer : m_Layers)
 	        layer->OnUpdate();
 	}
 
-	void LayerStack::DispatchEvent(void* e) {
-	    for (auto& layer : m_Layers)
-	        layer->OnEvent(e);
+	// void LayerStack::DispatchEvent(void* e) {
+	//     for (std::shared_ptr<Layer>& layer : m_Layers)
+	//         layer->OnEvent(e);
+	// }
+
+	void LayerStack::DispatchEvent(std::shared_ptr<IEvent> event) {
+	    for (std::shared_ptr<Layer>& layer : m_Layers) {
+	        layer->OnEvent(event);
+	        // if (event->IsConsumed())
+	        // 	break;
+	    }
 	}
 
 

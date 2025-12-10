@@ -4,6 +4,11 @@
 #include "Core/Layers/Layer.h"
 #include "Core/Layers/LayerStack.h"
 
+#include "Core/Events/IEvent.h"
+#include "Core/Events/RenderEvents.h"
+
+#include "Renderer/Renderer.h"
+
 #include "Project/Scene/Scene.h"
 #include "Project/Scene/Components.h"
 

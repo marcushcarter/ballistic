@@ -16,12 +16,7 @@ namespace Ballistic {
 	    void PopLayer(std::shared_ptr<Layer> layer);
 
 	    void OnUpdate();
-	    void DispatchEvent(void* e);
-
-	    auto begin() { return m_Layers.begin(); }
-	    auto end() { return m_Layers.end(); }
-	    auto begin() const { return m_Layers.begin(); }
-	    auto end() const { return m_Layers.end(); }
+	    void DispatchEvent(std::shared_ptr<IEvent> event);
 
 	private:
 	    // std::vector<std::shared_ptr<Layer>> m_Layers;

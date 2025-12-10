@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lrpch.h"
+#include "Core/Events/IEvent.h"
 
 namespace Ballistic {
 
@@ -11,7 +12,7 @@ namespace Ballistic {
 		virtual void OnAttach() {}
 		virtual void OnDetach() {}
 		virtual void OnUpdate() {}
-		virtual void OnEvent(void* e) {}
+		virtual void OnEvent(std::shared_ptr<IEvent> event) {}
 	};
 
 }

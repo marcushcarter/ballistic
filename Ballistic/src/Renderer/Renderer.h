@@ -13,12 +13,12 @@ namespace Ballistic {
 		// void setViewportSize(glm::vec2 dim);
 
 		void InitComputeRtxStage();
-		Image2D* RenderComputeRtxStage();
+		std::shared_ptr<Image2D> RenderComputeRtxStage();
 		// RTXUniformParameters rtxUniformParameters;
 		// RTXComputeStatistics rtxComputeStats;
 
-		Image2D* computeRtxTexture;
-		Shader* computeRtxShader;
+		std::shared_ptr<Image2D> computeRtxTexture;
+		std::shared_ptr<Shader> computeRtxShader;
 
 	};
 
