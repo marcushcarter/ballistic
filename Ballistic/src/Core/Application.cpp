@@ -7,7 +7,7 @@ namespace Ballistic {
 	Application::Application(WindowProps windowProps) {
 		m_Window = GLFWWindow::CreateWindow(windowProps);
 
-		auto renderLayer = std::make_shared<RenderLayer>("RenderLayer");
+		auto renderLayer = std::make_shared<RenderLayer>(m_LayerStack, "RenderLayer");
 		m_LayerStack.pushLayer(renderLayer);
 		m_RenderLayer = renderLayer;
 	}

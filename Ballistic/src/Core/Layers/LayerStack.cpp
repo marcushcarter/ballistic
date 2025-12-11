@@ -25,7 +25,7 @@ namespace Ballistic {
 			layer->onDetach();
 	}
 
-	void LayerStack::onEvent(void* e) {
+	void LayerStack::dispatchEvent(void* e) {
 		for (auto& layer : m_Layers)
             layer->onEvent(e);
 	}

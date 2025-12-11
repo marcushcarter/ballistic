@@ -9,7 +9,7 @@ namespace Ballistic
     public:
         BallisticRuntime() : Application() {
 
-            m_LayerStack.pushLayer(std::make_shared<RuntimeLayer>("RuntimeLayer"));
+            m_LayerStack.pushLayer(std::make_shared<RuntimeLayer>(m_LayerStack, std::string("RuntimeLayer")));
         }
 
         virtual void Shutdown() override {

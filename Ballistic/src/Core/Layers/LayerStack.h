@@ -15,7 +15,7 @@ namespace Ballistic {
 
 		void onUpdate();
 		void onDetach();
-		void onEvent(void* e);
+		void dispatchEvent(void* e);
 
 	public:
 		std::vector<std::shared_ptr<Layer>> m_Layers;

@@ -1,5 +1,7 @@
 #include "RenderLayer.h"
 
+#include "Event.h"
+
 namespace Ballistic {
 
 	void RenderLayer::onAttach() {
@@ -10,8 +12,11 @@ namespace Ballistic {
 	}
 
 	void RenderLayer::onUpdate() {
+		Event e(EventType::TestEvent, nullptr);
+		m_LayerStack->dispatchEvent(&e);
 	}
 
-	void RenderLayer::onEvent(void* e) {
+	void RenderLayer::onEvent(void* ePtr) {
+		Event* e = static_cast<Event*>(ePtr);
 	}
 }

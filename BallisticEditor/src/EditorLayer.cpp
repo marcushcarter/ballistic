@@ -12,6 +12,7 @@ namespace Ballistic {
 	void EditorLayer::onUpdate() {
 	}
 
-	void EditorLayer::onEvent(void* e) {
+	void EditorLayer::onEvent(void* ePtr) {
+		Event* e = static_cast<Event*>(ePtr);
 	}
 }
