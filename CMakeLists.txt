@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # -------- External libraries --------
+
 # GLFW
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -21,14 +22,16 @@ file(GLOB_RECURSE ENGINE_SRC
     Ballistic/src/Platform/*.cpp
 )
 add_library(Ballistic STATIC ${ENGINE_SRC})
-target_include_directories(Ballistic PUBLIC Ballistic/src Ballistic/src/Core)
+target_include_directories(Ballistic PUBLIC
+    Ballistic/src
+    Ballistic/src/Core
+    Ballistic/src/Platform
+)
 target_link_libraries(Ballistic PUBLIC glfw glad ${CMAKE_DL_LIBS})
-target_precompile_headers(Ballistic PUBLIC Ballistic/src/Core/bepch.h)
-
+target_precompile_headers(Ballistic PUBLIC Ballistic/src/bepch.h)
 
 # -------- Ballistic Runtime --------
 file(GLOB_RECURSE RUNTIME_SRC BallisticRuntime/src/*.cpp)
-message(STATUS "RUNTIME_SRC contains: ${RUNTIME_SRC}")
 if(RUNTIME_SRC)
     add_executable(BallisticRuntime ${RUNTIME_SRC})
     target_link_libraries(BallisticRuntime PRIVATE Ballistic)
@@ -36,7 +39,6 @@ endif()
 
 # -------- Ballistic Editor --------
 file(GLOB_RECURSE EDITOR_SRC BallisticEditor/src/*.cpp)
-message(STATUS "EDITOR_SRC contains: ${EDITOR_SRC}")
 if(EDITOR_SRC)
     add_executable(BallisticEditor ${EDITOR_SRC})
     target_link_libraries(BallisticEditor PRIVATE Ballistic)

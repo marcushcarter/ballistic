@@ -1,14 +1,24 @@
-#include "Platform/GLFW/GLFWWindow.h"
+#include <Ballistic.h>
+#include <BallisticEntrypoint.h>
 
-int main() {
-    Ballistic::GLFWWindow window({"Ballistic Editor"});
+namespace Ballistic
+{
 
-    while (!window.shouldClose()) {
-        glClear(GL_COLOR_BUFFER_BIT);
-        glClearColor(1.0, 0.0, 1.0, 1.0);
+    class BallisticEditor : public Application {
+    public:
+        BallisticEditor()
+            : Application() {
+        }
 
-        window.onUpdate();
+        virtual void Shutdown() override {
+            Application::Shutdown();
+        }
+        
+        ~BallisticEditor() {
+        }
+    };
+
+    Application* CreateApplication() {
+        return new BallisticEditor();
     }
-
-    return 0;
 }

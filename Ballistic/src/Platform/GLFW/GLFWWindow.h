@@ -16,7 +16,7 @@ namespace Ballistic {
 	
 	class GLFWWindow {
 	public:
-		GLFWWindow(const WindowProps& windowProps = {});
+		GLFWWindow(const WindowProps& windowProps);
 		~GLFWWindow();
 
 		void onUpdate();
