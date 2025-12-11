@@ -7,7 +7,9 @@ namespace Ballistic {
 
 	class Layer {
 	public:
-		Layer(const std::string name = "Layer") : m_Name(name) {}
+		Layer(const std::string name = "Layer") : m_Name(name) {
+			std::cout << m_Name << " Attached" << std::endl;
+		}
 
 		virtual ~Layer() = default;
 

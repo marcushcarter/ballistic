@@ -4,9 +4,7 @@
 
 namespace Ballistic {
 
-	enum class EventType {
-		TestEvent
-	};
+	enum class EventType {};
 
 	class Event {
 	public:

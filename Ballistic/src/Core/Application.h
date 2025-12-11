@@ -7,6 +7,8 @@
 namespace Ballistic {
 
 	class RenderLayer;
+	class EditorLayer;
+	class RuntimeLayer;
 
 	class Application {
 	public:
