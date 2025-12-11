@@ -1,13 +1,15 @@
 #include <Ballistic.h>
 #include <BallisticEntrypoint.h>
+#include "EditorLayer.h"
 
 namespace Ballistic
 {
 
     class BallisticEditor : public Application {
     public:
-        BallisticEditor()
-            : Application() {
+        BallisticEditor() : Application() {
+
+            m_LayerStack.pushLayer(std::make_shared<EditorLayer>("EditorLayer"));
         }
 
         virtual void Shutdown() override {
