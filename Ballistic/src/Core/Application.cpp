@@ -1,6 +1,7 @@
 #include "Application.h"
 
 #include "Layers/RenderLayer.h"
+#include "Platform/Vulkan/VulkanTest.h"
 
 namespace Ballistic {
 
@@ -10,6 +11,8 @@ namespace Ballistic {
 		auto renderLayer = std::make_shared<RenderLayer>(m_LayerStack, "RenderLayer");
 		m_LayerStack.pushLayer(renderLayer);
 		m_RenderLayer = renderLayer;
+
+		VulkanTest();
 	}
 
 	void Application::Shutdown(){

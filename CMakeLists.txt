@@ -17,7 +17,14 @@ add_subdirectory(external/glfw)
 add_library(glad STATIC external/glad/src/glad.c)
 target_include_directories(glad PUBLIC external/glad/include)
 
+# Vulkan
+find_package(Vulkan REQUIRED)
+if(NOT Vulkan_FOUND)
+    message(FATAL_ERROR "Vulkan SDK not found! Make sure VULKAN_SDK env variable is set.")
+endif()
+
 # -------- Ballistic Engine --------
+
 file(GLOB_RECURSE ENGINE_SRC
     Ballistic/src/Core/*.cpp
     Ballistic/src/Platform/*.cpp
@@ -27,20 +34,23 @@ target_include_directories(Ballistic PUBLIC
     Ballistic/src
     BallisticEditor/src
     BallisticRuntime/src
+    ${Vulkan_INCLUDE_DIRS}
 )
 target_link_libraries(Ballistic PUBLIC glfw glad ${CMAKE_DL_LIBS})
 target_precompile_headers(Ballistic PUBLIC Ballistic/src/bepch.h)
 
 # -------- Ballistic Runtime --------
+
 file(GLOB_RECURSE RUNTIME_SRC BallisticRuntime/src/*.cpp)
 if(RUNTIME_SRC)
     add_executable(BallisticRuntime ${RUNTIME_SRC})
-    target_link_libraries(BallisticRuntime PRIVATE Ballistic)
+    target_link_libraries(BallisticRuntime PRIVATE Ballistic ${Vulkan_LIBRARIES})
 endif()
 
 # -------- Ballistic Editor --------
+
 file(GLOB_RECURSE EDITOR_SRC BallisticEditor/src/*.cpp)
 if(EDITOR_SRC)
     add_executable(BallisticEditor ${EDITOR_SRC})
-    target_link_libraries(BallisticEditor PRIVATE Ballistic)
+    target_link_libraries(BallisticEditor PRIVATE Ballistic ${Vulkan_LIBRARIES})
 endif()
