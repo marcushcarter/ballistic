@@ -3,6 +3,7 @@
 #include "bepch.h"
 #include "Platform/GLFW/GLFWWindow.h"
 #include "Layers/LayerStack.h"
+#include "Renderer/VulkanRenderer.h"
 
 namespace Ballistic {
 
@@ -21,6 +22,8 @@ namespace Ballistic {
 
 		LayerStack m_LayerStack;
 		std::weak_ptr<RenderLayer> m_RenderLayer;
+
+		std::unique_ptr<VulkanRenderer> m_Renderer;
 
 		virtual void Shutdown();
 	};

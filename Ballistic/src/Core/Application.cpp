@@ -10,9 +10,13 @@ namespace Ballistic {
 		auto renderLayer = std::make_shared<RenderLayer>(m_LayerStack, "RenderLayer");
 		m_LayerStack.pushLayer(renderLayer);
 		m_RenderLayer = renderLayer;
+
+		m_Renderer = std::make_unique<VulkanRenderer>();
+		m_Renderer->Init();
 	}
 
 	void Application::Shutdown(){
+		m_Renderer->Shutdown();
 	}
 
 	void Application::run() {

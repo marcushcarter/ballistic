@@ -19,10 +19,6 @@ namespace Ballistic {
 	        glfwDestroyWindow(m_NativeWindow);
 	        glfwTerminate();
 	    }
-
-	    glfwMakeContextCurrent(m_NativeWindow);
-
-	    glfwSwapInterval(windowProps.VSync);
 	}
 
 	GLFWWindow::~GLFWWindow() {
