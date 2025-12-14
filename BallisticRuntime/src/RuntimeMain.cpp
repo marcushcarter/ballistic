@@ -12,7 +12,7 @@ namespace Ballistic
             LayerContext context;
             context.layerStack = &m_LayerStack;
             context.window = m_Window.get();
-            context.renderer = m_Renderer.get();
+            context.renderer = m_VkRenderer.get();
 
             m_LayerStack.pushLayer(std::make_shared<RuntimeLayer>(context, std::string("RuntimeLayer")));
         }

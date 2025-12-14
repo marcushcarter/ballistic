@@ -1,18 +1,17 @@
 #pragma once
 
 #include "bepch.h"
-#include "IRenderer.h"
 
 namespace Ballistic {
 
-	class VkRenderer : public IRenderer {
+	class VkRenderer {
 	public:
 		VkRenderer() = default;
 
-		void Init() override;
-		void Shutdown() override;
+		void Init();
+		void Shutdown();
 
 	private:
-		// opengl context
+
 	};
 }

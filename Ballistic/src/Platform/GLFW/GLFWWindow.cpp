@@ -1,7 +1,5 @@
 #include "GLFWWindow.h"
 
-#include "Renderer/RendererAPI.h"
-
 namespace Ballistic {
 
 	GLFWWindow::GLFWWindow(const WindowProps& windowProps)
@@ -13,37 +11,13 @@ namespace Ballistic {
 	        return;
 	    }
 
-	    switch (RendererAPI::GetAPI()) {
-	        case RendererAPI::API::OpenGL:
-	            glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
-	            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-	            glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	            break;
-	        case RendererAPI::API::Vulkan:
-	            glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	            break;
-	        default:
-	            std::cerr << "Unsupported RendererAPI" << std::endl;
-	            glfwTerminate();
-	            return;
-   		}
+	    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
 	    m_NativeWindow = glfwCreateWindow(windowProps.width, windowProps.height, (windowProps.title).c_str(), nullptr, nullptr);
 	    if (!m_NativeWindow) {
 	        std::cerr << "Failed to create GLFW window" << std::endl;
 	        glfwTerminate();
 	        return;
-	    }
-
-	    if (RendererAPI::GetAPI() == RendererAPI::API::OpenGL) {
-	        glfwMakeContextCurrent(m_NativeWindow);
-	        if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-	            std::cerr << "Failed to initialize OpenGL context with glad" << std::endl;
-	            glfwDestroyWindow(m_NativeWindow);
-	            glfwTerminate();
-	            return;
-	        }
 	    }
 	}
 

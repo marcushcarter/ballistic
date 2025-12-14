@@ -3,8 +3,7 @@
 #include "bepch.h"
 #include "Core/IWindow.h"
 #include "Layers/LayerStack.h"
-#include "Renderer/IRenderer.h"
-#include "Renderer/RendererAPI.h"
+#include "Renderer/VkRenderer.h"
 
 namespace Ballistic {
 
@@ -15,12 +14,12 @@ namespace Ballistic {
 	struct LayerContext {
 	    LayerStack* layerStack;
 	    IWindow* window;
-	    IRenderer* renderer;
+	    VkRenderer* renderer;
 	};
 
 	class Application {
 	public:
-		Application(WindowProps windowProps = WindowProps{}, WindowAPI windowAPI = WindowAPI::GLFW);
+		Application(WindowProps windowProps = WindowProps{});
 		virtual ~Application() = default;
 		void run();
 
@@ -28,10 +27,9 @@ namespace Ballistic {
 		LayerStack m_LayerStack;
 
 		std::shared_ptr<IWindow> m_Window;
-		WindowAPI m_WindowAPI;
 
 		std::weak_ptr<RenderLayer> m_RenderLayer;
-		std::unique_ptr<IRenderer> m_Renderer;
+		std::unique_ptr<VkRenderer> m_VkRenderer;
 
 		virtual void Shutdown();
 	};

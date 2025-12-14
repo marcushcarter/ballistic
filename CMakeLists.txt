@@ -12,10 +12,6 @@ set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 add_subdirectory(external/glfw)
 
-# GLAD
-add_library(glad STATIC external/glad/src/glad.c)
-target_include_directories(glad PUBLIC external/glad/include)
-
 # Vulkan
 find_package(Vulkan REQUIRED)
 if(NOT Vulkan_FOUND)
@@ -27,7 +23,6 @@ file(GLOB IMGUI_CORE external/imgui/*.cpp)
 set(IMGUI_BACKENDS
     external/imgui/backends/imgui_impl_glfw.cpp
     external/imgui/backends/imgui_impl_vulkan.cpp
-    external/imgui/backends/imgui_impl_opengl3.cpp
 )
 set(IMGUI_SRC ${IMGUI_CORE} ${IMGUI_BACKENDS})
 add_library(imgui STATIC ${IMGUI_SRC})
@@ -58,7 +53,6 @@ target_include_directories(Ballistic PUBLIC
 
 target_link_libraries(Ballistic PUBLIC
     glfw
-    glad
     imgui
     ${CMAKE_DL_LIBS}
 )

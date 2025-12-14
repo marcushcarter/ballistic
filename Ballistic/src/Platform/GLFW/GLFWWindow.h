@@ -18,7 +18,6 @@ namespace Ballistic {
 
 		void* get() const override { return m_NativeWindow; }
 		WindowProps getProps() const override { return m_Props; }
-		WindowAPI getAPI() const override { return WindowAPI::GLFW; }
 
 		static std::shared_ptr<IWindow> Create(const WindowProps& windowProps = {});
 
