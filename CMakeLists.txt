@@ -34,6 +34,8 @@ add_library(imgui STATIC ${IMGUI_SRC})
 target_include_directories(imgui PUBLIC external/imgui external/imgui/backends)
 target_link_libraries(imgui PUBLIC glfw)
 
+# EnTT (header only)
+add_subdirectory(external/entt)
 
 # -------- Ballistic Engine --------
 
@@ -59,6 +61,7 @@ target_link_libraries(Ballistic PUBLIC
     glballistic
     glm
     imgui
+    EnTT::EnTT
     ${CMAKE_DL_LIBS}
 )
 
