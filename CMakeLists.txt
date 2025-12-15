@@ -12,16 +12,13 @@ set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 add_subdirectory(external/glfw)
 
-
 # GLAD
 add_library(glad STATIC external/glad/src/glad.c)
 target_include_directories(glad PUBLIC external/glad/include)
 
-# oglplus
-add_library(oglplus INTERFACE)
-target_include_directories(oglplus INTERFACE
-    external/oglplus/include
-)
+# GLM (header-only)
+add_library(glm INTERFACE)
+target_include_directories(glm INTERFACE external/glm)
 
 # ImGui
 file(GLOB IMGUI_CORE external/imgui/*.cpp)
@@ -56,7 +53,7 @@ target_include_directories(Ballistic PUBLIC
 target_link_libraries(Ballistic PUBLIC
     glfw
     glad
-    oglplus
+    glm
     imgui
     ${CMAKE_DL_LIBS}
 )
