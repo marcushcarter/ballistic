@@ -24,6 +24,12 @@ namespace Ballistic {
         IWindow* m_Window = nullptr;
         VkRenderer* m_VkRenderer = nullptr;
 
+		vk::UniqueDescriptorPool m_ImGuiDescriptorPool;
+		vk::CommandBuffer m_CommandBuffer;
+
         std::vector<std::unique_ptr<IPanel>> m_Panels;
+
+		void createImGuiDescriptorPool();
+		void uploadFonts();
 	};
 }

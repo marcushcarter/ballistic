@@ -80,5 +80,12 @@ endif()
 file(GLOB_RECURSE EDITOR_SRC BallisticEditor/src/*.cpp)
 if(EDITOR_SRC)
     add_executable(BallisticEditor ${EDITOR_SRC})
+
+    # Windows icon
+    if(WIN32)
+        set(RUNTIME_ICON "${CMAKE_CURRENT_SOURCE_DIR}/Ballistic/res/icon.rc")
+        target_sources(BallisticEditor PRIVATE ${RUNTIME_ICON})
+    endif()
+
     target_link_libraries(BallisticEditor PRIVATE Ballistic)
 endif()

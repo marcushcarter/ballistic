@@ -13,8 +13,7 @@ namespace Ballistic {
 		void Init();
 		void Shutdown();
 		void Render();
-
-	private:
+		
 		vk::UniqueInstance m_Instance;
 	    vk::PhysicalDevice m_PhysicalDevice;
 	    vk::UniqueDevice m_Device;
@@ -31,6 +30,8 @@ namespace Ballistic {
 		std::vector<vk::UniqueFramebuffer> m_Framebuffers;
 		vk::UniqueCommandPool m_CommandPool;
 		std::vector<vk::UniqueCommandBuffer> m_CommandBuffers;
+
+	private:
 
 	    IWindow* m_Window = nullptr;
 
