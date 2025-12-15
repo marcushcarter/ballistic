@@ -16,6 +16,9 @@ add_subdirectory(external/glfw)
 add_library(glad STATIC external/glad/src/glad.c)
 target_include_directories(glad PUBLIC external/glad/include)
 
+# glBallistic
+add_subdirectory(external/glballistic)
+
 # GLM (header-only)
 add_library(glm INTERFACE)
 target_include_directories(glm INTERFACE external/glm)
@@ -53,6 +56,7 @@ target_include_directories(Ballistic PUBLIC
 target_link_libraries(Ballistic PUBLIC
     glfw
     glad
+    glballistic
     glm
     imgui
     ${CMAKE_DL_LIBS}

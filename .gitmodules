@@ -8,3 +8,6 @@
 [submodule "external/glm"]
 	path = external/glm
 	url = https://github.com/g-truc/glm.git
+[submodule "external/glballistic"]
+	path = external/glballistic
+	url = https://github.com/marcushcarter/glballistic.git
