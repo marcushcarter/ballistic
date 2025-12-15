@@ -31,7 +31,6 @@ namespace Ballistic {
 	    ImGui_ImplOpenGL3_Init("#version 460");
 
 		m_Panels.push_back(std::make_unique<DemoPanel>());
-		m_Panels.push_back(std::make_unique<DemoPanel>());
 
 	    for (auto& panel : m_Panels)
         	panel->init();

@@ -12,9 +12,16 @@ set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 add_subdirectory(external/glfw)
 
+
 # GLAD
 add_library(glad STATIC external/glad/src/glad.c)
 target_include_directories(glad PUBLIC external/glad/include)
+
+# oglplus
+add_library(oglplus INTERFACE)
+target_include_directories(oglplus INTERFACE
+    external/oglplus/include
+)
 
 # ImGui
 file(GLOB IMGUI_CORE external/imgui/*.cpp)
@@ -36,8 +43,6 @@ file(GLOB_RECURSE ENGINE_SRC
     Ballistic/src/Platform/*.cpp
     Ballistic/src/Project/*.cpp
     Ballistic/src/Renderer/*.cpp
-    
-    BallisticEditor/src/*.cpp
 )
 
 add_library(Ballistic STATIC ${ENGINE_SRC})
@@ -46,13 +51,13 @@ target_include_directories(Ballistic PUBLIC
     Ballistic/src
     BallisticEditor/src
     BallisticRuntime/src
-    ${Vulkan_INCLUDE_DIRS}
 )
 
 target_link_libraries(Ballistic PUBLIC
     glfw
-    imgui
     glad
+    oglplus
+    imgui
     ${CMAKE_DL_LIBS}
 )
 

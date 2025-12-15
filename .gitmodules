@@ -5,6 +5,6 @@
 	path = external/imgui
 	url = https://github.com/ocornut/imgui.git
 	branch = docking
-[submodule "external/oglplus"]
-	path = external/oglplus
-	url = https://github.com/matus-chochlik/oglplus
+[submodule "external/globjects"]
+	path = external/globjects
+	url = https://github.com/cginternals/globjects
