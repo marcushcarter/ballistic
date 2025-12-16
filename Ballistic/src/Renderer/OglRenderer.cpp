@@ -6,9 +6,9 @@ namespace Ballistic {
 		m_Window = window;
 	}
 
-	void OglRenderer::setViewportSize(glm::vec2 dim) {
-		// texture->destroy();
-		// texture->create(dim.x, dim.y, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+	void OglRenderer::requestResize(glm::vec2 dim) {
+		m_ResizeSize = dim;
+		m_PendingResize = true;
 	}
 	
 	void OglRenderer::Init() {
@@ -44,8 +44,14 @@ namespace Ballistic {
 	}
 
 	void OglRenderer::Render() {
+		if (m_PendingResize) {
+			texture->destroy();
+			texture->create(m_ResizeSize.x, m_ResizeSize.y, GL_RGBA32F, GL_RGBA, GL_FLOAT);
+			texture->setParameters(GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+			m_PendingResize = true;
+		}
 		shader->use();
         texture->bindImage(0, GL_WRITE_ONLY);
-        shader->dispatchCompute((800 + 15)/16, (600 + 15)/16, 1, GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+        shader->dispatchCompute((texture->width() + 15)/16, (texture->height() + 15)/16, 1, GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 	}
 }

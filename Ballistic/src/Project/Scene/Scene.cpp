@@ -80,8 +80,34 @@ namespace Ballistic {
         registry.destroy(entity);
     }
 
+    bool Scene::isDescendant(entt::entity ancestor, entt::entity potentialChild) const {
+        if (!registry.valid(ancestor) || !registry.valid(potentialChild))
+            return false;
+
+        if (!registry.all_of<Children>(ancestor))
+            return false;
+
+        const auto& children = registry.get<Children>(ancestor).entities;
+        for (auto child : children) {
+            if (child == potentialChild)
+                return true;
+
+            if (isDescendant(child, potentialChild))
+                return true;
+        }
+
+        return false;
+    }
+
     void Scene::reparent(entt::entity entity, entt::entity newParent) {
-        if (!registry.valid(entity)) return;
+        if (!registry.valid(entity))
+            return;
+
+        if (entity == newParent)
+            return;
+
+        if (newParent != entt::null && isDescendant(entity, newParent))
+            return;
 
         if (registry.all_of<Parent>(entity)) {
             auto oldParent = registry.get<Parent>(entity).entity;
@@ -102,6 +128,7 @@ namespace Ballistic {
 
             if (!registry.all_of<Children>(newParent))
                 registry.emplace<Children>(newParent);
+            
             registry.get<Children>(newParent).entities.push_back(entity);
         }
     }

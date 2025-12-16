@@ -27,9 +27,8 @@ namespace Ballistic {
 
         HierarchyMetaData hierarchyMetadata;
         
-        bool IsDescendant(std::shared_ptr<Scene> scene, entt::entity node, entt::entity potentialChild);
+        bool IsSelected(entt::entity e) const;
         void FlattenHierarchy(std::shared_ptr<Scene> scene, entt::entity node, std::vector<entt::entity>& out);
-        void HandleNodeClick(std::shared_ptr<Scene> scene, entt::entity e);
         void DrawNode(std::shared_ptr<Scene> scene, entt::entity e);
 
 	};

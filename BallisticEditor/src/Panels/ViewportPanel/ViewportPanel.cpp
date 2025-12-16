@@ -27,7 +27,7 @@ namespace Ballistic {
         if (viewportSize.x != prevViewportSize.x || viewportSize.y != prevViewportSize.y) {
             glm::vec2 dim = glm::vec2(viewportSize.x, viewportSize.y);
 
-            m_OglRenderer->setViewportSize(dim);
+            m_OglRenderer->requestResize(dim);
             // camera.setScreenSize(dim);
             wasImguiInput = true;
 
@@ -42,7 +42,7 @@ namespace Ballistic {
 
         topLeftTextureCoords = ImVec2(cursor.x + offset.x, cursor.y + offset.y);
         bottomRightTextureCoords = ImVec2(topLeftTextureCoords.x + viewportSize.x, topLeftTextureCoords.y + viewportSize.y);
-
+        
         auto texture = m_OglRenderer->getTexture();
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();

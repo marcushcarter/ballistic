@@ -34,9 +34,10 @@ namespace Ballistic {
 
 	void Application::run() {
 		while (!m_Window->shouldClose()) {
-			m_OglRenderer->Render();
 			
 			m_LayerStack->onUpdate();
+			
+			m_OglRenderer->Render();
 
 			m_Window->onUpdate();
 		}

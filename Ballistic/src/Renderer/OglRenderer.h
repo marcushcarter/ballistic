@@ -12,7 +12,7 @@ namespace Ballistic {
 		void Shutdown();
 		void Render();
 
-		void setViewportSize(glm::vec2 dim);
+		void requestResize(glm::vec2 dim);
 
 		std::shared_ptr<gl::Texture2D> getTexture() const { return texture; }
 
@@ -21,6 +21,9 @@ namespace Ballistic {
 
 		std::shared_ptr<gl::Shader> shader;
 		std::shared_ptr<gl::Texture2D> texture;
+
+		glm::vec2 m_ResizeSize;
+		bool m_PendingResize;
 
 	};
 }

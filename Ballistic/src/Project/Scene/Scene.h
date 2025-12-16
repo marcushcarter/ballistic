@@ -31,6 +31,8 @@ namespace Ballistic {
 
         entt::registry registry;
         entt::entity selected = entt::null;
+        
+        bool isDescendant(entt::entity ancestor, entt::entity potentialChild) const;
 
     private:
         entt::entity duplicateEntity(entt::entity original, entt::entity targetParent);
