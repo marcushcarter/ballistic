@@ -1,12 +1,16 @@
 #include "EditorLayer.h"
+
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_glfw.h"
+
 #include "Panels/DemoPanel/DemoPanel.h"
+#include "Panels/HierarchyPanel/HierarchyPanel.h"
 
 namespace Ballistic {
 
 	EditorLayer::EditorLayer(const LayerContext& context, const std::string name) : Layer(name) {
+		m_ProjectManager = context.projectManager;
 		m_LayerStack = context.layerStack;
 		m_Window = context.window;
 		m_OglRenderer = context.renderer;
@@ -34,7 +38,7 @@ namespace Ballistic {
 		
 	    ImGui_ImplOpenGL3_Init("#version 460");
 
-		m_Panels.push_back(std::make_unique<DemoPanel>());
+		m_Panels.push_back(std::make_unique<HierarchyPanel>(m_ProjectManager));
 
 	    for (auto& panel : m_Panels)
         	panel->init();

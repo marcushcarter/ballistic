@@ -5,4 +5,7 @@
 #include "Core/Layers/LayerStack.h"
 #include "Core/Layers/Event.h"
 
+#include "Project/Scene/SceneManager.h"
+#include "Project/ProjectManager.h"
+
 #include "bepch.h"

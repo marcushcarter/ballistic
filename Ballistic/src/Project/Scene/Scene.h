@@ -23,9 +23,7 @@ namespace Ballistic {
     public:
         entt::entity create(const std::string& name, entt::entity parent = entt::null);
         void destroy(entt::entity entity);
-
         void reparent(entt::entity entity, entt::entity newParent = entt::null);
-        
         void duplicate(entt::entity original);
         void duplicate(entt::entity original, entt::entity targetParent);
 

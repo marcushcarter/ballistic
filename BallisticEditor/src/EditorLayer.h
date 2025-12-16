@@ -18,6 +18,8 @@ namespace Ballistic {
 		void DrawMenuBar();
 
 	private:
+		std::shared_ptr<ProjectManager> m_ProjectManager;
+		
 		std::shared_ptr<LayerStack> m_LayerStack;
 
         std::shared_ptr<IWindow> m_Window;
