@@ -2,8 +2,7 @@
 #include <BallisticEntrypoint.h>
 #include "EditorLayer.h"
 
-namespace Ballistic
-{
+namespace Ballistic {
 
     class BallisticEditor : public Application {
     public:
@@ -15,15 +14,21 @@ namespace Ballistic
             context.renderer = m_OglRenderer;
             context.projectManager = m_ProjectManager;
 
-            m_LayerStack->pushLayer(std::make_shared<EditorLayer>(context, std::string("EditorLayer")));
+            m_ImGuiContext = std::make_shared<ImGuiContext>(m_Window);
+			m_ImGuiContext->Init();
+
+            m_LayerStack->pushLayer(std::make_shared<EditorLayer>(context, m_ImGuiContext, std::string("EditorLayer")));
         }
 
         virtual void Shutdown() override {
+            m_ImGuiContext->Shutdown();
             Application::Shutdown();
         }
         
         ~BallisticEditor() {
         }
+    private:
+        std::shared_ptr<ImGuiContext> m_ImGuiContext;
     };
 
     Application* CreateApplication(const std::filesystem::path& exeDir) {

@@ -12,45 +12,16 @@
 
 namespace Ballistic {
 
-	EditorLayer::EditorLayer(const LayerContext& context, const std::string name) : Layer(name) {
+	EditorLayer::EditorLayer(const LayerContext& context, std::shared_ptr<ImGuiContext> imguiContext, const std::string name) : Layer(name) {
 		m_ProjectManager = context.projectManager;
 		m_LayerStack = context.layerStack;
 		m_Window = context.window;
 		m_OglRenderer = context.renderer;
+
+		m_ImGuiContext = imguiContext;
 	}
 
 	void EditorLayer::onAttach() {
-		IMGUI_CHECKVERSION();
-	    ImGui::CreateContext();
-
-	    ImGuiIO& io = ImGui::GetIO();
-	    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-	    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-
-		ImFontConfig icons_config;
-		icons_config.MergeMode = true;
-		icons_config.PixelSnapH = true;
-
-		static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
-		io.Fonts->AddFontDefault();
-		io.Fonts->AddFontFromFileTTF((Config::RESOURCES_PATH / "fonts/fa-solid-900.ttf").string().c_str(), 16.0f, &icons_config, icons_ranges);	
-		io.Fonts->AddFontFromFileTTF((Config::RESOURCES_PATH / "fonts/fa-regular-400.ttf").string().c_str(), 16.0f, &icons_config, icons_ranges);
-		io.Fonts->AddFontFromFileTTF((Config::RESOURCES_PATH / "fonts/fa-brands-400.ttf").string().c_str(), 16.0f, &icons_config, icons_ranges);
-
-    	ImGui::StyleColorsDark();
-
-    	switch (WindowAPI::GetAPI()) {
-	    	case WindowAPI::API::GLFW:
-	    		ImGui_ImplGlfw_InitForOpenGL(static_cast<GLFWwindow*>(m_Window->get()), true);
-	    		break;
-
-	    	default:
-	    		break;
-    	}
-		
-	    ImGui_ImplOpenGL3_Init("#version 460");
-
 		m_Panels.push_back(std::make_unique<Dockspace>());
 
 		m_Panels.push_back(std::make_unique<MenuBar>(m_ProjectManager, m_Window));
@@ -63,33 +34,10 @@ namespace Ballistic {
 	}
 
 	void EditorLayer::onDetach() {
-		
-	    ImGui_ImplOpenGL3_Shutdown();
-
-    	switch (WindowAPI::GetAPI()) {
-	    	case WindowAPI::API::GLFW:
-	    		ImGui_ImplGlfw_Shutdown();
-	    		break;
-	    	default:
-	    		break;
-    	}
-
-    	ImGui::DestroyContext();
 	}
 
 	void EditorLayer::onUpdate() {
-		
-	    ImGui_ImplOpenGL3_NewFrame();
-
-    	switch (WindowAPI::GetAPI()) {
-	    	case WindowAPI::API::GLFW:
-	    		ImGui_ImplGlfw_NewFrame();
-	    		break;
-	    	default:
-	    		break;
-    	}
-
-    	ImGui::NewFrame();
+		m_ImGuiContext->BeginFrame();
 
 	    for (auto& panel : m_Panels)
         	panel->OnImGuiRender();
@@ -103,18 +51,7 @@ namespace Ballistic {
 
 	    ImGui::ShowDemoWindow();
 
-    	ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-    	auto io = ImGui::GetIO();
-		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-		    if (WindowAPI::GetAPI() == WindowAPI::API::GLFW) {
-		        GLFWwindow* backup = static_cast<GLFWwindow*>(m_Window->get());
-		        ImGui::UpdatePlatformWindows();
-		        ImGui::RenderPlatformWindowsDefault();
-		        glfwMakeContextCurrent(backup);
-		    }
-		}
+		m_ImGuiContext->EndFrame();
 	}
 
 	void EditorLayer::onEvent(void* ePtr) {

@@ -2,8 +2,7 @@
 #include <BallisticEntrypoint.h>
 #include "RuntimeLayer.h"
 
-namespace Ballistic
-{
+namespace Ballistic {
 
     class BallisticRuntime : public Application {
     public:
