@@ -1,5 +1,4 @@
 #include "InspectorPanel.h"
-#include <imgui.h>
 
 void PrettyDragFloat3(const char* title, glm::vec3& v, float stride = 0.1f, float min = -100.0f, float max = 100.0f) {
 	ImGui::Text(title);

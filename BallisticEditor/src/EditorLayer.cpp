@@ -28,6 +28,16 @@ namespace Ballistic {
 	    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
+		ImFontConfig icons_config;
+		icons_config.MergeMode = true;
+		icons_config.PixelSnapH = true;
+
+		static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+		io.Fonts->AddFontDefault();
+		io.Fonts->AddFontFromFileTTF((Config::RESOURCES_PATH / "fonts/fa-solid-900.ttf").string().c_str(), 16.0f, &icons_config, icons_ranges);	
+		io.Fonts->AddFontFromFileTTF((Config::RESOURCES_PATH / "fonts/fa-regular-400.ttf").string().c_str(), 16.0f, &icons_config, icons_ranges);
+		io.Fonts->AddFontFromFileTTF((Config::RESOURCES_PATH / "fonts/fa-brands-400.ttf").string().c_str(), 16.0f, &icons_config, icons_ranges);
+
     	ImGui::StyleColorsDark();
 
     	switch (WindowAPI::GetAPI()) {
@@ -83,6 +93,13 @@ namespace Ballistic {
 
 	    for (auto& panel : m_Panels)
         	panel->OnImGuiRender();
+
+		ImGui::Begin("Tools");
+		ImGui::Button((std::string(ICON_FA_PLANE " Save")).c_str());
+		ImGui::Button((std::string(ICON_FA_FOLDER_OPEN " Open")).c_str());
+		ImGui::Text("%s Settings", ICON_FA_COG);
+		ImGui::Text("%s Info", ICON_FA_INFO_CIRCLE);
+		ImGui::End();
 
 	    ImGui::ShowDemoWindow();
 

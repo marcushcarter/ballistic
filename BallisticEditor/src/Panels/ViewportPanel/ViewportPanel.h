@@ -2,7 +2,6 @@
 
 #include <Ballistic.h>
 #include "Panels/IPanel.h"
-#include <imgui.h>
 
 namespace Ballistic {
 

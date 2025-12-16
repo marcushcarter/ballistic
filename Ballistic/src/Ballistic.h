@@ -8,4 +8,6 @@
 #include "Project/Scene/SceneManager.h"
 #include "Project/ProjectManager.h"
 
+#include "Core/Config.h"
+
 #include "bepch.h"

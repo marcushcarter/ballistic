@@ -35,5 +35,5 @@ namespace Ballistic {
 		virtual void Shutdown();
 	};
 
-	Application* CreateApplication();
+	Application* CreateApplication(const std::filesystem::path& exeDir);
 }

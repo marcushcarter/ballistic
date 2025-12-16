@@ -26,7 +26,8 @@ namespace Ballistic
         }
     };
 
-    Application* CreateApplication() {
+    Application* CreateApplication(const std::filesystem::path& exeDir) {
+        Config::Init(exeDir);
         return new BallisticRuntime();
     }
 }

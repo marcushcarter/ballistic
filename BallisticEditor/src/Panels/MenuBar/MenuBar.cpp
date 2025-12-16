@@ -1,5 +1,4 @@
 #include "MenuBar.h"
-#include <imgui.h>
 
 namespace Ballistic {
 

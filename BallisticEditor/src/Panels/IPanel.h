@@ -1,5 +1,8 @@
 #pragma once
 
+#include "imgui.h"
+#include "IconsFontAwesome5.h"
+
 namespace Ballistic {
 
 	class IPanel {

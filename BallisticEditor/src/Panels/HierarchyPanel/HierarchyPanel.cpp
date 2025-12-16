@@ -1,5 +1,4 @@
 #include "HierarchyPanel.h"
-#include <imgui.h>
 
 namespace Ballistic {
 

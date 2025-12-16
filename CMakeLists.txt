@@ -37,6 +37,10 @@ target_link_libraries(imgui PUBLIC glfw)
 # EnTT (header only)
 add_subdirectory(external/entt)
 
+# Fonts headers
+add_library(IconFontCppHeaders INTERFACE)
+target_include_directories(IconFontCppHeaders INTERFACE external/icon-fonts-headers)
+
 # -------- Ballistic Engine --------
 
 file(GLOB_RECURSE ENGINE_SRC
@@ -62,6 +66,7 @@ target_link_libraries(Ballistic PUBLIC
     glm
     imgui
     EnTT::EnTT
+    IconFontCppHeaders
     ${CMAKE_DL_LIBS}
 )
 
@@ -83,7 +88,7 @@ if(EDITOR_SRC)
 
     # Windows icon
     if(WIN32)
-        set(RUNTIME_ICON "${CMAKE_CURRENT_SOURCE_DIR}/Ballistic/res/icon.rc")
+        set(RUNTIME_ICON "${CMAKE_CURRENT_SOURCE_DIR}/res/icon.rc")
         target_sources(BallisticEditor PRIVATE ${RUNTIME_ICON})
     endif()
 
