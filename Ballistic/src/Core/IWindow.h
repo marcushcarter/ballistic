@@ -8,9 +8,10 @@ namespace Ballistic {
 		int width;
 		int height;
 		bool VSync;
+		bool customTitleBar;
 
-		WindowProps(const std::string& title = "BallisticEngine", int width = 1280, int height = 720, bool VSync = false)
-			: title(title), width(width), height(height), VSync(VSync) {}
+		WindowProps(const std::string& title = "BallisticEngine", int width = 1280, int height = 720, bool customTitleBar = false, bool VSync = false)
+			: title(title), width(width), height(height), VSync(VSync), customTitleBar(customTitleBar) {}
 	};
 
 	class WindowAPI {

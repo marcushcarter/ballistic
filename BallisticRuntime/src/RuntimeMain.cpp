@@ -6,7 +6,8 @@ namespace Ballistic {
 
     class BallisticRuntime : public Application {
     public:
-        BallisticRuntime() : Application() {
+        BallisticRuntime()
+            : Application() {
 
             LayerContext context;
             context.layerStack = m_LayerStack;

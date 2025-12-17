@@ -46,13 +46,13 @@ namespace Ballistic {
 
         ImGuiStyle& style = ImGui::GetStyle();
         if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-            style.WindowRounding = 0.0f;
-            style.TabRounding = 0.0f;
-            style.TabBarBorderSize = 0.0f;
-            style.GrabRounding = 2.0f;
-            style.ScrollbarRounding = 2.0f;
-            style.DockingSeparatorSize = 0.0f;
-            style.WindowBorderSize = 0.0f;
+            // style.WindowRounding = 0.0f;
+            // style.TabRounding = 0.0f;
+            // style.TabBarBorderSize = 0.0f;
+            // style.GrabRounding = 2.0f;
+            // style.ScrollbarRounding = 2.0f;
+            // style.DockingSeparatorSize = 0.0f;
+            // style.WindowBorderSize = 0.0f;
         }
 
         // style.WindowTitleAlign = ImVec2(0.5f, 0.5f);

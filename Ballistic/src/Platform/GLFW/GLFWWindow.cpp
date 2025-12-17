@@ -16,6 +16,10 @@ namespace Ballistic {
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+		if (windowProps.customTitleBar) {
+			glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+		}
+
 	    m_NativeWindow = glfwCreateWindow(windowProps.width, windowProps.height, (windowProps.title).c_str(), nullptr, nullptr);
 	    if (!m_NativeWindow) {
 	        std::cerr << "Failed to create GLFW window" << std::endl;

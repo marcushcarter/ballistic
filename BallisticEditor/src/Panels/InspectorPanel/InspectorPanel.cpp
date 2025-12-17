@@ -37,6 +37,15 @@ namespace Ballistic {
         bool hasTransform = reg.any_of<Transform>(currentScene->selected);
         bool hasSphere = reg.any_of<Sphere>(currentScene->selected);
 
+        if (true) { // has component
+            DrawComponent<Transform>("Transform Component", [&]() {
+                ImGui::Text("Helloloooo");
+                ImGui::Text("Helloloooo");
+                ImGui::Text("Helloloooo");
+                ImGui::Text("Helloloooo");
+            });
+        }
+
         if (hasTransform && ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
             Transform& transform = reg.get<Transform>(currentScene->selected);
 

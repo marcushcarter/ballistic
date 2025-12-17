@@ -9,6 +9,8 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <functional>
+#include <cfloat>
 
 #include <set>
 #include <cstdint>

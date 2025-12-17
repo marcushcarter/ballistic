@@ -15,5 +15,53 @@ namespace Ballistic {
     
     private:
         std::shared_ptr<ProjectManager> m_ProjectManager;
+
+		template<typename T>
+		inline void DrawComponent(const std::string& title, std::function<void()> contentFunc = {}, bool deletable = true) {
+        	ImGui::PushID(title.c_str());
+			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(3, 3));
+
+			ImGui::BeginChild(
+				"TransformChildWindow",
+				ImVec2(-FLT_MIN, 0.0f),
+				ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_FrameStyle
+			);
+
+			bool treeOpen = ImGui::TreeNodeEx(
+				title.c_str(),
+				ImGuiTreeNodeFlags_DefaultOpen |
+				ImGuiTreeNodeFlags_SpanAvailWidth |
+				ImGuiTreeNodeFlags_Framed |
+				ImGuiTreeNodeFlags_FramePadding
+			);
+
+			if (treeOpen) {
+				ImGui::BeginChild(
+					"TransformFields",
+					ImVec2(ImGui::GetContentRegionAvail().x - 5.0f, 0),
+					ImGuiChildFlags_AutoResizeY
+				);
+
+				// if (deletable) {
+				// 	ImGui::Button("X");
+				// }
+
+				if (contentFunc) contentFunc();
+
+				// Actual Component Values
+
+				ImGui::Text("Position");
+				ImGui::Text("Rotation");
+				ImGui::Text("Scale");
+
+				ImGui::EndChild();
+				ImGui::TreePop();
+				ImGui::Spacing();
+			}
+
+			ImGui::EndChild();
+			ImGui::PopStyleVar();
+			ImGui::PopID();
+		}
 	};
 }

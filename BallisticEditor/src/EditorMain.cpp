@@ -6,7 +6,8 @@ namespace Ballistic {
 
     class BallisticEditor : public Application {
     public:
-        BallisticEditor() : Application() {
+        BallisticEditor() 
+            : Application() {
 
             LayerContext context;
             context.layerStack = m_LayerStack;
