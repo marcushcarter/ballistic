@@ -1,21 +1,9 @@
 #pragma once
 #include "bepch.h"
+#include "EntityHandle.h"
+#include "Components.h"
 
 namespace Ballistic {
-
-    struct Parent { entt::entity entity = entt::null; };
-    struct Children { std::vector<entt::entity> entities; };
-
-    struct Tag { std::string name; };
-    struct Sphere { float radius = 1.0f; };
-    
-    struct Transform {
-        glm::vec3 position{0};
-        glm::vec3 rotation{0};
-        glm::vec3 scale{1};
-
-        glm::mat4 TRS();
-    };
 
     glm::mat4 ComputeWorldTransform(entt::registry& registry, entt::entity entity);
 
@@ -32,7 +20,7 @@ namespace Ballistic {
         entt::registry registry;
         entt::entity selected = entt::null;
         
-        bool isDescendant(entt::entity ancestor, entt::entity potentialChild) const;
+        bool isDescendant(entt::entity ancestor, entt::entity potentialChild);
 
     private:
         entt::entity duplicateEntity(entt::entity original, entt::entity targetParent);

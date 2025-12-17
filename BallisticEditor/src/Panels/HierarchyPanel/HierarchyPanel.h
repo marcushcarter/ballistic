@@ -28,7 +28,7 @@ namespace Ballistic {
         HierarchyMetaData hierarchyMetadata;
         
         bool IsSelected(entt::entity e) const;
-        void FlattenHierarchy(std::shared_ptr<Scene> scene, entt::entity node, std::vector<entt::entity>& out);
-        void DrawNode(std::shared_ptr<Scene> scene, entt::entity e);
+        void FlattenHierarchy(Scene& scene, entt::entity node, std::vector<entt::entity>& out);
+        void DrawNode(Scene& scene, entt::entity e);
 	};
 }

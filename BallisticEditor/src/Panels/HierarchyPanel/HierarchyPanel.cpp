@@ -10,29 +10,30 @@ namespace Ballistic {
 	}
 
 	void HierarchyPanel::OnImGuiRender() {
-        std::shared_ptr<Scene> currentScene = m_ProjectManager->GetSceneManager()->m_activeScene;
-        auto& reg = currentScene->registry;
+        auto& scene = *m_ProjectManager->GetSceneManager()->m_activeScene;
+        auto& reg = scene.registry;
+        auto& selected = scene.selected;
         
         static ImGuiWindowFlags HierarchyFlags = ImGuiWindowFlags_NoCollapse;
 		ImGui::Begin("Scene Hierarchy", nullptr, HierarchyFlags);
 
-        if (ImGui::Button("create")) currentScene->create("New Anchor", currentScene->selected);
-        ImGui::BeginDisabled(true);
-        ImGui::SameLine();
-        if (ImGui::Button("delete")) {}
-        ImGui::EndDisabled();
+        if (ImGui::Button("create")) scene.create("New Anchor", selected);
+        // ImGui::BeginDisabled(true);
+        // ImGui::SameLine();
+        // if (ImGui::Button("delete")) {}
+        // ImGui::EndDisabled();
 
         ImGui::BeginChild("HierarchyList", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
 
         for (auto e : reg.view<Tag>()) {
-            if (!reg.all_of<Parent>(e)) DrawNode(currentScene, e);
+            if (!reg.all_of<Parent>(e)) DrawNode(scene, e);
         }
 
-        for (auto e : hierarchyMetadata.deferredDestroy) currentScene->destroy(e);
+        for (auto e : hierarchyMetadata.deferredDestroy) scene.destroy(e);
         hierarchyMetadata.deferredDestroy.clear();
 
         if (hierarchyMetadata.deferredDuplicate != entt::null) {
-            currentScene->duplicate(hierarchyMetadata.deferredDuplicate);
+            scene.duplicate(hierarchyMetadata.deferredDuplicate);
             hierarchyMetadata.deferredDuplicate = entt::null;
         }
 
@@ -40,7 +41,7 @@ namespace Ballistic {
         ImGui::SetCursorPosY(ImGui::GetCursorPosY());
         if (ImGui::InvisibleButton("##root_drop_target", avail) || (ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !ImGui::IsAnyItemHovered())) {
             hierarchyMetadata.multiSelection.clear();
-            currentScene->selected = entt::null;
+            selected = entt::null;
             hierarchyMetadata.shiftAnchor = entt::null;
             hierarchyMetadata.lastClicked = entt::null;
         }
@@ -49,10 +50,10 @@ namespace Ballistic {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_PAYLOAD_MULTI")) {
                 size_t count = payload->DataSize / sizeof(entt::entity);
                 entt::entity* dragged = (entt::entity*)payload->Data;
-                for (size_t i = 0; i < count; i++) currentScene->reparent(dragged[i]);
+                for (size_t i = 0; i < count; i++) scene.reparent(dragged[i]);
             } else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_PAYLOAD")) {
                 entt::entity dragged = *(entt::entity*)payload->Data;
-                currentScene->reparent(dragged);
+                scene.reparent(dragged);
             }
             ImGui::EndDragDropTarget();
         }
@@ -61,11 +62,13 @@ namespace Ballistic {
         ImGui::End();
 	}
 
-    void HierarchyPanel::DrawNode(std::shared_ptr<Scene> scene, entt::entity e) {
-        auto& reg = scene->registry;
+    void HierarchyPanel::DrawNode(Scene& scene, entt::entity e) {
+        auto& reg = scene.registry;
+        auto& selected = scene.selected;
         auto& tag = reg.get<Tag>(e);
+
         bool hasChildren = reg.all_of<Children>(e) && !reg.get<Children>(e).entities.empty();
-        bool isSelected = scene->selected == e || std::find(hierarchyMetadata.multiSelection.begin(), hierarchyMetadata.multiSelection.end(), e) != hierarchyMetadata.multiSelection.end();
+        bool isSelected = selected == e || std::find(hierarchyMetadata.multiSelection.begin(), hierarchyMetadata.multiSelection.end(), e) != hierarchyMetadata.multiSelection.end();
 
         if (std::find(hierarchyMetadata.deferredDestroy.begin(), hierarchyMetadata.deferredDestroy.end(), e) != hierarchyMetadata.deferredDestroy.end())
             return;
@@ -83,8 +86,8 @@ namespace Ballistic {
                 if (ImGui::GetIO().KeyShift && hierarchyMetadata.shiftAnchor != entt::null) {
                     hierarchyMetadata.multiSelection.clear();
                     std::vector<entt::entity> flatOrder;
-                    for (auto root : scene->registry.view<Tag>()) 
-                        if (!scene->registry.all_of<Parent>(root)) FlattenHierarchy(scene, root, flatOrder);
+                    for (auto root : reg.view<Tag>()) 
+                        if (!reg.all_of<Parent>(root)) FlattenHierarchy(scene, root, flatOrder);
                     
                         bool inRange = false;
                     for (auto node : flatOrder) {
@@ -107,13 +110,13 @@ namespace Ballistic {
                     }
                 }
 
-            scene->selected = (hierarchyMetadata.multiSelection.size() == 1) ? hierarchyMetadata.multiSelection.front() : entt::null;
+            selected = (hierarchyMetadata.multiSelection.size() == 1) ? hierarchyMetadata.multiSelection.front() : entt::null;
             hierarchyMetadata.lastClicked = e;
         }
 
         if (ImGui::BeginPopupContextItem()) {
             if (hierarchyMetadata.multiSelection.size() <= 1) {
-                if (ImGui::MenuItem("Add Child Node")) scene->create("New Node", e);
+                if (ImGui::MenuItem("Add Child Node")) scene.create("New Node", e);
                 ImGui::Separator();
                 ImGui::BeginDisabled(true);
                 if (ImGui::MenuItem("Cut")) {}
@@ -121,13 +124,13 @@ namespace Ballistic {
                 ImGui::EndDisabled();
                 ImGui::Separator();
                 if (ImGui::MenuItem("Rename")) {}
-                if (ImGui::MenuItem("Duplicate")) hierarchyMetadata.deferredDuplicate = scene->selected;
+                if (ImGui::MenuItem("Duplicate")) hierarchyMetadata.deferredDuplicate = selected;
             }
 
             if (ImGui::MenuItem("Delete")) {
                 hierarchyMetadata.deferredDestroy.insert(hierarchyMetadata.deferredDestroy.end(), hierarchyMetadata.multiSelection.begin(), hierarchyMetadata.multiSelection.end());
-                if (std::find(hierarchyMetadata.multiSelection.begin(), hierarchyMetadata.multiSelection.end(), scene->selected) != hierarchyMetadata.multiSelection.end()) 
-                    scene->selected = entt::null;
+                if (std::find(hierarchyMetadata.multiSelection.begin(), hierarchyMetadata.multiSelection.end(), selected) != hierarchyMetadata.multiSelection.end()) 
+                    selected = entt::null;
                 hierarchyMetadata.multiSelection.clear();
             }
 
@@ -148,7 +151,7 @@ namespace Ballistic {
         auto CanAcceptDrop = [&](entt::entity target) {
             if (hierarchyMetadata.multiSelection.size() > 1 && IsSelected(target)) return false;
             for (entt::entity dragged : hierarchyMetadata.multiSelection)
-                if (scene->isDescendant(dragged, target)) return false;
+                if (scene.isDescendant(dragged, target)) return false;
             return true;
         };
 
@@ -156,10 +159,10 @@ namespace Ballistic {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_PAYLOAD_MULTI")) {
                 size_t count = payload->DataSize / sizeof(entt::entity);
                 entt::entity* dragged = (entt::entity*)payload->Data;
-                for (size_t i = 0; i < count; i++) if (dragged[i] != e) scene->reparent(dragged[i], e);
+                for (size_t i = 0; i < count; i++) if (dragged[i] != e) scene.reparent(dragged[i], e);
             } else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_PAYLOAD")) {
                 entt::entity dragged = *(entt::entity*)payload->Data;
-                if (dragged != e) scene->reparent(dragged, e);
+                if (dragged != e) scene.reparent(dragged, e);
             }
             ImGui::EndDragDropTarget();
         }
@@ -172,10 +175,10 @@ namespace Ballistic {
 
     }
 
-    void HierarchyPanel::FlattenHierarchy(std::shared_ptr<Scene> scene, entt::entity node, std::vector<entt::entity>& out) {
+    void HierarchyPanel::FlattenHierarchy(Scene& scene, entt::entity node, std::vector<entt::entity>& out) {
         out.push_back(node);
-        if (scene->registry.all_of<Children>(node)) {
-            for (auto child : scene->registry.get<Children>(node).entities)
+        if (scene.registry.all_of<Children>(node)) {
+            for (auto child : scene.registry.get<Children>(node).entities)
                 FlattenHierarchy(scene, child, out);
         }
     }

@@ -2,96 +2,82 @@
 
 namespace Ballistic {
 
-    glm::mat4 Transform::TRS() {
-        glm::mat4 m(1.0f);
-
-        m = glm::translate(m, position);
-
-        glm::vec3 rot = glm::radians(rotation);
-
-        m = glm::rotate(m, rot.z, glm::vec3(0, 0, 1));
-        m = glm::rotate(m, rot.y, glm::vec3(0, 1, 0));
-        m = glm::rotate(m, rot.x, glm::vec3(1, 0, 0));
-
-        m = glm::scale(m, scale);
-
-        return m;
-    }
-
-    glm::mat4 ComputeWorldTransform(entt::registry& registry, entt::entity entity) {
-        glm::mat4 world(1.0f);
-        entt::entity current = entity;
-
-        while (current != entt::null && registry.valid(current)) {
-            if (registry.all_of<Transform>(current)) {
-                Transform& t = registry.get<Transform>(current);
-                world = t.TRS() * world;
-            }
-
-            if (registry.all_of<Parent>(current)) {
-                entt::entity parent = registry.get<Parent>(current).entity;
-                if (registry.valid(parent))
-                    current = parent;
-                else
-                    break;
-            } else {
-                break;
-            }
-        }
-
-        return world;
-    }
+    // glm::mat4 ComputeWorldTransform(entt::registry& registry, entt::entity entity) {
+    //     glm::mat4 world(1.0f);
+    //     entt::entity current = entity;
+    //
+    //     while (current != entt::null && registry.valid(current)) {
+    //         if (registry.all_of<TransformComponent>(current)) {
+    //             TransformComponent& t = registry.get<TransformComponent>(current);
+    //             world = t.TRS() * world;
+    //         }
+    //
+    //         if (registry.all_of<Parent>(current)) {
+    //             entt::entity parent = registry.get<Parent>(current).entity;
+    //             if (registry.valid(parent))
+    //                 current = parent;
+    //             else
+    //                 break;
+    //         } else {
+    //             break;
+    //         }
+    //     }
+    //
+    //     return world;
+    // }
 
     entt::entity Scene::create(const std::string& name, entt::entity parent) {
-        auto entity = registry.create();
-        registry.emplace<Tag>(entity, name);
+        entt::entity eID = registry.create();
+        EntityHandle e(eID, registry);
 
+        e.add<Tag>(name);
+        e.add<GUID>(GUID::Invalid);
+        
         if (parent != entt::null) {
-            registry.emplace<Parent>(entity, parent);
+            EntityHandle p(parent, registry);
+            if (p.valid()) {
+                e.add<Parent>(parent);
 
-            if (!registry.all_of<Children>(parent)) registry.emplace<Children>(parent);
+                if (!p.has<Children>())
+                    p.add<Children>();
 
-            registry.get<Children>(parent).entities.push_back(entity);
+                p.get<Children>().entities.push_back(eID);
+            }
         }
-
-        return entity;
+        return eID;
     }
 
-    void Scene::destroy(entt::entity entity) {
-        if (!registry.valid(entity)) return;
+    void Scene::destroy(entt::entity id) {
+        EntityHandle e(id, registry);
+        if (!e.valid()) return;
 
-        if (registry.all_of<Children>(entity)) {
-            auto childrenCopy = registry.get<Children>(entity).entities;
-            for (auto child : childrenCopy) {
+        if (e.has<Children>()) {
+            auto children = e.get<Children>().entities;
+            for (entt::entity child : children)
                 destroy(child);
-            }
-            registry.remove<Children>(entity);
+            e.remove<Children>();
         }
 
-        if (registry.all_of<Parent>(entity)) {
-            entt::entity parent = registry.get<Parent>(entity).entity;
-            if (registry.valid(parent) && registry.all_of<Children>(parent)) {
-                auto& siblings = registry.get<Children>(parent).entities;
-                siblings.erase(std::remove(siblings.begin(), siblings.end(), entity), siblings.end());
+        if (e.has<Parent>()) {
+            EntityHandle p(e.get<Parent>().entity, registry);
+            if (p.valid() && p.has<Children>()) {
+                auto& siblings = p.get<Children>().entities;
+                siblings.erase(std::remove(siblings.begin(), siblings.end(), id), siblings.end());
             }
-            registry.remove<Parent>(entity);
+            e.remove<Parent>();
         }
 
-        registry.destroy(entity);
+        registry.destroy(id);
     }
 
-    bool Scene::isDescendant(entt::entity ancestor, entt::entity potentialChild) const {
-        if (!registry.valid(ancestor) || !registry.valid(potentialChild))
+    bool Scene::isDescendant(entt::entity ancestor, entt::entity potentialChild) {
+        EntityHandle a(ancestor, registry);
+        if (!a.valid() || !a.has<Children>())
             return false;
 
-        if (!registry.all_of<Children>(ancestor))
-            return false;
-
-        const auto& children = registry.get<Children>(ancestor).entities;
-        for (auto child : children) {
+        for (entt::entity child : a.get<Children>().entities) {
             if (child == potentialChild)
                 return true;
-
             if (isDescendant(child, potentialChild))
                 return true;
         }
@@ -100,78 +86,65 @@ namespace Ballistic {
     }
 
     void Scene::reparent(entt::entity entity, entt::entity newParent) {
-        if (!registry.valid(entity))
-            return;
-
-        if (entity == newParent)
-            return;
-
+        EntityHandle e(entity, registry);
+        if (!e.valid() || entity == newParent) return;
         if (newParent != entt::null && isDescendant(entity, newParent))
             return;
 
-        if (registry.all_of<Parent>(entity)) {
-            auto oldParent = registry.get<Parent>(entity).entity;
-            if (registry.valid(oldParent) && registry.all_of<Children>(oldParent)) {
-                auto& siblings = registry.get<Children>(oldParent).entities;
+        if (e.has<Parent>()) {
+            EntityHandle oldParent(e.get<Parent>().entity, registry);
+            if (oldParent.valid() && oldParent.has<Children>()) {
+                auto& siblings = oldParent.get<Children>().entities;
                 siblings.erase(std::remove(siblings.begin(), siblings.end(), entity), siblings.end());
             }
+            e.remove<Parent>();
         }
 
-        if (newParent == entt::null) {
-            if (registry.all_of<Parent>(entity))
-                registry.remove<Parent>(entity);
-        } else {
-            if (registry.all_of<Parent>(entity))
-                registry.get<Parent>(entity).entity = newParent;
-            else
-                registry.emplace<Parent>(entity, newParent);
-
-            if (!registry.all_of<Children>(newParent))
-                registry.emplace<Children>(newParent);
-            
-            registry.get<Children>(newParent).entities.push_back(entity);
+        if (newParent != entt::null) {
+            EntityHandle np(newParent, registry);
+            if (!np.valid()) return;
+            e.add<Parent>(newParent);
+            if (!np.has<Children>())
+                np.add<Children>();
+            np.get<Children>().entities.push_back(entity);
         }
     }
 
     entt::entity Scene::duplicateEntity(entt::entity original, entt::entity targetParent) {
-        if (!registry.valid(original)) return entt::null;
+        EntityHandle src(original, registry);
+        if (!src.valid()) return entt::null;
 
-        std::function<entt::entity(entt::entity, entt::entity)> duplicateRec;
-        duplicateRec = [&](entt::entity src, entt::entity parent) -> entt::entity {
-            auto copy = registry.create();
+        auto duplicateRec = [&](auto&& self, entt::entity srcID, entt::entity parentID) -> entt::entity {
+            entt::entity copyID = registry.create();
+            EntityHandle copy(copyID, registry);
+            EntityHandle srcEnt(srcID, registry);
 
-            if (registry.all_of<Tag>(src))
-                registry.emplace<Tag>(copy, registry.get<Tag>(src).name + " Copy");
+            if (srcEnt.has<Tag>()) copy.add<Tag>(srcEnt.get<Tag>().name + " Copy");
+            if (srcEnt.has<GUID>()) copy.add<GUID>(srcEnt.get<GUID>().value);
+            if (srcEnt.has<TransformComponent>()) copy.add<TransformComponent>(srcEnt.get<TransformComponent>());
+            if (srcEnt.has<SphereComponent>()) copy.add<SphereComponent>(srcEnt.get<SphereComponent>());
 
-            if (registry.all_of<Transform>(src))
-                registry.emplace<Transform>(copy, registry.get<Transform>(src));
-
-            if (registry.all_of<Sphere>(src))
-                registry.emplace<Sphere>(copy, registry.get<Sphere>(src));
-
-            if (parent != entt::null) {
-                registry.emplace<Parent>(copy, parent);
-                if (!registry.all_of<Children>(parent))
-                    registry.emplace<Children>(parent);
-                registry.get<Children>(parent).entities.push_back(copy);
+            if (parentID != entt::null) {
+                EntityHandle p(parentID, registry);
+                copy.add<Parent>(parentID);
+                if (!p.has<Children>())
+                    p.add<Children>();
+                p.get<Children>().entities.push_back(copyID);
             }
 
-            if (registry.all_of<Children>(src)) {
-                for (auto child : registry.get<Children>(src).entities) {
-                    duplicateRec(child, copy);
-                }
+            if (srcEnt.has<Children>()) {
+                for (entt::entity child : srcEnt.get<Children>().entities) self(self, child, copyID);
             }
-
-            return copy;
+            return copyID;
         };
-
-        entt::entity parent = targetParent != entt::null ? targetParent : (registry.all_of<Parent>(original) ? registry.get<Parent>(original).entity : entt::null);
-        return duplicateRec(original, parent);
+        entt::entity parent = targetParent != entt::null ? targetParent : (src.has<Parent>() ? src.get<Parent>().entity : entt::null);
+        return duplicateRec(duplicateRec, original, parent);
     }
 
     void Scene::duplicate(entt::entity original) {
-        if (!registry.valid(original)) return;
-        entt::entity parent = registry.all_of<Parent>(original) ? registry.get<Parent>(original).entity : entt::null;
+        EntityHandle e(original, registry);
+        if (!e.valid()) return;
+        entt::entity parent = e.has<Parent>() ? e.get<Parent>().entity : entt::null;
         duplicateEntity(original, parent);
     }
 
