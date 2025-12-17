@@ -33,28 +33,27 @@ namespace Ballistic {
 	    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
-		ImFontConfig icons_config;
-		icons_config.MergeMode = true;
-		icons_config.PixelSnapH = true;
-
+		ImFontConfig cfg;
+		cfg.PixelSnapH = true;
+		cfg.MergeMode = false;
+		/* ImFont* baseFont = */io.Fonts->AddFontFromFileTTF((Config::EDITOR_RES_PATH / "Fonts/Noto_Sans/static/NotoSans-Regular.ttf").string().c_str(), 16.0f, &cfg);
+		
+		cfg.MergeMode = true;
 		static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
-		io.Fonts->AddFontDefault();
-		io.Fonts->AddFontFromFileTTF((Config::EDITOR_RES_PATH / "fonts/fa-solid-900.ttf").string().c_str(), 16.0f, &icons_config, icons_ranges);	
-		io.Fonts->AddFontFromFileTTF((Config::EDITOR_RES_PATH / "fonts/fa-regular-400.ttf").string().c_str(), 16.0f, &icons_config, icons_ranges);
-		io.Fonts->AddFontFromFileTTF((Config::EDITOR_RES_PATH / "fonts/fa-brands-400.ttf").string().c_str(), 16.0f, &icons_config, icons_ranges);
-
+		io.Fonts->AddFontFromFileTTF((Config::EDITOR_RES_PATH / "Fonts/fontawesome-free-6.6.0-desktop/Font Awesome 6 Free-Solid-900.otf").string().c_str(), 13.0f, &cfg, icons_ranges);
+		
     	ImGui::StyleColorsDark();
 
-        // ImGuiStyle& style = ImGui::GetStyle();
-        // if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-        //     style.WindowRounding = 0.0f;
-        //     style.TabRounding = 0.0f;
-        //     style.TabBarBorderSize = 0.0f;
-        //     style.GrabRounding = 2.0f;
-        //     style.ScrollbarRounding = 2.0f;
-        //     style.DockingSeparatorSize = 0.0f;
-        //     style.WindowBorderSize = 0.0f;
-        // }
+        ImGuiStyle& style = ImGui::GetStyle();
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+            style.WindowRounding = 0.0f;
+            style.TabRounding = 0.0f;
+            style.TabBarBorderSize = 0.0f;
+            style.GrabRounding = 2.0f;
+            style.ScrollbarRounding = 2.0f;
+            style.DockingSeparatorSize = 0.0f;
+            style.WindowBorderSize = 0.0f;
+        }
 
         // style.WindowTitleAlign = ImVec2(0.5f, 0.5f);
         // style.WindowMenuButtonPosition = ImGuiDir_None;

@@ -88,7 +88,7 @@ if(EDITOR_SRC)
 
     # Windows icon
     if(WIN32)
-        set(RUNTIME_ICON "${CMAKE_CURRENT_SOURCE_DIR}/res/icon.rc")
+        set(RUNTIME_ICON "${CMAKE_CURRENT_SOURCE_DIR}/BallisticEditor/icon.rc")
         target_sources(BallisticEditor PRIVATE ${RUNTIME_ICON})
     endif()
 
