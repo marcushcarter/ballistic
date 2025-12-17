@@ -42,13 +42,6 @@ namespace Ballistic {
 	    for (auto& panel : m_Panels)
         	panel->OnImGuiRender();
 
-		ImGui::Begin("Tools");
-		ImGui::Button((std::string(ICON_FA_PLANE " Save")).c_str());
-		ImGui::Button((std::string(ICON_FA_FOLDER_OPEN " Open")).c_str());
-		ImGui::Text("%s Settings", ICON_FA_COG);
-		ImGui::Text("%s Info", ICON_FA_INFO_CIRCLE);
-		ImGui::End();
-
 	    ImGui::ShowDemoWindow();
 
 		m_ImGuiContext->EndFrame();

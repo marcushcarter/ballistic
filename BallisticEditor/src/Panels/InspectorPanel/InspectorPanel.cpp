@@ -25,7 +25,8 @@ namespace Ballistic {
         std::shared_ptr<Scene> currentScene = m_ProjectManager->GetSceneManager()->m_activeScene;
         auto& reg = currentScene->registry;
 
-        ImGui::Begin("Inspector");
+        static ImGuiWindowFlags InspectorFlags = ImGuiWindowFlags_NoCollapse;
+        ImGui::Begin("Inspector", nullptr, InspectorFlags);
 
         if (currentScene->selected == entt::null) {
             ImGui::Text("No Entity Selected");

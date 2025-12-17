@@ -13,7 +13,8 @@ namespace Ballistic {
         std::shared_ptr<Scene> currentScene = m_ProjectManager->GetSceneManager()->m_activeScene;
         auto& reg = currentScene->registry;
         
-		ImGui::Begin("Scene Hierarchy");
+        static ImGuiWindowFlags HierarchyFlags = ImGuiWindowFlags_NoCollapse;
+		ImGui::Begin("Scene Hierarchy", nullptr, HierarchyFlags);
 
         if (ImGui::Button("create")) currentScene->create("New Anchor", currentScene->selected);
         ImGui::BeginDisabled(true);

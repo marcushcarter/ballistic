@@ -11,7 +11,9 @@ namespace Ballistic {
 
 	void ViewportPanel::OnImGuiRender() {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-        ImGui::Begin(ICON_FA_EYE " Viewport");
+
+        static ImGuiWindowFlags ViewportFlags = ImGuiWindowFlags_NoCollapse;
+        ImGui::Begin(ICON_FA_EYE " Viewport", nullptr, ViewportFlags);
 
         ImVec2 viewportWindowSize = ImGui::GetContentRegionAvail();
         double windowAspect = double(viewportWindowSize.x) / double(viewportWindowSize.y);
