@@ -67,7 +67,7 @@ namespace Ballistic {
         auto& selected = scene.selected;
         auto& tag = reg.get<Tag>(e);
 
-        bool hasChildren = reg.all_of<Children>(e) && !reg.get<Children>(e).entities.empty();
+        bool hasChildren = reg.all_of<Children>(e) && !reg.get<Children>(e).children.empty();
         bool isSelected = selected == e || std::find(hierarchyMetadata.multiSelection.begin(), hierarchyMetadata.multiSelection.end(), e) != hierarchyMetadata.multiSelection.end();
 
         if (std::find(hierarchyMetadata.deferredDestroy.begin(), hierarchyMetadata.deferredDestroy.end(), e) != hierarchyMetadata.deferredDestroy.end())
@@ -168,7 +168,7 @@ namespace Ballistic {
         }
 
         if (open && hasChildren) {
-            for (auto child : reg.get<Children>(e).entities) DrawNode(scene, child);
+            for (auto child : reg.get<Children>(e).children) DrawNode(scene, scene.GetEntity(child));
         }
 
         if (open) ImGui::TreePop();
@@ -178,8 +178,8 @@ namespace Ballistic {
     void HierarchyPanel::FlattenHierarchy(Scene& scene, entt::entity node, std::vector<entt::entity>& out) {
         out.push_back(node);
         if (scene.registry.all_of<Children>(node)) {
-            for (auto child : scene.registry.get<Children>(node).entities)
-                FlattenHierarchy(scene, child, out);
+            for (auto child : scene.registry.get<Children>(node).children)
+                FlattenHierarchy(scene, scene.GetEntity(child), out);
         }
     }
 

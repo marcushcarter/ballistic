@@ -5,13 +5,13 @@
 namespace Ballistic {
 
     struct Parent {
-        entt::entity entity = entt::null;
-        Parent(entt::entity entity = entt::null) : entity(entity) {}
+        GUID parent;
+        Parent(GUID parent) : parent(parent) {}
     };
 
     struct Children {
-        std::vector<entt::entity> entities;
-        Children(std::vector<entt::entity> entities = {}) : entities(entities) {}
+        std::vector<GUID> children;
+        Children(std::vector<GUID> children = {}) : children(children) {}
     };
 
     struct Tag {
