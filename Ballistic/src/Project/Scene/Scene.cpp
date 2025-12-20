@@ -137,6 +137,9 @@ namespace Ballistic {
             if (srcEnt.has<Tag>()) copy.add<Tag>(srcEnt.get<Tag>().name + " Copy");
             if (srcEnt.has<TransformComponent>()) copy.add<TransformComponent>(srcEnt.get<TransformComponent>());
             if (srcEnt.has<SphereComponent>()) copy.add<SphereComponent>(srcEnt.get<SphereComponent>());
+            if (srcEnt.has<MeshComponent>()) copy.add<MeshComponent>(srcEnt.get<MeshComponent>());
+            if (srcEnt.has<MaterialComponent>()) copy.add<MaterialComponent>(srcEnt.get<MaterialComponent>());
+            if (srcEnt.has<CameraComponent>()) copy.add<CameraComponent>(srcEnt.get<CameraComponent>());
 
             if (parentID != entt::null) {
                 EntityHandle p(parentID, m_registry);

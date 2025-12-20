@@ -48,8 +48,8 @@ namespace Ballistic {
 	}
 
 	void RuntimeLayer::OnUpdate() {
-		auto windowProps = m_window->GetWindowProps();
-		m_renderer->RequestResize(glm::vec2(windowProps.width, windowProps.height));
+		auto windowState = m_window->GetState();
+		m_renderer->RequestResize(glm::vec2(windowState.width, windowState.height));
 		// resize camera
 
 		auto texture = m_renderer->getTexture();

@@ -24,6 +24,48 @@ namespace Ballistic {
 	#endif
 	}
 
+	namespace fs = std::filesystem;
+
+void selectFolderAndPrintTree() {
+    const char* folderPath = tinyfd_selectFolderDialog("Select a folder", nullptr);
+    if (!folderPath) {
+        std::cout << "No folder selected.\n";
+        return;
+    }
+
+    fs::path root(folderPath);
+    if (!fs::exists(root) || !fs::is_directory(root)) {
+        std::cerr << "Selected path is not a valid folder.\n";
+        return;
+    }
+
+    std::cout << "Folder tree of: " << root << "\n";
+
+    std::function<void(const fs::path&, int)> printTree;
+    printTree = [&](const fs::path& path, int indent) {
+        for (const auto& entry : fs::directory_iterator(path)) {
+            std::string name = entry.path().filename().string();
+
+            // Skip unwanted directories entirely
+            if (entry.is_directory() && (name == "build" || name == "external" || name == ".git")) continue;
+
+            for (int i = 0; i < indent; ++i) std::cout << "  "; // indent
+            std::cout << (entry.is_directory() ? "[D] " : "[F] ") << name << "\n";
+
+            // Only recurse into directories
+            if (entry.is_directory()) {
+                printTree(entry.path(), indent + 1);
+            } else {
+                // Skip files inside external subfolders
+                if (entry.path().parent_path().string().find("external/") != std::string::npos) continue;
+            }
+        }
+    };
+
+    printTree(root, 0);
+}
+
+
 	void MenuBar::OnImGuiRender() {
 		// entt::entity& selected = editorState.temp.selectedEntity;
 
@@ -42,7 +84,7 @@ namespace Ballistic {
 						// m_ProjectManager->NewProject(std::filesystem::path(folderPath));
 
 				}
-				if (ImGui::MenuItem("Open Recent")) {}
+				if (ImGui::MenuItem("Open Recent")) { selectFolderAndPrintTree(); }
 				
 				ImGui::Separator();
 
@@ -112,7 +154,7 @@ namespace Ballistic {
 				if (ImGui::MenuItem("Take Editor Screenshot")) {} // takeScreenshotNextFrame = true;
 				if (ImGui::MenuItem("Take Viewport Screenshot")) {} // takeTextureScreenshotNextFrame = true;
 
-				if (ImGui::MenuItem(m_window->IsFullscreen() ? "Windowed" : "Fullscreen")) m_window->ToggleFullscreen(!m_window->IsFullscreen());
+				if (ImGui::MenuItem(m_window->GetState().fullscreen ? "Windowed" : "Fullscreen")) m_window->ToggleFullscreen(!m_window->GetState().fullscreen);
 
 				ImGui::EndMenu();
 			}

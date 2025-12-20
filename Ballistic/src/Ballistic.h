@@ -1,9 +1,6 @@
 #pragma once
 
 #include "Core/Config.h"
-#include "Core/WindowProps.h"
-#include "Core/WindowAPI.h"
-#include "Core/IWindow.h"
 #include "Core/GUID.h"
 #include "Core/Application.h"
 
@@ -11,6 +8,9 @@
 #include "Core/Layers/Layer.h"
 #include "Core/Layers/LayerStack.h"
 #include "Core/Layers/RenderLayer.h"
+
+#include "Core/Windows/WindowInfo.h"
+#include "Core/Windows/IWindow.h"
 
 #include "Platform/GLFW/GLFWWindow.h"
 

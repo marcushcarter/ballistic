@@ -1,5 +1,5 @@
 #include "IRenderer.h"
-#include "Core/IWindow.h"
+#include "Core/Windows/IWindow.h"
 #include "Core/Config.h"
 
 namespace Ballistic {
@@ -19,11 +19,9 @@ namespace Ballistic {
 		m_PendingResize = true;
 		m_ResizeSize = glm::vec2(800, 600);
 
-		std::string computeSrc = ReadFile((Config::BALLISTIC_RES_PATH / "Shaders/pathTracing.comp").string());
-
 		shader = std::make_shared<gl::Shader>();
 		shader->create();
-		shader->attachShader(GL_COMPUTE_SHADER, computeSrc.c_str());
+		shader->attachShader(GL_COMPUTE_SHADER, Config::BALLISTIC_RES_PATH / "Shaders/pathTracing.comp");
 		shader->link();
 
 		texture = std::make_shared<gl::Texture2D>();

@@ -1,17 +1,5 @@
 #include "InspectorPanel.h"
 
-void PrettyDragFloat3(const char* title, glm::vec3& v, float stride = 0.1f, float min = -100.0f, float max = 100.0f) {
-	ImGui::Text(title);
-	ImGui::SameLine(90);
-	ImGui::PushID(title);
-	ImGui::PushItemWidth(60);
-	ImGui::DragFloat("X", &v.x, stride); ImGui::SameLine();
-	ImGui::DragFloat("Y", &v.y, stride); ImGui::SameLine();
-	ImGui::DragFloat("Z", &v.z, stride);
-	ImGui::PopItemWidth();
-	ImGui::PopID();
-}
-
 namespace Ballistic {
 
     InspectorPanel::InspectorPanel(std::shared_ptr<ProjectManager> projectManager) {
@@ -37,6 +25,9 @@ namespace Ballistic {
 
         bool hasTransform = selected.has<TransformComponent>();
         bool hasSphere = selected.has<SphereComponent>();
+        bool hasMesh = selected.has<MeshComponent>();
+        bool hasMaterial = selected.has<MaterialComponent>();
+        bool hasCamera = selected.has<CameraComponent>();
 
 		ImVec4 lightGray = ImVec4(0.7f, 0.7f, 0.7f, 1.0f);
 
@@ -79,20 +70,38 @@ namespace Ballistic {
         if (hasTransform) {
             DrawComponent<TransformComponent>("Transform Component", selected, [&]() {
                 auto& transform = selected.get<TransformComponent>();
-                PrettyDragFloat3("Position", transform.position);
-                PrettyDragFloat3("Rotation", transform.rotation);
-                PrettyDragFloat3("Scale", transform.scale);
+                ImGui::DragFloat3("Position", &transform.position.x);
+                ImGui::DragFloat3("Rotation", &transform.rotation.x);
+                ImGui::DragFloat3("Scale", &transform.scale.x);
             });
         }
         
         if (hasSphere) {
             DrawComponent<SphereComponent>("Sphere Component", selected, [&]() {
-                auto& sphere = selected.get<SphereComponent>();
-                ImGui::DragFloat("Radius", &sphere.radius, 0.1f, 0.0f, FLT_MAX);
+                auto& sph = selected.get<SphereComponent>();
+                ImGui::DragFloat("Radius", &sph.radius, 0.1f, 0.0f, FLT_MAX);
+            });
+        }
+        
+        if (hasMesh) {
+            DrawComponent<MeshComponent>("Mesh Component", selected, [&]() {
+                auto& mesh = selected.get<MeshComponent>();
+            });
+        }
+        
+        if (hasMaterial) {
+            DrawComponent<MaterialComponent>("Material Component", selected, [&]() {
+                auto& mat = selected.get<MaterialComponent>();
+            });
+        }
+        
+        if (hasCamera) {
+            DrawComponent<CameraComponent>("Camera Component", selected, [&]() {
+                auto& cam = selected.get<CameraComponent>();
             });
         }
 
-        bool hasAll = hasTransform && hasSphere;
+        bool hasAll = hasTransform && hasSphere && hasMesh && hasMaterial && hasCamera;
 
         ImVec2 avail = ImGui::GetContentRegionAvail();
         if (!hasAll) {
@@ -100,11 +109,13 @@ namespace Ballistic {
             if (ImGui::BeginPopup("AddComponentPopup")) {
                 if (!hasTransform && ImGui::Selectable("Transform")) selected.add<TransformComponent>();
                 if (!hasSphere && ImGui::Selectable("Sphere")) selected.add<SphereComponent>();
+                if (!hasMesh && ImGui::Selectable("Mesh")) selected.add<MeshComponent>();
+                if (!hasMaterial && ImGui::Selectable("Material")) selected.add<MaterialComponent>();
+                if (!hasCamera && ImGui::Selectable("Camera")) selected.add<CameraComponent>();
                 ImGui::EndPopup();
             }
         }
         
-
         ImGui::End();
 	}
 

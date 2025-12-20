@@ -1,11 +1,12 @@
 #include "ProjectManager.h"
 #include "Scene/SceneManager.h"
+#include "Assets/AssetPool.h"
 
 namespace Ballistic {
 
     ProjectManager::ProjectManager() {
-        m_SceneManager = std::make_shared<SceneManager>();
-        m_SceneManager->createScene("New Scene");
+        m_sceneManager = std::make_shared<SceneManager>();
+        m_sceneManager->createScene("New Scene");
     }
 
     bool ProjectManager::NewProject(const std::filesystem::path& folderpath) {

@@ -4,7 +4,7 @@
 namespace Ballistic {
 
     class SceneManager;
-    class AssetManager;
+    class AssetPool;
 
     class ProjectManager {
     public:
@@ -20,12 +20,12 @@ namespace Ballistic {
         bool SaveProject();
         bool CloseProject();
 
-        std::shared_ptr<SceneManager> GetSceneManager() { return m_SceneManager; }
-        std::shared_ptr<AssetManager> GetAssetManager() { return m_AssetManager; }
+        std::shared_ptr<SceneManager> GetSceneManager() { return m_sceneManager; }
+        std::shared_ptr<AssetPool> GetAssetPool() { return m_assetPool; }
 
     private:
-        std::shared_ptr<SceneManager> m_SceneManager;
-        std::shared_ptr<AssetManager> m_AssetManager;
+        std::shared_ptr<SceneManager> m_sceneManager;
+        std::shared_ptr<AssetPool> m_assetPool;
     };
     
 }

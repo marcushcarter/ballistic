@@ -5,6 +5,9 @@
 #include <unordered_map>
 #include <vector>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <filesystem>
 
 namespace gl {
 
@@ -63,6 +66,21 @@ namespace gl {
             glAttachShader(m_id, shader);
             m_attachedShaders.push_back(shader);
             return shader;
+        }
+
+        GLuint attachShader(GLenum type, const std::filesystem::path& filepath) {
+            std::ifstream file(filepath);
+            if (!file.is_open()) {
+                std::cerr << "Failed to open shader file: " << filepath << std::endl;
+                return 0;
+            }
+
+            std::stringstream ss;
+            ss << file.rdbuf();
+            std::string sourceStr = ss.str();
+            const char* source = sourceStr.c_str();
+
+            return attachShader(type, source);
         }
 
         void detachShader(GLuint shader) {

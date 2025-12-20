@@ -1,5 +1,6 @@
 #pragma once
 #include "bepch.h"
+// #include "Core/GUID.h"
 
 namespace Ballistic {
 
@@ -17,18 +18,21 @@ namespace Ballistic {
 
     struct Tag {
         std::string name;
-        Tag(std::string name = "null") : name(name) {}
+        Tag(std::string name = "New Node") : name(name) {}
     };
 
     struct SphereComponent {
         float radius = 1.0f;
-        SphereComponent(float radius = 1.0f) : radius(radius) {}
+        // SphereComponent(float radius = 1.0f) : radius(radius) {}
     };
     
     struct TransformComponent {
         glm::vec3 position{0};
         glm::vec3 rotation{0};
         glm::vec3 scale{1};
+
+        // TransformComponent(glm::vec3 position = glm::vec3(0), glm::vec3 rotation = glm::vec3(0), glm::vec3 scale = glm::vec3(1))
+        //     : position(position), rotation(rotation), scale(scale) {}
 
         glm::mat4 TRS() {
             glm::mat4 m(1.0f);
@@ -41,5 +45,24 @@ namespace Ballistic {
             return m;
         }
     };
+
+    struct MeshComponent {
+        GUID guid;
+        // MeshComponent(GUID meshID = GUID::Invalid) {
+        //     guid.value = 0;
+        // }
+    };
+
+    struct MaterialComponent {
+        GUID guid;
+        // MaterialComponent(GUID materialID = GUID::Invalid) : guid.value(materialID) {}
+    };
+
+    struct CameraComponent {
+        float temp;
+        CameraComponent() : temp(1) {}
+    };
+
+
 
 }

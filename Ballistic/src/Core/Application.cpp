@@ -11,12 +11,7 @@ namespace Ballistic {
 
 		m_layerStack = std::make_shared<LayerStack>();
 
-		WindowAPI::SetAPI(WindowAPI::API::GLFW);
-		switch (WindowAPI::GetAPI()) {
-			case WindowAPI::API::GLFW:
-				m_window = GLFWWindow::Create(windowProps);
-				break;
-		}
+		m_window = IWindow::Create(windowProps);
 
 		m_projectManager = std::make_shared<ProjectManager>();
 
@@ -27,14 +22,18 @@ namespace Ballistic {
 	}
 
 	void Application::Shutdown(){
-		 if (m_renderer)
+		if (m_renderer)
 	        m_renderer->Shutdown();
 	}
 
 	void Application::Run() {
 		while (!m_window->ShouldClose()) {
-			m_layerStack->OnUpdate();
+			m_window->PollEvents();
 			m_window->OnUpdate();
+
+			m_layerStack->OnUpdate();
+			
+			m_window->SwapBuffers();
 		}
 		Shutdown();
 	}

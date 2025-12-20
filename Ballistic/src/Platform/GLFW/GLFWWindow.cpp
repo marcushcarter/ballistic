@@ -4,11 +4,19 @@
 namespace Ballistic {
 
 	GLFWWindow::GLFWWindow(const WindowProps& windowProps)
-		: m_windowProps(windowProps) {
+		: m_props(windowProps) {
 
+		initGLFW();
+		setupCallbacks();
+	}
+
+	GLFWWindow::~GLFWWindow() {
+		if (m_window) glfwDestroyWindow(m_window);
+	}
+
+	void GLFWWindow::initGLFW() {
 	    if (!glfwInit()) {
-	        std::cerr << "Failed to initialize GLFW" << std::endl;
-	        glfwTerminate();
+	        std::cerr << "Failed to initialize GLFW\n";
 	        return;
 	    }
 
@@ -17,62 +25,96 @@ namespace Ballistic {
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-		// if (m_windowProps.customTitleBar) {
-		// 	glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
-		// }
-
-	    m_nativeWindow = glfwCreateWindow(m_windowProps.width, m_windowProps.height, (m_windowProps.title).c_str(), nullptr, nullptr);
-	    if (!m_nativeWindow) {
-	        std::cerr << "Failed to create GLFW window" << std::endl;
+	    m_window = glfwCreateWindow(m_props.width, m_props.height, m_props.title.c_str(), nullptr, nullptr);
+	    if (!m_window) {
+	        std::cerr << "Failed to create GLFW window\n";
 	        glfwTerminate();
 	        return;
 	    }
 	
-		glfwMakeContextCurrent(m_nativeWindow);
+		glfwMakeContextCurrent(m_window);
 		if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-			std::cerr << "Failed to initialize OpenGL context with glad" << std::endl;
-			glfwDestroyWindow(m_nativeWindow);
+			std::cerr << "Failed to initialize GLAD\n";
+			glfwDestroyWindow(m_window);
 			glfwTerminate();
 			return;
 		}
 
-		glfwSwapInterval(m_windowProps.vsync);
+		glfwSwapInterval(m_props.vsync);
 	}
 
-	GLFWWindow::~GLFWWindow() {
-		if (m_nativeWindow) glfwDestroyWindow(m_nativeWindow);
+	void GLFWWindow::setupCallbacks() {
+		glfwSetWindowUserPointer(m_window, this);
+
+		glfwSetFramebufferSizeCallback(m_window, [](GLFWwindow* win, int w, int h) {
+			auto window = static_cast<GLFWWindow*>(glfwGetWindowUserPointer(win));
+			window->m_state.width = w;
+			window->m_state.height = h;
+			if (window->m_resizeCallback) window->m_resizeCallback(w, h);
+		});
+
+		glfwSetWindowFocusCallback(m_window, [](GLFWwindow* win, int focused) {
+			auto window = static_cast<GLFWWindow*>(glfwGetWindowUserPointer(win));
+			window->m_state.focused = focused != 0;
+			if (window->m_focusCallback) window->m_focusCallback(focused != 0);
+		});
+
+		glfwSetWindowCloseCallback(m_window, [](GLFWwindow* win) {
+			auto window = static_cast<GLFWWindow*>(glfwGetWindowUserPointer(win));
+			if (window->m_closeCallback) window->m_closeCallback();
+		});
+
 	}
+
+	bool GLFWWindow::ShouldClose() const { return glfwWindowShouldClose(m_window); }
+	void GLFWWindow::PollEvents() { glfwPollEvents(); }
+	void GLFWWindow::SwapBuffers() { glfwSwapBuffers(m_window); }
 
 	void GLFWWindow::OnUpdate() {
-		glfwGetWindowSize(m_nativeWindow, &m_windowProps.width, &m_windowProps.height);
-		glfwPollEvents();
-		glfwSwapBuffers(m_nativeWindow);
-	}
+		int w, h;
+		glfwGetWindowSize(m_window, &w, &h);
+		m_state.width = w;
+		m_state.height = h;
 
-	bool GLFWWindow::ShouldClose() const {
-		return glfwWindowShouldClose(m_nativeWindow);
+		m_state.focused = glfwGetWindowAttrib(m_window, GLFW_FOCUSED);
+    	m_state.minimized = glfwGetWindowAttrib(m_window, GLFW_ICONIFIED);
+
+		float xscale, yscale;
+		glfwGetWindowContentScale(m_window, &xscale, &yscale);
+		m_state.dpiScale = xscale;
 	}
 
 	void GLFWWindow::ToggleFullscreen(bool fullscreen) {
-		if (fullscreen == IsFullscreen()) return;
+		if (fullscreen == m_state.fullscreen) return;
 
 	    if (fullscreen) {
-	        glfwGetWindowPos(m_nativeWindow, &m_WindowedX, &m_WindowedY);
-	        glfwGetWindowSize(m_nativeWindow, &m_WindowedW, &m_WindowedH);
+	        glfwGetWindowPos(m_window, &m_state.windowedX, &m_state.windowedY);
+	        glfwGetWindowSize(m_window, &m_state.windowedW, &m_state.windowedH);
 
 	        GLFWmonitor* monitor = glfwGetPrimaryMonitor();
 	        const GLFWvidmode* mode = glfwGetVideoMode(monitor);
-	        glfwSetWindowMonitor(m_nativeWindow, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+			
+	        glfwSetWindowMonitor(m_window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+			m_state.fullscreen = true;
 	    } else {
-	        glfwSetWindowMonitor(m_nativeWindow, nullptr, m_WindowedX, m_WindowedY, m_WindowedW, m_WindowedH, 0);
+	        glfwSetWindowMonitor(m_window, nullptr, m_state.windowedX, m_state.windowedY, m_state.windowedW, m_state.windowedH, 0);
+			m_state.fullscreen = false;
 	    }
 	}
-
-	bool GLFWWindow::IsFullscreen() const {
-		return glfwGetWindowMonitor(m_nativeWindow) != nullptr;
+	
+	void GLFWWindow::SetVSync(bool enabled) {
+		glfwSwapInterval(enabled ? 1 : 0);
+		m_props.vsync = enabled;
 	}
 
-	std::shared_ptr<IWindow> GLFWWindow::Create(const WindowProps& windowProps) {
-		return std::make_shared<GLFWWindow>(windowProps);
-	}
+	void GLFWWindow::SetTitle(const std::string& title) {
+		glfwSetWindowTitle(m_window, title.c_str());
+		m_props.title = title;
+    }
+
+	void GLFWWindow::SetSize(int width, int height) { glfwSetWindowSize(m_window, width, height); }
+	void GLFWWindow::SetPosition(int x, int y) { glfwSetWindowPos(m_window, x, y); }
+	void GLFWWindow::Focus() { glfwFocusWindow(m_window); }
+	void GLFWWindow::Minimize() { glfwIconifyWindow(m_window); }
+	void GLFWWindow::Maximize(bool enabled) { glfwMaximizeWindow(m_window); }
 }
