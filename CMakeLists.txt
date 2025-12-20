@@ -15,7 +15,6 @@ target_include_directories(glm INTERFACE external/glm)
 add_library(stb INTERFACE)
 target_include_directories(stb INTERFACE external/stb)
 
-# ImGui
 file(GLOB IMGUI_CORE external/imgui/*.cpp)
 set(IMGUI_BACKENDS
     external/imgui/backends/imgui_impl_glfw.cpp
