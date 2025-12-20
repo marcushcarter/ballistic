@@ -9,8 +9,8 @@ namespace Ballistic::Config {
 
     inline void Init(const std::filesystem::path& exeDir) {
         EXECUTABLE_DIR = exeDir;
-        BALLISTIC_RES_PATH = exeDir / "../../Ballistic/res/";
-        EDITOR_RES_PATH = exeDir / "../../BallisticEditor/res/";
+        BALLISTIC_RES_PATH = exeDir / "../../../Ballistic/res/";
+        EDITOR_RES_PATH = exeDir / "../../../BallisticEditor/res/";
     }
 
 }
