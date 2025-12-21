@@ -16,7 +16,7 @@ namespace Ballistic {
 
 	private:
 		std::shared_ptr<ProjectManager> m_projectManager;
-        std::shared_ptr<IWindow> m_window;
+        std::shared_ptr<Window> m_window;
         std::shared_ptr<IRenderer> m_renderer;
 
 		std::shared_ptr<ImGuiContext> m_imguiContext;

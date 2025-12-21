@@ -6,7 +6,7 @@ namespace Ballistic {
 
 	class MenuBar : public IPanel {
 	public:
-        MenuBar(std::shared_ptr<ProjectManager> projectManager, std::shared_ptr<IWindow> window);
+        MenuBar(std::shared_ptr<ProjectManager> projectManager, std::shared_ptr<Window> window);
         
 		void Init() override;
 		void OnImGuiRender() override;
@@ -16,6 +16,6 @@ namespace Ballistic {
 
     private:
         std::shared_ptr<ProjectManager> m_projectManager;
-        std::shared_ptr<IWindow> m_window;
+        std::shared_ptr<Window> m_window;
 	};
 }

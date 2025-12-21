@@ -4,7 +4,7 @@
 
 namespace Ballistic {
 
-    MenuBar::MenuBar(std::shared_ptr<ProjectManager> projectManager, std::shared_ptr<IWindow> window) {
+    MenuBar::MenuBar(std::shared_ptr<ProjectManager> projectManager, std::shared_ptr<Window> window) {
         m_projectManager = projectManager;
         m_window = window;
     }

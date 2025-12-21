@@ -10,9 +10,7 @@
 #include "Core/Layers/RenderLayer.h"
 
 #include "Core/Window/WindowInfo.h"
-#include "Core/Window/IWindow.h"
-
-#include "Platform/Window/GLFWWindow.h"
+#include "Core/Window/Window.h"
 
 #include "Project/Scene/Components.h"
 #include "Project/Scene/EntityHandle.h"

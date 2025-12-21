@@ -5,7 +5,7 @@ namespace Ballistic {
 
     class ImGuiContext {
     public:
-        ImGuiContext(std::shared_ptr<IWindow> window);
+        ImGuiContext(std::shared_ptr<Window> window);
 		virtual ~ImGuiContext();
 
 		void Init();
@@ -16,7 +16,7 @@ namespace Ballistic {
 		void LoadDefaultLayout();
 
 	private:
-		std::shared_ptr<IWindow> m_window;
+		std::shared_ptr<Window> m_window;
     };
 
 }

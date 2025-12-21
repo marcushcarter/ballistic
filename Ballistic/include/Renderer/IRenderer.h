@@ -3,8 +3,6 @@
 
 namespace Ballistic {
 
-	class IWindow;
-
 	class IRenderer {
 	public:
 		IRenderer();

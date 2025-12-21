@@ -1,7 +1,7 @@
 #include "Core/Application.h"
 #include "Core/Layers/LayerStack.h"
 #include "Core/Layers/RenderLayer.h"
-#include "Platform/Window/GLFWWindow.h"
+#include "Core/Window/Window.h"
 #include "Project/ProjectManager.h"
 #include "Renderer/IRenderer.h"
 
@@ -11,7 +11,7 @@ namespace Ballistic {
 
 		m_layerStack = std::make_shared<LayerStack>();
 
-		m_window = IWindow::Create(windowProps);
+		m_window = std::make_shared<Window>(windowProps);
 
 		m_projectManager = std::make_shared<ProjectManager>();
 
@@ -28,7 +28,7 @@ namespace Ballistic {
 
 	void Application::Run() {
 		while (!m_window->ShouldClose()) {
-			m_window->PollEvents();
+			Window::PollEvents();
 			m_window->OnUpdate();
 
 			m_layerStack->OnUpdate();

@@ -13,7 +13,7 @@ namespace Ballistic {
 		void OnEvent(void* e) override;
 
 	private:		
-        std::shared_ptr<IWindow> m_window;
+        std::shared_ptr<Window> m_window;
         std::shared_ptr<IRenderer> m_renderer;
 
 		std::shared_ptr<gl::Shader> blitShader;

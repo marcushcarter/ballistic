@@ -6,19 +6,13 @@
 
 namespace Ballistic {
     
-    ImGuiContext::ImGuiContext(std::shared_ptr<IWindow> window) {
+    ImGuiContext::ImGuiContext(std::shared_ptr<Window> window) {
         m_window = window;
     }
 
     ImGuiContext::~ImGuiContext() {
 	    ImGui_ImplOpenGL3_Shutdown();
-    	switch (WindowAPI::GetAPI()) {
-	    	case WindowAPI::API::GLFW:
-	    		ImGui_ImplGlfw_Shutdown();
-	    		break;
-	    	default:
-	    		break;
-    	}
+	    ImGui_ImplGlfw_Shutdown();
     	ImGui::DestroyContext();
     }
 
@@ -57,28 +51,13 @@ namespace Ballistic {
         // style.WindowTitleAlign = ImVec2(0.5f, 0.5f);
         // style.WindowMenuButtonPosition = ImGuiDir_None;
 
-    	switch (WindowAPI::GetAPI()) {
-	    	case WindowAPI::API::GLFW:
-	    		ImGui_ImplGlfw_InitForOpenGL(static_cast<GLFWwindow*>(m_window->GetNativeWindow()), true);
-	    		break;
-
-	    	default:
-	    		break;
-    	}
+	    ImGui_ImplGlfw_InitForOpenGL(m_window->GetNativeWindow(), true);
 	    ImGui_ImplOpenGL3_Init("#version 460");
     }
     
     void ImGuiContext::BeginFrame() {
 	    ImGui_ImplOpenGL3_NewFrame();
-
-    	switch (WindowAPI::GetAPI()) {
-	    	case WindowAPI::API::GLFW:
-	    		ImGui_ImplGlfw_NewFrame();
-	    		break;
-	    	default:
-	    		break;
-    	}
-
+	    ImGui_ImplGlfw_NewFrame();
     	ImGui::NewFrame();
     }
 
@@ -88,12 +67,10 @@ namespace Ballistic {
 
     	auto io = ImGui::GetIO();
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-		    if (WindowAPI::GetAPI() == WindowAPI::API::GLFW) {
-		        GLFWwindow* backup = static_cast<GLFWwindow*>(m_window->GetNativeWindow());
-		        ImGui::UpdatePlatformWindows();
-		        ImGui::RenderPlatformWindowsDefault();
-		        glfwMakeContextCurrent(backup);
-		    }
+			GLFWwindow* backup = m_window->GetNativeWindow();
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+			glfwMakeContextCurrent(backup);
 		}
     }
 
