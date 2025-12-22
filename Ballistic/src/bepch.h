@@ -34,6 +34,7 @@
 #include <stb_image.h>
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_glfw.h>
 #include <IconsFontAwesome5.h>
@@ -41,6 +42,8 @@
 #include <entt/entt.hpp>
 
 #include <nlohmann/json.hpp>
+
+#include <tinyfiledialogs.h>
 
 #include "Platform/API/OpenGL/all.h"
 #include "Platform/API/OpenGL/ShaderGLM.h"

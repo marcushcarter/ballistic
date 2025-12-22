@@ -1,7 +1,5 @@
 #include "MenuBar.h"
 
-#include "tinyfiledialogs.h"
-
 namespace Ballistic {
 
     MenuBar::MenuBar(std::shared_ptr<ProjectManager> projectManager, std::shared_ptr<Window> window) {

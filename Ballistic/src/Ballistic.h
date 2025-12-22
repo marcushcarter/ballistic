@@ -3,12 +3,14 @@
 #include "Core/Config.h"
 #include "Core/GUID.h"
 #include "Core/Application.h"
+#include "Core/Utils.h"
 
 #include "Core/Layers/Event.h"
 #include "Core/Layers/Layer.h"
 #include "Core/Layers/LayerStack.h"
 #include "Core/Layers/RenderLayer.h"
 
+#include "Core/Window/ImGuiSystem.h"
 #include "Core/Window/WindowInfo.h"
 #include "Core/Window/Window.h"
 

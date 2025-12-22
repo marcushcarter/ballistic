@@ -1,5 +1,5 @@
 #include "EditorLayer.h"
-#include "Panels/Dockspace/Dockspace.h"
+
 #include "Panels/MenuBar/MenuBar.h"
 #include "Panels/HierarchyPanel/HierarchyPanel.h"
 #include "Panels/InspectorPanel/InspectorPanel.h"
@@ -14,8 +14,6 @@ namespace Ballistic {
 	}
 
 	void EditorLayer::OnAttach() {
-		// m_panels.push_back(std::make_unique<Dockspace>());
-
 		m_panels.push_back(std::make_unique<MenuBar>(m_projectManager, m_window));
 		m_panels.push_back(std::make_unique<HierarchyPanel>(m_projectManager));
 		m_panels.push_back(std::make_unique<InspectorPanel>(m_projectManager));
