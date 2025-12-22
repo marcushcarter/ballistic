@@ -6,7 +6,7 @@ namespace Ballistic {
 
 	struct LayerContext;
 	class LayerStack;
-	class IRenderer;
+	class Renderer;
 
 	class RenderLayer : public Layer {
 	public:
@@ -19,6 +19,6 @@ namespace Ballistic {
 
 	private:
 		std::shared_ptr<LayerStack> m_layerStack;
-        std::shared_ptr<IRenderer> m_renderer;
+        std::shared_ptr<Renderer> m_renderer;
 	};
 }

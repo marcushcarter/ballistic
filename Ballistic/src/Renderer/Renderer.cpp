@@ -1,19 +1,19 @@
-#include "Renderer/IRenderer.h"
+#include "Renderer/Renderer.h"
 #include "Core/Config.h"
 
 namespace Ballistic {
 
-	IRenderer::IRenderer() {
+	Renderer::Renderer() {
 	}
 
-	void IRenderer::RequestResize(glm::vec2 dim) {
+	void Renderer::RequestResize(glm::vec2 dim) {
 		if (m_CurrentSize == dim) return;
 		m_ResizeSize = dim;
 		m_PendingResize = true;
 	}
 	
-	void IRenderer::Init() {
-		std::cout << "OpenGL IRenderer Initialized" << std::endl;
+	void Renderer::Init() {
+		std::cout << "OpenGL Renderer Initialized" << std::endl;
 
 		m_PendingResize = true;
 		m_ResizeSize = glm::vec2(800, 600);
@@ -40,10 +40,10 @@ namespace Ballistic {
         	throw std::runtime_error("Framebuffer incomplete!");
 	}
 	
-	void IRenderer::Shutdown() {
+	void Renderer::Shutdown() {
 	}
 
-	void IRenderer::Render() {
+	void Renderer::Render() {
 		if (m_PendingResize) {
 			int w = (int)m_ResizeSize.x;
         	int h = (int)m_ResizeSize.y;

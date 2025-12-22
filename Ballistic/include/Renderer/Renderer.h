@@ -3,9 +3,9 @@
 
 namespace Ballistic {
 
-	class IRenderer {
+	class Renderer {
 	public:
-		IRenderer();
+		Renderer();
 
 		void Init();
 		void Shutdown();

@@ -3,21 +3,22 @@
 #include "Core/Layers/RenderLayer.h"
 #include "Core/Window/Window.h"
 #include "Project/ProjectManager.h"
-#include "Renderer/IRenderer.h"
+#include "Renderer/Renderer.h"
 
 namespace Ballistic {
 
 	Application::Application(WindowProps windowProps) {
 
-		m_layerStack = std::make_shared<LayerStack>();
+		Window::InitGLFW();
 
 		m_window = std::make_shared<Window>(windowProps);
 
 		m_projectManager = std::make_shared<ProjectManager>();
 
-	    m_renderer = std::make_shared<IRenderer>();
+	    m_renderer = std::make_shared<Renderer>();
 		m_renderer->Init();
 
+		m_layerStack = std::make_shared<LayerStack>();
 		m_layerStack->PushLayer(std::make_shared<RenderLayer>(GetAppContext(), "RenderLayer"));
 	}
 
@@ -29,11 +30,17 @@ namespace Ballistic {
 	void Application::Run() {
 		while (!m_window->ShouldClose()) {
 			Window::PollEvents();
-			m_window->OnUpdate();
+
+			gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+			gl::Clear();
+
+			// ===== Window =====
+
+			m_window->BeginFrame();
 
 			m_layerStack->OnUpdate();
 			
-			m_window->SwapBuffers();
+			m_window->EndFrame();
 		}
 		Shutdown();
 	}

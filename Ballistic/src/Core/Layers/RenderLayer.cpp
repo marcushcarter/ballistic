@@ -2,7 +2,7 @@
 #include "Core/Layers/Event.h"
 #include "Core/Layers/LayerStack.h"
 #include "Core/Application.h"
-#include "Renderer/IRenderer.h"
+#include "Renderer/Renderer.h"
 
 namespace Ballistic {
 

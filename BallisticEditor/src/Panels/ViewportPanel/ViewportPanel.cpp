@@ -2,7 +2,7 @@
 
 namespace Ballistic {
 
-    ViewportPanel::ViewportPanel(std::shared_ptr<IRenderer> renderer) {
+    ViewportPanel::ViewportPanel(std::shared_ptr<Renderer> renderer) {
         m_renderer = renderer;
     }
 	

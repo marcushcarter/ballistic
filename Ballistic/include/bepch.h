@@ -22,8 +22,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include <stb_image.h>
-
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -33,11 +31,17 @@
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <stb_image.h>
+
+#include <imgui.h>
+#include <imgui_impl_opengl3.h>
+#include <imgui_impl_glfw.h>
+#include <IconsFontAwesome5.h>
+
 #include <entt/entt.hpp>
 
 #include <nlohmann/json.hpp>
 
-#include <Platform/API/OpenGL/all.h>
-#include <Platform/API/OpenGL/ShaderGLM.h>
-
-#include <Core/Utils.h>
+#include "Platform/API/OpenGL/all.h"
+#include "Platform/API/OpenGL/ShaderGLM.h"
+#include "Core/Utils.h"

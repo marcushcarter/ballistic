@@ -18,6 +18,6 @@
 #include "Project/Scene/SceneManager.h"
 #include "Project/ProjectManager.h"
 
-#include "Renderer/IRenderer.h"
+#include "Renderer/Renderer.h"
 
 #include "bepch.h"

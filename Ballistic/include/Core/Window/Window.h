@@ -3,18 +3,23 @@
 #include "Core/Window/WindowInfo.h"
 
 namespace Ballistic {
+
+	class ImGuiSystem;
 	
 	class Window {
 	public:
-		Window(const WindowProps& windowProps);
+		Window(const WindowProps& props);
 		~Window();
         
+		static void InitGLFW();
 		static void PollEvents();
 
 		bool ShouldClose() const;
 		void SwapBuffers();
-
 		void OnUpdate();
+
+		void BeginFrame();
+		void EndFrame();
 
 		WindowProps GetProps() const { return m_props; }
 		WindowState GetState() const { return m_state; }
@@ -34,17 +39,18 @@ namespace Ballistic {
 
 		GLFWwindow* GetNativeWindow() const { return m_window; }
 
+		bool HasImGuiContext() const { return m_props.imgui; }
+
 	private:
 		GLFWwindow* m_window;
 		WindowProps m_props;
 		WindowState m_state;
 
+		std::unique_ptr<ImGuiSystem> m_imguiSystem;
+
 		std::function<void(int,int)> m_resizeCallback;
 		std::function<void(bool)> m_focusCallback;
 		std::function<void()> m_closeCallback;
-
-		void initGLFW();
-		void setupCallbacks();
 	};
 
 }

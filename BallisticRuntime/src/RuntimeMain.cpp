@@ -7,7 +7,7 @@ namespace Ballistic {
     class BallisticRuntime : public Application {
     public:
         BallisticRuntime()
-            : Application() {
+            : Application(WindowPresets::Runtime()) {
 
             m_layerStack->PushLayer(std::make_shared<RuntimeLayer>(GetAppContext(), std::string("RuntimeLayer")));
         }

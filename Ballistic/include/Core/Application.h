@@ -7,13 +7,14 @@ namespace Ballistic {
 	class ProjectManager;
 	class LayerStack;
 	class Window;
-	class IRenderer;
+	class Renderer;
+	class ImGuiSystem;
 
 	struct LayerContext {
 		std::shared_ptr<ProjectManager> projectManager;
 	    std::shared_ptr<LayerStack> layerStack;
 	    std::shared_ptr<Window> window;
-	    std::shared_ptr<IRenderer> renderer;
+	    std::shared_ptr<Renderer> renderer;
 	};
 
 	class Application {
@@ -34,8 +35,9 @@ namespace Ballistic {
 	protected:
 		std::shared_ptr<ProjectManager> m_projectManager;
 		std::shared_ptr<LayerStack> m_layerStack;
+		
 		std::shared_ptr<Window> m_window;
-		std::shared_ptr<IRenderer> m_renderer;
+		std::shared_ptr<Renderer> m_renderer;
 
 		virtual void Shutdown() = 0;
 	};

@@ -7,16 +7,14 @@
 
 namespace Ballistic {
 
-	EditorLayer::EditorLayer(const LayerContext& context, std::shared_ptr<ImGuiContext> imguiContext, const std::string name) : Layer(name) {
+	EditorLayer::EditorLayer(const LayerContext& context, const std::string name) : Layer(name) {
 		m_projectManager = context.projectManager;
 		m_window = context.window;
 		m_renderer = context.renderer;
-
-		m_imguiContext = imguiContext;
 	}
 
 	void EditorLayer::OnAttach() {
-		m_panels.push_back(std::make_unique<Dockspace>());
+		// m_panels.push_back(std::make_unique<Dockspace>());
 
 		m_panels.push_back(std::make_unique<MenuBar>(m_projectManager, m_window));
 		m_panels.push_back(std::make_unique<HierarchyPanel>(m_projectManager));
@@ -31,14 +29,12 @@ namespace Ballistic {
 	}
 
 	void EditorLayer::OnUpdate() {
-		m_imguiContext->BeginFrame();
+		if (m_window->HasImGuiContext()) {
+			for (auto& panel : m_panels)
+				panel->OnImGuiRender();
 
-	    for (auto& panel : m_panels)
-        	panel->OnImGuiRender();
-
-	    ImGui::ShowDemoWindow();
-
-		m_imguiContext->EndFrame();
+			ImGui::ShowDemoWindow();
+		}
 	}
 
 	void EditorLayer::OnEvent(void* ePtr) {

@@ -14,7 +14,7 @@ namespace Ballistic {
 
 	private:		
         std::shared_ptr<Window> m_window;
-        std::shared_ptr<IRenderer> m_renderer;
+        std::shared_ptr<Renderer> m_renderer;
 
 		std::shared_ptr<gl::Shader> blitShader;
 		std::shared_ptr<gl::VertexArray> vao;

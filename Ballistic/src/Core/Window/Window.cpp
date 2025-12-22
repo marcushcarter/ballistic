@@ -1,29 +1,11 @@
 #include "Core/Window/Window.h"
 #include "Core/Config.h"
+#include "Core/Window/ImGuiSystem.h"
 
 namespace Ballistic {
 
-	Window::Window(const WindowProps& windowProps)
-		: m_props(windowProps) {
-
-		initGLFW();
-		setupCallbacks();
-	}
-
-	Window::~Window() {
-		if (m_window) glfwDestroyWindow(m_window);
-	}
-
-	void Window::initGLFW() {
-	    if (!glfwInit()) {
-	        std::cerr << "Failed to initialize GLFW\n";
-	        return;
-	    }
-
-		glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	Window::Window(const WindowProps& props)
+		: m_props(props) {
 
 	    m_window = glfwCreateWindow(m_props.width, m_props.height, m_props.title.c_str(), nullptr, nullptr);
 	    if (!m_window) {
@@ -41,9 +23,7 @@ namespace Ballistic {
 		}
 
 		glfwSwapInterval(m_props.vsync);
-	}
 
-	void Window::setupCallbacks() {
 		glfwSetWindowUserPointer(m_window, this);
 
 		glfwSetFramebufferSizeCallback(m_window, [](GLFWwindow* win, int w, int h) {
@@ -64,6 +44,26 @@ namespace Ballistic {
 			if (window->m_closeCallback) window->m_closeCallback();
 		});
 
+		if (m_props.imgui) {
+			m_imguiSystem = std::make_unique<ImGuiSystem>();
+			m_imguiSystem->Init(m_window, m_props.viewports, m_props.dockspace);
+		}
+	}
+
+	Window::~Window() {
+		if (m_window) glfwDestroyWindow(m_window);
+	}
+	
+	void Window::InitGLFW() {
+	    if (!glfwInit()) {
+	        std::cerr << "Failed to initialize GLFW\n";
+	        return;
+	    }
+
+		glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	}
     
 	void Window::PollEvents() {
@@ -77,6 +77,18 @@ namespace Ballistic {
     void Window::SwapBuffers() {
         glfwSwapBuffers(m_window);
     }
+
+	void Window::BeginFrame() {
+		OnUpdate();
+		if (m_imguiSystem)
+			m_imguiSystem->BeginFrame();
+	}
+	
+	void Window::EndFrame() {
+		if (m_imguiSystem)
+			m_imguiSystem->EndFrame();
+		SwapBuffers();
+	}
 
 	void Window::OnUpdate() {
 		int w, h;
