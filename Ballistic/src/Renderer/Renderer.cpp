@@ -40,6 +40,8 @@ namespace Ballistic {
 			m_pendingResize = false;
 		}
 
+        // auto& scene = m_projectManager->GetSceneManager()->GetActiveScene();
+
 		std::vector<RenderCommand> commands;
 
 		auto& scene = m_projectManager->GetCurrentScene();

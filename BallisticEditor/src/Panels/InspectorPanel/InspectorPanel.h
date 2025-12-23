@@ -13,7 +13,7 @@ namespace Ballistic {
 		void OnEvent(void* ePtr) override;
     
     private:
-        std::shared_ptr<ProjectManager> m_ProjectManager;
+        std::shared_ptr<ProjectManager> m_projectManager;
 
 		template<typename T>
 		inline void DrawComponent(const std::string& title, EntityHandle& entity, std::function<void()> contentFunc = {}, bool deletable = true) {

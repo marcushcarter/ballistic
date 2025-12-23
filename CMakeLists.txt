@@ -27,9 +27,6 @@ target_link_libraries(imgui PUBLIC glfw)
 
 add_subdirectory(external/entt)
 
-add_library(IconFontCppHeaders INTERFACE)
-target_include_directories(IconFontCppHeaders INTERFACE external/icon-fonts-headers)
-
 add_library(nlohmann_json INTERFACE)
 target_include_directories(nlohmann_json INTERFACE external/json/single_include)
 

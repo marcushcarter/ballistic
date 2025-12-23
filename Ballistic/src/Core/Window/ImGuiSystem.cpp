@@ -30,7 +30,7 @@ namespace Ballistic {
 		io.Fonts->AddFontFromFileTTF((Config::EDITOR_RES_PATH / "Fonts/Noto_Sans/static/NotoSans-Regular.ttf").string().c_str(), 16.0f, &cfg);
 		
 		cfg.MergeMode = true;
-		static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+		static const ImWchar icons_ranges[] = { 0xF000, 0xF8FF, 0 };
 		io.Fonts->AddFontFromFileTTF((Config::EDITOR_RES_PATH / "Fonts/fontawesome-free-6.6.0-desktop/Font Awesome 6 Free-Solid-900.otf").string().c_str(), 13.0f, &cfg, icons_ranges);
 		
     	ImGui::StyleColorsDark();

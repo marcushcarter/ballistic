@@ -59,8 +59,30 @@ namespace Ballistic {
     };
 
     struct CameraComponent {
-        float temp;
-        CameraComponent() : temp(1) {}
+        enum class Type { Perspective, Orthographic } type = Type::Perspective;
+
+        float fov = 45.0f;
+        float orthoSize = 10.0f;
+        float aspectRatio = 16.0f / 9.0f;
+        float nearPlane = 0.3f;
+        float farPlane = 2000.0f;
+
+        bool mainCamera = false;
+
+        glm::mat4 view = glm::mat4(1.0f);
+        glm::mat4 projection = glm::mat4(1.0f);
+
+        void OnUpdate(TransformComponent& transform) {
+            glm::mat4 model = transform.TRS();
+            view = glm::inverse(model);
+
+            if (type == Type::Perspective) {
+                projection = glm::perspective(glm::radians(fov), aspectRatio, nearPlane, farPlane);
+            } else {
+                float half = orthoSize * 0.5f;
+                projection = glm::ortho(-half * aspectRatio, half * aspectRatio, -half, half, nearPlane, farPlane);
+            }
+        }
     };
 
 

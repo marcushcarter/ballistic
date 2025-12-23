@@ -3,15 +3,15 @@
 namespace Ballistic {
 
     InspectorPanel::InspectorPanel(std::shared_ptr<ProjectManager> projectManager) {
-        m_ProjectManager = projectManager;
+        m_projectManager = projectManager;
     }
 	
 	void InspectorPanel::Init() {
 	}
 
 	void InspectorPanel::OnImGuiRender() {
-        auto& scene = m_ProjectManager->GetSceneManager()->GetActiveScene();
-        // auto& reg = scene.registry;
+        auto& scene = m_projectManager->GetSceneManager()->GetActiveScene();
+        auto& reg = scene.GetRegistry();
         EntityHandle selected(scene.GetSelected(), scene.GetRegistry());
 
         static ImGuiWindowFlags InspectorFlags = ImGuiWindowFlags_NoCollapse;
@@ -22,6 +22,9 @@ namespace Ballistic {
             ImGui::End();
             return;
         }
+
+        bool hasParent = selected.has<Parent>();
+        bool hasChildren = selected.has<Children>();
 
         bool hasTransform = selected.has<TransformComponent>();
         bool hasSphere = selected.has<SphereComponent>();
@@ -44,7 +47,7 @@ namespace Ballistic {
             }
             
             ImGui::PushStyleColor(ImGuiCol_Text, lightGray);
-            ImGui::Text(ICON_FA_TAG " Name:");
+            ImGui::Text("Name:");
             ImGui::PopStyleColor();
             
             ImGui::SameLine();
@@ -98,6 +101,36 @@ namespace Ballistic {
         if (hasCamera) {
             DrawComponent<CameraComponent>("Camera Component", selected, [&]() {
                 auto& cam = selected.get<CameraComponent>();
+                if (ImGui::DragFloat("FOV", &cam.fov, 0.1f, 1.0f, 179.0f)) {}
+                ImGui::DragFloat("Ortho Size", &cam.orthoSize, 0.1f, 0.1f, 1000.0f);
+
+                if (ImGui::Checkbox("Main Camera", &cam.mainCamera)) {
+                    scene.SetMainCamera(selected.handle());
+                }
+            });
+        }
+
+        if (hasParent || hasChildren) {
+            DrawComponent<Children>("Camera Component", selected, [&]() {
+                if (hasParent) {
+                    auto& parent = selected.get<Parent>();
+                    ImGui::SeparatorText("Parent");
+                    EntityHandle p(scene.GetEntity(parent.parent), reg);
+                    if (ImGui::Button(p.get<Tag>().name.c_str())) {
+                            scene.SetSelected(p.handle());
+                    }
+                }
+
+                if (hasChildren) {
+                    auto& children = selected.get<Children>();
+                    ImGui::SeparatorText("Children");
+                    for (auto& child : children.children) {
+                        EntityHandle c(scene.GetEntity(child), reg);
+                        if (ImGui::Button(c.get<Tag>().name.c_str())) {
+                            scene.SetSelected(c.handle());
+                        }
+                    }
+                }
             });
         }
 

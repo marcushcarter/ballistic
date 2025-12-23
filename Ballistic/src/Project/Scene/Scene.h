@@ -5,6 +5,7 @@
 namespace Ballistic {
 
     struct GUID;
+    struct CameraComponent;
 
     class Scene {
     public:
@@ -24,6 +25,8 @@ namespace Ballistic {
         std::vector<entt::entity> GetAllEntitiesFlattened();
         
         glm::mat4 ComputeWorldTransform(entt::entity entity);
+        void SetMainCamera(entt::entity entity);
+        CameraComponent& GetMainCamera();
         
         GUID GetGUID(entt::entity e) { return m_registry.get<GUID>(e); }
         entt::entity GetEntity(GUID id) { auto it = guidToEntity.find(id); return it != guidToEntity.end() ? it->second : entt::null; }

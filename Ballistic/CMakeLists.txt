@@ -17,7 +17,6 @@ target_link_libraries(Ballistic PUBLIC
     imgui
     stb
     EnTT::EnTT
-    IconFontCppHeaders
     tinyfiledialogs
     nlohmann_json
     ${CMAKE_DL_LIBS}

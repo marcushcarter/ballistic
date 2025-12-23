@@ -227,4 +227,27 @@ namespace Ballistic {
         return world;
     }
 
+    void Scene::SetMainCamera(entt::entity entity) {
+        for (auto& entity : GetAllEntitiesFlattened()) {
+            EntityHandle e(entity, m_registry);
+            if (e.has<CameraComponent>()) {
+                e.get<CameraComponent>().mainCamera = false;
+            }
+        }
+        
+        EntityHandle set(entity, m_registry);
+        if (set.has<CameraComponent>()) {
+            set.get<CameraComponent>().mainCamera = true;
+        }
+    }
+
+    CameraComponent& Scene::GetMainCamera() {
+        for (auto& entity : GetAllEntitiesFlattened()) {
+            EntityHandle e(entity, m_registry);
+            if (e.has<CameraComponent>()) {
+                return e.get<CameraComponent>();
+            }
+        }
+    }
+
 }
