@@ -1,16 +1,17 @@
-file(GLOB_RECURSE EDITOR_SRC src/*.cpp)
+file(GLOB_RECURSE EDITOR_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Panels/*.cpp
+)
 
-if(EDITOR_SRC)
-    add_executable(EngineEditor ${EDITOR_SRC})
+add_executable(EngineEditor ${EDITOR_SRC})
 
-    if(WIN32)
-        set(RUNTIME_ICON "${CMAKE_CURRENT_SOURCE_DIR}/icon.rc")
-        target_sources(EngineEditor PRIVATE ${RUNTIME_ICON})
-    endif()
-
-    target_include_directories(EngineEditor PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-    )
-
-    target_link_libraries(EngineEditor PRIVATE Engine)
+if(WIN32)
+    set(EDITOR_ICON "${CMAKE_SOURCE_DIR}/Resources/Icons/icon.rc")
+    target_sources(EngineEditor PRIVATE ${EDITOR_ICON})
 endif()
+
+target_include_directories(EngineEditor PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(EngineEditor PRIVATE Engine)
