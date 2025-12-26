@@ -33,6 +33,6 @@ target_include_directories(nlohmann_json INTERFACE Thirdparty/json/single_includ
 add_library(tinyfiledialogs STATIC Thirdparty/tinyfiledialogs/tinyfiledialogs.c)
 target_include_directories(tinyfiledialogs PUBLIC Thirdparty/tinyfiledialogs)
 
-add_subdirectory(Ballistic)
-add_subdirectory(BallisticRuntime)
-add_subdirectory(BallisticEditor)
+add_subdirectory(Engine)
+add_subdirectory(EngineRuntime)
+add_subdirectory(EngineEditor)
