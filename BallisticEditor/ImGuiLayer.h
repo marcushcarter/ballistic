@@ -17,6 +17,7 @@ namespace ballistic
         void OnEvent(IEvent& e) override;
 
     private:
+        
         // PANEL STACK
     };
     

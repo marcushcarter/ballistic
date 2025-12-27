@@ -15,16 +15,16 @@ target_include_directories(glad PUBLIC glad/include)
 # add_library(stb INTERFACE)
 # target_include_directories(stb INTERFACE stb)
 
-# # ImGui
-# file(GLOB IMGUI_CORE imgui/*.cpp)
-# set(IMGUI_BACKENDS
-#     imgui/backends/imgui_impl_glfw.cpp
-#     imgui/backends/imgui_impl_opengl3.cpp
-# )
-# set(IMGUI_SRC ${IMGUI_CORE} ${IMGUI_BACKENDS})
-# add_library(imgui STATIC ${IMGUI_SRC})
-# target_include_directories(imgui PUBLIC imgui imgui/backends)
-# target_link_libraries(imgui PUBLIC glfw)
+# ImGui
+file(GLOB IMGUI_CORE imgui/*.cpp)
+set(IMGUI_BACKENDS
+    imgui/backends/imgui_impl_glfw.cpp
+    imgui/backends/imgui_impl_opengl3.cpp
+)
+set(IMGUI_SRC ${IMGUI_CORE} ${IMGUI_BACKENDS})
+add_library(imgui STATIC ${IMGUI_SRC})
+target_include_directories(imgui PUBLIC imgui)
+target_link_libraries(imgui PUBLIC glfw)
 
 # # EnTT
 # add_subdirectory(entt)

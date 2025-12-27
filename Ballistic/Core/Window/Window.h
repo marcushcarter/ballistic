@@ -17,6 +17,8 @@ namespace ballistic
         bool ShouldClose() const;
         void Update();
         void Shutdown();
+
+        void* GetNativeWindow() const { return m_nativeWindow; }
         
     private:
         WindowSettings m_settings;

@@ -11,7 +11,7 @@ target_link_libraries(Ballistic PUBLIC
     glfw
     glad
     # glm
-    # imgui
+    imgui
     # stb
     # EnTT::EnTT
     # tinyfiledialogs
