@@ -3,11 +3,16 @@
 
 namespace ballistic
 {
+    class LayerStack;
+
+    struct LayerContext {
+        std::shared_ptr<LayerStack> layerStack;
+    };
 
     class IApplication
     {
     public:
-        IApplication() = default;
+        IApplication();        
         virtual ~IApplication() = default;
 
         virtual bool Init() = 0;
@@ -16,9 +21,13 @@ namespace ballistic
 
         void SetExeDirectory(const std::filesystem::path& path) { m_exeDir = path; }
         const std::filesystem::path& GetExeDirectory() const { return m_exeDir; }
+        
+        std::shared_ptr<LayerStack> GetLayerStack() { return m_layerStack; }
 
     private:
         std::filesystem::path m_exeDir;
+
+        std::shared_ptr<LayerStack> m_layerStack;
     };
     
 } // namespace ballistic
