@@ -6,6 +6,7 @@
 /*.cmake
 /*.make
 /*.ninja
+/.vscode/
 
 CMakeLists.txt.user
 CMakeCache.txt
