@@ -22,6 +22,10 @@ namespace ballistic
         WindowSettings m_settings;
         WindowState m_state;
         GLFWwindow* m_nativeWindow;
+        
+        bool m_dragging = false;
+        double m_dragOffsetX = 0.0;
+        double m_dragOffsetY = 0.0;
     };
 
 } // namespace ballistic

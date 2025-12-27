@@ -26,3 +26,5 @@ namespace ballistic
     };
     
 } // namespace ballistic
+
+#define GetRoot() ballistic::Root::getSingletonPtr()

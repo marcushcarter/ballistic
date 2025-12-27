@@ -9,8 +9,9 @@ namespace ballistic
         bool Init() override {
             std::cout << "Editor initialized\n";
 
+            WindowSettings editorSettings;
             m_window = std::make_unique<Window>();
-            if (!m_window->Init()) {
+            if (!m_window->Init(editorSettings)) {
                 return false;
             }
 
@@ -21,7 +22,7 @@ namespace ballistic
             m_window->Update();
 
             if (m_window->ShouldClose())
-                Root::getSingleton().RequestShutdown();
+                GetRoot()->RequestShutdown();
         }
 
         void Shutdown() override {
