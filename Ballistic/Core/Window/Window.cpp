@@ -32,26 +32,25 @@ namespace ballistic
             return false;
         }
 
-        glfwSetWindowUserPointer(m_nativeWindow, this); 
+        // glfwSetWindowUserPointer(m_nativeWindow, this); 
 
-        glfwSetMouseButtonCallback(m_nativeWindow, [](GLFWwindow* wnd, int button, int action, int mods){
-            Window* window = reinterpret_cast<Window*>(glfwGetWindowUserPointer(wnd));
-            if (!window || !window->m_settings.customTitleBar) return;
+        // glfwSetMouseButtonCallback(m_nativeWindow, [](GLFWwindow* wnd, int button, int action, int mods){
+        //     Window* window = reinterpret_cast<Window*>(glfwGetWindowUserPointer(wnd));
+        //     if (!window || !window->m_settings.customTitleBar) return;
 
-            double mx, my;
-            glfwGetCursorPos(wnd, &mx, &my);
+        //     double mx, my;
+        //     glfwGetCursorPos(wnd, &mx, &my);
 
-            if (button == GLFW_MOUSE_BUTTON_LEFT) {
-                if (action == GLFW_PRESS && my < 30) { // top 30px = title bar
-                    window->m_dragging = true;
-                    window->m_dragOffsetX = mx;
-                    window->m_dragOffsetY = my;
-                } else if (action == GLFW_RELEASE) {
-                    window->m_dragging = false;
-                }
-            }
-        });
-
+        //     if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        //         if (action == GLFW_PRESS && my < 30) { // top 30px = title bar
+        //             window->m_dragging = true;
+        //             window->m_dragOffsetX = mx;
+        //             window->m_dragOffsetY = my;
+        //         } else if (action == GLFW_RELEASE) {
+        //             window->m_dragging = false;
+        //         }
+        //     }
+        // });
 
         return true;
     }
@@ -64,16 +63,16 @@ namespace ballistic
         if (!m_nativeWindow) return;
         glfwPollEvents();
 
-        if (m_settings.customTitleBar) {
-            double mx, my;
-            glfwGetCursorPos(m_nativeWindow, &mx, &my);
+        // if (m_settings.customTitleBar) {
+        //     double mx, my;
+        //     glfwGetCursorPos(m_nativeWindow, &mx, &my);
 
-            if (m_dragging) {
-                int newX = int(mx - m_dragOffsetX);
-                int newY = int(my - m_dragOffsetY);
-                glfwSetWindowPos(m_nativeWindow, newX, newY);
-            }
-        }
+        //     if (m_dragging) {
+        //         int newX = int(mx - m_dragOffsetX);
+        //         int newY = int(my - m_dragOffsetY);
+        //         glfwSetWindowPos(m_nativeWindow, newX, newY);
+        //     }
+        // }
         
         glfwSwapBuffers(m_nativeWindow);
 

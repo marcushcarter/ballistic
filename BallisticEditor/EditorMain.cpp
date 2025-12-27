@@ -7,7 +7,7 @@ namespace ballistic
     {
     public:
         bool Init() override {
-            std::cout << "Editor initialized\n";
+            LogInfo("Editor initialized");
 
             WindowSettings editorSettings;
             m_window = std::make_unique<Window>();

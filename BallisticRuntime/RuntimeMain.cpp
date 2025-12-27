@@ -7,7 +7,7 @@ namespace ballistic
     {
     public:
         bool Init() override {
-            std::cout << "Runtime initialized\n";
+            LogInfo("Runtime initialized");
 
             WindowSettings runtimeSettings = WindowSettings::LoadSettingsFromProject();
             m_window = std::make_unique<Window>();
