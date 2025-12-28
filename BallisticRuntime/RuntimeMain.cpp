@@ -7,7 +7,7 @@ namespace ballistic
     {
     public:
         bool OnInit() override {
-            LogInfo("Runtime initialized");
+            LogDebug("Runtime initialized");
 
             WindowSettings runtimeSettings = WindowSettings::LoadSettingsFromProject();
             if (!m_window->Init(runtimeSettings)) {
@@ -26,8 +26,6 @@ namespace ballistic
 
         void OnShutdown() override {
             m_window->Shutdown();
-
-            LogInfo("Runtime shutdown");
         }
     };
 

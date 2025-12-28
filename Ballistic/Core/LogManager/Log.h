@@ -13,11 +13,6 @@ namespace ballistic {
     }
 
     template<typename... Args>
-    inline void LogTrace(Args&&... args) {
-        Log(LogLevel::Trace, std::forward<Args>(args)...);
-    }
-
-    template<typename... Args>
     inline void LogDebug(Args&&... args) {
         Log(LogLevel::Debug, std::forward<Args>(args)...);
     }
@@ -35,11 +30,6 @@ namespace ballistic {
     template<typename... Args>
     inline void LogError(Args&&... args) {
         Log(LogLevel::Error, std::forward<Args>(args)...);
-    }
-
-    template<typename... Args>
-    inline void LogFatal(Args&&... args) {
-        Log(LogLevel::Fatal, std::forward<Args>(args)...);
     }
 
 } // namespace ballistic

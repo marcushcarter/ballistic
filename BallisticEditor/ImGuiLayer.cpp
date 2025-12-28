@@ -3,6 +3,7 @@
 
 #include "Panels/DemoPanel.h"
 #include "Panels/ViewportPanel.h"
+#include "Panels/ConsolePanel.h"
 
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -21,6 +22,9 @@ namespace ballistic
         
         auto viewportPanel = std::make_shared<ViewportPanel>();
         m_panelStack->PushPanel(viewportPanel);
+        
+        auto consolePanel = std::make_shared<ConsolePanel>();
+        m_panelStack->PushPanel(consolePanel);
     }
 
     void ImGuiLayer::OnAttach() {

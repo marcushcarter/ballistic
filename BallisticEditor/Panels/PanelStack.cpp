@@ -5,13 +5,13 @@ namespace ballistic
 {
     void PanelStack::PushPanel(std::shared_ptr<IPanel> panel) {
         m_panels.push_back(panel);
-        panel->OnAttach();
+        panel->Attach();
 	}
 
 	void PanelStack::PopPanel(std::shared_ptr<IPanel> panel) {
         auto it = std::find(m_panels.begin(), m_panels.end(), panel);
         if (it != m_panels.end()) {
-            (*it)->OnDetach();
+            (*it)->Detach();
             m_panels.erase(it);
         }
 	}
@@ -23,7 +23,7 @@ namespace ballistic
 
 	void PanelStack::OnDetach() {
 		for (auto& panel : m_panels)
-			panel->OnDetach();
+			panel->Detach();
 	}
     
 } // namespace ballistic

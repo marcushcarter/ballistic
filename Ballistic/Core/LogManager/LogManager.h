@@ -4,12 +4,10 @@
 namespace ballistic
 {
     enum class LogLevel : uint8_t {
-        Trace = 0,
-        Debug,
+        Debug = 0,
         Info,
         Warning,
         Error,
-        Fatal,
         Count
     };
 
@@ -30,14 +28,33 @@ namespace ballistic
 
         void Log(LogLevel level, const std::string& messsage);
 
-        const std::deque<LogMessage>& GetMessages() const { return m_messages; }
+        void Clear();
+
+        std::deque<LogMessage> GetMessages() const;
+        std::deque<LogMessage> GetFilteredLogs(const std::string& filter = "") const;
+        std::string GetFilteredLogsText(const std::string& filter = "") const;
+
+        void SetLevelEnabled(LogLevel level, bool enabled) {
+            m_levelEnabled[level] = enabled;
+        }
+        bool IsLevelEnabled(LogLevel level) const {
+            auto it = m_levelEnabled.find(level);
+            return it != m_levelEnabled.end() ? it->second : true;
+        }
 
         static const char* LevelToString(LogLevel level);
     
     private:
         std::deque<LogMessage> m_messages;
-        std::mutex m_mutex;
+        mutable std::mutex m_mutex;
         size_t m_maxMessages = 1000;
+
+        std::unordered_map<LogLevel, bool> m_levelEnabled = {
+            {LogLevel::Debug, true},
+            {LogLevel::Info, true},
+            {LogLevel::Warning, true},
+            {LogLevel::Error, true}
+        };
     };
     
 } // namespace ballistic

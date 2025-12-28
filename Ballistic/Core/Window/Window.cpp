@@ -10,7 +10,7 @@ namespace ballistic
         m_settings = windowSettings;
 
         if (!glfwInit()) {
-            LogFatal("Failed to initialize GLFW");
+            LogError("Failed to initialize GLFW");
             return false;
         }
 
@@ -23,14 +23,14 @@ namespace ballistic
 
         m_nativeWindow = glfwCreateWindow(m_settings.width, m_settings.height, m_settings.title.c_str(), nullptr, nullptr);
         if (!m_nativeWindow) {
-            LogFatal("Failed to create window");
+            LogError("Failed to create window");
             Shutdown();
             return false;
         }
 
         glfwMakeContextCurrent(m_nativeWindow);
         if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-            LogFatal("Failed to initialize GLAD");
+            LogError("Failed to initialize GLAD");
             Shutdown();
             return false;
         }

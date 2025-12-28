@@ -15,7 +15,7 @@ namespace ballistic
         if (!root) return -1;
 
         if (!root->Init()) {
-            LogInfo("Failed to initialize Root");
+            LogError("Failed to initialize Root");
             return -1;
         }
 

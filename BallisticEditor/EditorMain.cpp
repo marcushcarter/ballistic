@@ -8,7 +8,7 @@ namespace ballistic
     {
     public:
         bool OnInit() override {
-            LogInfo("Editor initialized");
+            LogDebug("Editor initialized");
 
             WindowSettings editorSettings;
             if (!m_window->Init(editorSettings)) {
@@ -36,8 +36,6 @@ namespace ballistic
             GetLayerStack()->OnDetach();
 
             m_window->Shutdown();
-            
-            LogInfo("Editor shutdown");
         }
     };
 
