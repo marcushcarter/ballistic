@@ -22,6 +22,8 @@ namespace ballistic
 
     private:
         std::shared_ptr<PanelStack> m_panelStack;
+
+        void MenuBar();
     };
     
 } // namespace ballistic

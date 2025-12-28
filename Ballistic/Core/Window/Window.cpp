@@ -1,6 +1,9 @@
 #include "Core/Window/Window.h"
 #include "Core/Window/WindowInfo.h"
 
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
+
 namespace ballistic
 {
     bool Window::Init(const WindowSettings& windowSettings) {
@@ -29,6 +32,19 @@ namespace ballistic
         if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
             Shutdown();
             return false;
+        }
+
+        if (m_settings.customTitleBar) {
+            HWND hwnd = glfwGetWin32Window(m_nativeWindow);
+
+            RECT rect;
+            GetWindowRect(hwnd, &rect);
+            int width = rect.right - rect.left;
+            int height = rect.bottom - rect.top;
+
+            HRGN rgn = CreateRoundRectRgn(0, 0, width, height, 12, 12);
+            SetWindowRgn(hwnd, rgn, TRUE);
+            DeleteObject(rgn);
         }
 
         // glfwSetWindowUserPointer(m_nativeWindow, this); 

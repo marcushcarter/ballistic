@@ -21,8 +21,9 @@ namespace ballistic
         void Update(float deltaTime);
         void Shutdown();
 
-        void SetExeDirectory(const std::filesystem::path& path) { m_exeDir = path; }
-        const std::filesystem::path& GetExeDirectory() const { return m_exeDir; }
+        static void SetExeDirectory(const std::filesystem::path& path) { s_exeDir = path; }
+        static const std::filesystem::path& GetExeDirectory() { return s_exeDir; }
+        static std::filesystem::path GetResDirectory() { return s_exeDir / "Resources"; }
         
         std::shared_ptr<LayerStack> GetLayerStack() { return m_layerStack; }
     
@@ -42,7 +43,7 @@ namespace ballistic
         std::unique_ptr<Window> m_window;
 
     private:
-        std::filesystem::path m_exeDir;
+        static inline std::filesystem::path s_exeDir;
     };
     
 } // namespace ballistic

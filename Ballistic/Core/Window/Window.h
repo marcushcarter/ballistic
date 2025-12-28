@@ -18,16 +18,20 @@ namespace ballistic
         void Update();
         void Shutdown();
 
-        void* GetNativeWindow() const { return m_nativeWindow; }
+        const WindowSettings& GetSettings() const { return m_settings; }
+        const WindowState& GetState() const { return m_state; }
+
+        GLFWwindow* GetNativeWindow() const { return m_nativeWindow; }
         
     private:
         WindowSettings m_settings;
         WindowState m_state;
         GLFWwindow* m_nativeWindow;
         
-        bool m_dragging = false;
-        double m_dragOffsetX = 0.0;
-        double m_dragOffsetY = 0.0;
+        // int m_windowStartX = 0;
+        // int m_windowStartY = 0;
+        // double m_dragStartX = 0.0;
+        // double m_dragStartY = 0.0;
     };
 
 } // namespace ballistic
