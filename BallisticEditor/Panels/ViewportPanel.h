@@ -8,8 +8,7 @@ namespace ballistic
 
 	class ViewportPanel : public IPanel {
 	public:
-        ViewportPanel(const std::string& name = "ViewportPanel");
-
+        ViewportPanel(LayerContext& context, const std::string& name = "ViewportPanel");
         ~ViewportPanel() override { OnDetach(); }
         
 		void OnAttach() override;

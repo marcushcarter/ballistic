@@ -12,21 +12,21 @@
 
 namespace ballistic
 {
-    ImGuiLayer::ImGuiLayer(const LayerContext& context, const std::string& name) 
+    ImGuiLayer::ImGuiLayer(LayerContext& context, const std::string& name) 
         : ILayer(context, name) {
-
-        m_panelStack = std::make_shared<PanelStack>();
     }
 
     void ImGuiLayer::OnAttach() {
 
-        auto demoPanel = std::make_shared<DemoPanel>();
+        m_panelStack = std::make_shared<PanelStack>();
+
+        auto demoPanel = std::make_shared<DemoPanel>(m_context);
         m_panelStack->PushPanel(demoPanel);
         
-        auto viewportPanel = std::make_shared<ViewportPanel>();
+        auto viewportPanel = std::make_shared<ViewportPanel>(m_context);
         m_panelStack->PushPanel(viewportPanel);
         
-        auto consolePanel = std::make_shared<ConsolePanel>();
+        auto consolePanel = std::make_shared<ConsolePanel>(m_context);
         m_panelStack->PushPanel(consolePanel);
         
         IMGUI_CHECKVERSION();

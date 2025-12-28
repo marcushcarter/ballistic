@@ -4,9 +4,6 @@ namespace ballistic
 {
     bool LogManager::Init() {
         Log(LogLevel::Debug, "Log Manager initialized");
-        Log(LogLevel::Info, "Test Info");
-        Log(LogLevel::Warning, "Test Warn");
-        Log(LogLevel::Error, "Test Err");
         return true;
     }
 

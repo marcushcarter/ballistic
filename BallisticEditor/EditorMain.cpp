@@ -16,8 +16,8 @@ namespace ballistic
             }
             m_window->SetIcon(GetResDirectory() / "Icons/favicon.png");
 
-            LayerContext ctx = CreateLayerContext();
-            auto imguiLayer = std::make_shared<ImGuiLayer>(ctx);
+            // LayerContext ctx = CreateLayerContext();
+            auto imguiLayer = std::make_shared<ImGuiLayer>(m_layerContext);
             GetLayerStack()->PushLayer(imguiLayer);
 
             return true;

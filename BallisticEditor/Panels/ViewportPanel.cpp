@@ -2,8 +2,8 @@
 
 namespace ballistic
 {
-    ViewportPanel::ViewportPanel(const std::string& name) 
-        : IPanel(name) {}
+    ViewportPanel::ViewportPanel(LayerContext& context, const std::string& name) 
+        : IPanel(context, name) {}
     
     void ViewportPanel::OnAttach() {
 

@@ -42,6 +42,8 @@ namespace ballistic
         std::shared_ptr<LayerStack> m_layerStack;
         std::unique_ptr<Window> m_window;
 
+        LayerContext m_layerContext;
+
     private:
         static inline std::filesystem::path s_exeDir;
     };

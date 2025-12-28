@@ -5,8 +5,8 @@ namespace ballistic
 {
     class IPanel {
     public:
-        IPanel(const std::string name = "Panel")
-            : m_name(name), m_open(true) {}
+        IPanel(LayerContext context, const std::string name = "Panel")
+            : m_context(context), m_name(name), m_open(true) {}
         
         virtual ~IPanel() = default;
 
@@ -21,6 +21,7 @@ namespace ballistic
 		const std::string& getName() const { return m_name; }
         
 	protected:
+        LayerContext m_context;
         bool m_open;
     
     private:

@@ -8,8 +8,7 @@ namespace ballistic
 
 	class ConsolePanel : public IPanel {
 	public:
-        ConsolePanel(const std::string& name = "ConsolePanel");
-
+        ConsolePanel(LayerContext& context, const std::string& name = "ConsolePanel");
         ~ConsolePanel() override { OnDetach(); }
         
 		void OnAttach() override;

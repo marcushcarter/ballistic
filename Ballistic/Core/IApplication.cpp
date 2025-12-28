@@ -12,6 +12,8 @@ namespace ballistic
         m_layerStack = std::make_shared<LayerStack>();
         m_window = std::make_unique<Window>();
 
+        m_layerContext = CreateLayerContext();
+
         if (!OnInit())
             return false;
 

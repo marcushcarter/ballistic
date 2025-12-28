@@ -2,8 +2,8 @@
 
 namespace ballistic
 {
-    ConsolePanel::ConsolePanel(const std::string& name) 
-        : IPanel(name) {}
+    ConsolePanel::ConsolePanel(LayerContext& context, const std::string& name) 
+        : IPanel(context, name) {}
     
     void ConsolePanel::OnAttach() {
 

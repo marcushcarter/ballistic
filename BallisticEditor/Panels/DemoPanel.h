@@ -8,9 +8,8 @@ namespace ballistic
 
 	class DemoPanel : public IPanel {
 	public:
-        DemoPanel(const std::string& name = "DemoPanel") 
-            : IPanel(name) {}
-
+        DemoPanel(LayerContext context, const std::string& name = "DemoPanel") 
+            : IPanel(context, name) {}
         ~DemoPanel() override { OnDetach(); }
         
 		void OnAttach() override {

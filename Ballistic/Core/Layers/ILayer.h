@@ -9,7 +9,7 @@ namespace ballistic
 	class ILayer
     {
 	public:
-		ILayer(const LayerContext& context, const std::string name = "Layer")
+		ILayer(LayerContext& context, const std::string name = "Layer")
             : m_context(context), m_name(name) {}
 
 		virtual ~ILayer() = default;
@@ -22,7 +22,7 @@ namespace ballistic
 		const std::string& getName() const { return m_name; }
 
     protected:
-        LayerContext m_context;
+        LayerContext& m_context;
 
 	private:
 		std::string m_name;
