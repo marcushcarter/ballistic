@@ -6,31 +6,22 @@
 
 namespace ballistic
 {
-    bool Window::Init(const WindowSettings& windowSettings) {
-        m_settings = windowSettings;
-
+    Window::Window() {
         if (!glfwInit()) {
             LogError("Failed to initialize GLFW");
-            return false;
+            return;
         }
 
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         glfwWindowHint(GLFW_RESIZABLE, m_settings.resizable ? GLFW_TRUE : GLFW_FALSE);
         glfwWindowHint(GLFW_DECORATED, m_settings.customTitleBar ? GLFW_FALSE : GLFW_TRUE);
+    }
+
+    bool Window::Init(const WindowSettings& windowSettings) {
+        m_settings = windowSettings;
 
         m_nativeWindow = glfwCreateWindow(m_settings.width, m_settings.height, m_settings.title.c_str(), nullptr, nullptr);
         if (!m_nativeWindow) {
             LogError("Failed to create window");
-            Shutdown();
-            return false;
-        }
-
-        glfwMakeContextCurrent(m_nativeWindow);
-        if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-            LogError("Failed to initialize GLAD");
             Shutdown();
             return false;
         }

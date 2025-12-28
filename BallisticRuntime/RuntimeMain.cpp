@@ -8,24 +8,23 @@ namespace ballistic
     public:
         bool OnInit() override {
             LogDebug("Runtime app initialized");
-
-            WindowSettings runtimeSettings = WindowSettings::LoadSettingsFromProject();
-            if (!m_window->Init(runtimeSettings)) {
-                return false;
-            }
-
             return true;
         }
 
         void OnUpdate(float deltaTime) override {
-            m_window->Update(deltaTime);
+            auto windowState = m_window->GetState();
+            m_renderer->RequestResize(glm::vec2(windowState.width, windowState.height));
+            // resize camera
 
-            if (m_window->ShouldClose())
-                GetRoot()->RequestShutdown();
+            m_renderer->GetDevice()->BlitToScreen();
         }
 
         void OnShutdown() override {
-            m_window->Shutdown();
+        }
+    
+    protected:
+        WindowSettings GetWindowSettings() const override {
+            return WindowSettings::LoadSettingsFromProject();
         }
     };
 

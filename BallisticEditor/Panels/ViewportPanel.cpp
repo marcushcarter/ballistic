@@ -32,7 +32,7 @@ namespace ballistic
         if (viewportSize.x != prevViewportSize.x || viewportSize.y != prevViewportSize.y) {
             glm::vec2 dim = glm::vec2(viewportSize.x, viewportSize.y);
 
-            // m_renderer->RequestResize(dim);
+            m_context.renderer->RequestResize(dim);
             // camera.setScreenSize(dim);
             wasImguiInput = true;
 
@@ -49,18 +49,18 @@ namespace ballistic
         bottomRightTextureCoords = ImVec2(topLeftTextureCoords.x + viewportSize.x, topLeftTextureCoords.y + viewportSize.y);
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
-        // drawList->AddImage(
-        //     m_renderer->GetDevice()->GetNativeTextureHandle(),
-        //     topLeftTextureCoords, 
-        //     bottomRightTextureCoords, 
-        //     ImVec2(0,1), 
-        //     ImVec2(1,0)
-        // );
-        drawList->AddRectFilled(
-            topLeftTextureCoords,
-            bottomRightTextureCoords,
-            IM_COL32(255, 255, 255, 255)
+        drawList->AddImage(
+            m_context.renderer->GetDevice()->GetNativeTextureHandle(),
+            topLeftTextureCoords, 
+            bottomRightTextureCoords, 
+            ImVec2(0,1), 
+            ImVec2(1,0)
         );
+        // drawList->AddRectFilled(
+        //     topLeftTextureCoords,
+        //     bottomRightTextureCoords,
+        //     IM_COL32(255, 255, 255, 255)
+        // );
         
         // ImGuizmoGUI(scene, renderer, selected, topLeftTextureCoords, viewportSize, camera.m_View, camera.m_Projection);
         

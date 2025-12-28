@@ -6,7 +6,6 @@ namespace ballistic
         : IPanel(context, name) {}
     
     void ConsolePanel::OnAttach() {
-
     }
     
     void ConsolePanel::OnDetach() {

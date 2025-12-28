@@ -8,34 +8,28 @@ namespace ballistic
     {
     public:
         bool OnInit() override {
-            LogDebug("Editor app initialized");
-
-            WindowSettings editorSettings;
-            if (!m_window->Init(editorSettings)) {
-                return false;
-            }
             m_window->SetIcon(GetResDirectory() / "Icons/favicon.png");
 
-            // LayerContext ctx = CreateLayerContext();
             auto imguiLayer = std::make_shared<ImGuiLayer>(m_layerContext);
             GetLayerStack()->PushLayer(imguiLayer);
 
+            LogDebug("Editor app initialized");
             return true;
         }
 
         void OnUpdate(float deltaTime) override {
-            GetLayerStack()->OnUpdate(deltaTime);
-
-            m_window->Update(deltaTime);
-
-            if (m_window->ShouldClose())
-                GetRoot()->RequestShutdown();
         }
 
         void OnShutdown() override {
-            GetLayerStack()->OnDetach();
-
-            m_window->Shutdown();
+        }
+    
+    protected:
+        WindowSettings GetWindowSettings() const override {
+            WindowSettings s;
+            s.width = 1280;
+            s.height = 720;
+            s.title = "Ballistic Editor";
+            return s;
         }
     };
 

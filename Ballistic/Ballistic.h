@@ -15,13 +15,10 @@
 #include "Core/Window/WindowInfo.h"
 #include "Core/Window/Window.h"
 
-#include <stb_image.h>
+#include "Renderer/Renderer.h"
+#include "Renderer/RenderDevice/IRenderDevice.h"
 
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/euler_angles.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include <stb_image.h>
 
 // #include <imgui.h>
 // #include <imgui_internal.h>

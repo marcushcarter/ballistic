@@ -1,6 +1,8 @@
 file(GLOB_RECURSE ENGINE_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Entry/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Renderer/*.cpp
 )
 
 add_library(Ballistic STATIC ${ENGINE_SRC})

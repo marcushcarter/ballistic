@@ -10,7 +10,7 @@ namespace ballistic
     class Window
     {
     public:
-        Window() = default;
+        Window();
         ~Window() { Shutdown(); }
 
         bool Init(const WindowSettings& windowSettings = {});

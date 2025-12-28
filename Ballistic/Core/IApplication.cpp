@@ -1,35 +1,52 @@
 #include "Core/IApplication.h"
 #include "Core/Layers/LayerStack.h"
 #include "Core/Window/Window.h"
+#include "Renderer/Renderer.h"
+#include "Core/Root.h"
 
 namespace ballistic
-{
-    IApplication::IApplication() {
-        // m_layerStack = std::make_shared<LayerStack>();
-    }
-    
+{   
     bool IApplication::Init() {
         m_layerStack = std::make_shared<LayerStack>();
-        m_window = std::make_unique<Window>();
+        
+        WindowSettings settings = GetWindowSettings();
 
+        m_renderer = std::make_unique<Renderer>(RendererAPI::OpenGL);
+        m_renderer->ApplyWindowHints();
+
+        m_window = std::make_unique<Window>();
+        if (!m_window->Init(settings)) return false;
+
+        if (!m_renderer->Init(m_window.get())) return false;
+        
         m_layerContext = CreateLayerContext();
 
-        if (!OnInit())
-            return false;
-
-        return true;
+        return OnInit();
     }
 
     void IApplication::Update(float deltaTime) {
-        m_layerStack->OnUpdate(deltaTime);
+        if (m_window->ShouldClose()) {
+            GetRoot()->RequestShutdown();
+            return;
+        }
 
+        m_layerStack->OnUpdate(deltaTime);
+        
+        m_renderer->OnUpdate();
+        
         OnUpdate(deltaTime);
+
+        m_window->Update(deltaTime);
     }
 
     void IApplication::Shutdown() {
-        m_layerStack->OnDetach();
-
         OnShutdown();
+
+        m_renderer->Shutdown();
+
+        m_window->Shutdown();
+
+        m_layerStack->OnDetach();
     }
 
 } // namespace ballistic
