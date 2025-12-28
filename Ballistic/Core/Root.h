@@ -1,7 +1,7 @@
 #pragma once
 #include "bepch.h"
 #include "Singleton.h"
-#include "Core/Logging/Logger.h"
+#include "Core/LogManager/LogManager.h"
 #include "Core/IApplication.h"
 
 namespace ballistic
@@ -22,10 +22,10 @@ namespace ballistic
 
         void RequestShutdown() { m_running = false; }
 
-        Logger* GetLogger() { return m_logger.get(); }
+        LogManager* GetLogManager() { return m_logger.get(); }
     
     private:
-        std::unique_ptr<Logger> m_logger;
+        std::unique_ptr<LogManager> m_logger;
         
         bool m_running = false;
         std::unique_ptr<IApplication> m_app;

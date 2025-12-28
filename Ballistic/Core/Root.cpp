@@ -1,6 +1,6 @@
 #include "Core/Root.h"
 #include "Core/IApplication.h"
-#include "Core/Logging/Log.h"
+#include "Core/LogManager/Log.h"
 
 namespace ballistic
 {
@@ -9,7 +9,7 @@ namespace ballistic
     }
 
     bool Root::Init() {
-        m_logger = std::make_unique<Logger>();
+        m_logger = std::make_unique<LogManager>();
         if (!m_logger->Init()) {
             return false;
         }

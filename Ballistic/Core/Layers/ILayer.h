@@ -1,6 +1,6 @@
 #pragma once
 #include "bepch.h"
-#include "Core/Logging/Log.h"
+#include "Core/LogManager/Log.h"
 
 namespace ballistic
 {

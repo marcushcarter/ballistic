@@ -1,17 +1,17 @@
-#include "Core/Logging/Logger.h"
+#include "Core/LogManager/LogManager.h"
 
 namespace ballistic
 {
-    bool Logger::Init() {
-        Log(LogLevel::Info, "Logger initialized");
+    bool LogManager::Init() {
+        Log(LogLevel::Info, "Log Manager initialized");
         return true;
     }
 
-    void Logger::Shutdown() {
-        Log(LogLevel::Info, "Logger shutdown");
+    void LogManager::Shutdown() {
+        Log(LogLevel::Info, "Log Manager shutdown");
     }
     
-    void Logger::Log(LogLevel level, const std::string& messsage) {
+    void LogManager::Log(LogLevel level, const std::string& messsage) {
         LogMessage msg;
         msg.level = level;
         msg.message = messsage;
@@ -29,7 +29,7 @@ namespace ballistic
             << messsage << std::endl;
     }
 
-    const char* Logger::LevelToString(LogLevel level) {
+    const char* LogManager::LevelToString(LogLevel level) {
         switch (level) {
             case LogLevel::Info: return "Info";
             case LogLevel::Warning: return "Warning";

@@ -2,7 +2,7 @@
 #include "Core/Window/WindowInfo.h"
 
 #include <stb_image.h>
-#include "Core/Logging/Log.h"
+#include "Core/LogManager/Log.h"
 
 namespace ballistic
 {

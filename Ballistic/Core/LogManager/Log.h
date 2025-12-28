@@ -1,7 +1,7 @@
 #pragma once
 #include "bepch.h"
 #include "Core/Root.h"
-#include "Core/Logging/Logger.h"
+#include "Core/LogManager/LogManager.h"
 
 namespace ballistic {
 
@@ -9,7 +9,7 @@ namespace ballistic {
     inline void Log(LogLevel level, Args&&... args) {
         std::stringstream ss;
         (ss << ... << args);
-        GetRoot()->GetLogger()->Log(level, ss.str());
+        GetRoot()->GetLogManager()->Log(level, ss.str());
     }
 
     template<typename... Args>

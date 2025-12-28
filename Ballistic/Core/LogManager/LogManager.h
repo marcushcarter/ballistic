@@ -19,11 +19,11 @@ namespace ballistic
         std::chrono::time_point<std::chrono::high_resolution_clock> timestamp;
     };
 
-    class Logger
+    class LogManager
     {
     public:
-        Logger() = default;
-        ~Logger() { Shutdown(); }
+        LogManager() = default;
+        ~LogManager() { Shutdown(); }
 
         bool Init();
         void Shutdown();

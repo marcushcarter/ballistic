@@ -1,7 +1,7 @@
 
 
 #include "Entry/Entrypoint.h"
-#include "Core/Logging/Log.h"
+#include "Core/LogManager/Log.h"
 
 namespace ballistic
 {

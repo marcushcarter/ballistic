@@ -9,8 +9,8 @@
 #include "Core/Layers/ILayer.h"
 #include "Core/Layers/Layerstack.h"
 
-#include "Core/Logging/Logger.h"
-#include "Core/Logging/Log.h"
+#include "Core/LogManager/LogManager.h"
+#include "Core/LogManager/Log.h"
 
 #include "Core/Window/WindowInfo.h"
 #include "Core/Window/Window.h"
