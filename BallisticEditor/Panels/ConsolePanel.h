@@ -1,14 +1,12 @@
 #pragma once
 #include "Panels/IPanel.h"
-
 #include "imgui.h"
 
 namespace ballistic
 {
-
 	class ConsolePanel : public IPanel {
 	public:
-        ConsolePanel(LayerContext& context, const std::string& name = "ConsolePanel");
+        ConsolePanel(LayerContext& context, const std::string& name = "Console");
         ~ConsolePanel() override { OnDetach(); }
         
 		void OnAttach() override;

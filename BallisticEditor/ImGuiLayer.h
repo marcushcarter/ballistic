@@ -10,7 +10,7 @@ namespace ballistic
     class ImGuiLayer : public ILayer
     {
     public:
-        ImGuiLayer(LayerContext& context, const std::string& name = "ImGuiLayer");
+        ImGuiLayer(LayerContext& context, const std::string& name = "ImGui");
         ~ImGuiLayer() override { OnDetach(); }
 
         void OnAttach() override;

@@ -1,14 +1,12 @@
 #pragma once
 #include "Panels/IPanel.h"
-
 #include "imgui.h"
 
 namespace ballistic
 {
-
 	class ViewportPanel : public IPanel {
 	public:
-        ViewportPanel(LayerContext& context, const std::string& name = "ViewportPanel");
+        ViewportPanel(LayerContext& context, const std::string& name = "Viewport");
         ~ViewportPanel() override { OnDetach(); }
         
 		void OnAttach() override;
