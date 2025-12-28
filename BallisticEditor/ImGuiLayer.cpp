@@ -87,19 +87,16 @@ namespace ballistic
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        // ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         ImGui::Begin("DockSpaceMain", nullptr, window_flags);
         
         ImGuiID dockspace_id = ImGui::GetID("DockSpace");
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
         
         ImGui::End();
-        ImGui::PopStyleVar(3);
+        ImGui::PopStyleVar(2);
 
-        ImGui::PushStyleVar(
-            ImGuiStyleVar_FramePadding, 
-            (m_context.window->GetSettings().customTitleBar) ? ImVec2(0.0f, 12.0f) : ImVec2(0,0)
-        );
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.0f, 12.0f));
         
         if (ImGui::BeginMainMenuBar()) {
             if (m_context.window->GetSettings().customTitleBar) {

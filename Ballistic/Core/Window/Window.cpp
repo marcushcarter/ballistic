@@ -34,39 +34,6 @@ namespace ballistic
             return false;
         }
 
-        if (m_settings.customTitleBar) {
-            HWND hwnd = glfwGetWin32Window(m_nativeWindow);
-
-            RECT rect;
-            GetWindowRect(hwnd, &rect);
-            int width = rect.right - rect.left;
-            int height = rect.bottom - rect.top;
-
-            HRGN rgn = CreateRoundRectRgn(0, 0, width, height, 12, 12);
-            SetWindowRgn(hwnd, rgn, TRUE);
-            DeleteObject(rgn);
-        }
-
-        // glfwSetWindowUserPointer(m_nativeWindow, this); 
-
-        // glfwSetMouseButtonCallback(m_nativeWindow, [](GLFWwindow* wnd, int button, int action, int mods){
-        //     Window* window = reinterpret_cast<Window*>(glfwGetWindowUserPointer(wnd));
-        //     if (!window || !window->m_settings.customTitleBar) return;
-
-        //     double mx, my;
-        //     glfwGetCursorPos(wnd, &mx, &my);
-
-        //     if (button == GLFW_MOUSE_BUTTON_LEFT) {
-        //         if (action == GLFW_PRESS && my < 30) { // top 30px = title bar
-        //             window->m_dragging = true;
-        //             window->m_dragOffsetX = mx;
-        //             window->m_dragOffsetY = my;
-        //         } else if (action == GLFW_RELEASE) {
-        //             window->m_dragging = false;
-        //         }
-        //     }
-        // });
-
         return true;
     }
 
@@ -74,21 +41,9 @@ namespace ballistic
         return m_nativeWindow && glfwWindowShouldClose(m_nativeWindow);
     }
 
-    void Window::Update() {
+    void Window::Update(float deltaTime) {
         if (!m_nativeWindow) return;
-        glfwPollEvents();
-
-        // if (m_settings.customTitleBar) {
-        //     double mx, my;
-        //     glfwGetCursorPos(m_nativeWindow, &mx, &my);
-
-        //     if (m_dragging) {
-        //         int newX = int(mx - m_dragOffsetX);
-        //         int newY = int(my - m_dragOffsetY);
-        //         glfwSetWindowPos(m_nativeWindow, newX, newY);
-        //     }
-        // }
-        
+        glfwPollEvents();        
         glfwSwapBuffers(m_nativeWindow);
 
     }

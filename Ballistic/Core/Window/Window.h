@@ -15,7 +15,7 @@ namespace ballistic
 
         bool Init(const WindowSettings& windowSettings = {});
         bool ShouldClose() const;
-        void Update();
+        void Update(float deltaTime);
         void Shutdown();
 
         const WindowSettings& GetSettings() const { return m_settings; }
@@ -27,11 +27,6 @@ namespace ballistic
         WindowSettings m_settings;
         WindowState m_state;
         GLFWwindow* m_nativeWindow;
-        
-        // int m_windowStartX = 0;
-        // int m_windowStartY = 0;
-        // double m_dragStartX = 0.0;
-        // double m_dragStartY = 0.0;
     };
 
 } // namespace ballistic

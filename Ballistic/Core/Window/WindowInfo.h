@@ -7,7 +7,7 @@ namespace ballistic
         std::string title = "Ballistic Engine";
         uint32_t width = 1280;
         uint32_t height = 720;
-        bool customTitleBar = true;
+        bool customTitleBar = false;
         bool resizable = true;
 
         static WindowSettings LoadSettingsFromProject() {

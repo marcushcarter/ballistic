@@ -25,7 +25,7 @@ namespace ballistic
         void OnUpdate(float deltaTime) override {
             GetLayerStack()->OnUpdate(deltaTime);
 
-            m_window->Update();
+            m_window->Update(deltaTime);
 
             if (m_window->ShouldClose())
                 GetRoot()->RequestShutdown();
