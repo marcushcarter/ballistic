@@ -17,11 +17,6 @@ namespace ballistic
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
-        ImGui::SetNextWindowSizeConstraints(
-            ImVec2(300, 200),   // minimum size
-            ImVec2(FLT_MAX, FLT_MAX) // maximum size (or any limit you want)
-        );
-
         static ImGuiWindowFlags ConsoleFlags = ImGuiWindowFlags_NoCollapse;
         ImGui::Begin((const char*)u8"\uF120 Console", nullptr, ConsoleFlags);
 
@@ -36,17 +31,28 @@ namespace ballistic
         float checkboxWidth = 100.0f;
         ImGui::BeginChild("Checkboxes", ImVec2(checkboxWidth, childSize.y), true);
 
+        ImVec2 buttonSize = ImVec2(24, 24);
+        if (ImGui::Button((const char*)u8"\uF1F8", buttonSize)) logManager.Clear();
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Clear");
+        }
+        ImGui::SameLine();
+        if (ImGui::Button((const char*)u8"\uF0C5", buttonSize)) {
+            std::string logs = logManager.GetFilteredLogsText(filterBuffer);
+            ImGui::SetClipboardText(logs.c_str());
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Copy Filtered");
+        }
+
+        ImGui::Separator();
+
         for (int i = 0; i < 4; i++) {
             auto level = static_cast<LogLevel>(i);
             bool enabled = logManager.IsLevelEnabled(level);
             if (ImGui::Checkbox(logManager.LevelToString(level), &enabled)) {
                 logManager.SetLevelEnabled(level, enabled);
             }
-        }
-        if (ImGui::Button("Clear")) logManager.Clear();
-        if (ImGui::Button("Copy")) {
-            std::string logs = logManager.GetFilteredLogsText(filterBuffer);
-            ImGui::SetClipboardText(logs.c_str());
         }
 
         ImGui::EndChild();
@@ -66,7 +72,7 @@ namespace ballistic
             }
 
             ImGui::PushStyleColor(ImGuiCol_Text, color);
-            ImGui::TextWrapped("[%s] %s", logManager.LevelToString(msg.level), msg.message.c_str());
+            ImGui::TextWrapped("%s", msg.message.c_str());
             ImGui::PopStyleColor();
         }
 

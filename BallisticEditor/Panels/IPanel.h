@@ -10,9 +10,8 @@ namespace ballistic
         
         virtual ~IPanel() = default;
 
-        void Attach();
-        void Detach();
-
+		virtual void OnAttach() = 0;
+		virtual void OnDetach() = 0;
         virtual void OnUpdate(float deltaTime) = 0;
         virtual void OnEvent(IEvent& e) = 0;
 
@@ -22,9 +21,6 @@ namespace ballistic
 		const std::string& getName() const { return m_name; }
         
 	protected:
-		virtual void OnAttach() = 0;
-		virtual void OnDetach() = 0;
-
         bool m_open;
     
     private:

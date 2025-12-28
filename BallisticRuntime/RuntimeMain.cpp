@@ -7,7 +7,7 @@ namespace ballistic
     {
     public:
         bool OnInit() override {
-            LogDebug("Runtime initialized");
+            LogDebug("Runtime app initialized");
 
             WindowSettings runtimeSettings = WindowSettings::LoadSettingsFromProject();
             if (!m_window->Init(runtimeSettings)) {

@@ -16,6 +16,9 @@ namespace ballistic
         : ILayer(context, name) {
 
         m_panelStack = std::make_shared<PanelStack>();
+    }
+
+    void ImGuiLayer::OnAttach() {
 
         auto demoPanel = std::make_shared<DemoPanel>();
         m_panelStack->PushPanel(demoPanel);
@@ -25,9 +28,7 @@ namespace ballistic
         
         auto consolePanel = std::make_shared<ConsolePanel>();
         m_panelStack->PushPanel(consolePanel);
-    }
-
-    void ImGuiLayer::OnAttach() {
+        
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();

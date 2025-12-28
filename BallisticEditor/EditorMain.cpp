@@ -8,7 +8,7 @@ namespace ballistic
     {
     public:
         bool OnInit() override {
-            LogDebug("Editor initialized");
+            LogDebug("Editor app initialized");
 
             WindowSettings editorSettings;
             if (!m_window->Init(editorSettings)) {

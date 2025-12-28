@@ -10,7 +10,7 @@ namespace ballistic
     {
 	public:
 		ILayer(const LayerContext& context, const std::string name = "Layer")
-            : m_context(context), m_name(name) { LogDebug(m_name, " layer attached"); }
+            : m_context(context), m_name(name) {}
 
 		virtual ~ILayer() = default;
 
