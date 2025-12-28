@@ -33,7 +33,7 @@
 // #include <glm/gtx/euler_angles.hpp>
 // #include <glm/gtc/type_ptr.hpp>
 
-// #include <stb_image.h>
+#include <stb_image.h>
 
 // #include <imgui.h>
 // #include <imgui_internal.h>

@@ -14,6 +14,7 @@ namespace ballistic
             if (!m_window->Init(editorSettings)) {
                 return false;
             }
+            m_window->SetIcon(GetResDirectory() / "Icons/favicon.png");
 
             LayerContext ctx = CreateLayerContext();
             auto imguiLayer = std::make_shared<ImGuiLayer>(ctx);
@@ -35,8 +36,8 @@ namespace ballistic
             GetLayerStack()->OnDetach();
 
             m_window->Shutdown();
-                
-            std::cout << "Editor shutdown\n";
+            
+            LogInfo("Editor shutdown");
         }
     };
 

@@ -11,9 +11,9 @@ target_include_directories(glad PUBLIC glad/include)
 # add_library(glm INTERFACE)
 # target_include_directories(glm INTERFACE glm)
 
-# # stb
-# add_library(stb INTERFACE)
-# target_include_directories(stb INTERFACE stb)
+# stb
+add_library(stb INTERFACE)
+target_include_directories(stb INTERFACE stb)
 
 # ImGui
 file(GLOB IMGUI_CORE imgui/*.cpp)
@@ -36,3 +36,5 @@ target_link_libraries(imgui PUBLIC glfw)
 # # TinyFileDialogs
 # add_library(tinyfiledialogs STATIC tinyfiledialogs/tinyfiledialogs.c)
 # target_include_directories(tinyfiledialogs PUBLIC tinyfiledialogs)
+
+add_subdirectory(ThirdpartyImpl)

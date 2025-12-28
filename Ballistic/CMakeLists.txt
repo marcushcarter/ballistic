@@ -12,10 +12,11 @@ target_link_libraries(Ballistic PUBLIC
     glad
     # glm
     imgui
-    # stb
+    stb
     # EnTT::EnTT
     # tinyfiledialogs
     # nlohmann_json
+    ThirdpartyImpl
     ${CMAKE_DL_LIBS}
 )
 

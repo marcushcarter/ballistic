@@ -1,7 +1,7 @@
 
 
 #include "Entry/Entrypoint.h"
-#include "bepch.h"
+#include "Core/Logging/Log.h"
 
 namespace ballistic
 {
@@ -14,7 +14,10 @@ namespace ballistic
         Root* root = CreateRoot();
         if (!root) return -1;
 
-        if (!root->Init()) return -1;
+        if (!root->Init()) {
+            LogInfo("Failed to initialize Root");
+            return -1;
+        }
 
         root->Run();
         delete root;

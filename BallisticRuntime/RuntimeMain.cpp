@@ -27,7 +27,7 @@ namespace ballistic
         void OnShutdown() override {
             m_window->Shutdown();
 
-            std::cout << "Runtime shutdown\n";
+            LogInfo("Runtime shutdown");
         }
     };
 

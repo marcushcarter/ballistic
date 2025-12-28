@@ -18,6 +18,9 @@ namespace ballistic
         void Update(float deltaTime);
         void Shutdown();
 
+        bool SetIcon(const std::filesystem::path& path);
+        bool SetIcon(const void* pixels, int width, int height, int channels = 4);
+
         const WindowSettings& GetSettings() const { return m_settings; }
         const WindowState& GetState() const { return m_state; }
 
