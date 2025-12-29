@@ -8,6 +8,6 @@ git clone --recurse-submodules https://github.com/marcushcarter/ballistic-engine
 cd ballistic-engine
 mkdir build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-cmake --build .
+cmake ..
+cmake --build . --config Release
 ```

@@ -1,6 +1,6 @@
-#include "Core/Root.h"
+#include "Root/Root.h"
 #include "Core/IApplication.h"
-#include "Core/LogManager/Log.h"
+#include "Root/LogManager/Log.h"
 
 namespace ballistic
 {

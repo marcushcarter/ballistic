@@ -29,11 +29,7 @@ namespace ballistic {
 	  
 		std::shared_ptr<gl::Shader> m_blitShader;
 		std::shared_ptr<gl::VertexArray> m_blitVAO;
-        
-        // TEMP
-		std::shared_ptr<gl::Shader> shader;
 
       	glm::vec3 rgb;
-        
     };
 }

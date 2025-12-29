@@ -1,8 +1,8 @@
 #include "Core/Window/Window.h"
 #include "Core/Window/WindowInfo.h"
+#include "Root/LogManager/Log.h"
 
 #include <stb_image.h>
-#include "Core/LogManager/Log.h"
 
 namespace ballistic
 {

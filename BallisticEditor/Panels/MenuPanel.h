@@ -13,5 +13,8 @@ namespace ballistic
 		void OnDetach() override;
 		void OnUpdate(float deltaTime) override;
 		void OnEvent(IEvent& e) override;
+
+	private:
+		void OpenLink(const std::string& url);
 	};
 }

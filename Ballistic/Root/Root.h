@@ -1,7 +1,7 @@
 #pragma once
 #include "bepch.h"
 #include "Singleton.h"
-#include "Core/LogManager/LogManager.h"
+#include "Root/LogManager/LogManager.h"
 #include "Core/IApplication.h"
 
 namespace ballistic

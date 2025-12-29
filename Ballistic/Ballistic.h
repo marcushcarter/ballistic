@@ -1,24 +1,26 @@
 #pragma once
 
-#include "Core/Singleton.h"
-#include "Core/Root.h"
-#include "Core/IApplication.h"
+#include "Root/Singleton.h"
+#include "Root/Root.h"
+#include "Root/LogManager/LogManager.h"
+#include "Root/LogManager/Log.h"
 
+#include "Core/IApplication.h"
 #include "Core/Layers/IEvent.h"
 #include "Core/Layers/Events.h"
 #include "Core/Layers/ILayer.h"
 #include "Core/Layers/Layerstack.h"
-
-#include "Core/LogManager/LogManager.h"
-#include "Core/LogManager/Log.h"
-
 #include "Core/Window/WindowInfo.h"
 #include "Core/Window/Window.h"
 
 #include "Renderer/Renderer.h"
+#include "Renderer/RenderCommand.h"
 #include "Renderer/RenderDevice/IRenderDevice.h"
+#include "Renderer/RenderDevice/GLRenderDevice.h"
+#include "Renderer/Backends/OpenGL/all.h"
+#include "Renderer/Backends/OpenGL/ShaderGLM.h"
 
-#include <stb_image.h>
+// #include <stb_image.h>
 
 // #include <imgui.h>
 // #include <imgui_internal.h>

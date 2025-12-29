@@ -1,16 +1,10 @@
 #include "Renderer/RenderDevice/GLRenderDevice.h"
 #include "Core/IApplication.h"
-#include "Core/LogManager/Log.h"
+#include "Root/LogManager/Log.h"
 
 namespace ballistic {
 
     bool GLRenderDevice::Init() {
-
-		shader = std::make_shared<gl::Shader>();
-		shader->create();
-		shader->attachShader(GL_COMPUTE_SHADER, IApplication::GetResDirectory() / "Shaders/pathTracing.comp");
-		shader->link();
-
 		m_outputTexture = std::make_shared<gl::Texture2D>();
 		m_outputTexture->create(800, 600, GL_RGBA32F, GL_RGBA, GL_FLOAT);
     	m_outputTexture->setParameters(GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
@@ -74,18 +68,11 @@ namespace ballistic {
     }
 
     void GLRenderDevice::Execute(const std::vector<RenderCommand>& commands) {
-		if (false) {
-			shader->use();
-        	m_outputTexture->bindImage(0, GL_WRITE_ONLY);
-        	shader->dispatchCompute((m_outputTexture->width() + 15)/16, (m_outputTexture->height() + 15)/16, 1, GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-		} else {
-			m_mainFramebuffer->bind();
-			gl::Viewport(0, 0, m_outputTexture->width(), m_outputTexture->height());
-        	gl::ClearColor(rgb.x, rgb.y, rgb.z, 1.0f);
-			gl::Clear();
-			m_mainFramebuffer->unbind();
-		}
-
+		m_mainFramebuffer->bind();
+		gl::Viewport(0, 0, m_outputTexture->width(), m_outputTexture->height());
+		gl::ClearColor(rgb.x, rgb.y, rgb.z, 1.0f);
+		gl::Clear();
+		m_mainFramebuffer->unbind();
     }
     
 	void GLRenderDevice::Clear(float r, float g, float b, float a) {

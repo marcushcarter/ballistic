@@ -1,6 +1,6 @@
 #include "Core/Layers/Layerstack.h"
 #include "Core/Layers/ILayer.h"
-#include "Core/LogManager/Log.h"
+#include "Root/LogManager/Log.h"
 
 namespace ballistic
 {

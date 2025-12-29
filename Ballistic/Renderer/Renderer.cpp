@@ -1,7 +1,7 @@
 #include "Renderer/Renderer.h"
 #include "Core/Window/Window.h"
 #include "Renderer/RenderCommand.h"
-#include "Core/LogManager/Log.h"
+#include "Root/LogManager/Log.h"
 
 #include "Renderer/RenderDevice/GLRenderDevice.h"
 

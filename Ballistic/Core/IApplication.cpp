@@ -2,7 +2,7 @@
 #include "Core/Layers/LayerStack.h"
 #include "Core/Window/Window.h"
 #include "Renderer/Renderer.h"
-#include "Core/Root.h"
+#include "Root/Root.h"
 
 namespace ballistic
 {   
