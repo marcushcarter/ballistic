@@ -9,10 +9,9 @@ namespace ballistic
         return true;
     }
 
-    void SceneManager::Update() {
-    }
-
     void SceneManager::Shutdown() {
+        m_activeScene = nullptr;
+        m_scenes.clear();
     }
 
     std::shared_ptr<Scene> SceneManager::createScene(const std::string& name) {
@@ -23,7 +22,7 @@ namespace ballistic
         m_scenes[name] = scene;
 
         if (!m_activeScene)
-            m_activeScene = scene;
+            m_activeScene = scene.get();
 
         return scene;
     }
@@ -33,13 +32,15 @@ namespace ballistic
         if (it == m_scenes.end())
             return;
 
-        if (m_activeScene == it->second)
-            m_activeScene.reset();
+        Scene* scenePtr = it->second.get();
+
+        if (m_activeScene == scenePtr)
+            m_activeScene = nullptr;
 
         m_scenes.erase(it);
 
-        if (!m_activeScene && !m_scenes.empty())
-            m_activeScene = m_scenes.begin()->second;
+        // if (!m_activeScene && !m_scenes.empty())
+        //     m_activeScene = m_scenes.begin()->second;
     }
     
 } // namespace ballistic

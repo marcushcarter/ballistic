@@ -53,6 +53,8 @@ namespace ballistic
 
         m_window->Shutdown();
 
+        m_sceneManager->Shutdown();
+
         m_layerStack->OnDetach();
     }
 
