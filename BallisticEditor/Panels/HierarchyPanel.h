@@ -23,10 +23,15 @@ namespace ballistic
             std::vector<entt::entity> deferredDestroy;
             entt::entity deferredDuplicate = entt::null;
         };
-
         HierarchyMetaData hierarchyMetadata;
         
-        bool IsSelected(entt::entity e) const;
+        GUID DrawSceneSelector(int& currentIndex);
+        void DrawSceneInfo(Scene* scene);
+        std::string DrawSearchBar();
+
         void DrawNode(Scene* scene, entt::entity e, const std::function<bool(const std::string&)>& matchesSearch);
+        void FlattenHierarchy(Scene* scene, entt::entity node, std::vector<entt::entity>& out);
+        bool ParentMatchesSearch(Scene* scene, entt::entity entity, const std::function<bool(const std::string&)>& matchesSearch);
+        bool IsSelected(entt::entity e) const;
 	};
 }

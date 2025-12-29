@@ -7,30 +7,119 @@ namespace ballistic
     
     void HierarchyPanel::OnAttach() {
     }
-
-    void FlattenHierarchy(Scene* scene, entt::entity node, std::vector<entt::entity>& out) {
-        auto& reg = scene->GetRegistry();
-        out.push_back(node);
-        if (reg.all_of<Children>(node)) {
-            for (auto child : reg.get<Children>(node).children)
-                FlattenHierarchy(scene, scene->GetEntity(child), out);
-        }
-    }
-
-    bool ParentMatchesSearch(Scene* scene, entt::entity entity, const std::function<bool(const std::string&)>& matchesSearch) {
-        auto& reg = scene->GetRegistry();
-        if (!reg.all_of<Children>(entity)) return false;
-
-        for (auto childID : reg.get<Children>(entity).children) {
-            auto childEntity = scene->GetEntity(childID);
-            auto& childTag = reg.get<Tag>(childEntity);
-            if (matchesSearch(childTag.name)) return true;
-            if (ParentMatchesSearch(scene, childEntity, matchesSearch)) return true;
-        }
-        return false;
-    }
     
     void HierarchyPanel::OnDetach() {
+    }
+
+    GUID HierarchyPanel::DrawSceneSelector(int& currentIndex) {
+        auto sceneManager = m_context.sceneManager;
+        std::vector<GUID> sceneGUIDs;
+
+        for (auto& scenePtr : sceneManager->GetAllScenes())
+            sceneGUIDs.push_back(sceneManager->ConvertGUID(scenePtr.get()));
+
+        sceneGUIDs.push_back(GUID::Invalid);
+
+        float availWidth = ImGui::GetContentRegionAvail().x;
+
+        if (sceneManager->GetAllScenes().empty()) {
+            if (ImGui::Button("Create New Scene", ImVec2(availWidth, 0))) {
+                auto newScene = sceneManager->Create("New Scene");
+                sceneManager->SetActiveScene(sceneManager->ConvertGUID(newScene.get()));
+                currentIndex = 0;
+            }
+            return sceneManager->HasActiveScene() ? sceneManager->GetActiveScene()->GetGUID() : GUID::Invalid;
+        } else {
+            const char* preview = "Select Scene";
+            if (currentIndex < sceneGUIDs.size() - 1) {
+                Scene* selectedScene = sceneManager->ConvertScene(sceneGUIDs[currentIndex]);
+                if (selectedScene) preview = selectedScene->GetName().empty() ? "Unnamed Scene" : selectedScene->GetName().c_str();
+            } else {
+                preview = "Create New Scene";
+            }
+
+            ImGui::PushItemWidth(availWidth);
+            if (ImGui::BeginCombo("##Scenes", preview)) {
+                for (int i = 0; i < sceneGUIDs.size(); i++) {
+                    const bool isSelected = (currentIndex == i);
+                    const char* name;
+
+                    if (i < sceneGUIDs.size() - 1) {
+                        Scene* scene = sceneManager->ConvertScene(sceneGUIDs[i]);
+                        name = (scene && !scene->GetName().empty()) ? scene->GetName().c_str() : "Unnamed Scene";
+                    } else {
+                        name = "Create New Scene";
+                    }
+
+                    ImGui::PushID(static_cast<int>(sceneGUIDs[i].value));
+                    if (ImGui::Selectable(name, isSelected)) {
+                        if (i == sceneGUIDs.size() - 1) {
+                            auto newScene = sceneManager->Create("New Scene");
+                            sceneManager->SetActiveScene(sceneManager->ConvertGUID(newScene.get()));
+                            currentIndex = static_cast<int>(sceneManager->GetAllScenes().size()) - 1;
+                        } else {
+                            currentIndex = i;
+                            sceneManager->SetActiveScene(sceneGUIDs[i]);
+                        }
+                    }
+                    if (isSelected) ImGui::SetItemDefaultFocus();
+                    ImGui::PopID();
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::PopItemWidth();
+            return sceneManager->GetActiveScene()->GetGUID();
+        }
+    }
+
+    void HierarchyPanel::DrawSceneInfo(Scene* scene) {
+        ImVec4 lightGray = ImVec4(0.7f, 0.7f, 0.7f, 1.0f);
+
+        char buffer[256];
+        strncpy(buffer, scene->GetName().c_str(), sizeof(buffer));
+        buffer[sizeof(buffer)-1] = '\0';
+
+        ImGui::PushStyleColor(ImGuiCol_Text, lightGray);
+        ImGui::Text((const char*)u8"\uF02C Name:");
+        ImGui::PopStyleColor();
+
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::InputTextWithHint("##Name", "Unnamed Scene", buffer, IM_ARRAYSIZE(buffer))) {
+            scene->SetName(std::string(buffer));
+        }
+
+        ImGui::PushStyleColor(ImGuiCol_Text, lightGray);
+        ImGui::Text("Guid:");
+        ImGui::PopStyleColor();
+
+        ImGui::SameLine();
+        ImGui::Text("%llu", scene->GetGUID().value);
+
+        if (ImGui::Button("Delete")) {
+            m_context.sceneManager->Destroy(scene->GetGUID());
+        }
+    }
+
+    std::string HierarchyPanel::DrawSearchBar() {
+        static char searchBuffer[128] = "";
+        ImGui::PushID("SearchBar");
+
+        float buttonWidth = 25.0f;
+        float searchWidth = ImGui::GetContentRegionAvail().x - buttonWidth - ImGui::GetStyle().ItemSpacing.x;
+        ImGui::PushItemWidth(searchWidth);
+
+        ImGui::InputTextWithHint("##search", "Search...", searchBuffer, IM_ARRAYSIZE(searchBuffer));
+        ImGui::PopItemWidth();
+
+        ImGui::SameLine();
+        if (ImGui::Button((const char*)u8"\uF0FE", ImVec2(buttonWidth, 0))) {
+            auto scene = m_context.sceneManager->GetActiveScene();
+            if (scene) scene->Create("New Node", scene->GetSelected());
+        }
+
+        ImGui::PopID();
+        return std::string(searchBuffer);
     }
 
     void HierarchyPanel::OnUpdate(float deltaTime) {
@@ -39,36 +128,26 @@ namespace ballistic
         static ImGuiWindowFlags HierarchyFlags = ImGuiWindowFlags_NoCollapse;
 		ImGui::Begin((const char*)u8"\uF080 Scene Hierarchy", nullptr, HierarchyFlags);
 
+        static int currentIndex = 0;
+        GUID activeGUID = DrawSceneSelector(currentIndex);
+
         if (sceneManager->HasActiveScene()) {
             
             auto scene = m_context.sceneManager->GetActiveScene();
             auto& reg = scene->GetRegistry();
             auto& selected = scene->GetSelected();
-            
-            static char searchBuffer[128] = "";
 
-            ImGui::PushID("SearchBar");
-            // float totalWidth = ImGui::GetContentRegionAvail().x;
-            float buttonWidth = 25.0f;
-            // float spacing = ImGui::GetStyle().ItemSpacing.x;
-            float searchWidth = ImGui::GetContentRegionAvail().x - buttonWidth - ImGui::GetStyle().ItemSpacing.x;
-            ImGui::PushItemWidth(searchWidth);
-            ImGui::InputTextWithHint("##search", "Search...", searchBuffer, IM_ARRAYSIZE(searchBuffer));
-            ImGui::PopItemWidth();
-            ImGui::SameLine();
-            if (ImGui::Button((const char*)u8"\uF0FE", ImVec2(buttonWidth, 0))) scene->Create("New Node", selected);
-            ImGui::PopID();
+            DrawSceneInfo(scene);
+            std::string searchStr = DrawSearchBar();
 
             ImGui::BeginChild("HierarchyList", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
 
-            std::string searchStr(searchBuffer);
-            std::transform(searchStr.begin(), searchStr.end(), searchStr.begin(), ::tolower);
-
             auto MatchesSearch = [&](const std::string& name) {
-                if (searchStr.empty()) return true;
                 std::string lowerName = name;
                 std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
-                return lowerName.find(searchStr) != std::string::npos;
+                std::string searchLower = searchStr;
+                std::transform(searchLower.begin(), searchLower.end(), searchLower.begin(), ::tolower);
+                return searchLower.empty() || lowerName.find(searchLower) != std::string::npos;
             };
 
             for (auto e : reg.view<Tag>()) {
@@ -106,14 +185,6 @@ namespace ballistic
             }
 
             ImGui::EndChild();
-
-        } else {
-            ImVec2 avail = ImGui::GetContentRegionAvail();
-            if (ImGui::Button("New Scene", ImVec2(avail.x, 0))) {
-                sceneManager->createScene("New Scene");
-                auto selected = sceneManager->GetActiveScene()->Create("Root Node", sceneManager->GetActiveScene()->GetSelected());
-                // sceneManager->GetActiveScene()->SetSelected(selected);
-            }
         }
         ImGui::End();
     }
@@ -241,10 +312,32 @@ namespace ballistic
         }
 
         if (open && hasChildren) {
-            for (auto child : reg.get<Children>(entity).children) DrawNode(scene, scene->GetEntity(child), matchesSearch);
+            for (auto child : reg.get<Children>(entity).children) DrawNode(scene, scene->ConvertEntity(child), matchesSearch);
         }
 
         if (open) ImGui::TreePop();
+    }
+
+    void HierarchyPanel::FlattenHierarchy(Scene* scene, entt::entity node, std::vector<entt::entity>& out) {
+        auto& reg = scene->GetRegistry();
+        out.push_back(node);
+        if (reg.all_of<Children>(node)) {
+            for (auto child : reg.get<Children>(node).children)
+                FlattenHierarchy(scene, scene->ConvertEntity(child), out);
+        }
+    }
+
+    bool HierarchyPanel::ParentMatchesSearch(Scene* scene, entt::entity entity, const std::function<bool(const std::string&)>& matchesSearch) {
+        auto& reg = scene->GetRegistry();
+        if (!reg.all_of<Children>(entity)) return false;
+
+        for (auto childID : reg.get<Children>(entity).children) {
+            auto childEntity = scene->ConvertEntity(childID);
+            auto& childTag = reg.get<Tag>(childEntity);
+            if (matchesSearch(childTag.name)) return true;
+            if (ParentMatchesSearch(scene, childEntity, matchesSearch)) return true;
+        }
+        return false;
     }
 
     bool HierarchyPanel::IsSelected(entt::entity entity) const {

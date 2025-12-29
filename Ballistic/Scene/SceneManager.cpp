@@ -10,37 +10,60 @@ namespace ballistic
     }
 
     void SceneManager::Shutdown() {
-        m_activeScene = nullptr;
-        m_scenes.clear();
+        m_activeScene = GUID::Invalid;
+        m_guidToScene.clear();
     }
 
-    std::shared_ptr<Scene> SceneManager::createScene(const std::string& name) {
-        if (m_scenes.contains(name))
-            throw std::runtime_error("Scene already exists: " + name);
-
+    std::shared_ptr<Scene> SceneManager::Create(const std::string& name) {
         auto scene = std::make_shared<Scene>(name);
-        m_scenes[name] = scene;
+        GUID guid = scene->GetGUID();
 
-        if (!m_activeScene)
-            m_activeScene = scene.get();
+        if (m_guidToScene.contains(guid))
+            throw std::runtime_error("Scene GUID already exists");
+
+        m_guidToScene[guid] = scene;
+
+        if (m_activeScene == GUID::Invalid)
+            m_activeScene = guid;
 
         return scene;
     }
-    
-    void SceneManager::destroyScene(const std::string& name) {
-        auto it = m_scenes.find(name);
-        if (it == m_scenes.end())
+
+    void SceneManager::Destroy(GUID guid) {
+        auto it = m_guidToScene.find(guid);
+        if (it == m_guidToScene.end())
             return;
 
-        Scene* scenePtr = it->second.get();
+        if (m_activeScene == guid)
+            m_activeScene = GUID::Invalid;
 
-        if (m_activeScene == scenePtr)
-            m_activeScene = nullptr;
-
-        m_scenes.erase(it);
-
-        // if (!m_activeScene && !m_scenes.empty())
-        //     m_activeScene = m_scenes.begin()->second;
+        m_guidToScene.erase(it);
     }
-    
-} // namespace ballistic
+
+    Scene* SceneManager::ConvertScene(GUID guid) {
+        auto it = m_guidToScene.find(guid);
+        return it != m_guidToScene.end() ? it->second.get() : nullptr;
+    }
+
+    GUID SceneManager::ConvertGUID(Scene* scene) const {
+        if (!scene) return GUID::Invalid;
+        return scene->GetGUID();
+    }
+
+    void SceneManager::SetActiveScene(GUID guid) {
+        if (m_guidToScene.contains(guid))
+            m_activeScene = guid;
+    }
+
+    Scene* SceneManager::GetActiveScene() {
+        auto it = m_guidToScene.find(m_activeScene);
+        return it != m_guidToScene.end() ? it->second.get() : nullptr;
+    }
+
+    std::vector<std::shared_ptr<Scene>> SceneManager::GetAllScenes() const {
+        std::vector<std::shared_ptr<Scene>> scenes;
+        for (const auto& [guid, scene] : m_guidToScene)
+            scenes.push_back(scene);
+        return scenes;
+    }
+}

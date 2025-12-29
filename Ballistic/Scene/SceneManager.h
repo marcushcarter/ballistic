@@ -1,5 +1,6 @@
 #pragma once
 #include "bepch.h"
+#include "Utility/GUID.h"
 
 namespace ballistic
 {
@@ -14,15 +15,20 @@ namespace ballistic
         bool Init();
         void Shutdown();
 
-        std::shared_ptr<Scene> createScene(const std::string& name);
-        void destroyScene(const std::string& name);
+        std::shared_ptr<Scene> Create(const std::string& name);
+        void Destroy(GUID guid);
 
-        Scene* GetActiveScene() { return m_activeScene; }
-        bool HasActiveScene() const { return m_activeScene != nullptr; }
+        Scene* ConvertScene(GUID guid);
+        GUID ConvertGUID(Scene* scene) const;
+
+        void SetActiveScene(GUID guid);
+        Scene* GetActiveScene();
+        bool HasActiveScene() const { return m_activeScene != GUID::Invalid; }
+
+        std::vector<std::shared_ptr<Scene>> GetAllScenes() const;
 
     private:
-        std::unordered_map<std::string, std::shared_ptr<Scene>> m_scenes;
-        Scene* m_activeScene = nullptr;
+        std::unordered_map<GUID, std::shared_ptr<Scene>> m_guidToScene;
+        GUID m_activeScene = GUID::Invalid;
     };
-    
-} // namespace ballistic
+}
