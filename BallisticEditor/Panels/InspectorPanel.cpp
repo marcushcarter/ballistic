@@ -15,7 +15,7 @@ namespace ballistic
         auto sceneManager = m_context.sceneManager;
 
         static ImGuiWindowFlags InspectorFlags = ImGuiWindowFlags_NoCollapse;
-        ImGui::Begin("Inspector", nullptr, InspectorFlags);
+        ImGui::Begin((const char*)u8"\uF1DE Inspector", nullptr, InspectorFlags);
 
         ImVec4 lightGray = ImVec4(0.7f, 0.7f, 0.7f, 1.0f);
 
@@ -49,7 +49,7 @@ namespace ballistic
                 buffer[sizeof(buffer) - 1] = '\0';
                 
                 ImGui::PushStyleColor(ImGuiCol_Text, lightGray);
-                ImGui::Text("Name:");
+                ImGui::Text((const char*)u8"\uF02C Name:");
                 ImGui::PopStyleColor();
                 
                 ImGui::SameLine();
@@ -72,7 +72,7 @@ namespace ballistic
             }
 
             if (hasTransform) {
-                DrawComponent<TransformComponent>("Transform Component", selected, [&]() {
+                DrawComponent<TransformComponent>((const char*)u8"\uF047 Transform Component", selected, [&]() {
                     auto& transform = selected.get<TransformComponent>();
                     ImGui::DragFloat3("Position", &transform.position.x);
                     ImGui::DragFloat3("Rotation", &transform.rotation.x);
@@ -81,26 +81,26 @@ namespace ballistic
             }
             
             if (hasSphere) {
-                DrawComponent<SphereComponent>("Sphere Component", selected, [&]() {
+                DrawComponent<SphereComponent>((const char*)u8"\u25CF Sphere Component", selected, [&]() {
                     auto& sph = selected.get<SphereComponent>();
                     ImGui::DragFloat("Radius", &sph.radius, 0.1f, 0.0f, FLT_MAX);
                 });
             }
             
             if (hasMesh) {
-                DrawComponent<MeshComponent>("Mesh Component", selected, [&]() {
+                DrawComponent<MeshComponent>((const char*)u8"\uF1C0 Mesh Component", selected, [&]() {
                     auto& mesh = selected.get<MeshComponent>();
                 });
             }
             
             if (hasMaterial) {
-                DrawComponent<MaterialComponent>("Material Component", selected, [&]() {
+                DrawComponent<MaterialComponent>((const char*)u8"\uF043 Material Component", selected, [&]() {
                     auto& mat = selected.get<MaterialComponent>();
                 });
             }
             
             if (hasCamera) {
-                DrawComponent<CameraComponent>("Camera Component", selected, [&]() {
+                DrawComponent<CameraComponent>((const char*)u8"\uF03D Camera Component", selected, [&]() {
                     auto& cam = selected.get<CameraComponent>();
                     if (ImGui::DragFloat("FOV", &cam.fov, 0.1f, 1.0f, 179.0f)) {}
                     if (ImGui::Checkbox("Main Camera", &cam.mainCamera)) scene->SetMainCamera(selected.handle());

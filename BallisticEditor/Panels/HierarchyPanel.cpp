@@ -37,7 +37,7 @@ namespace ballistic
         auto sceneManager = m_context.sceneManager;
         
         static ImGuiWindowFlags HierarchyFlags = ImGuiWindowFlags_NoCollapse;
-		ImGui::Begin("Scene Hierarchy", nullptr, HierarchyFlags);
+		ImGui::Begin((const char*)u8"\uF080 Scene Hierarchy", nullptr, HierarchyFlags);
 
         if (sceneManager->HasActiveScene()) {
             
@@ -56,7 +56,7 @@ namespace ballistic
             ImGui::InputTextWithHint("##search", "Search...", searchBuffer, IM_ARRAYSIZE(searchBuffer));
             ImGui::PopItemWidth();
             ImGui::SameLine();
-            if (ImGui::Button("?", ImVec2(buttonWidth, 0))) scene->Create("New Node", selected);
+            if (ImGui::Button((const char*)u8"\uF0FE", ImVec2(buttonWidth, 0))) scene->Create("New Node", selected);
             ImGui::PopID();
 
             ImGui::BeginChild("HierarchyList", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
@@ -139,11 +139,21 @@ namespace ballistic
         if (!hasChildren) flags |= ImGuiTreeNodeFlags_Leaf;
         if (isSelected) flags |= ImGuiTreeNodeFlags_Selected;
 
-        std::string nodeName = tag.name.empty() ? "Unnamed Node" : tag.name;
+        const char* iconString = hasChildren
+            ? reinterpret_cast<const char*>(u8"\uF1B3")
+            : reinterpret_cast<const char*>(u8"\uF1B2");
+
+        const char* nodeName = tag.name.empty()
+            ? "Unnamed Node"
+            : tag.name.c_str();
+
+        const char* extraIcons = reinterpret_cast<const char*>(u8"\uF06E \uF070 \uF1F8");
         
         if (tag.name.empty())
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
-        bool open = ImGui::TreeNodeEx((void*)(intptr_t)entity, flags, "%s", nodeName.c_str());
+        
+            bool open = ImGui::TreeNodeEx((void*)(intptr_t)entity, flags, "%s %s %s", iconString, nodeName, extraIcons);
+        
         if (tag.name.empty())
             ImGui::PopStyleColor();
 
@@ -179,18 +189,18 @@ namespace ballistic
 
         if (ImGui::BeginPopupContextItem()) {
             if (hierarchyMetadata.multiSelection.size() <= 1) {
-                if (ImGui::MenuItem("Add Child Node")) scene->Create("New Node", entity);
+                if (ImGui::MenuItem((const char*)u8"\uF0FE Add Child Node")) scene->Create("New Node", entity);
                 ImGui::Separator();
                 ImGui::BeginDisabled(true);
-                if (ImGui::MenuItem("Cut")) {}
-                if (ImGui::MenuItem("Copy")) {}
+                if (ImGui::MenuItem((const char*)u8"\u2700 Cut")) {}
+                if (ImGui::MenuItem((const char*)u8"\uF0C5 Copy")) {}
                 ImGui::EndDisabled();
                 ImGui::Separator();
-                if (ImGui::MenuItem("Rename")) {}
-                if (ImGui::MenuItem("Duplicate")) hierarchyMetadata.deferredDuplicate = selected;
+                if (ImGui::MenuItem((const char*)u8"\uF246 Rename")) {}
+                if (ImGui::MenuItem((const char*)u8"\uF24D Duplicate")) hierarchyMetadata.deferredDuplicate = selected;
             }
 
-            if (ImGui::MenuItem("Delete")) {
+            if (ImGui::MenuItem((const char*)u8"\uF1F8 Delete")) {
                 hierarchyMetadata.deferredDestroy.insert(hierarchyMetadata.deferredDestroy.end(), hierarchyMetadata.multiSelection.begin(), hierarchyMetadata.multiSelection.end());
                 if (std::find(hierarchyMetadata.multiSelection.begin(), hierarchyMetadata.multiSelection.end(), selected) != hierarchyMetadata.multiSelection.end()) 
                     selected = entt::null;
