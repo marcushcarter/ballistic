@@ -138,7 +138,33 @@ namespace ballistic
             ImGui::SetCursorPosX(centerX);
             if (ImGui::Button((const char*)u8"\u25B6", ImVec2(buttonSize, buttonSize))) {}
 
-            std::string text = "Right Text";
+            std::string projectText = "No Project - ";
+
+            std::string sceneText = (m_context.sceneManager->HasActiveScene())
+                ? (!m_context.sceneManager->GetActiveScene()->GetName().empty()
+                    ? m_context.sceneManager->GetActiveScene()->GetName() + " - "
+                    : "Unnamed Scene - ")
+                : "" ;
+
+            std::string nodeText = "";
+            if (m_context.sceneManager->HasActiveScene()) {
+                Scene* scene = m_context.sceneManager->GetActiveScene();
+                entt::entity selected = scene->GetSelected();
+
+                if (selected != entt::null) {
+                    auto& registry = scene->GetRegistry();
+
+                    if (registry.all_of<Tag>(selected)) {
+                        auto& tag = registry.get<Tag>(selected);
+                        nodeText = !tag.name.empty() ? tag.name : "Unnamed Node";
+                        nodeText += " - ";
+                    } else {
+                        nodeText = "Unnamed Node - ";
+                    }
+                }
+            }
+
+            std::string text = nodeText + sceneText + projectText + "Ballsitic Engine";
             float textWidth = ImGui::CalcTextSize(text.c_str()).x;
             float extraPadding = 20.0f;
 

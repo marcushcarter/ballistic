@@ -96,9 +96,11 @@ namespace ballistic
         ImGui::SameLine();
         ImGui::Text("%llu", scene->GetGUID().value);
 
+        ImGui::BeginDisabled(true);
         if (ImGui::Button("Delete")) {
             m_context.sceneManager->Destroy(scene->GetGUID());
         }
+        ImGui::EndDisabled();
     }
 
     std::string HierarchyPanel::DrawSearchBar() {

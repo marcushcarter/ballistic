@@ -26,8 +26,8 @@ namespace ballistic
         auto menuBar = std::make_shared<MenuPanel>(m_context);
         m_panelStack->PushPanel(menuBar);
 
-        auto demoPanel = std::make_shared<DemoPanel>(m_context);
-        m_panelStack->PushPanel(demoPanel);
+        // auto demoPanel = std::make_shared<DemoPanel>(m_context);
+        // m_panelStack->PushPanel(demoPanel);
         
         auto viewportPanel = std::make_shared<ViewportPanel>(m_context);
         m_panelStack->PushPanel(viewportPanel);
