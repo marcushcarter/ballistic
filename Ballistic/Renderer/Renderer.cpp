@@ -60,6 +60,7 @@ namespace ballistic
 		}
 
 		std::vector<DrawElementsIndirectCommand> commands;
+		commands.reserve(scene->GetAllEntitiesFlattened().size());
 
 		if (scene) {
 			for (auto entity : scene->GetAllEntitiesFlattened()) {

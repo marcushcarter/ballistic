@@ -19,22 +19,26 @@ namespace ballistic
         void Clear(float r, float g, float b, float a) override;
 		void BlitToScreen() override;
 
-        void Resize(uint32_t w, uint32_t h) override;
+        void Resize(uint32_t newWidth, uint32_t newHeight) override;
 
         void* GetNativeTextureHandle() override;
 
     private:
-		std::shared_ptr<gl::Texture2D> m_outputTexture;
-		std::shared_ptr<gl::Framebuffer> m_mainFramebuffer;
-	  
-		std::shared_ptr<gl::Shader> m_blitShader;
+        GLuint m_mainFramebuffer = 0;
+        GLuint m_outputTexture = 0;
+        GLuint m_depthRbo = 0;
+        GLuint m_blitShader = 0;
 
-        std::shared_ptr<gl::VertexArray> m_meshVAO;
-        std::shared_ptr<gl::Buffer> m_meshVBO;
-        std::shared_ptr<gl::Buffer> m_meshEBO;
-        std::shared_ptr<gl::Buffer> m_indirectBuffer;
+        GLuint m_meshVAO = 0;
+        GLuint m_meshVBO = 0;
+        GLuint m_meshEBO = 0;
+        GLuint m_indirectBuffer = 0;
         
-		std::shared_ptr<gl::Shader> tempDraw;
+        GLuint tempShader = 0;
+
+        glm::vec2 viewportSize;
+
+        void CreateFramebuffer(uint32_t w, uint32_t h);
     };
 
 } // namespace ballistic

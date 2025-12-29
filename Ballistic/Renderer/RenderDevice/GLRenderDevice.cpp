@@ -8,111 +8,140 @@ namespace ballistic
 {
     bool GLRenderDevice::Init() {
 
-		// BIG VAO
+		auto manager = GetRoot()->GetMeshManager();
+		auto vertices = manager->GetVertexBuffer();
+		auto indices = manager->GetIndexBuffer();
 
-		m_meshVAO = std::make_shared<gl::VertexArray>();
-		m_meshVAO->create();
-		m_meshVAO->bind();
+		// VAO VBO EBO
 
-		m_meshVBO = std::make_shared<gl::Buffer>();
-		m_meshVBO->create(GL_ARRAY_BUFFER);
-		m_meshVBO->bind();
-		m_meshVBO->data(0, nullptr, GL_DYNAMIC_DRAW);
-		
+		glGenVertexArrays(1, &m_meshVAO);
+		glBindVertexArray(m_meshVAO);
 
-		m_meshEBO = std::make_shared<gl::Buffer>();
-		m_meshEBO->create(GL_ELEMENT_ARRAY_BUFFER);
-		m_meshEBO->bind();
-		m_meshEBO->data(0, nullptr, GL_DYNAMIC_DRAW);
-		
-		m_meshVAO->vertexBuffer(0, m_meshVBO->get(), 0, sizeof(Vertex));
-		m_meshVAO->indexBuffer(m_meshEBO->get());
+		glGenBuffers(1, &m_meshVBO);
+		glBindBuffer(GL_ARRAY_BUFFER, m_meshVBO);
+		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
 
-		m_meshVAO->vertexAttrib(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, position));
-		m_meshVAO->vertexAttrib(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, normal));
-		m_meshVAO->vertexAttrib(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, uv));
+		glGenBuffers(1, &m_meshEBO);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_meshEBO);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size()  * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
 
-		m_indirectBuffer = std::make_shared<gl::Buffer>();
-		m_indirectBuffer->create(GL_DRAW_INDIRECT_BUFFER);
-		m_indirectBuffer->data(m_maxDraws * sizeof(DrawElementsIndirectCommand), nullptr, GL_DYNAMIC_DRAW);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
 
-		// TEXTURES AND STUFF
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
 
-		m_outputTexture = std::make_shared<gl::Texture2D>();
-		m_outputTexture->create(800, 600, GL_RGBA32F, GL_RGBA, GL_FLOAT);
-    	m_outputTexture->setParameters(GL_NEAREST, GL_NEAREST, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, uv));
 
-		m_mainFramebuffer = std::make_shared<gl::Framebuffer>();
-		m_mainFramebuffer->create();
-		m_mainFramebuffer->attachColor(0, *m_outputTexture);
+		glBindVertexArray(0);
 
-		gl::Renderbuffer depthBuffer;
-		depthBuffer.create();
-		depthBuffer.storage(GL_DEPTH_COMPONENT24, 800, 600);
-		m_mainFramebuffer->attachDepth(depthBuffer);
+		// INDIRECT BUFFER
 
-		if (!m_mainFramebuffer->complete()) {
-			LogError("Framebuffer incomplete");
-			return false;
+		glGenBuffers(1, &m_indirectBuffer);
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_indirectBuffer);
+		glBufferData(GL_DRAW_INDIRECT_BUFFER, 1024 * sizeof(DrawElementsIndirectCommand), nullptr, GL_DYNAMIC_DRAW);
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+
+		// RENDER TARGET AND FRAMEBUFFER
+
+		CreateFramebuffer(800, 600);
+
+		// BLIT SHADER
+
+		{
+			const char* vertexShaderSrc = R"(
+			#version 460 core
+			out vec2 TexCoords;
+			void main() {
+				const vec2 verts[3] = vec2[3](
+					vec2(-1.0, -1.0),
+					vec2( 3.0, -1.0),
+					vec2(-1.0,  3.0)
+				);
+				gl_Position = vec4(verts[gl_VertexID], 0.0, 1.0);
+				TexCoords = (gl_Position.xy + 1.0) * 0.5;
+			}
+			)";
+			
+			const char* fragmentShaderSrc = R"(
+			#version 460 core
+			in vec2 TexCoords;
+			out vec4 FragColor;
+			uniform sampler2D screenTexture;
+			void main() {
+				FragColor = texture(screenTexture, TexCoords);
+				// FragColor = vec4(TexCoords, 0.0, 1.0);
+			}
+			)";
+
+			GLuint vert = glCreateShader(GL_VERTEX_SHADER);
+			glShaderSource(vert, 1, &vertexShaderSrc, nullptr);
+			glCompileShader(vert);
+
+			GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
+			glShaderSource(frag, 1, &fragmentShaderSrc, nullptr);
+			glCompileShader(frag);
+
+			m_blitShader = glCreateProgram();
+			glAttachShader(m_blitShader, vert);
+			glAttachShader(m_blitShader, frag);
+			glLinkProgram(m_blitShader);
 		}
 
-		const char* vertexShaderSrc = R"(
-		#version 460 core
-		out vec2 TexCoords;
-		void main() {
-			const vec2 verts[3] = vec2[3](
-				vec2(-1.0, -1.0),
-				vec2( 3.0, -1.0),
-				vec2(-1.0,  3.0)
-			);
-			gl_Position = vec4(verts[gl_VertexID], 0.0, 1.0);
-			TexCoords = (gl_Position.xy + 1.0) * 0.5;
-		}
-		)";
-		
-		const char* fragmentShaderSrc = R"(
-		#version 460 core
-		in vec2 TexCoords;
-		out vec4 FragColor;
-		uniform sampler2D screenTexture;
-		void main() {
-			FragColor = texture(screenTexture, TexCoords);
-		}
-		)";
-		
-		m_blitShader = std::make_shared<gl::Shader>();
-		m_blitShader->create();
-		m_blitShader->attachShader(GL_VERTEX_SHADER, vertexShaderSrc);
-		m_blitShader->attachShader(GL_FRAGMENT_SHADER, fragmentShaderSrc);
-		m_blitShader->link();
-		
-		const char* tempVert = R"(
-		#version 460 core
-		layout(location = 0) in vec3 aPos;
+		// TEMP SHADER
 
-		uniform mat4 uModel;
-		uniform mat4 uView;
-		uniform mat4 uProj;
+		{
+			const char* vertexShaderSrc = R"(
+			#version 460 core
 
-		void main() {
-			gl_Position = uProj * uView * uModel * vec4(aPos, 1.0);
+			layout(location = 0) in vec3 aPos;
+			layout(location = 1) in vec3 aNormal;
+			layout(location = 2) in vec2 aUV;
+
+			uniform mat4 uModel;
+			uniform mat4 uView;
+			uniform mat4 uProj;
+
+			out vec3 FragPos;
+			out vec3 Normal;
+			out vec2 UV;
+
+			void main() {
+				FragPos = vec3(uModel * vec4(aPos, 1.0));
+				Normal = mat3(transpose(inverse(uModel))) * aNormal;
+				UV = aUV;
+				gl_Position = uProj * uView * vec4(FragPos, 1.0);
+			}
+			)";
+			
+			const char* fragmentShaderSrc = R"(
+			#version 460 core
+
+			in vec3 FragPos;
+			in vec3 Normal;
+			in vec2 UV;
+
+			out vec4 FragColor;
+
+			void main() {
+				FragColor = vec4(UV, 0.0, 1.0);
+			}
+			)";
+
+			GLuint vert = glCreateShader(GL_VERTEX_SHADER);
+			glShaderSource(vert, 1, &vertexShaderSrc, nullptr);
+			glCompileShader(vert);
+
+			GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
+			glShaderSource(frag, 1, &fragmentShaderSrc, nullptr);
+			glCompileShader(frag);
+
+			tempShader = glCreateProgram();
+			glAttachShader(tempShader, vert);
+			glAttachShader(tempShader, frag);
+			glLinkProgram(tempShader);
 		}
-
-		)";
-		
-		const char* tempFrag = R"(
-		#version 460 core
-		out vec4 FragColor;
-		void main() {
-			FragColor = vec4(1.0); // pure white
-		}
-		)";
-
-		tempDraw = std::make_shared<gl::Shader>();
-		tempDraw->create();
-		tempDraw->attachShader(GL_VERTEX_SHADER, tempVert);
-		tempDraw->attachShader(GL_FRAGMENT_SHADER, tempFrag);
-		tempDraw->link();
 
 		LogInfo(
 			"OpenGL Info: ", 
@@ -126,151 +155,122 @@ namespace ballistic
 		return true;
     }
 
-    void GLRenderDevice::Shutdown() {	
-		m_outputTexture->destroy();
-		m_mainFramebuffer->destroy();
-
-		m_meshVAO->destroy();
-		m_meshVBO->destroy();
-		m_meshEBO->destroy();
-
-		m_blitShader->destroy();
+    void GLRenderDevice::Shutdown() {
+		glDeleteProgram(m_blitShader);
+		glDeleteFramebuffers(1, &m_mainFramebuffer);
+		glDeleteRenderbuffers(1, &m_depthRbo);
+		glDeleteTextures(1, &m_outputTexture);
     }
 
     void GLRenderDevice::Execute(const std::vector<DrawElementsIndirectCommand>& commands) {
-
-		GLuint vao, vbo, ebo;
-		
-		auto meshManager = GetRoot()->GetMeshManager();
-
-		if (meshManager->GetAllMetadata().empty()) return; // nothing to draw
-
-		const MeshMetadata& meta = meshManager->GetAllMetadata()[0];
-		auto& verts = meshManager->GetVertexBuffer();
-		auto& inds = meshManager->GetIndexBuffer();
-
-		{
-			
-			glGenVertexArrays(1, &vao);
-			glGenBuffers(1, &vbo);
-			glGenBuffers(1, &ebo);
-
-			glBindVertexArray(vao);
-
-			glBindBuffer(GL_ARRAY_BUFFER, vbo);
-			glBufferData(GL_ARRAY_BUFFER, meta.vertexCount * sizeof(Vertex), verts.data() + meta.vertexOffset, GL_STATIC_DRAW);
-
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, meta.indexCount * sizeof(uint32_t), inds.data() + meta.indexOffset, GL_STATIC_DRAW);
-
-			glEnableVertexAttribArray(0); // pos
-			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
-			glEnableVertexAttribArray(1); // normal
-			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
-			glEnableVertexAttribArray(2); // uv
-			glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, uv));
-		}
-
+		glBindFramebuffer(GL_FRAMEBUFFER, m_mainFramebuffer);
+		Clear(1.0f, 0.0f, 0.0f, 1.0f);
 		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LESS);
+
+		auto meshManager = GetRoot()->GetMeshManager();
+		auto& vertices = meshManager->GetVertexBuffer();
+		auto& indices = meshManager->GetIndexBuffer();
 
 		if (!meshManager->GetDirtyMetadata().empty()) {
-			for (size_t idx : meshManager->GetDirtyMetadata()) {
-				const MeshMetadata& meta = meshManager->GetAllMetadata()[idx];
+			glBindVertexArray(m_meshVAO);
 
-				m_meshVBO->update(
-					meta.vertexOffset * sizeof(Vertex),
-					meta.vertexCount * sizeof(Vertex),
-					meshManager->GetVertexBuffer().data() + meta.vertexOffset
-				);
+			glBindBuffer(GL_ARRAY_BUFFER, m_meshVBO);
+			glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_DYNAMIC_DRAW);
 
-				m_meshEBO->update(
-					meta.indexOffset * sizeof(Vertex),
-					meta.indexCount * sizeof(Vertex),
-					meshManager->GetIndexBuffer().data() + meta.indexOffset
-				);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_meshEBO);
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_DYNAMIC_DRAW);
 
-			}
+			glBindVertexArray(0);
+
 			meshManager->ClearDirty();
-			LogWarn("Reloaded opengl mesh vao, vbo, ebo");
+			LogWarn("Updated VAO");
 		}
 
-		m_indirectBuffer->update(0, commands.size() * sizeof(DrawElementsIndirectCommand), commands.data());
+		const auto& meta = meshManager->GetAllMetadata()[0]; // just the first mesh
 
-		m_mainFramebuffer->bind();
-		gl::Viewport(0, 0, m_outputTexture->width(), m_outputTexture->height());
-		Clear(0.1, 0.1, 0.1, 1.0);
-		if (!commands.empty()) Clear(1.0, 0.0, 0.0, 1.0);
+		DrawElementsIndirectCommand cmd{};
+		cmd.count = (GLuint)meta.indexCount;
+		cmd.instanceCount = 1;
+		cmd.firstIndex = 0;
+		cmd.baseVertex = (GLuint)meta.vertexOffset;
+		cmd.baseInstance = 0;
 
-		m_meshVBO->update(0, verts.size() * sizeof(Vertex), verts.data());
-		m_meshEBO->update(0, inds.size() * sizeof(uint32_t), inds.data());
+		std::vector<DrawElementsIndirectCommand> cmds = { cmd };
 
-		tempDraw->use();
-		// m_meshVAO->bind();
-		// m_indirectBuffer->bind();
-		// gl::State::bindBuffer(GL_DRAW_INDIRECT_BUFFER, m_indirectBuffer->get());
-		// // if (!commands.empty())
-		// // 	m_meshVAO->drawElements(GL_TRIANGLES, commands[0].count, nullptr, 1);
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_indirectBuffer);
+		glBufferSubData(GL_DRAW_INDIRECT_BUFFER, 0, cmds.size() * sizeof(DrawElementsIndirectCommand), cmds.data());
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 
-		float time = glfwGetTime(); // seconds
-		glm::mat4 model = glm::mat4(1.0f);
-		model = glm::rotate(model, time, glm::vec3(0.2f, 1.0f, 0.5f));
+		glUseProgram(tempShader);
 
-		glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0,0,-3));
-		glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)(m_outputTexture->width()/m_outputTexture->height()), 0.1f, 100.0f);
+		glm::mat4 model = glm::rotate(glm::mat4(1.0f), (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::mat4 view = glm::lookAt(glm::vec3(0,0,5), glm::vec3(0,0,0), glm::vec3(0,1,0));
+		glm::mat4 proj = glm::perspective(glm::radians(60.0f), (float)(viewportSize.x/viewportSize.y), 0.1f, 100.0f);
 
-		gl::setUniform(*tempDraw, "uModel", model);
-		gl::setUniform(*tempDraw, "uView", view);
-		gl::setUniform(*tempDraw, "uProj", proj);
-		
-		glBindVertexArray(vao);
-		glDrawElements(GL_TRIANGLES, meta.indexCount, GL_UNSIGNED_INT, 0);
-		
-		glBindVertexArray(m_meshVAO->get());
-		glDrawElements(GL_TRIANGLES, meshManager->GetIndexBuffer().size(), GL_UNSIGNED_INT, 0);
+		glUniformMatrix4fv(glGetUniformLocation(tempShader, "uModel"), 1, GL_FALSE, &model[0][0]);
+		glUniformMatrix4fv(glGetUniformLocation(tempShader, "uView"), 1, GL_FALSE, &view[0][0]);
+		glUniformMatrix4fv(glGetUniformLocation(tempShader, "uProj"), 1, GL_FALSE, &proj[0][0]);
 
-		// glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, commands.size(), 0);
+		glBindVertexArray(m_meshVAO);
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_indirectBuffer);
+		glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)cmds.size(), 0);
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+		glBindVertexArray(0);
 
-		m_mainFramebuffer->unbind();
-
-		glDeleteBuffers(1, &vbo);
-		glDeleteBuffers(1, &ebo);
-		glDeleteVertexArrays(1, &vao);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
     
 	void GLRenderDevice::Clear(float r, float g, float b, float a) {
-		gl::ClearColor(r, g, b, a);
-		gl::Clear();
+		glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	}
     
 	void GLRenderDevice::BlitToScreen() {
-		gl::State::bindFramebuffer(GL_FRAMEBUFFER, 0);
 		glDisable(GL_DEPTH_TEST);
-		gl::Viewport(0, 0, m_outputTexture->width(), m_outputTexture->height());
-
-		m_blitShader->use();
-		m_outputTexture->bind(0);
-		m_blitShader->setUniform<int>("screenTexture", 0);
-
-		m_meshVAO->bind();
+		glUseProgram(m_blitShader);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, m_outputTexture);
+		glUniform1i(glGetUniformLocation(m_blitShader, "screenTexture"), 0);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 	}
 
-    void GLRenderDevice::Resize(uint32_t w, uint32_t h) {
-        m_outputTexture->resize(w, h);
-
-        m_mainFramebuffer->destroy();
-        m_mainFramebuffer->create();
-        m_mainFramebuffer->attachColor(0, *m_outputTexture);
-
-        gl::Renderbuffer depthBuffer;
-        depthBuffer.create();
-        depthBuffer.storage(GL_DEPTH_COMPONENT24, w, h);
-        m_mainFramebuffer->attachDepth(depthBuffer);
+    void GLRenderDevice::Resize(uint32_t newWidth, uint32_t newHeight) {
+		glViewport(0, 0, newWidth, newHeight);
+		viewportSize = glm::vec2(newWidth, newHeight);
+		CreateFramebuffer(newWidth, newHeight);
     }
+	
+    void GLRenderDevice::CreateFramebuffer(uint32_t w, uint32_t h) {
+		if (m_outputTexture) glDeleteTextures(1, &m_outputTexture);
+		if (m_depthRbo) glDeleteRenderbuffers(1, &m_depthRbo);
+		if (m_mainFramebuffer) glDeleteFramebuffers(1, &m_mainFramebuffer);
+
+		glGenTextures(1, &m_outputTexture);
+		glBindTexture(GL_TEXTURE_2D, m_outputTexture);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, w, h, 0, GL_RGBA, GL_FLOAT, nullptr);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		glGenRenderbuffers(1, &m_depthRbo);
+		glBindRenderbuffer(GL_RENDERBUFFER, m_depthRbo);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, w, h);
+		glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+		glGenFramebuffers(1, &m_mainFramebuffer);
+		glBindFramebuffer(GL_FRAMEBUFFER, m_mainFramebuffer);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_outputTexture, 0);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_depthRbo);
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+			LogError("Framebuffer incomplete");
+		}
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
 
     void* GLRenderDevice::GetNativeTextureHandle() {
-        return (void*)(uintptr_t)m_outputTexture->get();
+        return (void*)(uintptr_t)m_outputTexture;
     }
         
 } // namespace ballistic
