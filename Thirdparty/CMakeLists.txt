@@ -1,4 +1,3 @@
-# Thirdparty/CMakeLists.txt
 cmake_minimum_required(VERSION 3.20)
 
 # GLFW
@@ -24,16 +23,18 @@ set(IMGUI_BACKENDS
 )
 set(IMGUI_SRC ${IMGUI_CORE} ${IMGUI_BACKENDS})
 add_library(imgui STATIC ${IMGUI_SRC})
-target_include_directories(imgui PUBLIC imgui imgui/backends)
+target_include_directories(imgui PUBLIC imgui)
 target_link_libraries(imgui PUBLIC glfw)
 
-# EnTT
+# # EnTT
 add_subdirectory(entt)
 
-# JSON
-add_library(nlohmann_json INTERFACE)
-target_include_directories(nlohmann_json INTERFACE json/single_include)
+# # JSON
+# add_library(nlohmann_json INTERFACE)
+# target_include_directories(nlohmann_json INTERFACE json/single_include)
 
-# TinyFileDialogs
-add_library(tinyfiledialogs STATIC tinyfiledialogs/tinyfiledialogs.c)
-target_include_directories(tinyfiledialogs PUBLIC tinyfiledialogs)
+# # TinyFileDialogs
+# add_library(tinyfiledialogs STATIC tinyfiledialogs/tinyfiledialogs.c)
+# target_include_directories(tinyfiledialogs PUBLIC tinyfiledialogs)
+
+add_subdirectory(ThirdpartyImpl)
