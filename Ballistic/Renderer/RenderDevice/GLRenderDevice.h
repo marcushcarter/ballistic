@@ -32,6 +32,10 @@ namespace ballistic
         GLuint m_meshVAO = 0;
         GLuint m_meshVBO = 0;
         GLuint m_meshEBO = 0;
+
+        size_t m_vertexCapacityBytes = 0;
+        size_t m_indexCapacityBytes  = 0;
+
         GLuint m_indirectBuffer = 0;
         
         GLuint tempShader = 0;

@@ -19,11 +19,13 @@ namespace ballistic
 
 		glGenBuffers(1, &m_meshVBO);
 		glBindBuffer(GL_ARRAY_BUFFER, m_meshVBO);
-		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
+		m_vertexCapacityBytes = 1000 * sizeof(Vertex);
+		glBufferData(GL_ARRAY_BUFFER, m_vertexCapacityBytes, vertices.data(), GL_DYNAMIC_DRAW);
 
 		glGenBuffers(1, &m_meshEBO);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_meshEBO);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size()  * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
+		m_indexCapacityBytes = 3000 * sizeof(uint32_t);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indexCapacityBytes, indices.data(), GL_DYNAMIC_DRAW);
 
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
@@ -147,12 +149,25 @@ namespace ballistic
 
 		if (!meshManager->GetDirtyMetadata().empty()) {
 			glBindVertexArray(m_meshVAO);
+			
+			size_t requiredVertexBytes = vertices.size() * sizeof(Vertex);
+			size_t requiredIndexBytes  = indices.size() * sizeof(uint32_t);
 
 			glBindBuffer(GL_ARRAY_BUFFER, m_meshVBO);
-			glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_DYNAMIC_DRAW);
+			if (requiredVertexBytes > m_vertexCapacityBytes) {
+				m_vertexCapacityBytes = std::max(requiredVertexBytes, m_vertexCapacityBytes * 2);
+				glBufferData(GL_ARRAY_BUFFER, m_vertexCapacityBytes, nullptr, GL_DYNAMIC_DRAW);
+				LogWarn("Vertex Buffer Resize - new size: ", m_vertexCapacityBytes);
+			}
+			glBufferSubData(GL_ARRAY_BUFFER, 0, requiredVertexBytes, vertices.data());
 
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_meshEBO);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_DYNAMIC_DRAW);
+			if (requiredIndexBytes > m_indexCapacityBytes) {
+				m_indexCapacityBytes = std::max(requiredIndexBytes, m_indexCapacityBytes * 2);
+				glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indexCapacityBytes, nullptr, GL_DYNAMIC_DRAW);
+				LogWarn("Index Buffer Resize - new size: ", m_indexCapacityBytes);
+			}
+			glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, requiredIndexBytes, indices.data());
 
 			glBindVertexArray(0);
 
