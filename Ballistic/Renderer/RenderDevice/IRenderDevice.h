@@ -20,9 +20,6 @@ namespace ballistic
         virtual void Resize(uint32_t newWidth = 0, uint32_t newHeight = 0) = 0;
 
         virtual void* GetNativeTextureHandle() = 0;
-    
-    protected:
-        uint32_t m_maxDraws = 1024;
     };
 
 } // namespace ballistic

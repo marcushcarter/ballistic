@@ -7,12 +7,28 @@
 namespace ballistic
 {
     bool GLRenderDevice::Init() {
+		InitMeshBuffers();
+		InitIndirectBuffer();
+		InitFramebuffer(800, 600);
+		InitShaders();
+
+		LogInfo(
+			"OpenGL Info: ", 
+			"Renderer: ", glGetString(GL_RENDERER), ", ",
+			"Vendor: ", glGetString(GL_VENDOR), ", ",
+			"Version: ", glGetString(GL_VERSION), ", ",
+			"GLSL Version: ", glGetString(GL_SHADING_LANGUAGE_VERSION)
+		);
+
+		LogDebug("OpenGL render device Initialized");
+		return true;
+    }
+
+	void GLRenderDevice::InitMeshBuffers() {
 
 		auto manager = GetRoot()->GetMeshManager();
 		auto vertices = manager->GetVertexBuffer();
 		auto indices = manager->GetIndexBuffer();
-
-		// VAO VBO EBO
 
 		glGenVertexArrays(1, &m_meshVAO);
 		glBindVertexArray(m_meshVAO);
@@ -20,37 +36,70 @@ namespace ballistic
 		glGenBuffers(1, &m_meshVBO);
 		glBindBuffer(GL_ARRAY_BUFFER, m_meshVBO);
 		m_vertexCapacityBytes = 1000 * sizeof(Vertex);
-		glBufferData(GL_ARRAY_BUFFER, m_vertexCapacityBytes, vertices.data(), GL_DYNAMIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, m_vertexCapacityBytes, nullptr, GL_DYNAMIC_DRAW);
 
 		glGenBuffers(1, &m_meshEBO);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_meshEBO);
 		m_indexCapacityBytes = 3000 * sizeof(uint32_t);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indexCapacityBytes, indices.data(), GL_DYNAMIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indexCapacityBytes, nullptr, GL_DYNAMIC_DRAW);
 
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
-
 		glEnableVertexAttribArray(1);
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
-
 		glEnableVertexAttribArray(2);
 		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, uv));
 
 		glBindVertexArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	}
 
-		// INDIRECT BUFFER
+	void GLRenderDevice::InitIndirectBuffer() {
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_indirectBuffer);
+		m_indirectCapacityBytes = 1024 * sizeof(DrawElementsIndirectCommand);
+		glBufferData(GL_DRAW_INDIRECT_BUFFER, m_indirectCapacityBytes, nullptr, GL_DYNAMIC_DRAW);
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+	}
+    
+	void GLRenderDevice::InitShaderBuffers() {
+		glGenBuffers(1, &m_renderParamsUBO);
+		glBindBuffer(GL_UNIFORM_BUFFER, m_renderParamsUBO);
+		glBufferData(GL_UNIFORM_BUFFER, sizeof(RenderParameters), nullptr, GL_DYNAMIC_DRAW);
+		glBindBufferBase(GL_UNIFORM_BUFFER, 0, m_renderParamsUBO);
+	}
+	
+    void GLRenderDevice::InitFramebuffer(uint32_t w, uint32_t h) {
+		if (m_outputTexture) glDeleteTextures(1, &m_outputTexture);
+		if (m_depthRbo) glDeleteRenderbuffers(1, &m_depthRbo);
+		if (m_mainFramebuffer) glDeleteFramebuffers(1, &m_mainFramebuffer);
 
-		// glGenBuffers(1, &m_indirectBuffer);
-		// glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_indirectBuffer);
-		// glBufferData(GL_DRAW_INDIRECT_BUFFER, 1024 * sizeof(DrawElementsIndirectCommand), nullptr, GL_DYNAMIC_DRAW);
-		// glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+		glGenTextures(1, &m_outputTexture);
+		glBindTexture(GL_TEXTURE_2D, m_outputTexture);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, w, h, 0, GL_RGBA, GL_FLOAT, nullptr);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glBindTexture(GL_TEXTURE_2D, 0);
 
-		// RENDER TARGET AND FRAMEBUFFER
+		glGenRenderbuffers(1, &m_depthRbo);
+		glBindRenderbuffer(GL_RENDERBUFFER, m_depthRbo);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, w, h);
+		glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
-		CreateFramebuffer(800, 600);
+		glGenFramebuffers(1, &m_mainFramebuffer);
+		glBindFramebuffer(GL_FRAMEBUFFER, m_mainFramebuffer);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_outputTexture, 0);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_depthRbo);
 
-		// BLIT SHADER
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+			LogError("Framebuffer incomplete");
+		}
 
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+
+	void GLRenderDevice::InitShaders() {
+		
 		const char* blitVert = R"(
 		#version 460 core
 		out vec2 TexCoords;
@@ -77,8 +126,6 @@ namespace ballistic
 		)";
 
 		m_blitShader = CreateShader(blitVert, blitFrag);
-
-		// SCENE SHADER
 
 		const char* sceneVert = R"(
 		#version 460 core
@@ -118,24 +165,48 @@ namespace ballistic
 		)";
 
 		tempShader = CreateShader(sceneVert, sceneFrag);
+	}
 
-		LogInfo(
-			"OpenGL Info: ", 
-			"Renderer: ", glGetString(GL_RENDERER), ", ",
-			"Vendor: ", glGetString(GL_VENDOR), ", ",
-			"Version: ", glGetString(GL_VERSION), ", ",
-			"GLSL Version: ", glGetString(GL_SHADING_LANGUAGE_VERSION)
-		);
+	// void GLRenderDevice::CreateMeshBuffers() {
+	// }
 
-		LogDebug("OpenGL render device Initialized");
-		return true;
+	void GLRenderDevice::EnsureVertexBuffer(const Vertex* data, size_t count) {
+		size_t requiredBytes = count * sizeof(Vertex);
+		glBindBuffer(GL_ARRAY_BUFFER, m_meshVBO);
+
+		if (requiredBytes > m_vertexCapacityBytes) {
+			m_vertexCapacityBytes = std::max(requiredBytes, m_vertexCapacityBytes * 2);
+			glBufferData(GL_ARRAY_BUFFER, m_vertexCapacityBytes, data, GL_DYNAMIC_DRAW);
+			LogWarn("Vertex buffer resized - new size: ", m_vertexCapacityBytes);
+		} else {
+			glBufferSubData(GL_ARRAY_BUFFER, 0, requiredBytes, data);
+		}
     }
 
-    void GLRenderDevice::Shutdown() {
-		glDeleteProgram(m_blitShader);
-		glDeleteFramebuffers(1, &m_mainFramebuffer);
-		glDeleteRenderbuffers(1, &m_depthRbo);
-		glDeleteTextures(1, &m_outputTexture);
+    void GLRenderDevice::EnsureIndexBuffer(const uint32_t* data, size_t count) {
+		size_t requiredBytes = count * sizeof(uint32_t);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_meshEBO);
+
+		if (requiredBytes > m_indexCapacityBytes) {
+			m_indexCapacityBytes = std::max(requiredBytes, m_indexCapacityBytes * 2);
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indexCapacityBytes, data, GL_DYNAMIC_DRAW);
+			LogWarn("Index buffer resized - new size: ", m_indexCapacityBytes);
+		} else {
+			glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, requiredBytes, data);
+		}
+    }
+
+    void GLRenderDevice::EnsureIndirectBuffer(const DrawElementsIndirectCommand* data, size_t count) {
+		size_t requiredBytes = count * sizeof(uint32_t);
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_indirectBuffer);
+
+		if (requiredBytes > m_indirectCapacityBytes) {
+			m_indirectCapacityBytes = std::max(requiredBytes, m_indirectCapacityBytes * 2);
+			glBufferData(GL_DRAW_INDIRECT_BUFFER, m_indirectCapacityBytes, data, GL_DYNAMIC_DRAW);
+			LogWarn("Indirect buffer resized - new size: ", m_indirectCapacityBytes);
+		} else {
+			glBufferSubData(GL_DRAW_INDIRECT_BUFFER, 0, requiredBytes, data);
+		}
     }
 
     void GLRenderDevice::Execute(const std::vector<DrawElementsIndirectCommand>& commands) {
@@ -149,46 +220,16 @@ namespace ballistic
 
 		if (!meshManager->GetDirtyMetadata().empty()) {
 			glBindVertexArray(m_meshVAO);
-			
-			size_t requiredVertexBytes = vertices.size() * sizeof(Vertex);
-			size_t requiredIndexBytes  = indices.size() * sizeof(uint32_t);
 
-			glBindBuffer(GL_ARRAY_BUFFER, m_meshVBO);
-			if (requiredVertexBytes > m_vertexCapacityBytes) {
-				m_vertexCapacityBytes = std::max(requiredVertexBytes, m_vertexCapacityBytes * 2);
-				glBufferData(GL_ARRAY_BUFFER, m_vertexCapacityBytes, nullptr, GL_DYNAMIC_DRAW);
-				LogWarn("Vertex Buffer Resize - new size: ", m_vertexCapacityBytes);
-			}
-			glBufferSubData(GL_ARRAY_BUFFER, 0, requiredVertexBytes, vertices.data());
-
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_meshEBO);
-			if (requiredIndexBytes > m_indexCapacityBytes) {
-				m_indexCapacityBytes = std::max(requiredIndexBytes, m_indexCapacityBytes * 2);
-				glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indexCapacityBytes, nullptr, GL_DYNAMIC_DRAW);
-				LogWarn("Index Buffer Resize - new size: ", m_indexCapacityBytes);
-			}
-			glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, requiredIndexBytes, indices.data());
+			EnsureVertexBuffer(vertices.data(), vertices.size());
+			EnsureIndexBuffer(indices.data(), indices.size());
 
 			glBindVertexArray(0);
-
-			meshManager->ClearDirty();
 			LogWarn("Updated VAO");
+			meshManager->ClearDirty();
 		}
 
-		// const auto& meta = meshManager->GetAllMetadata()[0]; // just the first mesh
-
-		// DrawElementsIndirectCommand cmd{};
-		// cmd.count = (GLuint)meta.indexCount;
-		// cmd.instanceCount = 1;
-		// cmd.firstIndex = 0;
-		// cmd.baseVertex = (GLuint)meta.vertexOffset;
-		// cmd.baseInstance = 0;
-
-		// std::vector<DrawElementsIndirectCommand> cmds = { cmd };
-
-		// glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_indirectBuffer);
-		// glBufferSubData(GL_DRAW_INDIRECT_BUFFER, 0, cmds.size() * sizeof(DrawElementsIndirectCommand), cmds.data());
-		// glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+		EnsureIndirectBuffer(commands.data(), commands.size());
 
 		glUseProgram(tempShader);
 
@@ -202,7 +243,7 @@ namespace ballistic
 
 		// glBindVertexArray(m_meshVAO);
 		// glBindBuffer(GL_DRAW_INDIRECT_BUFFER, m_indirectBuffer);
-		// glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)cmds.size(), 0);
+		// glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)commands.size(), 0);
 		// glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 		// glBindVertexArray(0);
 
@@ -213,11 +254,6 @@ namespace ballistic
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
     
-	void GLRenderDevice::Clear(float r, float g, float b, float a) {
-		glClearColor(r, g, b, a);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	}
-    
 	void GLRenderDevice::BlitToScreen() {
 		glDisable(GL_DEPTH_TEST);
 		glUseProgram(m_blitShader);
@@ -226,41 +262,17 @@ namespace ballistic
 		glUniform1i(glGetUniformLocation(m_blitShader, "screenTexture"), 0);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 	}
+    
+	void GLRenderDevice::Clear(float r, float g, float b, float a) {
+		glClearColor(r, g, b, a);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	}
 
     void GLRenderDevice::Resize(uint32_t newWidth, uint32_t newHeight) {
 		glViewport(0, 0, newWidth, newHeight);
 		viewportSize = glm::vec2(newWidth, newHeight);
-		CreateFramebuffer(newWidth, newHeight);
+		InitFramebuffer(newWidth, newHeight);
     }
-	
-    void GLRenderDevice::CreateFramebuffer(uint32_t w, uint32_t h) {
-		if (m_outputTexture) glDeleteTextures(1, &m_outputTexture);
-		if (m_depthRbo) glDeleteRenderbuffers(1, &m_depthRbo);
-		if (m_mainFramebuffer) glDeleteFramebuffers(1, &m_mainFramebuffer);
-
-		glGenTextures(1, &m_outputTexture);
-		glBindTexture(GL_TEXTURE_2D, m_outputTexture);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, w, h, 0, GL_RGBA, GL_FLOAT, nullptr);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glBindTexture(GL_TEXTURE_2D, 0);
-
-		glGenRenderbuffers(1, &m_depthRbo);
-		glBindRenderbuffer(GL_RENDERBUFFER, m_depthRbo);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, w, h);
-		glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-		glGenFramebuffers(1, &m_mainFramebuffer);
-		glBindFramebuffer(GL_FRAMEBUFFER, m_mainFramebuffer);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_outputTexture, 0);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_depthRbo);
-
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-			LogError("Framebuffer incomplete");
-		}
-
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	}
 
 	GLuint GLRenderDevice::CreateShader(const char* vertexSrc, const char* fragmentSrc) {
 		auto compileShader = [](GLenum type, const char* src) -> GLuint {
@@ -273,11 +285,7 @@ namespace ballistic
 			if (!success) {
 				char infoLog[1024];
 				glGetShaderInfoLog(shader, sizeof(infoLog), nullptr, infoLog);
-
-				const char* typeName =
-					(type == GL_VERTEX_SHADER) ? "VERTEX" :
-					(type == GL_FRAGMENT_SHADER) ? "FRAGMENT" : "UNKNOWN";
-
+				const char* typeName = (type == GL_VERTEX_SHADER) ? "VERTEX" : (type == GL_FRAGMENT_SHADER) ? "FRAGMENT" : "UNKNOWN";
 				LogError(typeName, " SHADER COMPILATION FAILED:\n", infoLog);
 				glDeleteShader(shader);
 				return 0;
@@ -321,8 +329,18 @@ namespace ballistic
 		return program;
 	}
 
-    void* GLRenderDevice::GetNativeTextureHandle() {
-        return (void*)(uintptr_t)m_outputTexture;
+    void GLRenderDevice::Shutdown() {
+		glDeleteFramebuffers(1, &m_mainFramebuffer);
+		glDeleteRenderbuffers(1, &m_depthRbo);
+		glDeleteTextures(1, &m_outputTexture);
+		
+		glDeleteProgram(m_blitShader);
+		glDeleteProgram(tempShader);
+
+		glDeleteVertexArrays(1, &m_meshVAO);
+		glDeleteBuffers(1, &m_meshVBO);
+		glDeleteBuffers(1, &m_meshEBO);
+		glDeleteBuffers(1, &m_indirectBuffer);
     }
         
 } // namespace ballistic
