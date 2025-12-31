@@ -223,7 +223,7 @@ namespace ballistic
         if (tag.name.empty())
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5f, 0.5f, 0.5f, 1.0f));
         
-            bool open = ImGui::TreeNodeEx((void*)(intptr_t)entity, flags, "%s %s %s", iconString, nodeName, extraIcons);
+        bool open = ImGui::TreeNodeEx((void*)(intptr_t)entity, flags, "%s %s %s", iconString, nodeName, extraIcons);
         
         if (tag.name.empty())
             ImGui::PopStyleColor();

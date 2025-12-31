@@ -16,7 +16,9 @@ namespace ballistic
     void ViewportPanel::OnUpdate(float deltaTime) {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
-        static ImGuiWindowFlags ViewportFlags = ImGuiWindowFlags_NoCollapse;
+        ImGuiWindowFlags ViewportFlags = ImGuiWindowFlags_NoCollapse;
+        if (ImGuizmo::IsUsing() || ImGuizmo::IsOver())
+            ViewportFlags |= ImGuiWindowFlags_NoMove;
         ImGui::Begin((const char*)u8"\uF06E Viewport", nullptr, ViewportFlags);
 
         ImVec2 viewportWindowSize = ImGui::GetContentRegionAvail();
@@ -75,10 +77,14 @@ namespace ballistic
             ImGui::OpenPopup("ViewportButtonMenu");
         }
 
+        ImGui::PopStyleVar();
+
         if (ImGui::BeginPopup("ViewportButtonMenu")) {
-            if (ImGui::MenuItem("Option 1")) { /* handle click */ }
-            if (ImGui::MenuItem("Option 2")) { /* handle click */ }
-            if (ImGui::MenuItem("Option 3")) { /* handle click */ }
+            // static bool useMainCamera = false;
+            if (ImGui::Checkbox("Use Main Camera", &m_context.renderer->useMainCamera)) {}
+            // if (ImGui::MenuItem("Option 1")) { /* handle click */ }
+            // if (ImGui::MenuItem("Option 2")) { /* handle click */ }
+            // if (ImGui::MenuItem("Option 3")) { /* handle click */ }
 
             ImGui::EndPopup();
         }
@@ -153,7 +159,6 @@ namespace ballistic
         }
 
         ImGui::End();
-        ImGui::PopStyleVar();
     }
 
     void ViewportPanel::OnEvent(IEvent& e) {

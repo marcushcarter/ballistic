@@ -16,7 +16,6 @@ namespace ballistic
             m_renderer->RequestResize(glm::vec2(windowState.width, windowState.height));
             // resize camera
 
-            m_renderer->GetDevice()->BlitToScreen();
         }
 
         void OnShutdown() override {

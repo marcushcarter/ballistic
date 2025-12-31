@@ -13,9 +13,16 @@ namespace ballistic
             auto imguiLayer = std::make_shared<ImGuiLayer>(m_layerContext);
             GetLayerStack()->PushLayer(imguiLayer);
             
+            // Test Dragon Model in Scene
             auto newScene = m_sceneManager->Create("New Scene");
             m_sceneManager->SetActiveScene(m_sceneManager->ConvertGUID(newScene.get()));
-            m_sceneManager->GetActiveScene()->Create("New Node");
+            auto node = m_sceneManager->GetActiveScene()->Create("Stanford Dragon");
+            EntityHandle e(node, m_sceneManager->GetActiveScene()->GetRegistry());
+            auto& tfmComp = e.add<TransformComponent>();
+            tfmComp.position = glm::vec3(0, -4, -10);
+            tfmComp.scale = glm::vec3(0.1);
+            auto& meshComp = e.add<MeshComponent>();
+            meshComp.mesh = GetRoot()->GetMeshManager()->GetMeshGUIDByName("defaultMaterial");
 
             LogDebug("Editor app initialized");
             return true;

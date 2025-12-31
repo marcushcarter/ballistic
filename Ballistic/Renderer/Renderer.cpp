@@ -61,6 +61,16 @@ namespace ballistic
 
 		if (!scene) return;
 
+		if (useMainCamera) {
+			m_renderDevice->m_renderParams.camView = glm::mat4(0.0);
+			m_renderDevice->m_renderParams.camProj = glm::mat4(0.0);
+			m_renderDevice->m_renderParams.camPos = glm::vec3(0.0f);
+		} else {
+			m_renderDevice->m_renderParams.camView = glm::lookAt(glm::vec3(0,0,5), glm::vec3(0,0,0), glm::vec3(0,1,0));
+			m_renderDevice->m_renderParams.camProj = glm::perspective(glm::radians(60.0f), (float)(m_currentSize.x/m_currentSize.y), 0.1f, 100.0f);
+			m_renderDevice->m_renderParams.camPos = glm::vec3(sinf(glfwGetTime()), 0.0, 1.0);
+		}
+
 		struct MeshInstance {
 			const MeshMetadata* meta;
 			std::vector<glm::mat4> models;

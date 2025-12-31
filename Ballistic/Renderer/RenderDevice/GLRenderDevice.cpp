@@ -95,6 +95,7 @@ namespace ballistic
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, w, h, 0, GL_RGBA, GL_FLOAT, nullptr);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glClearTexImage(m_outputTexture, 0, GL_RGBA, GL_FLOAT, nullptr);
 		glBindTexture(GL_TEXTURE_2D, 0);
 
 		glGenRenderbuffers(1, &m_depthRbo);
@@ -136,8 +137,8 @@ namespace ballistic
 		out vec4 FragColor;
 		uniform sampler2D screenTexture;
 		void main() {
-			// FragColor = texture(screenTexture, TexCoords);
-			FragColor = vec4(TexCoords, 0.0, 1.0);
+			FragColor = texture(screenTexture, TexCoords);
+			// FragColor = vec4(TexCoords, 0.0, 1.0);
 		}
 		)";
 
@@ -265,10 +266,7 @@ namespace ballistic
 		glBindFramebuffer(GL_FRAMEBUFFER, m_mainFramebuffer);
 		Clear(0.1f, 0.1f, 0.1f, 1.0f);
 		glEnable(GL_DEPTH_TEST);
-		
-		m_renderParams.camView = glm::lookAt(glm::vec3(0,0,5), glm::vec3(0,0,0), glm::vec3(0,1,0));
-		m_renderParams.camProj = glm::perspective(glm::radians(60.0f), (float)(viewportSize.x/viewportSize.y), 0.1f, 100.0f);
-		m_renderParams.camPos = glm::vec3(sinf(glfwGetTime()), 0.0, 1.0);
+
 		EnsureRenderParamsUBO(&m_renderParams);
 
 		auto meshManager = GetRoot()->GetMeshManager();
@@ -287,12 +285,13 @@ namespace ballistic
 		glUseProgram(tempShader);
 		glBindVertexArray(m_vertexArray);
 		for (auto& cmd : commands) {
-			glDrawElementsInstanced(
+			glDrawElementsInstancedBaseVertex(
 				GL_TRIANGLES,
 				cmd.count,
 				GL_UNSIGNED_INT,
 				(void*)(cmd.firstIndex * sizeof(uint32_t)),
-				cmd.instanceCount
+				cmd.instanceCount,
+				cmd.baseVertex
 			);
 		}
 		glBindVertexArray(0);

@@ -25,6 +25,8 @@ namespace ballistic
 		
 		IRenderDevice* GetDevice() const { return m_renderDevice.get(); }
 		RendererAPI GetAPI() const { return m_api; }
+		
+		bool useMainCamera = false;
 
 	private:
 		RendererAPI m_api;

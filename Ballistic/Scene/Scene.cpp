@@ -236,7 +236,7 @@ namespace ballistic
         
         EntityHandle set(entity, m_registry);
         if (set.has<CameraComponent>()) {
-            set.get<CameraComponent>().mainCamera = true;
+            set.get<CameraComponent>().mainCamera = !set.get<CameraComponent>().mainCamera;
         }
     }
 

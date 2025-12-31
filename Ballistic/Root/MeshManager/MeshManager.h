@@ -15,11 +15,14 @@ namespace ballistic
         void Shutdown();
 
         GUID AddMesh(const std::string& name, const std::vector<Vertex>& verts, const std::vector<uint32_t>& inds);
+        GUID LoadMesh(const std::filesystem::path& path);
 
         void Clear();
 
         void MarkDirty(GUID guid);
         void ClearDirty() { m_metadataDirty.clear(); }
+
+        GUID GetMeshGUIDByName(const std::string& name) const;
     
         const std::vector<Vertex>& GetVertexBuffer() const { return m_vertices; }
         const std::vector<uint32_t>& GetIndexBuffer() const { return m_indices; }

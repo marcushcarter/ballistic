@@ -20,6 +20,7 @@ target_link_libraries(Ballistic PUBLIC
     ImGuizmo
     stb
     EnTT::EnTT
+    assimp
     # tinyfiledialogs
     # nlohmann_json
     ThirdpartyImpl
