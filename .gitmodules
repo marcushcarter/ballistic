@@ -13,3 +13,6 @@
 [submodule "Thirdparty/entt"]
 	path = Thirdparty/entt
 	url = https://github.com/skypjack/entt.git
+[submodule "Thirdparty/imguizmo"]
+	path = Thirdparty/imguizmo
+	url = https://github.com/CedricGuillemet/ImGuizmo.git
