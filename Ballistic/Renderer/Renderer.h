@@ -1,0 +1,42 @@
+#pragma once
+#include "bepch.h"
+#include "Renderer/RenderDevice/IRenderDevice.h"
+
+namespace ballistic
+{
+	class Window;
+	class Scene;
+	
+	enum class RendererAPI { OpenGL, Vulkan };
+
+	class Renderer {
+	public:
+		Renderer(RendererAPI api = RendererAPI::OpenGL) { m_api = api; }
+		~Renderer() { Shutdown(); }
+
+		void ApplyWindowHints();
+
+		bool Init(Window* window);
+		void Shutdown();
+		void OnUpdate(Scene* scene = nullptr);
+
+		void SubmitCamera(const glm::mat4& view, const glm::mat4& proj, const glm::vec3& pos);
+
+		void RequestResize(glm::vec2 dim);
+		glm::vec2 GetSize() const { return m_currentSize; }
+		
+		IRenderDevice* GetDevice() const { return m_renderDevice.get(); }
+		RendererAPI GetAPI() const { return m_api; }
+		
+		bool useMainCamera = false;
+
+	private:
+		RendererAPI m_api;
+		glm::vec2 m_currentSize{1, 1};
+		glm::vec2 m_resizeSize{};
+		bool m_pendingResize = true;
+
+		std::unique_ptr<IRenderDevice> m_renderDevice;
+	};
+
+} // namespace ballistic

@@ -4,10 +4,7 @@ project(BallisticProject)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Add third-party libraries
 add_subdirectory(Thirdparty)
-
-# Add your projects
-add_subdirectory(Engine)
-add_subdirectory(EngineRuntime)
-add_subdirectory(EngineEditor)
+add_subdirectory(Ballistic)
+add_subdirectory(BallisticRuntime)
+add_subdirectory(BallisticEditor)
