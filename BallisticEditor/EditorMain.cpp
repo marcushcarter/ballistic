@@ -19,7 +19,7 @@ namespace ballistic
             auto node = m_sceneManager->GetActiveScene()->Create("Stanford Dragon");
             EntityHandle e(node, m_sceneManager->GetActiveScene()->GetRegistry());
             auto& tfmComp = e.add<TransformComponent>();
-            tfmComp.position = glm::vec3(0, -4, -10);
+            tfmComp.position = glm::vec3(0, -4, 0);
             tfmComp.scale = glm::vec3(0.1);
             auto& meshComp = e.add<MeshComponent>();
             meshComp.mesh = GetRoot()->GetMeshManager()->GetMeshGUIDByName("defaultMaterial");
@@ -29,24 +29,6 @@ namespace ballistic
         }
 
         void OnUpdate(float deltaTime) override {
-
-            auto* scene = m_sceneManager->GetActiveScene();
-            if (m_renderer->useMainCamera && scene->GetMainCamera() != entt::null) {
-                EntityHandle e(scene->GetMainCamera(), scene->GetRegistry());
-                if (e.has<TransformComponent>() && e.has<CameraComponent>()) {
-                    auto& camComp = e.get<CameraComponent>();
-                    auto& tfmComp = e.get<TransformComponent>();
-                    camComp.OnUpdate(tfmComp);
-
-                    m_renderer->SubmitCamera(camComp.view, camComp.projection, tfmComp.position);
-                }
-            } else if (!m_renderer->useMainCamera) {
-                m_renderer->SubmitCamera(
-                    glm::lookAt(glm::vec3(0,0,5), glm::vec3(0,0,0),
-                    glm::vec3(0,1,0)), glm::perspective(glm::radians(60.0f), (float)m_renderer->GetSize().x / (float)m_renderer->GetSize().y, 0.1f, 100.0f),
-                    glm::vec3(sinf(glfwGetTime()), 0.0, 1.0)
-                );
-            }
         }
 
         void OnShutdown() override {

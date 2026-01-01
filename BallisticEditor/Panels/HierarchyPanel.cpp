@@ -98,6 +98,7 @@ namespace ballistic
 
         ImGui::BeginDisabled(true);
         if (ImGui::Button("Delete")) {
+            // m_context.sceneManager->SetActiveScene(GUID(0));
             m_context.sceneManager->Destroy(scene->GetGUID());
         }
         ImGui::EndDisabled();
@@ -126,67 +127,77 @@ namespace ballistic
 
     void HierarchyPanel::OnUpdate(float deltaTime) {
         auto sceneManager = m_context.sceneManager;
-        
         static ImGuiWindowFlags HierarchyFlags = ImGuiWindowFlags_NoCollapse;
 		ImGui::Begin((const char*)u8"\uF080 Scene Hierarchy", nullptr, HierarchyFlags);
 
         static int currentIndex = 0;
         GUID activeGUID = DrawSceneSelector(currentIndex);
 
-        if (sceneManager->HasActiveScene()) {
-            
-            auto scene = m_context.sceneManager->GetActiveScene();
-            auto& reg = scene->GetRegistry();
-
-            DrawSceneInfo(scene);
-            std::string searchStr = DrawSearchBar();
-
-            ImGui::BeginChild("HierarchyList", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
-
-            auto MatchesSearch = [&](const std::string& name) {
-                std::string lowerName = name;
-                std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
-                std::string searchLower = searchStr;
-                std::transform(searchLower.begin(), searchLower.end(), searchLower.begin(), ::tolower);
-                return searchLower.empty() || lowerName.find(searchLower) != std::string::npos;
-            };
-
-            for (auto e : reg.view<Tag>()) {
-                if (!reg.all_of<Parent>(e))
-                    DrawNode(scene, e, MatchesSearch);
-            }
-
-            for (auto e : hierarchyMetadata.deferredDestroy) scene->Destroy(e);
-            hierarchyMetadata.deferredDestroy.clear();
-
-            if (hierarchyMetadata.deferredDuplicate != entt::null) {
-                scene->Duplicate(hierarchyMetadata.deferredDuplicate);
-                hierarchyMetadata.deferredDuplicate = entt::null;
-            }
-
-            ImVec2 avail = ImGui::GetContentRegionAvail();
-            ImGui::SetCursorPosY(ImGui::GetCursorPosY());
-            if (ImGui::InvisibleButton("##root_drop_target", avail) || (ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !ImGui::IsAnyItemHovered())) {
-                hierarchyMetadata.multiSelection.clear();
-                scene->SetSelected(entt::null);
-                hierarchyMetadata.shiftAnchor = entt::null;
-                hierarchyMetadata.lastClicked = entt::null;
-            }
-
-            if (ImGui::BeginDragDropTarget()) {
-                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_PAYLOAD_MULTI")) {
-                    size_t count = payload->DataSize / sizeof(entt::entity);
-                    entt::entity* dragged = (entt::entity*)payload->Data;
-                    for (size_t i = 0; i < count; i++) scene->Reparent(dragged[i]);
-                } else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_PAYLOAD")) {
-                    entt::entity dragged = *(entt::entity*)payload->Data;
-                    scene->Reparent(dragged);
-                }
-                ImGui::EndDragDropTarget();
-            }
-
-            ImGui::EndChild();
+        Scene* scene = sceneManager->GetActiveScene();
+        if (!scene) {
+            ImGui::End();
+            return;
         }
+
+        auto& reg = scene->GetRegistry();
+
+        DrawSceneInfo(scene);
+        std::string searchStr = DrawSearchBar();
+
+        ImGui::BeginChild("HierarchyList", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+
+        auto MatchesSearch = [&](const std::string& name) {
+            std::string lowerName = name;
+            std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
+            std::string searchLower = searchStr;
+            std::transform(searchLower.begin(), searchLower.end(), searchLower.begin(), ::tolower);
+            return searchLower.empty() || lowerName.find(searchLower) != std::string::npos;
+        };
+
+        for (auto e : reg.view<Tag>()) {
+            EntityHandle handle(e, reg);
+            if (!handle.valid()) continue;
+            if (!reg.all_of<Parent>(e)) DrawNode(scene, e, MatchesSearch);
+        }
+
+        for (auto e : hierarchyMetadata.deferredDestroy) {
+            if (reg.valid(e)) scene->Destroy(e);
+        }
+        hierarchyMetadata.deferredDestroy.clear();
+
+        if (hierarchyMetadata.deferredDuplicate != entt::null) {
+            if (reg.valid(hierarchyMetadata.deferredDuplicate)) {
+                scene->Duplicate(hierarchyMetadata.deferredDuplicate);
+            }
+            hierarchyMetadata.deferredDuplicate = entt::null;
+        }
+
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY());
+        if (ImGui::InvisibleButton("##root_drop_target", avail) || 
+            (ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) &&
+            ImGui::IsMouseReleased(ImGuiMouseButton_Left) &&
+            !ImGui::IsAnyItemHovered()))
+        {
+            hierarchyMetadata.multiSelection.clear();
+            scene->SetSelected(entt::null);
+            hierarchyMetadata.shiftAnchor = entt::null;
+            hierarchyMetadata.lastClicked = entt::null;
+        }
+
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_PAYLOAD_MULTI")) {
+                size_t count = payload->DataSize / sizeof(entt::entity);
+                entt::entity* dragged = (entt::entity*)payload->Data;
+                for (size_t i = 0; i < count; i++) if (reg.valid(dragged[i])) scene->Reparent(dragged[i]);
+            } else if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_PAYLOAD")) {
+                entt::entity dragged = *(entt::entity*)payload->Data;
+                if (reg.valid(dragged)) scene->Reparent(dragged);
+            }
+            ImGui::EndDragDropTarget();
+        }
+
+        ImGui::EndChild();
         ImGui::End();
     }
 

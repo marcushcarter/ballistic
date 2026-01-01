@@ -1,5 +1,6 @@
 #pragma once
 #include "Panels/IPanel.h"
+#include "EditorCamera.h"
 #include "imgui.h"
 
 namespace ballistic
@@ -20,5 +21,11 @@ namespace ballistic
         ImVec2 viewportSize, topLeftTextureCoords, bottomRightTextureCoords;
 
         float ASPECT = 16.0f / 9.0f;
+
+		bool isDragging = false;
+		glm::vec2 lastMousePos;
+
+		EditorCamera editorCamera;
+        int cameraMode = 0;
 	};
 }
