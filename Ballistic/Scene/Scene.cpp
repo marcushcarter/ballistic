@@ -1,6 +1,6 @@
 #include "Scene/Scene.h"
 #include "Scene/EntityHandle.h"
-#include "Scene/Components/Components.h"
+#include "Scene/Components.h"
 
 namespace ballistic
 {

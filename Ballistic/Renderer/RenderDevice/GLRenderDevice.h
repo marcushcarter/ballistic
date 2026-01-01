@@ -2,7 +2,7 @@
 #include "bepch.h"
 #include "Renderer/DrawElementsIndirectCommand.h"
 #include "Renderer/RenderDevice/IRenderDevice.h"
-#include "Renderer/Backends/OpenGL/all.h"
+#include "glad/glad.h"
 
 namespace ballistic
 {

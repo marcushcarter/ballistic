@@ -2,7 +2,6 @@
 #include "Core/IApplication.h"
 #include "Root/Root.h"
 #include "Root/LogManager/Log.h"
-#include "Renderer/Backends/OpenGL/ShaderGLM.h"
 
 namespace ballistic
 {

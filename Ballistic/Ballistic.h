@@ -6,6 +6,9 @@
 #include "Root/Root.h"
 #include "Root/LogManager/LogManager.h"
 #include "Root/LogManager/Log.h"
+#include "Root/MeshManager/MeshManager.h"
+#include "Root/MeshManager/MeshMetadata.h"
+#include "Root/MeshManager/Vertex.h"
 
 #include "Core/IApplication.h"
 #include "Core/Layers/IEvent.h"
@@ -19,13 +22,13 @@
 #include "Renderer/DrawElementsIndirectCommand.h"
 #include "Renderer/RenderDevice/IRenderDevice.h"
 #include "Renderer/RenderDevice/GLRenderDevice.h"
-#include "Renderer/Backends/OpenGL/all.h"
-#include "Renderer/Backends/OpenGL/ShaderGLM.h"
 
-#include "Scene/Components/Components.h"
+#include "Scene/Components.h"
 #include "Scene/EntityHandle.h"
 #include "Scene/Scene.h"
 #include "Scene/SceneManager.h"
+
+#include "Utility/GUID.h"
 
 // #include <stb_image.h>
 

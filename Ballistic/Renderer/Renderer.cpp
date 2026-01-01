@@ -1,7 +1,7 @@
 #include "Renderer/Renderer.h"
 #include "Core/Window/Window.h"
 #include "Renderer/DrawElementsIndirectCommand.h"
-#include "Scene/Components/Components.h"
+#include "Scene/Components.h"
 #include "Scene/EntityHandle.h"
 #include "Scene/Scene.h"
 
