@@ -14,14 +14,12 @@
 #include "Core/Layers/IEvent.h"
 #include "Core/Layers/Events.h"
 #include "Core/Layers/ILayer.h"
-#include "Core/Layers/Layerstack.h"
+#include "Core/Layers/LayerStack.h"
 #include "Core/Window/WindowInfo.h"
 #include "Core/Window/Window.h"
 
 #include "Renderer/Renderer.h"
 #include "Renderer/DrawElementsIndirectCommand.h"
-#include "Renderer/RenderDevice/IRenderDevice.h"
-#include "Renderer/RenderDevice/GLRenderDevice.h"
 
 #include "Scene/Components.h"
 #include "Scene/EntityHandle.h"

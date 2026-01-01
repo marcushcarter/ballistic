@@ -52,7 +52,7 @@ namespace ballistic
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         drawList->AddImage(
-            m_context.renderer->GetDevice()->GetNativeTextureHandle(),
+            m_context.renderer->GetNativeTextureHandle(),
             topLeftTextureCoords, 
             bottomRightTextureCoords, 
             ImVec2(0,1), 
@@ -132,8 +132,8 @@ namespace ballistic
                         viewportSize.y
                     );
 
-                    glm::mat4 view = m_context.renderer->GetDevice()->m_renderParams.camView;
-                    glm::mat4 proj = m_context.renderer->GetDevice()->m_renderParams.camProj;
+                    glm::mat4 view = m_context.renderer->m_renderParams.camView;
+                    glm::mat4 proj = m_context.renderer->m_renderParams.camProj;
 
                     glm::mat4 worldMatrix = scene->ComputeWorldTransform(scene->GetSelected());
 

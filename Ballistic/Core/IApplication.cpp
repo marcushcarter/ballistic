@@ -16,7 +16,7 @@ namespace ballistic
         
         WindowSettings settings = GetWindowSettings();
 
-        m_renderer = std::make_unique<Renderer>(RendererAPI::OpenGL);
+        m_renderer = std::make_unique<Renderer>();
         m_renderer->ApplyWindowHints();
 
         m_window = std::make_unique<Window>();
