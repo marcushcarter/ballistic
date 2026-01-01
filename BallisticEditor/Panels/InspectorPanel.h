@@ -6,7 +6,7 @@ namespace ballistic
 {
 	class InspectorPanel : public IPanel {
 	public:
-        InspectorPanel(LayerContext& context, const std::string& name = "Inspector");
+        InspectorPanel(LayerContext& context, PanelStack& panelStack, const std::string& name = "Inspector");
         ~InspectorPanel() override { OnDetach(); }
         
 		void OnAttach() override;

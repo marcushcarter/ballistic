@@ -2,8 +2,8 @@
 
 namespace ballistic
 {
-    InspectorPanel::InspectorPanel(LayerContext& context, const std::string& name) 
-        : IPanel(context, name) {}
+    InspectorPanel::InspectorPanel(LayerContext& context, PanelStack& panelStack, const std::string& name) 
+        : IPanel(context, panelStack, name) {}
     
     void InspectorPanel::OnAttach() {
     }

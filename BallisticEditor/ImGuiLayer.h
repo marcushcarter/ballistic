@@ -5,25 +5,19 @@ struct ImGuiContext;
 
 namespace ballistic
 {
-    class PanelStack;
-
-    class ImGuiLayer : public ILayer
+    class ImGuiLayer
     {
     public:
-        ImGuiLayer(LayerContext& context, const std::string& name = "ImGui");
-        ~ImGuiLayer() override { OnDetach(); }
+        ImGuiLayer(LayerContext& context);
+        ~ImGuiLayer() { Shutdown(); }
 
-        void OnAttach() override;
-        void OnDetach() override;
-        void OnUpdate(float deltaTime) override;
-        void OnEvent(IEvent& e) override;
-
-        std::shared_ptr<PanelStack> GetPanelStack() { return m_panelStack; }
+        void Init();
+        void Shutdown();
+        void BeginFrame();
+        void EndFrame();
 
     private:
-        std::shared_ptr<PanelStack> m_panelStack;
-
-        void MenuBar();
+        LayerContext& m_context;
     };
     
 } // namespace ballistic

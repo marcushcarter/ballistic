@@ -1,47 +1,16 @@
 #include "ImGuiLayer.h"
-#include "Panels/PanelStack.h"
-
-#include "Panels/MenuPanel.h"
-#include "Panels/DemoPanel.h"
-#include "Panels/ViewportPanel.h"
-#include "Panels/HierarchyPanel.h"
-#include "Panels/InspectorPanel.h"
-#include "Panels/ConsolePanel.h"
-
-#include "imgui.h"
-#include "imgui_internal.h"
-#include "backends/imgui_impl_glfw.h"
-#include "backends/imgui_impl_opengl3.h"
+#include <imgui.h>
+#include <imgui_internal.h>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_opengl3.h>
 #include <ImGuizmo.h>
 
 namespace ballistic
 {
-    ImGuiLayer::ImGuiLayer(LayerContext& context, const std::string& name) 
-        : ILayer(context, name) {
+    ImGuiLayer::ImGuiLayer(LayerContext& context) : m_context(context) {
     }
 
-    void ImGuiLayer::OnAttach() {
-
-        m_panelStack = std::make_shared<PanelStack>();
-
-        auto menuBar = std::make_shared<MenuPanel>(m_context);
-        m_panelStack->PushPanel(menuBar);
-
-        // auto demoPanel = std::make_shared<DemoPanel>(m_context);
-        // m_panelStack->PushPanel(demoPanel);
-        
-        auto viewportPanel = std::make_shared<ViewportPanel>(m_context);
-        m_panelStack->PushPanel(viewportPanel);
-
-        auto hierarchyPanel = std::make_shared<HierarchyPanel>(m_context);
-        m_panelStack->PushPanel(hierarchyPanel);
-
-        auto inspectorPanel = std::make_shared<InspectorPanel>(m_context);
-        m_panelStack->PushPanel(inspectorPanel);
-        
-        auto consolePanel = std::make_shared<ConsolePanel>(m_context);
-        m_panelStack->PushPanel(consolePanel);
-        
+    void ImGuiLayer::Init() {        
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
@@ -79,15 +48,15 @@ namespace ballistic
         ImGui_ImplOpenGL3_Init("#version 460");
     }
 
-    void ImGuiLayer::OnDetach() {
+    void ImGuiLayer::Shutdown() {
         if (ImGui::GetCurrentContext() && m_context.window && m_context.window->GetNativeWindow()) {
             ImGui_ImplOpenGL3_Shutdown();
             ImGui_ImplGlfw_Shutdown();
             ImGui::DestroyContext();
         }
     }
-
-    void ImGuiLayer::OnUpdate(float deltaTime) {
+    
+    void ImGuiLayer::BeginFrame() {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
@@ -119,9 +88,9 @@ namespace ballistic
         
         ImGui::End();
         ImGui::PopStyleVar(2);
+    }
 
-        m_panelStack->OnUpdate(deltaTime);
-
+    void ImGuiLayer::EndFrame() {
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         auto io = ImGui::GetIO();
@@ -131,9 +100,6 @@ namespace ballistic
 			ImGui::RenderPlatformWindowsDefault();
 			glfwMakeContextCurrent(backup);
 		}
-    }
-
-    void ImGuiLayer::OnEvent(IEvent& e) {
     }
     
 } // namespace ballistic

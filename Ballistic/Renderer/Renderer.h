@@ -18,7 +18,7 @@ namespace ballistic
 
 		bool Init(Window* window);
 		void Shutdown();
-		void OnUpdate(Scene* scene = nullptr);
+		void Render(Scene* scene = nullptr);
 
 		void SubmitCamera(const glm::mat4& view, const glm::mat4& proj, const glm::vec3& pos);
 

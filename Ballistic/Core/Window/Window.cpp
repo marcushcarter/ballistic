@@ -55,7 +55,7 @@ namespace ballistic
         return m_nativeWindow && glfwWindowShouldClose(m_nativeWindow);
     }
 
-    void Window::Update(float deltaTime) {
+    void Window::Present() {
         if (!m_nativeWindow) return;
 
         int w, h;

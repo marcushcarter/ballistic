@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
+set(CMAKE_BUILD_TYPE Debug)
 
 if (MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

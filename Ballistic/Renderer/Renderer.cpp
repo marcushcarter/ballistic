@@ -52,7 +52,7 @@ namespace ballistic
 		if (m_renderDevice) m_renderDevice->Shutdown();
 	}
 
-	void Renderer::OnUpdate(Scene* scene) {
+	void Renderer::Render(Scene* scene) {
 		if (m_pendingResize) {
 			m_renderDevice->Resize((uint32_t)m_resizeSize.x, (uint32_t)m_resizeSize.y);
 			m_currentSize = m_resizeSize;

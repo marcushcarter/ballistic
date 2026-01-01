@@ -6,7 +6,7 @@ namespace ballistic
 {
 	class ConsolePanel : public IPanel {
 	public:
-        ConsolePanel(LayerContext& context, const std::string& name = "Console");
+        ConsolePanel(LayerContext& context, PanelStack& panelStack, const std::string& name = "Console");
         ~ConsolePanel() override { OnDetach(); }
         
 		void OnAttach() override;

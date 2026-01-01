@@ -1,5 +1,4 @@
 #include "Core/IApplication.h"
-#include "Core/Layers/LayerStack.h"
 #include "Core/Window/Window.h"
 #include "Renderer/Renderer.h"
 #include "Scene/SceneManager.h"
@@ -10,8 +9,6 @@
 namespace ballistic
 {   
     bool IApplication::Init() {
-
-        m_layerStack = std::make_shared<LayerStack>();
 
         m_sceneManager = std::make_unique<SceneManager>();
         if (!m_sceneManager->Init())
@@ -39,26 +36,23 @@ namespace ballistic
             GetRoot()->RequestShutdown();
             return;
         }
+        BeginFrame();
 
-        m_layerStack->OnUpdate(deltaTime);
-        
         OnUpdate(deltaTime);
-        
-        m_renderer->OnUpdate(m_sceneManager->GetActiveScene());
+        m_layerStack.OnUpdate(deltaTime);
+        m_renderer->Render(m_sceneManager->GetActiveScene());
 
-        m_window->Update(deltaTime);
+        EndFrame();
+        m_window->Present();
     }
 
     void IApplication::Shutdown() {
         OnShutdown();
 
+        m_layerStack.Clear();
         m_renderer->Shutdown();
-
         m_window->Shutdown();
-
         m_sceneManager->Shutdown();
-
-        m_layerStack->OnDetach();
     }
 
 } // namespace ballistic

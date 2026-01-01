@@ -15,7 +15,7 @@ namespace ballistic
 
         bool Init(const WindowSettings& windowSettings = {});
         bool ShouldClose() const;
-        void Update(float deltaTime);
+        void Present();
         void Shutdown();
 
         const WindowSettings& GetSettings() const { return m_settings; }

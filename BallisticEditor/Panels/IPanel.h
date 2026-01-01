@@ -1,12 +1,15 @@
 #pragma once
 #include <Ballistic.h>
+#include "Panels/PanelStack.h"
 
 namespace ballistic
 {
+    class PanelStack;
+    
     class IPanel {
     public:
-        IPanel(LayerContext context, const std::string name = "Panel")
-            : m_context(context), m_name(name), m_open(true) {}
+        IPanel(LayerContext context, PanelStack& panelStack, const std::string name = "Panel")
+            : m_context(context), m_panelStack(panelStack), m_name(name), m_open(true) {}
         
         virtual ~IPanel() = default;
 
@@ -22,6 +25,7 @@ namespace ballistic
         
 	protected:
         LayerContext m_context;
+        PanelStack& m_panelStack;
         bool m_open;
     
     private:

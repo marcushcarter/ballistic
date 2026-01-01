@@ -2,8 +2,8 @@
 
 namespace ballistic
 {
-    DemoPanel::DemoPanel(LayerContext& context, const std::string& name) 
-        : IPanel(context, name) {}
+    DemoPanel::DemoPanel(LayerContext& context, PanelStack& panelStack, const std::string& name) 
+        : IPanel(context, panelStack, name) {}
     
     void DemoPanel::OnAttach() {
     }

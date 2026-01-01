@@ -3,8 +3,8 @@
 
 namespace ballistic
 {
-    ViewportPanel::ViewportPanel(LayerContext& context, const std::string& name) 
-        : IPanel(context, name) {}
+    ViewportPanel::ViewportPanel(LayerContext& context, PanelStack& panelStack, const std::string& name) 
+        : IPanel(context, panelStack, name) {}
     
     void ViewportPanel::OnAttach() {}
     void ViewportPanel::OnDetach() {}
@@ -100,67 +100,6 @@ namespace ballistic
         }
         
         if (scene) {
-
-            EntityHandle e(scene->GetSelected(), scene->GetRegistry());
-            if (e.has<TransformComponent>()) {
-                auto& t = e.get<TransformComponent>();
-                
-                ImGuizmo::SetOrthographic(false);
-                ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
-                ImGuizmo::SetRect(
-                    topLeftTextureCoords.x,
-                    topLeftTextureCoords.y,
-                    viewportSize.x,
-                    viewportSize.y
-                );
-
-                glm::mat4 view = m_context.renderer->GetDevice()->m_renderParams.camView;
-                glm::mat4 proj = m_context.renderer->GetDevice()->m_renderParams.camProj;
-
-                glm::mat4 worldMatrix = scene->ComputeWorldTransform(scene->GetSelected());
-
-                ImGuizmo::Manipulate(
-                    glm::value_ptr(view),
-                    glm::value_ptr(proj),
-                    ImGuizmo::TRANSLATE,
-                    ImGuizmo::WORLD,
-                    glm::value_ptr(worldMatrix)
-                );
-
-                if (ImGuizmo::IsUsing()) {
-
-                    glm::mat4 parentWorld(1.0f);
-                    entt::entity parent = entt::null;
-
-                    if (scene->GetRegistry().all_of<Parent>(scene->GetSelected()))
-                        parent = scene->ConvertEntity(scene->GetRegistry().get<Parent>(scene->GetSelected()).parent);
-
-                    while (parent != entt::null && !scene->GetRegistry().all_of<TransformComponent>(parent)) {
-                        if (!scene->GetRegistry().all_of<Parent>(parent)) {
-                            parent = entt::null;
-                            break;
-                        }
-                        parent = scene->ConvertEntity(scene->GetRegistry().get<Parent>(parent).parent);
-                    }
-
-                    if (parent != entt::null)
-                        parentWorld = scene->ComputeWorldTransform(parent);
-
-                    glm::mat4 local = glm::inverse(parentWorld) * worldMatrix;
-
-                    glm::vec3 lTrans, lRot, lScale;
-                    ImGuizmo::DecomposeMatrixToComponents(
-                        glm::value_ptr(local),
-                        glm::value_ptr(lTrans),
-                        glm::value_ptr(lRot),
-                        glm::value_ptr(lScale)
-                    );
-
-                    t.position = lTrans;
-                    t.rotation = lRot;
-                    t.scale = lScale;
-                }
-            }
             
             if (m_context.renderer->useMainCamera && scene->GetMainCamera() != entt::null) {
 
@@ -179,6 +118,67 @@ namespace ballistic
                 }
 
             } else if (!m_context.renderer->useMainCamera) {
+
+                EntityHandle e(scene->GetSelected(), scene->GetRegistry());
+                if (e.has<TransformComponent>()) {
+                    auto& t = e.get<TransformComponent>();
+                    
+                    ImGuizmo::SetOrthographic(false);
+                    ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
+                    ImGuizmo::SetRect(
+                        topLeftTextureCoords.x,
+                        topLeftTextureCoords.y,
+                        viewportSize.x,
+                        viewportSize.y
+                    );
+
+                    glm::mat4 view = m_context.renderer->GetDevice()->m_renderParams.camView;
+                    glm::mat4 proj = m_context.renderer->GetDevice()->m_renderParams.camProj;
+
+                    glm::mat4 worldMatrix = scene->ComputeWorldTransform(scene->GetSelected());
+
+                    ImGuizmo::Manipulate(
+                        glm::value_ptr(view),
+                        glm::value_ptr(proj),
+                        ImGuizmo::TRANSLATE,
+                        ImGuizmo::WORLD,
+                        glm::value_ptr(worldMatrix)
+                    );
+
+                    if (ImGuizmo::IsUsing()) {
+
+                        glm::mat4 parentWorld(1.0f);
+                        entt::entity parent = entt::null;
+
+                        if (scene->GetRegistry().all_of<Parent>(scene->GetSelected()))
+                            parent = scene->ConvertEntity(scene->GetRegistry().get<Parent>(scene->GetSelected()).parent);
+
+                        while (parent != entt::null && !scene->GetRegistry().all_of<TransformComponent>(parent)) {
+                            if (!scene->GetRegistry().all_of<Parent>(parent)) {
+                                parent = entt::null;
+                                break;
+                            }
+                            parent = scene->ConvertEntity(scene->GetRegistry().get<Parent>(parent).parent);
+                        }
+
+                        if (parent != entt::null)
+                            parentWorld = scene->ComputeWorldTransform(parent);
+
+                        glm::mat4 local = glm::inverse(parentWorld) * worldMatrix;
+
+                        glm::vec3 lTrans, lRot, lScale;
+                        ImGuizmo::DecomposeMatrixToComponents(
+                            glm::value_ptr(local),
+                            glm::value_ptr(lTrans),
+                            glm::value_ptr(lRot),
+                            glm::value_ptr(lScale)
+                        );
+
+                        t.position = lTrans;
+                        t.rotation = lRot;
+                        t.scale = lScale;
+                    }
+                }
 
                 if (!ImGuizmo::IsUsing() && !ImGuizmo::IsOver() && isDragging) {
                     if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {

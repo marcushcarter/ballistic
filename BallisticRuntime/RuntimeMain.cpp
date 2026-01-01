@@ -10,6 +10,8 @@ namespace ballistic
             LogDebug("Runtime app initialized");
             return true;
         }
+        
+        void BeginFrame() override {}
 
         void OnUpdate(float deltaTime) override {
             auto windowState = m_window->GetState();
@@ -28,6 +30,8 @@ namespace ballistic
                 }
             }
         }
+
+        void EndFrame() override {}
 
         void OnShutdown() override {
         }

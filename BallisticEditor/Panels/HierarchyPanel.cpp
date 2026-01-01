@@ -2,8 +2,8 @@
 
 namespace ballistic
 {
-    HierarchyPanel::HierarchyPanel(LayerContext& context, const std::string& name) 
-        : IPanel(context, name) {}
+    HierarchyPanel::HierarchyPanel(LayerContext& context, PanelStack& panelStack, const std::string& name) 
+        : IPanel(context, panelStack, name) {}
     
     void HierarchyPanel::OnAttach() {
     }

@@ -30,7 +30,7 @@ namespace ballistic
             glm::vec3 forward = glm::normalize(target - position);
             glm::vec3 right   = glm::normalize(glm::cross(forward, glm::vec3(0.0f, 1.0f, 0.0f)));
             glm::vec3 up      = glm::normalize(glm::cross(right, forward));
-            target += -right * mouseDelta.x * panSpeed + up * mouseDelta.y * panSpeed;
+            target += -right * mouseDelta.x * panSpeed + up * -mouseDelta.y * panSpeed;
         } 
         else if (mode == 2) {
             distance *= 1.0f - mouseDelta.y * zoomSpeed;

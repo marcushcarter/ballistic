@@ -4,10 +4,10 @@
 
 namespace ballistic
 {
-	class DemoPanel : public IPanel {
+	class LauncherPanel : public IPanel {
 	public:
-        DemoPanel(LayerContext& context, PanelStack& panelStack, const std::string& name = "Demo");
-        ~DemoPanel() override { OnDetach(); }
+        LauncherPanel(LayerContext& context, PanelStack& panelStack, const std::string& name = "Launcher");
+        ~LauncherPanel() override { OnDetach(); }
         
 		void OnAttach() override;
 		void OnDetach() override;

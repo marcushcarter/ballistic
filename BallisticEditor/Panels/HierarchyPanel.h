@@ -6,7 +6,7 @@ namespace ballistic
 {
 	class HierarchyPanel : public IPanel {
 	public:
-        HierarchyPanel(LayerContext& context, const std::string& name = "Hierarchy");
+        HierarchyPanel(LayerContext& context, PanelStack& panelStack, const std::string& name = "Hierarchy");
         ~HierarchyPanel() override { OnDetach(); }
         
 		void OnAttach() override;

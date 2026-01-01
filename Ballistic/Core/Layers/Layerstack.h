@@ -9,13 +9,13 @@ namespace ballistic
 	class LayerStack {
 	public:
 		LayerStack() = default;
-		~LayerStack() { OnDetach(); }
+		~LayerStack() { Clear(); }
 
 		void PushLayer(std::shared_ptr<ILayer> layer);
 		void PopLayer(std::shared_ptr<ILayer> layer);
 
 		void OnUpdate(float deltaTime);
-		void OnDetach();
+		void Clear();
 		void DispatchEvent(IEvent& e);
 
 	public:

@@ -24,7 +24,7 @@ namespace ballistic
            	layer->OnUpdate(deltaTime);
 	}
 
-	void LayerStack::OnDetach() {
+	void LayerStack::Clear() {
 		for (auto& layer : m_layers)
 			layer->OnDetach();
 	}
