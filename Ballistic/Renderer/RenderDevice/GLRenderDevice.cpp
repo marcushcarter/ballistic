@@ -269,12 +269,11 @@ namespace ballistic
 		EnsureRenderParamsUBO(&m_renderParams);
 
 		auto meshManager = GetRoot()->GetMeshManager();
-		auto& vertices = meshManager->GetVertexBuffer();
-		auto& indices = meshManager->GetIndexBuffer();
+		
 		if (!meshManager->GetDirtyMetadata().empty()) {
 			glBindVertexArray(m_vertexArray);
-			EnsureVertexBuffer(vertices.data(), vertices.size());
-			EnsureIndexBuffer(indices.data(), indices.size());
+			EnsureVertexBuffer(meshManager->GetVertexBuffer().data(), meshManager->GetVertexBuffer().size());
+			EnsureIndexBuffer(meshManager->GetIndexBuffer().data(), meshManager->GetIndexBuffer().size());
 			glBindVertexArray(0);
 			meshManager->ClearDirty();
 		}
@@ -283,6 +282,7 @@ namespace ballistic
 
 		glUseProgram(tempShader);
 		glBindVertexArray(m_vertexArray);
+
 		for (auto& cmd : commands) {
 			glDrawElementsInstancedBaseVertex(
 				GL_TRIANGLES,
@@ -293,17 +293,18 @@ namespace ballistic
 				cmd.baseVertex
 			);
 		}
+
 		glBindVertexArray(0);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
     
 	void GLRenderDevice::BlitToScreen() {
-		glDisable(GL_DEPTH_TEST);
-		glUseProgram(m_blitShader);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, m_outputTexture);
-		glUniform1i(glGetUniformLocation(m_blitShader, "screenTexture"), 0);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		// glDisable(GL_DEPTH_TEST);
+		// glUseProgram(m_blitShader);
+		// glActiveTexture(GL_TEXTURE0);
+		// glBindTexture(GL_TEXTURE_2D, m_outputTexture);
+		// glUniform1i(glGetUniformLocation(m_blitShader, "screenTexture"), 0);
+		// glDrawArrays(GL_TRIANGLES, 0, 3);
 	}
     
 	void GLRenderDevice::Clear(float r, float g, float b, float a) {

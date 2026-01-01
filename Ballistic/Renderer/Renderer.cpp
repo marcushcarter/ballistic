@@ -77,7 +77,7 @@ namespace ballistic
 			
 			auto& entry = meshInstances[meshID];
 			entry.meta = meta;
-			entry.models.push_back(scene->ComputeWorldTransform(e.handle()));
+			entry.models.push_back(e.get<TransformComponent>().TRS());
 		}
 
 		std::vector<DrawElementsIndirectCommand> commands;
