@@ -15,10 +15,11 @@ namespace ballistic
         void Shutdown();
 
         GUID AddMesh(const std::string& name, const std::vector<Vertex>& verts, const std::vector<uint32_t>& inds);
-        GUID LoadMesh(const std::filesystem::path& path);
+        GUID LoadMesh(const std::filesystem::path& path, bool serialize = true);
         void Clear();
 
-        void SaveMeshMeta(const std::filesystem::path& projectRoot, const MeshMetadata& meta, const std::filesystem::path& sourceMeshPath);
+        void SerializeMesh(const MeshMetadata& meta, const std::filesystem::path& sourceMeshPath);
+        void DeserializeMeshes();
 
         GUID GetMeshGUIDByName(const std::string& name) const;
         const MeshMetadata* GetMeshMetadata(GUID guid) const;

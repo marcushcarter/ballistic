@@ -24,6 +24,14 @@ namespace ballistic
         constexpr bool operator==(const GUID& other) const noexcept { return value == other.value; }
         constexpr bool operator!=(const GUID& other) const noexcept { return value != other.value; }
 
+        static GUID FromString(const std::string& str) {
+            GUID g;
+            g.value = std::stoull(str); // assuming you just store the integer as a string
+            return g;
+        }
+
+        std::string ToString() const { return std::to_string(value); }
+
     private:
         static uint64_t Generate() noexcept {
             static std::atomic<uint64_t> counter{ 1 };

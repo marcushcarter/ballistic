@@ -1,4 +1,5 @@
 #include "Root/ProjectManager/ProjectManager.h"
+#include "Root/MeshManager/MeshManager.h"
 #include "Root/LogManager/Log.h"
 
 namespace ballistic
@@ -75,6 +76,8 @@ namespace ballistic
         m_projectName = j["name"].get<std::string>();
 
         m_projectRoot = configPath.parent_path();
+
+        GetRoot()->GetMeshManager()->DeserializeMeshes();
 
         LogInfo("Opened project: ", m_projectName);
         return true;

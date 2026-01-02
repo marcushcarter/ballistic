@@ -103,19 +103,22 @@ namespace ballistic
 
                     const auto& allMetadata = meshManager->GetAllMetadata();
                     if (!allMetadata.empty()) {
-                        std::vector<std::string> names;
+                        std::vector<std::string> displayNames;
                         int currentIndex = 0;
+
                         for (size_t i = 0; i < allMetadata.size(); ++i) {
-                            names.push_back(allMetadata[i].name);
+                            // Make unique string for ImGui, but keep display name clean
+                            std::string display = allMetadata[i].name + "##" + std::to_string(allMetadata[i].guid.value);
+                            displayNames.push_back(display);
+
                             if (allMetadata[i].guid == mesh.mesh)
                                 currentIndex = static_cast<int>(i);
                         }
 
-                        // Dropdown
-                        if (ImGui::BeginCombo("Mesh", names[currentIndex].c_str())) {
-                            for (int i = 0; i < names.size(); ++i) {
+                        if (ImGui::BeginCombo("Mesh", allMetadata[currentIndex].name.c_str())) {
+                            for (int i = 0; i < displayNames.size(); ++i) {
                                 bool isSelected = (i == currentIndex);
-                                if (ImGui::Selectable(names[i].c_str(), isSelected)) {
+                                if (ImGui::Selectable(displayNames[i].c_str(), isSelected)) {
                                     currentIndex = i;
                                     mesh.mesh = allMetadata[i].guid;
                                 }
@@ -124,8 +127,6 @@ namespace ballistic
                             }
                             ImGui::EndCombo();
                         }
-                    } else {
-                        ImGui::TextDisabled("No meshes available");
                     }
                 });
             }

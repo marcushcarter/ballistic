@@ -144,7 +144,7 @@ namespace ballistic
 
 		void main() {
 			mat4 model = uModel[gl_InstanceID];
-			FragPos = vec3(model * vec4(aPos, 1.0));
+			FragPos = vec3(vec4(aPos, 1.0));
 			Normal = mat3(transpose(inverse(model))) * aNormal;
 			gl_Position = camProj * camView * vec4(FragPos, 1.0);
 			UV = aUV;
@@ -260,7 +260,6 @@ namespace ballistic
 
 		auto meshManager = GetRoot()->GetMeshManager();
 		glBindVertexArray(meshManager->GetVAO());
-		// meshManager->EnsureBuffers();
 
 		EnsureInstanceSSBO(instanceMatrices.data(), instanceMatrices.size());
 

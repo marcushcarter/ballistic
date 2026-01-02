@@ -84,14 +84,13 @@ namespace ballistic
         return meta.guid;
     }
     
-    GUID MeshManager::LoadMesh(const std::filesystem::path& path) {
+    GUID MeshManager::LoadMesh(const std::filesystem::path& path, bool serialize) {
         if (!std::filesystem::exists(path)) {
             LogError("Mesh file does not exist: ", path.string());
             return {};
         }
 
         Assimp::Importer importer;
-
         const aiScene* scene = importer.ReadFile(
             path.string(),
             aiProcess_Triangulate |
@@ -105,86 +104,143 @@ namespace ballistic
             return {};
         }
 
-        aiMesh* mesh = scene->mMeshes[0];
-
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
+        size_t vertexOffset = 0;
 
-        vertices.reserve(mesh->mNumVertices);
-        indices.reserve(mesh->mNumFaces * 3);
+        for (uint32_t m = 0; m < scene->mNumMeshes; ++m) {
+            aiMesh* mesh = scene->mMeshes[m];
 
-        for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
-            Vertex v{};
-            v.position = {
-                mesh->mVertices[i].x,
-                mesh->mVertices[i].y,
-                mesh->mVertices[i].z
-            };
+            // Add vertices
+            for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
+                Vertex v{};
+                v.position = { mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z };
+                if (mesh->HasNormals())
+                    v.normal = { mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z };
+                if (mesh->HasTextureCoords(0))
+                    v.uv = { mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y };
+                vertices.push_back(v);
+            }
 
-            if (mesh->HasNormals())
-                v.normal = {
-                    mesh->mNormals[i].x,
-                    mesh->mNormals[i].y,
-                    mesh->mNormals[i].z
-                };
+            // Add indices with offset
+            for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
+                const aiFace& face = mesh->mFaces[i];
+                indices.push_back(face.mIndices[0] + vertexOffset);
+                indices.push_back(face.mIndices[1] + vertexOffset);
+                indices.push_back(face.mIndices[2] + vertexOffset);
+            }
 
-            if (mesh->HasTextureCoords(0))
-                v.uv = {
-                    mesh->mTextureCoords[0][i].x,
-                    mesh->mTextureCoords[0][i].y
-                };
-
-            vertices.push_back(v);
+            vertexOffset = vertices.size();
         }
 
-        for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
-            const aiFace& face = mesh->mFaces[i];
-            indices.push_back(face.mIndices[0]);
-            indices.push_back(face.mIndices[1]);
-            indices.push_back(face.mIndices[2]);
-        }
-
-        std::string name = mesh->mName.length > 0
-            ? mesh->mName.C_Str()
-            : path.filename().string();
-
+        std::string name = path.stem().string(); // Single name for all sub-meshes
         GUID guid = AddMesh(name, vertices, indices);
 
-        const MeshMetadata& meta = *GetMeshMetadata(guid);
-        SaveMeshMeta(GetRoot()->GetProjectManager()->GetProjectRoot(), meta, path);
+        if (serialize) {
+            const MeshMetadata& meta = *GetMeshMetadata(guid);
+            SerializeMesh(meta, path);
+        }
 
         return guid;
     }
 
-    void MeshManager::SaveMeshMeta(const std::filesystem::path& projectRoot, const MeshMetadata& meta, const std::filesystem::path& sourceMeshPath) {
-        std::filesystem::path destDir = projectRoot / "Resources" / "Meshes";
+    void MeshManager::SerializeMesh(const MeshMetadata& meta, const std::filesystem::path& sourceMeshPath) {
+        std::filesystem::path projectRoot = GetRoot()->GetProjectManager()->GetProjectRoot();
+
+        std::filesystem::path destDir = projectRoot / "Resources" / "Meshes" / std::to_string(meta.guid.value);
         std::filesystem::create_directories(destDir);
 
-        std::filesystem::path destMeshFile = destDir / sourceMeshPath.filename();
-        std::filesystem::copy_file(sourceMeshPath, destMeshFile, std::filesystem::copy_options::overwrite_existing);
-        
-        LogInfo("Project root: ", projectRoot.string());
-        LogInfo("Copying mesh from ", sourceMeshPath.string(), " to ", destMeshFile.string());
+        const std::filesystem::path sourceDir = sourceMeshPath.parent_path();
 
-        std::filesystem::path metaFile = destMeshFile;
-        metaFile.replace_extension(".meta.json");
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(sourceDir)) {
+            const auto& srcPath = entry.path();
+            std::filesystem::path relativePath = std::filesystem::relative(srcPath, sourceDir);
+            std::filesystem::path destPath = destDir / relativePath;
+
+            if (entry.is_directory()) {
+                std::filesystem::create_directories(destPath);
+            } else if (entry.is_regular_file()) {
+                std::filesystem::copy_file(
+                    srcPath,
+                    destPath,
+                    std::filesystem::copy_options::overwrite_existing
+                );
+            }
+        }
+
+        LogInfo("Serialized mesh files for '", meta.name, "' to ", destDir.string());
 
         nlohmann::json j;
         j["guid"] = std::to_string(meta.guid.value);
         j["name"] = meta.name;
-        j["path"] = std::filesystem::relative(destMeshFile, projectRoot).string();
+        j["source"] = std::filesystem::relative(destDir / sourceMeshPath.filename(), destDir).string();
+        j["type"] = sourceMeshPath.extension().string();
 
+        std::filesystem::path metaFile = destDir / "mesh.meta.json";
         std::ofstream out(metaFile);
         if (!out.is_open()) {
             LogError("Failed to write mesh metadata: ", metaFile.string());
             return;
         }
-        LogInfo("Meta file path: ", metaFile.string());
-
         out << j.dump(4);
         out.close();
 
-        LogInfo("Saved mesh metadata: ", metaFile.string());
+        LogInfo("Wrote mesh meta: ", metaFile.string());
+    }
+    
+    void MeshManager::DeserializeMeshes() {
+        Clear();
+
+        std::filesystem::path projectRoot = GetRoot()->GetProjectManager()->GetProjectRoot();
+        std::filesystem::path meshesRoot = projectRoot / "Resources" / "Meshes";
+
+        if (!std::filesystem::exists(meshesRoot)) {
+            LogWarn("No meshes folder found at: ", meshesRoot.string());
+            return;
+        }
+
+        // Loop through all subfolders (each GUID folder)
+        for (const auto& entry : std::filesystem::directory_iterator(meshesRoot)) {
+            if (!entry.is_directory())
+                continue;
+
+            std::filesystem::path guidFolder = entry.path();
+            std::filesystem::path metaFile = guidFolder / "mesh.meta.json";
+
+            if (!std::filesystem::exists(metaFile)) {
+                LogWarn("Missing mesh.meta.json in folder: ", guidFolder.string());
+                continue;
+            }
+
+            // Read metadata
+            std::ifstream in(metaFile);
+            if (!in.is_open()) {
+                LogError("Failed to open mesh.meta.json: ", metaFile.string());
+                continue;
+            }
+
+            nlohmann::json j;
+            in >> j;
+            in.close();
+
+            // Reconstruct mesh path relative to GUID folder
+            std::filesystem::path meshFile = guidFolder / j["source"].get<std::string>();
+
+            if (!std::filesystem::exists(meshFile)) {
+                LogError("Mesh file referenced in meta does not exist: ", meshFile.string());
+                continue;
+            }
+
+            // Load the mesh
+            GUID guid = LoadMesh(meshFile, false);
+
+            // Optional: you could overwrite the generated GUID with the one in meta
+            // but usually you just keep LoadMesh generated GUID
+            LogInfo("Deserialized mesh '", j["name"].get<std::string>(), "' from ", meshFile.string());
+        }
+
+        LogInfo("Finished deserializing all meshes.");
+
     }
 
     void MeshManager::Clear() {

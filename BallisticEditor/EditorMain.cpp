@@ -26,7 +26,7 @@ namespace ballistic
             tfmComp.position = glm::vec3(0, -4, 0);
             tfmComp.scale = glm::vec3(0.1);
             auto& meshComp = e.add<MeshComponent>();
-            meshComp.mesh = GetRoot()->GetMeshManager()->GetMeshGUIDByName("defaultMaterial");
+            // meshComp.mesh = GetRoot()->GetMeshManager()->GetMeshGUIDByName("defaultMaterial");
 
             LogDebug("Editor app initialized");
             return true;
