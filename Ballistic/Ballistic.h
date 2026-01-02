@@ -9,6 +9,7 @@
 #include "Root/MeshManager/MeshManager.h"
 #include "Root/MeshManager/MeshMetadata.h"
 #include "Root/MeshManager/Vertex.h"
+#include "Root/ProjectManager/ProjectManager.h"
 
 #include "Core/IApplication.h"
 #include "Core/Layers/IEvent.h"

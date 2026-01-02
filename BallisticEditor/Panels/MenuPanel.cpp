@@ -88,7 +88,7 @@ namespace ballistic
                 ImGui::SetCursorPosX(centerX);
                 if (ImGui::Button((const char*)u8"\u25B6", ImVec2(buttonSize, buttonSize))) {}
 
-                std::string projectText = "No Project - ";
+                std::string projectText = GetRoot()->GetProjectManager()->GetName() + " - ";
 
                 std::string sceneText = (m_context.sceneManager->HasActiveScene())
                     ? (!m_context.sceneManager->GetActiveScene()->GetName().empty()

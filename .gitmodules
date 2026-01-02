@@ -19,3 +19,9 @@
 [submodule "Thirdparty/assimp"]
 	path = Thirdparty/assimp
 	url = https://github.com/assimp/assimp.git
+[submodule "Thirdparty/json"]
+	path = Thirdparty/json
+	url = https://github.com/nlohmann/json.git
+[submodule "Thirdparty/tinyfiledialogs"]
+	path = Thirdparty/tinyfiledialogs
+	url = https://github.com/native-toolkit/libtinyfiledialogs.git

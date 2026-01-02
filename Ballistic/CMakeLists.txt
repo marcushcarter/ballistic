@@ -21,8 +21,8 @@ target_link_libraries(Ballistic PUBLIC
     stb
     EnTT::EnTT
     assimp
-    # tinyfiledialogs
-    # nlohmann_json
+    tinyfiledialogs
+    nlohmann_json
     ThirdpartyImpl
     ${CMAKE_DL_LIBS}
 )

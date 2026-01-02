@@ -14,6 +14,10 @@ namespace ballistic
             return false;
             
 		LogInfo("Ballistic Engine ", BALLISTIC_ENGINE_VERSION, " (c) 2025-present Marcus Carter.");
+
+        m_projectManager = std::make_unique<ProjectManager>();
+        if (!m_projectManager->Init())
+            return false;
         
         m_meshManager = std::make_unique<MeshManager>();
 
