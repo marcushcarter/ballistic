@@ -28,7 +28,6 @@ namespace ballistic
 			return false;
 		}
 		
-		InitMeshBuffers();
 		InitShaderBuffers();
 		InitFramebuffer(800, 600);
 		InitShaders();
@@ -40,37 +39,6 @@ namespace ballistic
 
 		LogDebug("OpenGL renderer Initialized");
 		return true;
-	}
-
-	void Renderer::InitMeshBuffers() {
-
-		auto manager = GetRoot()->GetMeshManager();
-		auto vertices = manager->GetVertexBuffer();
-		auto indices = manager->GetIndexBuffer();
-
-		glGenVertexArrays(1, &m_vertexArray);
-		glBindVertexArray(m_vertexArray);
-
-		glGenBuffers(1, &m_vertexBuffer);
-		glBindBuffer(GL_ARRAY_BUFFER, m_vertexBuffer);
-		m_vertexCapacityBytes = 1000 * sizeof(Vertex);
-		glBufferData(GL_ARRAY_BUFFER, m_vertexCapacityBytes, nullptr, GL_DYNAMIC_DRAW);
-
-		glGenBuffers(1, &m_indexBuffer);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_indexBuffer);
-		m_indexCapacityBytes = 3000 * sizeof(uint32_t);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indexCapacityBytes, nullptr, GL_DYNAMIC_DRAW);
-
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
-		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, uv));
-
-		glBindVertexArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
     
 	void Renderer::InitShaderBuffers() {
@@ -207,32 +175,6 @@ namespace ballistic
 		tempShader = CreateShader(sceneVert, sceneFrag);
 	}
 
-	void Renderer::EnsureVertexBuffer(const Vertex* data, size_t count) {
-		size_t requiredBytes = count * sizeof(Vertex);
-		glBindBuffer(GL_ARRAY_BUFFER, m_vertexBuffer);
-
-		if (requiredBytes > m_vertexCapacityBytes) {
-			m_vertexCapacityBytes = std::max(requiredBytes, m_vertexCapacityBytes * 2);
-			glBufferData(GL_ARRAY_BUFFER, m_vertexCapacityBytes, data, GL_DYNAMIC_DRAW);
-			LogWarn("Vertex buffer resized - new size: ", m_vertexCapacityBytes);
-		} else {
-			glBufferSubData(GL_ARRAY_BUFFER, 0, requiredBytes, data);
-		}
-    }
-
-    void Renderer::EnsureIndexBuffer(const uint32_t* data, size_t count) {
-		size_t requiredBytes = count * sizeof(uint32_t);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_indexBuffer);
-
-		if (requiredBytes > m_indexCapacityBytes) {
-			m_indexCapacityBytes = std::max(requiredBytes, m_indexCapacityBytes * 2);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indexCapacityBytes, data, GL_DYNAMIC_DRAW);
-			LogWarn("Vertex buffer resized - new size: ", m_indexCapacityBytes);
-		} else {
-			glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, requiredBytes, data);
-		}
-    }
-
 	void Renderer::EnsureRenderParamsUBO(const RenderParameters* data) {
 		size_t dataBytes = sizeof(RenderParameters);
 		glBindBuffer(GL_UNIFORM_BUFFER, m_renderParamsUBO);
@@ -317,19 +259,13 @@ namespace ballistic
 		EnsureRenderParamsUBO(&m_renderParams);
 
 		auto meshManager = GetRoot()->GetMeshManager();
-		
-		if (!meshManager->GetDirtyMetadata().empty()) {
-			glBindVertexArray(m_vertexArray);
-			EnsureVertexBuffer(meshManager->GetVertexBuffer().data(), meshManager->GetVertexBuffer().size());
-			EnsureIndexBuffer(meshManager->GetIndexBuffer().data(), meshManager->GetIndexBuffer().size());
-			glBindVertexArray(0);
-			meshManager->ClearDirty();
-		}
+		glBindVertexArray(meshManager->GetVAO());
+		// meshManager->EnsureBuffers();
 
 		EnsureInstanceSSBO(instanceMatrices.data(), instanceMatrices.size());
 
 		glUseProgram(tempShader);
-		glBindVertexArray(m_vertexArray);
+		glBindVertexArray(meshManager->GetVAO());
 
 		for (auto& cmd : commands) {
 			glDrawElementsInstancedBaseVertex(
@@ -420,10 +356,6 @@ namespace ballistic
 		
 		glDeleteProgram(m_blitShader);
 		glDeleteProgram(tempShader);
-
-		glDeleteVertexArrays(1, &m_vertexArray);
-		glDeleteBuffers(1, &m_vertexBuffer);
-		glDeleteBuffers(1, &m_indexBuffer);
 	}
 
 } // namespace ballistic
