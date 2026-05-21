@@ -14,4 +14,9 @@ target_link_libraries(ballistic_engine
     PUBLIC ballistic_compiler_options
     PUBLIC Vulkan::Vulkan
     PUBLIC glfw
+    PUBLIC stb
+    PUBLIC imgui
+    PUBLIC glm
 )
+
+target_precompile_headers(ballistic_engine PRIVATE src/pch.h)

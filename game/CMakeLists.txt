@@ -6,6 +6,8 @@ add_executable(ballistic_game
     ${GAME_HEADERS}
 )
 
-target_link_libraries(ballistic_game
-    PRIVATE ballistic_engine
-)
+target_link_libraries(ballistic_game PRIVATE ballistic_engine)
+
+target_precompile_headers(ballistic_game REUSE_FROM ballistic_engine)
+
+set_target_properties(ballistic_game PROPERTIES OUTPUT_NAME "Ballistic_v${BALLISTIC_VERSION}_game_win64")

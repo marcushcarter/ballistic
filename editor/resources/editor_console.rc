@@ -1,2 +1,2 @@
 IDI_ICON1 ICON "editor_console.ico"
-IDR_WIN_ICON RCDATA "editor_console.png"
+101 RCDATA "editor_console.png"

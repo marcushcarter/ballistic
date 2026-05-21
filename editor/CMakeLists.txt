@@ -14,22 +14,13 @@ add_executable(ballistic_editor_app WIN32
 )
 
 foreach(TARGET ballistic_editor ballistic_editor_app)
-    target_link_libraries(${TARGET}
-        PRIVATE ballistic_engine
-    )
-    target_compile_definitions(${TARGET}
-        PRIVATE BALLISTIC_EDITOR
-    )
+    target_link_libraries(${TARGET} PRIVATE ballistic_engine)
+    target_compile_definitions(${TARGET} PRIVATE BALLISTIC_EDITOR)
+    target_precompile_headers(${TARGET} REUSE_FROM ballistic_engine)
 endforeach()
 
-target_compile_definitions(ballistic_editor
-    PRIVATE BALLISTIC_CONSOLE
-)
+target_compile_definitions(ballistic_editor PRIVATE BALLISTIC_CONSOLE)
 
-set_target_properties(ballistic_editor PROPERTIES
-    OUTPUT_NAME "Ballistic_v${BALLISTIC_VERSION}_win64_console"
-)
+set_target_properties(ballistic_editor PROPERTIES OUTPUT_NAME "Ballistic_v${BALLISTIC_VERSION}_win64_console")
 
-set_target_properties(ballistic_editor_app PROPERTIES
-    OUTPUT_NAME "Ballistic_v${BALLISTIC_VERSION}_win64"
-)
+set_target_properties(ballistic_editor_app PROPERTIES OUTPUT_NAME "Ballistic_v${BALLISTIC_VERSION}_win64")

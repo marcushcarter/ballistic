@@ -1,2 +1,2 @@
 IDI_ICON1 ICON "editor_app.ico"
-IDR_WIN_ICON RCDATA "editor_app.png"
+101 RCDATA "editor_app.png"
