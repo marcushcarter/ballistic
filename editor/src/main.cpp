@@ -1,4 +1,13 @@
-#include "editor_app.h"
+#include "editor_application.h"
+
+int Main()
+{
+    EditorApplication app;
+    app.Create("Ballistic Editor", 1280, 720);
+    app.Run();
+    app.Destroy();
+    return 0;
+}
 
 #ifdef _WIN32
 #ifndef BALLISTIC_CONSOLE
@@ -10,7 +19,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     (void)hPrevInstance;
     (void)lpCmdLine;
     (void)nCmdShow;
-    return editor_main();
+    return Main();
 }
 
 #endif
@@ -18,5 +27,5 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 int main()
 {
-    return editor_main();
+    return Main();
 }

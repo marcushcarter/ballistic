@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <string>
 
 #ifndef _WIN32
 #include <windows.h>

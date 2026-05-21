@@ -2,24 +2,24 @@
 
 #define IDR_WIN_ICON 101
 
-bool Window::Create(const char* title, int width, int height)
+bool Window::Create(const std::string& title, uint32_t width, uint32_t height)
 {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    window = glfwCreateWindow(width, height, title, nullptr, nullptr);
-    return window != nullptr;
+    glfwWindow = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+    return glfwWindow != nullptr;
 }
 
 void Window::Destroy()
 {
-    glfwDestroyWindow(window);
+    glfwDestroyWindow(glfwWindow);
     glfwTerminate();
-    window = nullptr;
+    glfwWindow = nullptr;
 }
 
 bool Window::ShouldClose()
 {
-    return glfwWindowShouldClose(window);
+    return glfwWindowShouldClose(glfwWindow);
 }
 
 void Window::PollEvents()
@@ -45,25 +45,6 @@ void Window::DefaultIcon()
     if (!pixels) { OutputDebugStringA("set_window_icon: stbi_load_from_memory failed\n"); return; }
 
     GLFWimage icon{ width, height, pixels };
-    glfwSetWindowIcon(window, 1, &icon);
+    glfwSetWindowIcon(glfwWindow, 1, &icon);
     stbi_image_free(pixels);
-
-    // HRSRC res = FindResource(nullptr, MAKEINTRESOURCE(IDR_WIN_ICON), RT_RCDATA);
-    // if (!res) return;
-
-    // HGLOBAL mem = LoadResource(nullptr, res);
-    // if (!mem) return;
-
-    // void* data = LockResource(mem);
-    // if (!data) return;
-
-    // DWORD size = SizeofResource(nullptr, res);
-
-    // int width, height, channels;
-    // unsigned char* pixels = stbi_load_from_memory((const stbi_uc*)data, (int)size, &width, &height, &channels, 4);
-    // if (!pixels) return;
-
-    // GLFWimage icon{ width, height, pixels };
-    // glfwSetWindowIcon(handle, 1, &icon);
-    // stbi_image_free(pixels);
 }
