@@ -1,6 +1,17 @@
 #pragma once
 #include "pch.h"
 
+struct Image2DDesc
+{
+    VkExtent2D extent = {};
+    VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
+    VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    uint32_t mipLevels = 1;
+    uint32_t layers = 1;
+    const char* debugName = nullptr;
+};
+
 struct Image2D
 {
     VkImage image = VK_NULL_HANDLE;
@@ -8,17 +19,19 @@ struct Image2D
     VkDeviceMemory memory = VK_NULL_HANDLE;
 
     VkFormat format = VK_FORMAT_UNDEFINED;
-    VkExtent2D extent{};
+    VkExtent2D extent = {};
     VkImageUsageFlags usage = 0;
     uint32_t mipLevels = 1;
     uint32_t layers = 1;
+
+    const char* debugName = nullptr;
     
     VkPipelineStageFlags stage = 0;
     VkAccessFlags access = 0;
     VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
     VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     
-    bool Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& props, VkExtent2D extent, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM, VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT, uint32_t mipLevels = 1, uint32_t layers = 1);
+    bool Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& props, const Image2DDesc& desc);
     bool WrapSwapchainImage(VkDevice device, VkImage image, VkFormat format, VkExtent2D extent, VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT);
     bool Resize(VkExtent2D newExtent);
     void Destroy();

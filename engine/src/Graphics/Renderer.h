@@ -15,6 +15,14 @@ struct Renderer
     bool hasAsyncCompute = false;
     uint32_t frameCount = 0;
 
+    Swapchain swapchain;
+    std::vector<Image2D> swapchainImages;
+    RenderPass swapchainRenderPass;
+    std::vector<Framebuffer> swapchainFramebuffers;
+
+    CommandPool commandPool;
+    CommandPool transferCommandPool;
+
     bool Create(Window& window);
     void Destroy();
     void Render();

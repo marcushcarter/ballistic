@@ -7,6 +7,7 @@
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
 #include <vk_mem_alloc.h>
+// #include <vulkan/vulkan_to_string.hpp>
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_ENABLE_EXPERIMENTAL
@@ -37,3 +38,5 @@ using namespace glm;
 
 #include "Core/Log.h"
 #include "Core/Assert.h"
+
+#define FMT_STR(fmt) #fmt

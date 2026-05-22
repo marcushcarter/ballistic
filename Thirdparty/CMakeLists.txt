@@ -20,3 +20,6 @@ target_link_libraries(imgui PUBLIC glfw)
 
 add_library(vma INTERFACE)
 target_include_directories(vma INTERFACE vma/include ${Vulkan_INCLUDE_DIRS})
+
+# add_library(vulkan_hpp INTERFACE)
+# target_include_directories(vulkan_hpp INTERFACE vulkan-hpp)
