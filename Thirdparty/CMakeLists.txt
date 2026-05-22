@@ -17,3 +17,6 @@ set(IMGUI_SRC ${IMGUI_CORE} imgui/backends/imgui_impl_glfw.cpp imgui/backends/im
 add_library(imgui STATIC ${IMGUI_SRC})
 target_include_directories(imgui PUBLIC imgui ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(imgui PUBLIC glfw)
+
+add_library(vma INTERFACE)
+target_include_directories(vma INTERFACE vma/include ${Vulkan_INCLUDE_DIRS})

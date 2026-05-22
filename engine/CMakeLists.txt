@@ -17,6 +17,7 @@ target_link_libraries(ballistic_engine
     PUBLIC stb
     PUBLIC imgui
     PUBLIC glm
+    PUBLIC vma
 )
 
 target_precompile_headers(ballistic_engine PRIVATE src/pch.h)

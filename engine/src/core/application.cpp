@@ -2,12 +2,12 @@
 
 bool Application::Create(const char* title, int width, int height)
 {
-    bool result = window.Create(title, width, height);
-    if (!result) {
-        std::cout << "stupid fucker" << std::endl;
-    }
+    LOG_INFO("%s v%d.%d.%d.stable.official.%s - https://ballisticgames.ca", APP_NAME, APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH, APP_COMMIT);
     
-    return result;
+    window.Create(title, width, height);
+    renderer.Create(window);
+    
+    return true;
 }
 
 void Application::Run()
@@ -24,5 +24,6 @@ void Application::Run()
 
 void Application::Destroy()
 {
+    renderer.Destroy();
     window.Destroy();
 }
