@@ -87,28 +87,35 @@ bool Image2D::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& pr
         nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
         nameInfo.objectType = VK_OBJECT_TYPE_IMAGE;
         nameInfo.objectHandle = (uint64_t)image;
-        nameInfo.pObjectName = desc.debugName;
+        nameInfo.pObjectName = debugName;
         auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
         if (func) func(device, &nameInfo);
     }
+    
+    LOG_DEBUG("Image2D created: %s (%ux%u, %s), usage %s",
+        debugName ? debugName : "Unnamed",
+        extent.width, extent.height,
+        vk::to_string(vk::Format(format)).c_str(),
+        vk::to_string(vk::ImageUsageFlags(usage)).c_str()
+    );
 
-    LOG_DEBUG("Image2D created: %s (%ux%u, format %d), usage 0x%X", debugName ? debugName : "Unnamed", extent.width, extent.height, format, usage);
     return true;
 }
 
-bool Image2D::WrapSwapchainImage(VkDevice device, VkImage srcImg, VkFormat fmt, VkExtent2D ext, VkImageAspectFlags aspectFlags)
+bool Image2D::WrapSwapchainImage(VkDevice device, VkImage swapchainImage, VkFormat swapchainFormat, VkExtent2D swapchainExtent)
 {
     VK_CHECK_HANDLE(device, VkDevice);
-    VK_CHECK_HANDLE(image, VkImage);
+    VK_CHECK_HANDLE(swapchainImage, VkImage);
 
     Destroy();
-    image = srcImg;
-    format = fmt;
-    extent = ext;
+    image = swapchainImage;
+    format = swapchainFormat;
+    extent = swapchainExtent;
+    debugName = "Swapchain Image";
     stage = 0;
     access = 0;
     layout = VK_IMAGE_LAYOUT_UNDEFINED;
-    aspect = aspectFlags;
+    aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     deviceHandle = device;
     ownsImage = false;
 
@@ -129,8 +136,21 @@ bool Image2D::WrapSwapchainImage(VkDevice device, VkImage srcImg, VkFormat fmt, 
         return false;
     }
 
-    LOG_DEBUG("Image2D wrapped: %s (%ux%u, format %d), usage 0x%X", debugName ? debugName : "Unnamed", extent.width, extent.height, format, usage);
-    // LOG_DEBUG("Format: %s", vk::to_string(vk::Format(format)).c_str());
+    if (debugName) {
+        VkDebugUtilsObjectNameInfoEXT nameInfo{};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        nameInfo.objectType = VK_OBJECT_TYPE_IMAGE;
+        nameInfo.objectHandle = (uint64_t)image;
+        nameInfo.pObjectName = debugName;
+        auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
+        if (func) func(device, &nameInfo);
+    }
+
+    LOG_DEBUG("Swapchain Image2D wrapped: (%ux%u, %s)",
+        extent.width, extent.height,
+        vk::to_string(vk::Format(format)).c_str()
+    );
+    
     return true;
 }
 
@@ -154,19 +174,22 @@ void Image2D::Destroy()
         vkDestroyImageView(deviceHandle, imageView, nullptr);
         imageView = VK_NULL_HANDLE;
     }
+
     if (image != VK_NULL_HANDLE && ownsImage) {
         vkDestroyImage(deviceHandle, image, nullptr);
-        image = VK_NULL_HANDLE;
-        LOG_DEBUG("Image2D destroyed");
-    }
-    if (memory != VK_NULL_HANDLE) {
         vkFreeMemory(deviceHandle, memory, nullptr);
+        image = VK_NULL_HANDLE;
         memory = VK_NULL_HANDLE;
     }
+
     deviceHandle = VK_NULL_HANDLE;
     stage = 0;
     access = 0;
     layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    
+    LOG_DEBUG("Image2D destroyed: %s",
+        debugName ? debugName : "Unnamed"
+    );
 }
 
 bool Image2D::CopyBuffer(VkCommandBuffer cmd, VkBuffer srcBuffer, VkDeviceSize bufferOffset, VkOffset3D imageOffset)

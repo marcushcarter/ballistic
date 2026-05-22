@@ -2,8 +2,8 @@
 
 bool ComputePipeline::Create(VkDevice device, VkPipelineLayout layout, VkPipelineShaderStageCreateInfo shaderStage, VkPipelineCache pipelineCache)
 {
-    // VK_CHECK_HANDLE(device, VkDevice, false);
-    // VK_CHECK_HANDLE(layout, VkPipelineLayout, false);
+    VK_CHECK_HANDLE(device, VkDevice);
+    VK_CHECK_HANDLE(layout, VkPipelineLayout);
 
     Destroy();
     deviceHandle = device;

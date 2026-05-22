@@ -2,8 +2,8 @@
 
 bool Shader::Compile(VkDevice device, VkShaderStageFlagBits inStage, const std::vector<uint32_t>& code)
 {
-    // VK_CHECK_HANDLE(device, VkDevice, false);
-    // CHECK_PTR(code.data(), "SPIR-V code is empty", false);
+    VK_CHECK_HANDLE(device, VkDevice);
+    CHECK_PTR(code.data(), "SPIR-V code is empty");
 
     Destroy();
     stage = inStage;

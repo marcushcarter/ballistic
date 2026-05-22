@@ -1,12 +1,12 @@
 #include "Instance.h"
 
-bool Instance::Create(const std::string& name, uint32_t major, uint32_t minor, uint32_t patch, const std::vector<const char*>& requiredExtensions, const std::vector<const char*>& requiredLayers, bool enableValidation)
+bool Instance::Create(const char* name, uint32_t major, uint32_t minor, uint32_t patch, const std::vector<const char*>& requiredExtensions, const std::vector<const char*>& requiredLayers, bool enableValidation)
 {
     Destroy();
 
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = name.c_str();
+    appInfo.pApplicationName = name;
     appInfo.applicationVersion = VK_MAKE_VERSION(major, minor, patch);
     appInfo.pEngineName = APP_NAME;
     appInfo.engineVersion = VK_MAKE_VERSION(APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH);

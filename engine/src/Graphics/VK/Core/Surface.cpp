@@ -2,14 +2,14 @@
 
 bool Surface::Create(VkInstance instance, GLFWwindow* window)
 {
-    // VK_CHECK_HANDLE(instance, VkInstance, false);
-    // CHECK_PTR(window, "Invlaid GLFWwindow", false);
+    VK_CHECK_HANDLE(instance, VkInstance);
+    CHECK_PTR(window, "Invalid GLFWwindow");
 
     Destroy();
     instanceHandle = instance;
 
     if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) { 
-        LOG_ERROR("glfwCreateWindowSurface failed", false);
+        LOG_ERROR("glfwCreateWindowSurface failed");
         return false;
     }
 

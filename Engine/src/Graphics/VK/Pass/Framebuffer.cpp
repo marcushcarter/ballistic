@@ -2,8 +2,8 @@
 
 bool Framebuffer::Create(VkDevice device, VkRenderPass renderPass, VkExtent2D extent, const std::vector<VkImageView>& attachments, uint32_t layers)
 {
-    // VK_CHECK_HANDLE(device, VkDevice, false);
-    // VK_CHECK_HANDLE(renderPass, VkRenderPass, false);
+    VK_CHECK_HANDLE(device, VkDevice);
+    VK_CHECK_HANDLE(renderPass, VkRenderPass);
 
     Destroy();
     deviceHandle = device;

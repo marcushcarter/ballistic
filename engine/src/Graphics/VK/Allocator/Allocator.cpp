@@ -2,9 +2,9 @@
 
 bool Allocator::Create(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device)
 {
-    // VK_CHECK_HANDLE(instance, VkInstance, false);
-    // VK_CHECK_HANDLE(physicalDevice, VkPhysicalDevice, false);
-    // VK_CHECK_HANDLE(device, VkDevice, false);
+    VK_CHECK_HANDLE(instance, VkInstance);
+    VK_CHECK_HANDLE(physicalDevice, VkPhysicalDevice);
+    VK_CHECK_HANDLE(device, VkDevice);
 
     Destroy();
 

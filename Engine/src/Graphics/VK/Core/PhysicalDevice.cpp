@@ -2,8 +2,8 @@
 
 bool PhysicalDevice::Pick(VkInstance instance, VkSurfaceKHR surface, const std::vector<const char*>& requiredExtensions)
 {
-    // VK_CHECK_HANDLE(instance, VkInstance, false);
-    // VK_CHECK_HANDLE(surface, VkSurfaceKHR, false);
+    VK_CHECK_HANDLE(instance, VkInstance);
+    VK_CHECK_HANDLE(surface, VkSurfaceKHR);
 
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
@@ -79,18 +79,9 @@ bool PhysicalDevice::Pick(VkInstance instance, VkSurfaceKHR surface, const std::
     vkGetPhysicalDeviceFeatures(physicalDevice, &features);
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memory);
 
-    // if (!features.geometryShader) {
-    //     LOG_ERROR("GPU does not support geometry shaders");
-    //     return false;
-    // }
-
-    std::string typeStr;
-    switch (properties.deviceType) {
-        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: typeStr = "Integrated GPU"; break;
-        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU: typeStr = "Discrete GPU"; break;
-        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU: typeStr = "Virtual GPU"; break;
-        case VK_PHYSICAL_DEVICE_TYPE_CPU: typeStr = "CPU"; break;
-        default: typeStr = "Other"; break;
+    if (!features.geometryShader) {
+        LOG_WARN("GPU does not support geometry shaders");
+        // return false;
     }
 
     uint64_t dedicatedVRAM = 0;
@@ -106,32 +97,18 @@ bool PhysicalDevice::Pick(VkInstance instance, VkSurfaceKHR surface, const std::
     double vramGB = static_cast<double>(isIntegrated ? dedicatedVRAM + sharedVRAM : dedicatedVRAM) / (1024.0 * 1024.0 * 1024.0);
     const char* vramLabel = isIntegrated ? "Shared RAM" : "VRAM";
 
-    // LOG_DEBUG("Physical Device picked: %s (%s), %d GB VRAM ", properties.deviceName, typeStr.c_str(), static_cast<double>(totalVRAM) / (1024.0 * 1024.0 * 1024.0));
-
-    // LOG_INFO("Vulkan %d.%d.%d - Driver %d.%d.%d - Compatibility - Using Device: %s - %.2f GB VRAM",
-    //     VK_API_VERSION_MAJOR(properties.apiVersion),
-    //     VK_API_VERSION_MINOR(properties.apiVersion),
-    //     VK_API_VERSION_PATCH(properties.apiVersion),
-    //     VK_API_VERSION_MAJOR(properties.driverVersion),
-    //     VK_API_VERSION_MINOR(properties.driverVersion),
-    //     VK_API_VERSION_PATCH(properties.driverVersion),
-    //     properties.deviceName,
-    //     vramGB,
-    //     vramLabel
-    // );
-
     LOG_INFO("Vulkan %d.%d.%d - Driver %d.%d.%d - Using Device: %s (%s) - %.2f GB %s",
-    VK_API_VERSION_MAJOR(properties.apiVersion),
-    VK_API_VERSION_MINOR(properties.apiVersion),
-    VK_API_VERSION_PATCH(properties.apiVersion),
-    VK_API_VERSION_MAJOR(properties.driverVersion),
-    VK_API_VERSION_MINOR(properties.driverVersion),
-    VK_API_VERSION_PATCH(properties.driverVersion),
-    properties.deviceName,
-    typeStr.c_str(),
-    vramGB,
-    vramLabel
-);
+        VK_API_VERSION_MAJOR(properties.apiVersion),
+        VK_API_VERSION_MINOR(properties.apiVersion),
+        VK_API_VERSION_PATCH(properties.apiVersion),
+        VK_API_VERSION_MAJOR(properties.driverVersion),
+        VK_API_VERSION_MINOR(properties.driverVersion),
+        VK_API_VERSION_PATCH(properties.driverVersion),
+        properties.deviceName,
+        vk::to_string(vk::PhysicalDeviceType(properties.deviceType)).c_str(),
+        vramGB,
+        vramLabel
+    );
 
     return true;
 }

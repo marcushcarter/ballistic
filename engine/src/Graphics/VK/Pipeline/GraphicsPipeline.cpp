@@ -2,10 +2,10 @@
 
 bool GraphicsPipeline::Create(VkDevice device, VkPipelineLayout layout, VkRenderPass renderPass, VkPipelineCache pipelineCache, const GraphicsPipelineDesc& desc)
 {
-    // VK_CHECK_HANDLE(device, VkDevice, false);
-    // VK_CHECK_HANDLE(layout, VkPipelineLayout, false);
-    // VK_CHECK_HANDLE(renderPass, VkRenderPass, false);
-    // CHECK_PTR(desc.shaderStages.data(), "Pipeline requires at least one shader", false);
+    VK_CHECK_HANDLE(device, VkDevice);
+    VK_CHECK_HANDLE(layout, VkPipelineLayout);
+    VK_CHECK_HANDLE(renderPass, VkRenderPass);
+    CHECK_PTR(desc.shaderStages.data(), "Pipeline requires at least one shader");
 
     Destroy();
     deviceHandle = device;

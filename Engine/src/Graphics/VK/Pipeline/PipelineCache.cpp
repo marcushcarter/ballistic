@@ -2,7 +2,7 @@
 
 bool PipelineCache::Load(VkDevice device, const std::string& path)
 {
-    // VK_CHECK_HANDLE(device, VkDevice, false);
+    VK_CHECK_HANDLE(device, VkDevice);
 
     Destroy();
     deviceHandle = device;
@@ -37,8 +37,8 @@ bool PipelineCache::Load(VkDevice device, const std::string& path)
 
 bool PipelineCache::Save(VkDevice device, const std::string& path)
 {
-    // VK_CHECK_HANDLE(device, VkDevice, false);
-    // VK_CHECK_HANDLE(cache, VkPipelineCache, false);
+    VK_CHECK_HANDLE(device, VkDevice);
+    VK_CHECK_HANDLE(cache, VkPipelineCache);
 
     size_t size = 0;
     vkGetPipelineCacheData(device, cache, &size, nullptr);

@@ -25,7 +25,7 @@ inline VkDeviceSize NextPowerOfTwo(VkDeviceSize x)
 
 bool Buffer::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& props, VkDeviceSize initialCapacity, VkBufferUsageFlags usageFlags, bool isHostVisible)
 {
-    // VK_CHECK_HANDLE(device, VkDevice, false);
+    VK_CHECK_HANDLE(device, VkDevice);
 
     Destroy();
     size = 0;

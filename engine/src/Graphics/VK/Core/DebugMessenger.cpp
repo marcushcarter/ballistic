@@ -3,7 +3,7 @@
 bool DebugMessenger::Create(VkInstance instance, VkDebugUtilsMessageSeverityFlagsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, bool enableValidation)
 {
     if (!enableValidation) return true;
-    // VK_CHECK_HANDLE(instance, VkInstance, false);
+    VK_CHECK_HANDLE(instance, VkInstance);
     
     Destroy();
     instanceHandle = instance;

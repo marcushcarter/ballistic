@@ -2,7 +2,7 @@
 
 bool Semaphore::Create(VkDevice device)
 {
-    // VK_CHECK_HANDLE(device, VkDevice, false);
+    VK_CHECK_HANDLE(device, VkDevice);
 
     Destroy();
     deviceHandle = device;

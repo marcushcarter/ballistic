@@ -2,7 +2,7 @@
 
 bool AllocatorPool::Create(VmaAllocator allocator, uint32_t memoryTypeIndex, VkDeviceSize blockSize, uint32_t maxBlockCount, VmaPoolCreateFlags flags)
 {
-    // VK_CHECK_HANDLE(allocator, VmaAllocator, false);
+    VK_CHECK_HANDLE(allocator, VmaAllocator);
 
     Destroy();
     allocatorHandle = allocator;

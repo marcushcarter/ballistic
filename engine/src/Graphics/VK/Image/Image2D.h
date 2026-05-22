@@ -32,7 +32,7 @@ struct Image2D
     VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     
     bool Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& props, const Image2DDesc& desc);
-    bool WrapSwapchainImage(VkDevice device, VkImage image, VkFormat format, VkExtent2D extent, VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT);
+    bool WrapSwapchainImage(VkDevice device, VkImage swapchainImage, VkFormat swapchainFormat, VkExtent2D swapchainExtent);
     bool Resize(VkExtent2D newExtent);
     void Destroy();
 

@@ -2,9 +2,9 @@
 
 bool DescriptorSet::Allocate(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorSetLayout descriptorSetLayout)
 {
-    // VK_CHECK_HANDLE(device, VkDevice, false);
-    // VK_CHECK_HANDLE(descriptorPool, VkDescriptorPool, false);
-    // VK_CHECK_HANDLE(descriptorSetLayout, VkDescriptorSetLayout, false);
+    VK_CHECK_HANDLE(device, VkDevice);
+    VK_CHECK_HANDLE(descriptorPool, VkDescriptorPool);
+    VK_CHECK_HANDLE(descriptorSetLayout, VkDescriptorSetLayout);
 
     deviceHandle = device;
 

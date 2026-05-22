@@ -2,7 +2,7 @@
 
 bool CommandPool::Create(VkDevice device, uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags)
 {
-    // VK_CHECK_HANDLE(device, VkDevice, false);
+    VK_CHECK_HANDLE(device, VkDevice);
 
     Destroy();
     deviceHandle = device;

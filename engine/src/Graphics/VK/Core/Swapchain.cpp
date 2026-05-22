@@ -1,15 +1,15 @@
 #include "Swapchain.h"
 
-bool Swapchain::Create(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, VkExtent2D ext, bool vsync, VkSwapchainKHR oldSwapchain)
+bool Swapchain::Create(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, VkExtent2D windowExtent, bool vsync, VkSwapchainKHR oldSwapchain)
 {
-    // VK_CHECK_HANDLE(physicalDevice, VkPhysicalDevice, false);
-    // VK_CHECK_HANDLE(device, VkDevice, false);
-    // VK_CHECK_HANDLE(surface, VkSurfaceKHR, false);
+    VK_CHECK_HANDLE(physicalDevice, VkPhysicalDevice);
+    VK_CHECK_HANDLE(device, VkDevice);
+    VK_CHECK_HANDLE(surface, VkSurfaceKHR);
 
     physicalDeviceHandle = physicalDevice;
     deviceHandle = device;
     surfaceHandle = surface;
-    extent = ext;
+    extent = windowExtent;
     
     VkSurfaceCapabilitiesKHR caps;
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &caps);
@@ -47,7 +47,11 @@ bool Swapchain::Create(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfa
         return false;
     }
 
-    LOG_DEBUG("Swapchain created: %dx%d", extent.width, extent.height);
+    LOG_DEBUG("Swapchain created: (%dx%d, vsync %s)",
+        extent.width, extent.height,
+        vsync ? "On" : "Off"
+    );
+
     return true;
 }
 
@@ -57,7 +61,7 @@ bool Swapchain::Resize(VkExtent2D newExtent, bool vsync)
 
     extent = newExtent;
     if (!Create(physicalDeviceHandle, deviceHandle, surfaceHandle, extent, vsync, oldSwapchain)) {
-        LOG_DEBUG("Failed to resize Vulkan swapchain");
+        LOG_ERROR("Failed to resize Vulkan swapchain");
         return false;
     }
 

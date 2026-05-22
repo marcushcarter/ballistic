@@ -2,8 +2,8 @@
 
 bool CommandBuffer::Allocate(VkDevice device, VkCommandPool commandPool, VkCommandBufferLevel level)
 {
-    // VK_CHECK_HANDLE(device, VkDevice, false);
-    // VK_CHECK_HANDLE(commandPool, VkCommandPool, false);
+    VK_CHECK_HANDLE(device, VkDevice);
+    VK_CHECK_HANDLE(commandPool, VkCommandPool);
 
     Free();
     deviceHandle = device;

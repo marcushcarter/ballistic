@@ -2,7 +2,7 @@
 
 bool Device::Create(VkPhysicalDevice physicalDevice, uint32_t graphicsFamily, uint32_t presentFamily, uint32_t transferFamily, const std::vector<const char*>& requiredExtensions)
 {
-    // VK_CHECK_HANDLE(physicalDevice, VkPhysicalDevice, false);
+    VK_CHECK_HANDLE(physicalDevice, VkPhysicalDevice);
 
     Destroy();
 

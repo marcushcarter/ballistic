@@ -2,7 +2,7 @@
 
 bool Fence::Create(VkDevice device, bool signaled)
 {
-    // VK_CHECK_HANDLE(device, VkDevice, false);
+    VK_CHECK_HANDLE(device, VkDevice);
 
     Destroy();
     deviceHandle = device;

@@ -14,7 +14,6 @@ target_link_libraries(ballistic_engine
     PUBLIC ballistic_compiler_options
     PUBLIC Vulkan::Vulkan
     PUBLIC vma
-    # PUBLIC vulkan_hpp
     PUBLIC glfw
     PUBLIC stb
     PUBLIC imgui

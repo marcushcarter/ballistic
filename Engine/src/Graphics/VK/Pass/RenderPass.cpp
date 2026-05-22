@@ -2,7 +2,7 @@
 
 bool RenderPass::Create(VkDevice device, const std::vector<VkAttachmentDescription>& attachments)
 {
-    // VK_CHECK_HANDLE(device, VkDevice, false);
+    VK_CHECK_HANDLE(device, VkDevice);
 
     Destroy();
     deviceHandle = device;

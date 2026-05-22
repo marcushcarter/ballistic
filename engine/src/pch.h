@@ -2,12 +2,16 @@
 
 #pragma comment(lib, "dwmapi.lib")
 
-#define GLFW_INCLUDE_VULKAN
+#include <vulkan/vulkan.hpp>
+
+#define GLFW_INCLUDE_NONE
+// #define GLFW_INCLUDE_VULKAN
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
-#include <vk_mem_alloc.h>
+
 // #include <vulkan/vulkan_to_string.hpp>
+#include <vk_mem_alloc.h>
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_ENABLE_EXPERIMENTAL

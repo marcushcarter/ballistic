@@ -2,7 +2,7 @@
 
 bool Queue::Acquire(VkDevice device, uint32_t family)
 {
-    // VK_CHECK_HANDLE(device, VkDevice, false);
+    VK_CHECK_HANDLE(device, VkDevice);
 
     familyIndex = family;
     vkGetDeviceQueue(device, familyIndex, 0, &queue);

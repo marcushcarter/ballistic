@@ -50,8 +50,6 @@ bool Renderer::Create(Window& window)
         BE_ASSERT(swapchainFramebuffers[i].Create(device.Get(), swapchainRenderPass.Get(), swapchain.extent, { swapchainImages[i].GetView() }));
     }
     return true;
-
-    return true;
 }
 
 void Renderer::Destroy()

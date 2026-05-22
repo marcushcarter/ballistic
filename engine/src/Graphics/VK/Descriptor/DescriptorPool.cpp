@@ -2,7 +2,7 @@
 
 bool DescriptorPool::Create(VkDevice device, uint32_t count)
 {
-    // VK_CHECK_HANDLE(device, VkDevice, false);
+    VK_CHECK_HANDLE(device, VkDevice);
     
     Destroy();
     deviceHandle = device;
