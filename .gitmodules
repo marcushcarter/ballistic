@@ -1,12 +1,12 @@
-[submodule "thirdparty/glfw"]
-	path = thirdparty/glfw
+[submodule "Thirdparty/glfw"]
+	path = Thirdparty/glfw
 	url = https://github.com/glfw/glfw.git
-[submodule "thirdparty/stb"]
-	path = thirdparty/stb
+[submodule "Thirdparty/stb"]
+	path = Thirdparty/stb
 	url = https://github.com/nothings/stb.git
-[submodule "thirdparty/glm"]
-	path = thirdparty/glm
+[submodule "Thirdparty/glm"]
+	path = Thirdparty/glm
 	url = https://github.com/g-truc/glm.git
-[submodule "thirdparty/imgui"]
-	path = thirdparty/imgui
+[submodule "Thirdparty/imgui"]
+	path = Thirdparty/imgui
 	url = https://github.com/ocornut/imgui.git

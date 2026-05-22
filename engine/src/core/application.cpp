@@ -1,4 +1,4 @@
-#include "application.h"
+#include "Application.h"
 
 bool Application::Create(const char* title, int width, int height)
 {

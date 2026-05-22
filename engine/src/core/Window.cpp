@@ -1,4 +1,4 @@
-#include "window.h"
+#include "Window.h"
 
 #define IDR_WIN_ICON 101
 

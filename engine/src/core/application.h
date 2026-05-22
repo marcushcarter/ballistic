@@ -1,6 +1,6 @@
 #pragma once
 #include "pch.h"
-#include "window/window.h"
+#include "Window.h"
 
 struct Application
 {

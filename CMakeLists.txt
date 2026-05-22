@@ -14,16 +14,16 @@ include(CompilerOptions)
 include(Platform)
 include(Dependencies)
 
-add_subdirectory(thirdparty)
-add_subdirectory(engine)
+add_subdirectory(Thirdparty)
+add_subdirectory(Engine)
 
 option(BALLISTIC_BUILD_EDITOR "Build the editor" ON)
 option(BALLISTIC_BUILD_GAME "Build the game runtime" ON)
 
 if(BALLISTIC_BUILD_EDITOR)
-    add_subdirectory(editor)
+    add_subdirectory(Editor)
 endif()
 
 if(BALLISTIC_BUILD_GAME)
-    add_subdirectory(game)
+    add_subdirectory(Game)
 endif()

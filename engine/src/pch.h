@@ -29,4 +29,4 @@ using namespace glm;
 #include <iostream>
 #include <string>
 
-#include "core/log.h"
+#include "Core/Log.h"
