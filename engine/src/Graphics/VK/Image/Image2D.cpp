@@ -180,16 +180,13 @@ void Image2D::Destroy()
         vkFreeMemory(deviceHandle, memory, nullptr);
         image = VK_NULL_HANDLE;
         memory = VK_NULL_HANDLE;
+        LOG_DEBUG("Image2D destroyed: %s", debugName ? debugName : "Unnamed");
     }
 
     deviceHandle = VK_NULL_HANDLE;
     stage = 0;
     access = 0;
     layout = VK_IMAGE_LAYOUT_UNDEFINED;
-    
-    LOG_DEBUG("Image2D destroyed: %s",
-        debugName ? debugName : "Unnamed"
-    );
 }
 
 bool Image2D::CopyBuffer(VkCommandBuffer cmd, VkBuffer srcBuffer, VkDeviceSize bufferOffset, VkOffset3D imageOffset)

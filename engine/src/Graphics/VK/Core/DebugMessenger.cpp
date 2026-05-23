@@ -48,13 +48,8 @@ void DebugMessenger::Destroy()
 
 VKAPI_ATTR VkBool32 DebugMessenger::DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT, const VkDebugUtilsMessengerCallbackDataEXT* data, void*)
 {
-    if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
-        std::cerr << "[VULKAN ERROR] ";
-    else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
-        std::cerr << "[VULKAN WARNING] ";
-    else
-        std::cout << "[VULKAN INFO] ";
-
-    std::cerr << data->pMessage << std::endl;
+    if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) LOG_ERROR("[VULKAN] %s", data->pMessage);
+    else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) LOG_WARN("[VULKAN] %s", data->pMessage);
+    else LOG_DEBUG("[VULKAN] %s", data->pMessage);
     return VK_FALSE;
 }

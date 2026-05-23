@@ -1,10 +1,9 @@
 #include "GraphicsPipeline.h"
 
-bool GraphicsPipeline::Create(VkDevice device, VkPipelineLayout layout, VkRenderPass renderPass, VkPipelineCache pipelineCache, const GraphicsPipelineDesc& desc)
+bool GraphicsPipeline::Create(VkDevice device, VkPipelineLayout layout, VkPipelineCache pipelineCache, const GraphicsPipelineDesc& desc)
 {
     VK_CHECK_HANDLE(device, VkDevice);
     VK_CHECK_HANDLE(layout, VkPipelineLayout);
-    VK_CHECK_HANDLE(renderPass, VkRenderPass);
     CHECK_PTR(desc.shaderStages.data(), "Pipeline requires at least one shader");
 
     Destroy();
@@ -63,6 +62,7 @@ bool GraphicsPipeline::Create(VkDevice device, VkPipelineLayout layout, VkRender
 
     VkGraphicsPipelineCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    createInfo.pNext = desc.pNext;
     createInfo.stageCount = (uint32_t)desc.shaderStages.size();
     createInfo.pStages = desc.shaderStages.data();
     createInfo.pVertexInputState = &vertexInput;
@@ -74,8 +74,8 @@ bool GraphicsPipeline::Create(VkDevice device, VkPipelineLayout layout, VkRender
     createInfo.pColorBlendState = &blend;
     createInfo.pDynamicState = &dynamic;
     createInfo.layout = layout;
-    createInfo.renderPass = renderPass;
-    createInfo.subpass = 0;
+    createInfo.renderPass = desc.renderPass;
+    createInfo.subpass = desc.subpass;
 
     if (vkCreateGraphicsPipelines(device, pipelineCache, 1, &createInfo, nullptr, &pipeline) != VK_SUCCESS) {
         LOG_ERROR("Failed to create Vulkan graphics pipeline");

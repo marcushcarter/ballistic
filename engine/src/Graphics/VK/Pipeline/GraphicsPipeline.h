@@ -2,7 +2,8 @@
 #include "pch.h"
 #include "Pipeline.h"
 
-inline VkVertexInputBindingDescription VertexBinding(uint32_t binding, uint32_t stride, VkVertexInputRate rate = VK_VERTEX_INPUT_RATE_VERTEX) {
+inline VkVertexInputBindingDescription VertexBinding(uint32_t binding, uint32_t stride, VkVertexInputRate rate = VK_VERTEX_INPUT_RATE_VERTEX)
+{
     VkVertexInputBindingDescription b{};
     b.binding = binding;
     b.inputRate = rate;
@@ -10,7 +11,8 @@ inline VkVertexInputBindingDescription VertexBinding(uint32_t binding, uint32_t 
     return b;
 }
 
-inline VkVertexInputAttributeDescription VertexAttribute(uint32_t location, uint32_t binding, VkFormat format, uint32_t offset = 0) {
+inline VkVertexInputAttributeDescription VertexAttribute(uint32_t location, uint32_t binding, VkFormat format, uint32_t offset = 0)
+{
     VkVertexInputAttributeDescription a{};
     a.location = location;
     a.binding = binding;
@@ -19,8 +21,19 @@ inline VkVertexInputAttributeDescription VertexAttribute(uint32_t location, uint
     return a;
 }
 
-struct GraphicsPipelineDesc {
-    // void* pNext = nullptr;
+inline VkPipelineRenderingCreateInfo PipelineRenderingInfo(std::vector<VkFormat> colorFormats, VkFormat depthFormat = VK_FORMAT_UNDEFINED)
+{
+    VkPipelineRenderingCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    info.colorAttachmentCount = static_cast<uint32_t>(colorFormats.size());
+    info.pColorAttachmentFormats = colorFormats.data();
+    info.depthAttachmentFormat = depthFormat;
+    return info;
+}
+
+struct GraphicsPipelineDesc
+{
+    void* pNext = nullptr;
 
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
     std::vector<VkVertexInputBindingDescription> bindings;
@@ -36,17 +49,13 @@ struct GraphicsPipelineDesc {
     uint32_t numColorAttachments = 1;
     float lineWidth = 1.0f;
 
-    // VkRenderPass renderPass = VK_NULL_HANDLE;
-    // uint32_t subpass = 0;
-
-    // std::vector<VkFormat> colorAttachmentFormats;
-    // VkFormat depthAttachmentFormat = VK_FORMAT_UNDEFINED;
-    // VkFormat stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
+    VkRenderPass renderPass = VK_NULL_HANDLE;
+    uint32_t subpass = 0;
 };
 
 struct GraphicsPipeline : Pipeline
 {
     GraphicsPipeline() : Pipeline(VK_PIPELINE_BIND_POINT_GRAPHICS) {}
 
-    bool Create(VkDevice device, VkPipelineLayout layout, VkRenderPass renderPass, VkPipelineCache pipelineCache, const GraphicsPipelineDesc& desc);
+    bool Create(VkDevice device, VkPipelineLayout layout, VkPipelineCache pipelineCache, const GraphicsPipelineDesc& desc);
 };

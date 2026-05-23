@@ -17,11 +17,14 @@ struct SamplerDesc {
     VkBorderColor borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
     bool unnormalizedCoordinates = false;
     VkSamplerMipmapMode mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    const char* debugName = nullptr;
 };
 
 struct Sampler
 {
     VkSampler sampler = VK_NULL_HANDLE;
+    
+    const char* debugName = nullptr;
 
     bool Create(VkDevice device, const SamplerDesc& desc);
     void Destroy();

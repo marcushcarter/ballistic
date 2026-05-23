@@ -4,13 +4,13 @@ file(GLOB_RECURSE EDITOR_HEADERS CONFIGURE_DEPENDS "src/*.h")
 add_executable(ballistic_editor
     ${EDITOR_SOURCES}
     ${EDITOR_HEADERS}
-    resources/editor_console.rc
+    res/Images/editor_console.rc
 )
 
 add_executable(ballistic_editor_app WIN32
     ${EDITOR_SOURCES}
     ${EDITOR_HEADERS}
-    resources/editor_app.rc
+    res/Images/editor_app.rc
 )
 
 foreach(TARGET ballistic_editor ballistic_editor_app)

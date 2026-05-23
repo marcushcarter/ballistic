@@ -6,6 +6,19 @@ struct Window;
 
 struct Renderer
 {
+    // Window* window = nullptr;
+    // uint32_t width = 1, height = 1;
+    // float aspect = 1.0f;
+    // bool resizeRequested = false;
+
+    // RenderSettings settings;
+
+    // CORE
+
+    uint32_t frameCount = 0;
+    uint32_t imageIndex = 0;
+    uint32_t currentFrame = 0;
+
     Instance instance;
     DebugMessenger debugMessenger;
     Surface surface;
@@ -13,17 +26,47 @@ struct Renderer
     Device device;
     Queue graphicsQueue, presentQueue, transferQueue, computeQueue;
     bool hasAsyncCompute = false;
-    uint32_t frameCount = 0;
+
+    CommandPool commandPool;
+    std::vector<CommandBuffer> commandBuffers;
+    std::vector<Semaphore> imageAvailableSemaphores;
+    std::vector<Semaphore> renderFinishedSemaphores;
+    std::vector<Fence> inFlightFences;
+    VkCommandBuffer cmd = VK_NULL_HANDLE;
 
     Swapchain swapchain;
     std::vector<Image2D> swapchainImages;
-    RenderPass swapchainRenderPass;
-    std::vector<Framebuffer> swapchainFramebuffers;
+    
+    Allocator allocator;
+    DescriptorPool descriptorPool;
 
-    CommandPool commandPool;
-    CommandPool transferCommandPool;
+    Image2D finalImage;
+    Sampler nearestSampler;
+    DescriptorSetLayout finalImageInputSetLayout;
+    DescriptorSet finalImageInputSet;
+    PipelineLayout blitPipelineLayout;
+    GraphicsPipeline blitPipeline;
 
-    bool Create(Window& window);
-    void Destroy();
-    void Render();
+    // std::vector<Image2D> images;
+    // std::vector<Sampler> samplers;
+    // std::vector<RenderPass> renderPasses;
+    // std::vector<Framebuffer> framebuffers;
+    // std::vector<Buffer> buffers;
+    // std::vector<DescriptorSetLayout> setLayouts;
+    // std::vector<DescriptorSet> descriptorSets;
+    // std::vector<PipelineLayout> pipelineLayouts;
+    // std::vector<Semaphore> semaphores;
+    // std::vector<Fence> fences;
+    // std::vector<CommandBuffer> commandBuffers;
+
+    std::function<void(VkCommandBuffer)> onSwapchainPass;
+
+    bool Start(Window& window);
+    void Shutdown();
+
+    bool CreateImGui(GLFWwindow* window);
+    void DestroyImGui();
+
+    bool BeginFrame();
+    void EndFrame();
 };

@@ -43,6 +43,8 @@
 
 #include "Pass/RenderPass.h"
 #include "Pass/Framebuffer.h"
+#include "Pass/Pass.h"
+#include "Pass/TransitionSet.h"
 
 #include "Other/InputLayout.h"
 #include "Other/Utils.h"

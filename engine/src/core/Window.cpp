@@ -14,7 +14,7 @@ bool Window::Create(const char* title, uint32_t w, uint32_t h)
 
     glfwWindowHint(GLFW_CLIENT_API,  GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-    // glfwWindowHint(GLFW_VISIBLE, desc.visible ? GLFW_TRUE : GLFW_FALSE);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
 
     glfwWindow = glfwCreateWindow(w, h, title, nullptr, nullptr);

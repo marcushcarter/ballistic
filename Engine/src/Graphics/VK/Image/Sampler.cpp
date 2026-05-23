@@ -2,9 +2,10 @@
 
 bool Sampler::Create(VkDevice device, const SamplerDesc& desc)
 {
-    // VK_CHECK_HANDLE(device, VkDevice, false);
+    VK_CHECK_HANDLE(device, VkDevice);
 
     Destroy();
+    debugName = desc.debugName;
     deviceHandle = device;
 
     VkSamplerCreateInfo createInfo{};
@@ -29,8 +30,18 @@ bool Sampler::Create(VkDevice device, const SamplerDesc& desc)
         LOG_ERROR("Failed to create Vulkan sampler");
         return false;
     }
-
-    LOG_DEBUG("Sampler created");
+    
+    if (debugName) {
+        VkDebugUtilsObjectNameInfoEXT nameInfo{};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        nameInfo.objectType = VK_OBJECT_TYPE_SAMPLER;
+        nameInfo.objectHandle = (uint64_t)sampler;
+        nameInfo.pObjectName = debugName;
+        auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
+        if (func) func(device, &nameInfo);
+    }
+    
+    LOG_DEBUG("Sampler created: %s", debugName ? debugName : "Unnamed");
     return true;
 }
 

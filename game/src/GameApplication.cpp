@@ -1,18 +1,25 @@
 #include "GameApplication.h"
-#include <cstdio>
 
 void GameApplication::OnInit()
 {
-    printf("Game initialized\n");
-    window.SetFullscreen(true);
+    LOG_DEBUG("Game initialized");
+    // window.SetFullscreen(true);
+    
+    renderer.onSwapchainPass = [this](VkCommandBuffer cmd) {
+        (void)cmd;
+        // VKViewportScissor(cmd, 0, 0, renderer.swapchain.extent.width, renderer.swapchain.extent.height);
+        // renderer.blitPipeline.Bind(cmd);
+        // renderer.blitPipeline.DescriptorSets(cmd, { renderer.finalImageInputSet.Get() });
+        // vkCmdDraw(cmd, 3, 1, 0, 0);
+    };
 }
 
 void GameApplication::OnUpdate()
 {
-    printf("Game update\n");
+
 }
 
 void GameApplication::OnShutdown()
 {
-    printf("Game shutdown\n");
+    LOG_DEBUG("Game shutdown");
 }
