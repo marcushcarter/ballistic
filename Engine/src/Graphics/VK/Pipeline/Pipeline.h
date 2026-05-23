@@ -13,6 +13,7 @@ inline VkPipelineShaderStageCreateInfo PipelineShaderStage(VkShaderModule shader
 struct Pipeline
 {
     VkPipeline pipeline = VK_NULL_HANDLE;
+    const char* debugName = nullptr;
 
     void Destroy();
     void Bind(VkCommandBuffer cmd);

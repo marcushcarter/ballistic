@@ -1,25 +1,35 @@
 #include "DescriptorSet.h"
 
-bool DescriptorSet::Allocate(VkDevice device, VkDescriptorPool descriptorPool, VkDescriptorSetLayout descriptorSetLayout)
+bool DescriptorSet::Allocate(VkDevice device, const DescriptorSetDesc& desc)
 {
     VK_CHECK_HANDLE(device, VkDevice);
-    VK_CHECK_HANDLE(descriptorPool, VkDescriptorPool);
-    VK_CHECK_HANDLE(descriptorSetLayout, VkDescriptorSetLayout);
+    VK_CHECK_HANDLE(desc.setLayout, VkDescriptorSetLayout);
 
+    debugName = desc.debugName;
     deviceHandle = device;
 
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorPool = desc.pool;
     allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &descriptorSetLayout;
+    allocInfo.pSetLayouts = &desc.setLayout;
 
     if (vkAllocateDescriptorSets(device, &allocInfo, &set) != VK_SUCCESS) {
-        LOG_ERROR("Failed to allocate Vulkan descriptor set");
+        LOG_ERROR("Descriptor Set create failed: %s - vkAllocateDescriptorSets", debugName ? debugName : "Unnamed");
         return false;
     }
+    
+    if (debugName) {
+        VkDebugUtilsObjectNameInfoEXT nameInfo{};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        nameInfo.objectType = VK_OBJECT_TYPE_DESCRIPTOR_SET;
+        nameInfo.objectHandle = (uint64_t)set;
+        nameInfo.pObjectName = debugName;
+        auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
+        if (func) func(device, &nameInfo);
+    }
 
-    LOG_DEBUG("Descriptor Set allocated");
+    LOG_DEBUG("Descriptor Set allocated: %s", debugName ? debugName : "Unnamed");
     return true;
 }
 
@@ -37,7 +47,6 @@ void DescriptorSet::SetBuffers(uint32_t binding, VkDescriptorType type, const st
     write.dstSet = set;
     write.dstBinding = binding;
     write.dstArrayElement = dstArrayElement;
-    write.descriptorCount = 1;
     write.descriptorCount = (uint32_t)buffers.size();
     write.descriptorType = type;
     write.pBufferInfo = infos.data();
@@ -80,7 +89,6 @@ void DescriptorSet::SetStorageImages(uint32_t binding, const std::vector<VkImage
     write.dstSet = set;
     write.dstBinding = binding;
     write.dstArrayElement = dstArrayElement;
-    write.descriptorCount = 1;
     write.descriptorCount = (uint32_t)views.size();
     write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     write.pImageInfo = infos.data();

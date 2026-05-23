@@ -1,11 +1,20 @@
 #pragma once
 #include "pch.h"
 
+struct CommandPoolDesc
+{
+    uint32_t queueFamilyIndex = 0;
+    bool transient = false;
+    bool resetable = false;
+    const char* debugName = nullptr;
+};
+
 struct CommandPool
 {
     VkCommandPool commandPool = VK_NULL_HANDLE;
+    const char* debugName = nullptr;
     
-    bool Create(VkDevice device, uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    bool Create(VkDevice device, const CommandPoolDesc& desc);
     void Destroy();
     
     void Reset(VkCommandPoolResetFlags flags);

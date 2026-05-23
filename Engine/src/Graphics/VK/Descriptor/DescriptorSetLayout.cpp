@@ -1,30 +1,41 @@
 #include "DescriptorSetLayout.h"
 
-bool DescriptorSetLayout::Create(VkDevice device, const std::vector<VkDescriptorSetLayoutBinding>& bindings, const std::vector<VkDescriptorBindingFlags>& bindingFlags, VkDescriptorSetLayoutCreateFlags layoutFlags)
+bool DescriptorSetLayout::Create(VkDevice device, const DescriptorSetLayoutDesc& desc)
 {
     VK_CHECK_HANDLE(device, VkDevice);
 
     Destroy();
+    debugName = desc.debugName;
     deviceHandle = device;
 
     VkDescriptorSetLayoutBindingFlagsCreateInfo flagsInfo{};
     flagsInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
-    flagsInfo.bindingCount = (uint32_t)bindingFlags.size();
-    flagsInfo.pBindingFlags = bindingFlags.data();
+    flagsInfo.bindingCount = (uint32_t)desc.bindingFlags.size();
+    flagsInfo.pBindingFlags = desc.bindingFlags.data();
 
-    VkDescriptorSetLayoutCreateInfo info{};
-    info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    info.bindingCount = (uint32_t)bindings.size();
-    info.pBindings = bindings.data();
-    info.flags = layoutFlags;
-    if (!bindingFlags.empty()) info.pNext = &flagsInfo;
+    VkDescriptorSetLayoutCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    createInfo.pNext = desc.bindingFlags.empty() ? nullptr : &flagsInfo;
+    createInfo.flags = desc.layoutFlags;
+    createInfo.bindingCount = static_cast<uint32_t>(desc.bindings.size());
+    createInfo.pBindings = desc.bindings.data();
 
-    if (vkCreateDescriptorSetLayout(device, &info, nullptr, &layout) != VK_SUCCESS) {
-        LOG_ERROR("Failed to create Vulkan descriptor set layout");
+    if (vkCreateDescriptorSetLayout(device, &createInfo, nullptr, &layout) != VK_SUCCESS) {
+        LOG_ERROR("Descriptor Set Layout create failed: %s - vkCreateDescriptorSetLayout", debugName ? debugName : "Unnamed");
         return false;
     }
 
-    LOG_DEBUG("Descriptor Set Layout created");
+    if (debugName) {
+        VkDebugUtilsObjectNameInfoEXT nameInfo{};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        nameInfo.objectType = VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT;
+        nameInfo.objectHandle = (uint64_t)layout;
+        nameInfo.pObjectName = debugName;
+        auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
+        if (func) func(device, &nameInfo);
+    }
+
+    LOG_DEBUG("Descriptor Set Layout created: %s", debugName ? debugName : "Unnamed");
     return true;
 }
 
@@ -34,6 +45,6 @@ void DescriptorSetLayout::Destroy()
         vkDestroyDescriptorSetLayout(deviceHandle, layout, nullptr);
         layout = VK_NULL_HANDLE;
         deviceHandle = VK_NULL_HANDLE;
-        LOG_DEBUG("Descriptor Set Layout destroyed");
+        LOG_DEBUG("Descriptor Set Layout destroyed: %s", debugName ? debugName : "Unnamed");
     }
 }

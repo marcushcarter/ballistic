@@ -4,8 +4,9 @@
 struct CommandBuffer
 {
     VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
+    const char* debugName = nullptr;
     
-    bool Allocate(VkDevice device, VkCommandPool commandPool, VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    bool Allocate(VkDevice device, VkCommandPool commandPool, bool secondary = false, const char* debugName = nullptr);
     void Free();
 
     bool Begin(VkCommandBufferUsageFlags flags = 0);

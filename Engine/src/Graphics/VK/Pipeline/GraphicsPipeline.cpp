@@ -1,14 +1,15 @@
 #include "GraphicsPipeline.h"
 
-bool GraphicsPipeline::Create(VkDevice device, VkPipelineLayout layout, VkPipelineCache pipelineCache, const GraphicsPipelineDesc& desc)
+bool GraphicsPipeline::Create(VkDevice device, const GraphicsPipelineDesc& desc)
 {
     VK_CHECK_HANDLE(device, VkDevice);
-    VK_CHECK_HANDLE(layout, VkPipelineLayout);
+    VK_CHECK_HANDLE(desc.layout, VkPipelineLayout);
     CHECK_PTR(desc.shaderStages.data(), "Pipeline requires at least one shader");
 
     Destroy();
+    debugName = desc.debugName;
     deviceHandle = device;
-    pipelineLayoutHandle = layout;
+    pipelineLayoutHandle = desc.layout;
 
     VkPipelineVertexInputStateCreateInfo vertexInput{};
     vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -39,9 +40,9 @@ bool GraphicsPipeline::Create(VkDevice device, VkPipelineLayout layout, VkPipeli
 
     VkPipelineDepthStencilStateCreateInfo depth{};
     depth.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depth.depthTestEnable  = desc.depthTest;
+    depth.depthTestEnable = desc.depthTest;
     depth.depthWriteEnable = desc.depthWrite;
-    depth.depthCompareOp  = desc.depthOp;
+    depth.depthCompareOp = desc.depthOp;
 
     std::vector<VkPipelineColorBlendAttachmentState> colors(desc.numColorAttachments);
     for (auto& c : colors) {
@@ -73,15 +74,25 @@ bool GraphicsPipeline::Create(VkDevice device, VkPipelineLayout layout, VkPipeli
     createInfo.pDepthStencilState = &depth;
     createInfo.pColorBlendState = &blend;
     createInfo.pDynamicState = &dynamic;
-    createInfo.layout = layout;
+    createInfo.layout = desc.layout;
     createInfo.renderPass = desc.renderPass;
     createInfo.subpass = desc.subpass;
 
-    if (vkCreateGraphicsPipelines(device, pipelineCache, 1, &createInfo, nullptr, &pipeline) != VK_SUCCESS) {
-        LOG_ERROR("Failed to create Vulkan graphics pipeline");
+    if (vkCreateGraphicsPipelines(device, desc.cache, 1, &createInfo, nullptr, &pipeline) != VK_SUCCESS) {
+        LOG_ERROR("Graphics Pipeline create failed: %s - vkCreateGraphicsPipelines", debugName ? debugName : "Unnamed");
         return false;
     }
-
-    LOG_DEBUG("Graphics Pipeline created");
+    
+    if (debugName) {
+        VkDebugUtilsObjectNameInfoEXT nameInfo{};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        nameInfo.objectType = VK_OBJECT_TYPE_PIPELINE;
+        nameInfo.objectHandle = (uint64_t)pipeline;
+        nameInfo.pObjectName = debugName;
+        auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
+        if (func) func(device, &nameInfo);
+    }
+    
+    LOG_DEBUG("Graphics Pipeline created: %s", debugName ? debugName : "Unnamed");
     return true;
 }

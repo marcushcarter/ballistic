@@ -33,7 +33,11 @@ bool Renderer::Start(Window& window)
     for (uint32_t i = 0; i < frameCount; i++)
         BE_ASSERT(swapchainImages[i].WrapSwapchainImage(device.Get(), rawImages[i], swapchain.format, swapchain.extent));
     
-    BE_ASSERT(commandPool.Create(device.Get(), graphicsQueue.familyIndex));
+    BE_ASSERT(graphicsCommandPool.Create(device.Get(), {
+        .queueFamilyIndex = graphicsQueue.familyIndex,
+        .resetable = true,
+        .debugName = "GraphicsCommandPool"
+    }));
     
     commandBuffers.resize(frameCount);
     imageAvailableSemaphores.resize(frameCount);
@@ -41,14 +45,28 @@ bool Renderer::Start(Window& window)
     inFlightFences.resize(frameCount);
 
     for (uint32_t i = 0; i < frameCount; i++) {
-        BE_ASSERT(commandBuffers[i].Allocate(device.Get(), commandPool.Get()));
-        BE_ASSERT(imageAvailableSemaphores[i].Create(device.Get()));
-        BE_ASSERT(renderFinishedSemaphores[i].Create(device.Get()));
-        BE_ASSERT(inFlightFences[i].Create(device.Get()));
+        BE_ASSERT(commandBuffers[i].Allocate(device.Get(), graphicsCommandPool.Get(), false, "CommandBuffer"));
+        BE_ASSERT(imageAvailableSemaphores[i].Create(device.Get(), "ImageAvailableSemaphore"));
+        BE_ASSERT(renderFinishedSemaphores[i].Create(device.Get(), "RenderFinishedSemaphore"));
+        BE_ASSERT(inFlightFences[i].Create(device.Get(), true, "InFlightFence"));
     }
     
     BE_ASSERT(allocator.Create(instance.Get(), physicalDevice.Get(), device.Get()));
-    BE_ASSERT(descriptorPool.Create(device.Get()));
+
+    BE_ASSERT(descriptorPool.Create(device.Get(), {
+        .samplers = 1000,
+        .combinedImageSamplers = 1000,
+        .sampledImages = 1000,
+        .storageImages = 1000,
+        .uniformTexelBuffers = 1000,
+        .storageTexelBuffers = 1000,
+        .uniformBuffers = 1000,
+        .storageBuffers = 1000,
+        .uniformBuffersDynamic = 1000,
+        .storageBuffersDynamic = 1000,
+        .inputAttachments = 1000,
+        .debugName = "MainDescriptorPool"
+    }));
 
     BE_ASSERT(finalImage.Create(device.Get(), physicalDevice.memory, {
         .extent = swapchain.extent,
@@ -65,10 +83,22 @@ bool Renderer::Start(Window& window)
         .debugName = "NearestSampler"
     }));
 
-    BE_ASSERT(finalImageInputSetLayout.Create(device.Get(), { SetLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) }));
-    BE_ASSERT(finalImageInputSet.Allocate(device.Get(), descriptorPool.Get(), finalImageInputSetLayout.Get()));
+    BE_ASSERT(finalImageInputSetLayout.Create(device.Get(), {
+        .bindings = { SetLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) },
+        .debugName = "FinalImageInputSetLayout"
+    }));
+    
+    BE_ASSERT(finalImageInputSet.Allocate(device.Get(), {
+        .pool = descriptorPool.Get(),
+        .setLayout = finalImageInputSetLayout.Get(),
+        .debugName = "FinalImageInputSet"
+    }));
     finalImageInputSet.SetImages(0, { finalImage.GetView() }, nearestSampler.Get(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    BE_ASSERT(blitPipelineLayout.Create(device.Get(), { finalImageInputSetLayout.Get() }, {}));
+    
+    BE_ASSERT(blitPipelineLayout.Create(device.Get(), {
+        .setLayouts = { finalImageInputSetLayout.Get() },
+        .debugName = "BlitPipelineLayout"
+    }));
 
     Shader vert{}, frag{};
     BE_ASSERT(vert.Compile(device.Get(), VK_SHADER_STAGE_VERTEX_BIT, { FULLSCREEN_VERT_SPV, FULLSCREEN_VERT_SPV + FULLSCREEN_VERT_SPV_SIZE / 4 }));    
@@ -78,16 +108,45 @@ bool Renderer::Start(Window& window)
     renderingInfo.colorFormats = { swapchain.format };
     auto renderingCreateInfo = renderingInfo.Get();
 
-    BE_ASSERT(blitPipeline.Create(device.Get(), blitPipelineLayout.Get(), VK_NULL_HANDLE, {
+    BE_ASSERT(blitPipeline.Create(device.Get(), {
         .pNext = &renderingCreateInfo,
-        .shaderStages = { PipelineShaderStage(vert.Get(), vert.stage), PipelineShaderStage(frag.Get(), frag.stage) }
+        .layout = blitPipelineLayout.Get(),
+        .shaderStages = { PipelineShaderStage(vert.Get(), vert.stage), PipelineShaderStage(frag.Get(), frag.stage) },
+        .debugName = "BlitPipeline"
     }));
+
+    vert.Destroy();
+    frag.Destroy();
+
+    // Buffer buffer{};
+    // BE_ASSERT(buffer.Create(device.Get(), physicalDevice.memory, {
+    //     .size = sizeof(float) * 4,
+    //     .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+    //     .hostVisible = false,
+    //     .debugName = "Fullscreen Quad VB"
+    // }));
+    // buffer.Resize(sizeof(float) * 100);
+    // float chars[9] = {
+    //     -1.0f, -1.0f, 0.0f, 1.0f,
+    //      3.0f, -1.0f, 0.0f, 1.0f,
+    //     -1.0f
+    // };
+    // buffer.Update(chars, sizeof(chars));
+    // buffer.Destroy();
 
     return true;
 }
 
 bool Renderer::CreateImGui(GLFWwindow* window)
 {
+    BE_ASSERT(imguiDescriptorPool.Create(device.Get(), {
+        .samplers = 10,
+        .combinedImageSamplers = 10,
+        .sampledImages = 10,        
+        .afterBind = false,
+        .debugName = "ImGuiDescriptorPool"
+    }));
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -109,7 +168,7 @@ bool Renderer::CreateImGui(GLFWwindow* window)
     
     // initInfo.PipelineCache = VK_NULL_HANDLE;
 
-    initInfo.DescriptorPool = descriptorPool.Get();
+    initInfo.DescriptorPool = imguiDescriptorPool.Get();
     initInfo.MinImageCount = frameCount;
     initInfo.ImageCount = frameCount;
     initInfo.UseDynamicRendering = true;
@@ -140,7 +199,7 @@ void Renderer::Shutdown()
         imageAvailableSemaphores[i].Destroy();
         commandBuffers[i].Free();
     }
-    commandPool.Destroy();
+    graphicsCommandPool.Destroy();
 
     for (auto& img : swapchainImages) img.Destroy();
     swapchain.Destroy();
@@ -157,6 +216,7 @@ void Renderer::DestroyImGui()
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+    imguiDescriptorPool.Destroy();
 }
 
 bool Renderer::BeginFrame()

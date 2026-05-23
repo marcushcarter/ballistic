@@ -4,8 +4,9 @@
 struct Fence
 {
     VkFence fence = VK_NULL_HANDLE;
+    const char* debugName = nullptr;
     
-    bool Create(VkDevice device, bool signaled = true);
+    bool Create(VkDevice device, bool signaled = true, const char* debugName = nullptr);
     void Destroy();
     
     void Wait(uint64_t timeout = UINT64_MAX);

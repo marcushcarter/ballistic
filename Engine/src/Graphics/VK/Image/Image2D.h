@@ -17,14 +17,13 @@ struct Image2D
     VkImage image = VK_NULL_HANDLE;
     VkImageView imageView = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
+    const char* debugName = nullptr;
 
     VkFormat format = VK_FORMAT_UNDEFINED;
     VkExtent2D extent = {};
     VkImageUsageFlags usage = 0;
     uint32_t mipLevels = 1;
     uint32_t layers = 1;
-
-    const char* debugName = nullptr;
     
     VkPipelineStageFlags stage = 0;
     VkAccessFlags access = 0;

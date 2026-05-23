@@ -43,7 +43,7 @@ bool Image2D::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& pr
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
-        LOG_ERROR("Failed to create Vulkan image");
+        LOG_ERROR("Image2D create failed: %s - vkCreateImage", debugName ? debugName : "Unnamed");
         return false;
     }
 
@@ -56,12 +56,12 @@ bool Image2D::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& pr
     allocInfo.memoryTypeIndex = FindMemoryType(props, memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     if (vkAllocateMemory(device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
-        LOG_ERROR("Failed to allocate Vulkan GPU memory");
+        LOG_ERROR("Image2D create failed: %s - vkAllocateMemory", debugName ? debugName : "Unnamed");
         return false;
     }
 
     if (vkBindImageMemory(device, image, memory, 0) != VK_SUCCESS) {
-        LOG_ERROR("Failed to bind Vulkan image memory");
+        LOG_ERROR("Image2D create failed: %s - vkBindImageMemory", debugName ? debugName : "Unnamed");
         return false;
     }
 
@@ -78,7 +78,7 @@ bool Image2D::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& pr
     viewInfo.subresourceRange.layerCount = layers;
 
     if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
-        LOG_DEBUG("Failed to create Vulkan image view");
+        LOG_ERROR("Image2D create failed: %s - vkCreateImageView", debugName ? debugName : "Unnamed");
         return false;
     }
 
@@ -92,7 +92,7 @@ bool Image2D::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& pr
         if (func) func(device, &nameInfo);
     }
     
-    LOG_DEBUG("Image2D created: %s (%ux%u, %s), usage %s",
+    LOG_DEBUG("Image2D created: %s (%ux%u, %s, usage %s)",
         debugName ? debugName : "Unnamed",
         extent.width, extent.height,
         vk::to_string(vk::Format(format)).c_str(),
@@ -132,7 +132,7 @@ bool Image2D::WrapSwapchainImage(VkDevice device, VkImage swapchainImage, VkForm
     viewInfo.subresourceRange.layerCount = layers;
 
     if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
-        LOG_ERROR("Failed to create Vulkan image view", false);
+        LOG_ERROR("Image2D create failed: %s - vkCreateImageView", debugName ? debugName : "Unnamed");
         return false;
     }
 
@@ -156,7 +156,11 @@ bool Image2D::WrapSwapchainImage(VkDevice device, VkImage swapchainImage, VkForm
 
 bool Image2D::Resize(VkExtent2D newExtent)
 {
-    if (!ownsImage) return false;
+    if (!ownsImage) {
+        LOG_WARN("Image2D resize failed: %s - Cannot resize image that does not own its memory", debugName ? debugName : "Unnamed");
+        return false;
+    }
+
     return Create(deviceHandle, *memoryProps, {
         .extent = newExtent,
         .format = format,

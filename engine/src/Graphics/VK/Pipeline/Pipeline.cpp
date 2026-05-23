@@ -5,9 +5,7 @@ void Pipeline::Destroy()
     if (pipeline != VK_NULL_HANDLE) {
         vkDestroyPipeline(deviceHandle, pipeline, nullptr);
         pipeline = VK_NULL_HANDLE;
-        deviceHandle = VK_NULL_HANDLE;
-        pipelineLayoutHandle = VK_NULL_HANDLE;
-        LOG_DEBUG("Pipeline destroyed");
+        LOG_DEBUG("Pipeline destroyed: %s", debugName ? debugName : "Unnamed");
     }
 }
 

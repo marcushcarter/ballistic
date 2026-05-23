@@ -23,29 +23,30 @@ inline VkDeviceSize NextPowerOfTwo(VkDeviceSize x)
     return x + 1;
 }
 
-bool Buffer::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& props, VkDeviceSize initialCapacity, VkBufferUsageFlags usageFlags, bool isHostVisible)
+bool Buffer::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& props, const BufferDesc& desc)
 {
     VK_CHECK_HANDLE(device, VkDevice);
 
     Destroy();
     size = 0;
     capacity = 0;
-    usage = usageFlags;
-    hostVisible = isHostVisible;
+    usage = desc.usage;
+    hostVisible = desc.hostVisible;
+    debugName = desc.debugName;
     deviceHandle = device;
     memoryProps = &props;
 
-    if (!isHostVisible)
+    if (!hostVisible)
         usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
     VkBufferCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    createInfo.size = std::max<VkDeviceSize>(1, initialCapacity);
-    createInfo.usage = usageFlags;
+    createInfo.size = std::max<VkDeviceSize>(1, desc.size);
+    createInfo.usage = usage;
     createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     
     if (vkCreateBuffer(device, &createInfo, nullptr, &buffer) != VK_SUCCESS) {
-        LOG_ERROR("Failed to create Vulkan buffer");
+        LOG_ERROR("Buffer create failed: %s - vkCreateBuffer", debugName ? debugName : "Unnamed");
         return false;
     }
 
@@ -57,22 +58,38 @@ bool Buffer::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& pro
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memReq.size;
-    allocInfo.memoryTypeIndex = FindMemoryType(props, memReq.memoryTypeBits, isHostVisible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    allocInfo.memoryTypeIndex = FindMemoryType(props, memReq.memoryTypeBits, hostVisible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     if (vkAllocateMemory(device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
-        LOG_ERROR("Failed to allocate Vulkan GPU memory");
+        LOG_ERROR("Buffer create failed: %s - vkAllocateMemory", debugName ? debugName : "Unnamed");
         return false;
     }
 
     if (vkBindBufferMemory(device, buffer, memory, 0) != VK_SUCCESS) {
-        LOG_ERROR("Failed to bind Vulkan buffer memory");
+        LOG_ERROR("Buffer create failed: %s - vkBindBufferMemory", debugName ? debugName : "Unnamed");
         return false;
     }
 
-    if (isHostVisible)
+    if (hostVisible)
         vkMapMemory(device, memory, 0, VK_WHOLE_SIZE, 0, &mappedPtr);
-    
-    LOG_DEBUG("Buffer created: (%d) bytes", capacity);
+
+    if (debugName) {
+        VkDebugUtilsObjectNameInfoEXT nameInfo{};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        nameInfo.objectType = VK_OBJECT_TYPE_BUFFER;
+        nameInfo.objectHandle = (uint64_t)buffer;
+        nameInfo.pObjectName = debugName;
+        auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
+        if (func) func(device, &nameInfo);
+    }
+
+    LOG_DEBUG("Buffer created: %s (%d bytes, usage %s, %s)",
+        debugName ? debugName : "Unnamed",
+        capacity,
+        vk::to_string(vk::BufferUsageFlags(usage)).c_str(),
+        hostVisible ? "Host Visible" : "Device Local"
+    );
+
     return true;
 }
 
@@ -86,7 +103,7 @@ void Buffer::Destroy()
         vkDestroyBuffer(deviceHandle, buffer, nullptr);
         vkFreeMemory(deviceHandle, memory, nullptr);
         buffer = VK_NULL_HANDLE;
-        LOG_DEBUG("Buffer destroyed");
+        LOG_DEBUG("Buffer destroyed: %s", debugName ? debugName : "Unnamed");
     }
     size = 0;
     capacity = 0;
@@ -94,64 +111,17 @@ void Buffer::Destroy()
 
 bool Buffer::Update(void* data, VkDeviceSize dataSize, VkDeviceSize offset)
 {
-    if (!hostVisible || !mappedPtr) return false;
+    if (!hostVisible || !mappedPtr) {
+        LOG_WARN("Buffer update failed: %s - not host visible", debugName ? debugName : "Unnamed");
+        return false;
+    }
 
     VkDeviceSize end = offset + dataSize;
     bool resized = false;
 
     if (end > capacity) {
         resized = true;
-
-        VkDeviceSize newCapacity = NextPowerOfTwo(std::max(capacity * 2, end));
-
-        VkBuffer newBuffer = VK_NULL_HANDLE;
-        VkDeviceMemory newMemory = VK_NULL_HANDLE;
-        
-        VkBufferCreateInfo createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        createInfo.size = newCapacity;
-        createInfo.usage = usage;
-        createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        
-        if (vkCreateBuffer(deviceHandle, &createInfo, nullptr, &newBuffer) != VK_SUCCESS) {
-            LOG_ERROR("Failed to create Vulkan buffer");
-            return false;
-        }
-
-        VkMemoryRequirements memReq{};
-        vkGetBufferMemoryRequirements(deviceHandle, newBuffer, &memReq);
-
-        VkMemoryAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memReq.size;
-        allocInfo.memoryTypeIndex = FindMemoryType(*memoryProps, memReq.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-        if (vkAllocateMemory(deviceHandle, &allocInfo, nullptr, &newMemory) != VK_SUCCESS) {
-            LOG_ERROR("Failed to allocate Vulkan GPU memory");
-            return false;
-        }
-
-        if (vkBindBufferMemory(deviceHandle, newBuffer, newMemory, 0) != VK_SUCCESS) {
-            LOG_ERROR("Failed to bind buffer memory");
-            return false;
-        }
-
-        if (size > 0 && mappedPtr) {
-            void* newMapped = nullptr;
-            vkMapMemory(deviceHandle, newMemory, 0, allocInfo.allocationSize, 0, &newMapped);
-            memcpy(newMapped, mappedPtr, size);
-            vkUnmapMemory(deviceHandle, newMemory);
-        }
-
-        vkDestroyBuffer(deviceHandle, buffer, nullptr);
-        vkFreeMemory(deviceHandle, memory, nullptr);
-
-        buffer = newBuffer;
-        memory = newMemory;
-
-        vkMapMemory(deviceHandle, memory, 0, VK_WHOLE_SIZE, 0, &mappedPtr);
-        LOG_DEBUG("Buffer resized from %d bytes to %d bytes", capacity, newCapacity);
-        capacity = newCapacity;
+        if (!Resize(end)) return false;
     }
 
     memcpy((uint8_t*)mappedPtr + offset, data, dataSize);
@@ -164,76 +134,35 @@ bool Buffer::Resize(VkDeviceSize newSize)
     if (!hostVisible || newSize <= 0) return false;
 
     VkDeviceSize newCapacity = NextPowerOfTwo(newSize);
-
     if (newCapacity <= capacity) return false;
 
-    VkBuffer newBuffer = VK_NULL_HANDLE;
-    VkDeviceMemory newMemory = VK_NULL_HANDLE;
+    std::vector<uint8_t> existing(size);
+    if (size > 0 && mappedPtr)
+        memcpy(existing.data(), mappedPtr, size);
 
-    VkBufferCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    createInfo.size = newCapacity;
-    createInfo.usage = usage;
-    createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    VkDeviceSize oldSize = size;
+        
+    if (!Create(deviceHandle, *memoryProps, {
+        .size = newCapacity,
+        .usage = usage,
+        .hostVisible = hostVisible,
+        .debugName = debugName
+    })) return false;
 
-    if (vkCreateBuffer(deviceHandle, &createInfo, nullptr, &newBuffer) != VK_SUCCESS) {
-        LOG_ERROR("Failed to create Vulkan buffer", false);
-        return false;
-    }
-
-    VkMemoryRequirements memReq{};
-    vkGetBufferMemoryRequirements(deviceHandle, newBuffer, &memReq);
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memReq.size;
-    allocInfo.memoryTypeIndex = FindMemoryType(
-        *memoryProps,
-        memReq.memoryTypeBits,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    );
-
-    if (vkAllocateMemory(deviceHandle, &allocInfo, nullptr, &newMemory) != VK_SUCCESS) {
-        LOG_ERROR("Failed to allocate Vulkan GPU memory");
-        vkDestroyBuffer(deviceHandle, newBuffer, nullptr);
-        return false;
-    }
-
-    if (vkBindBufferMemory(deviceHandle, newBuffer, newMemory, 0) != VK_SUCCESS) {
-        LOG_ERROR("Failed to bind buffer memory");
-        vkDestroyBuffer(deviceHandle, newBuffer, nullptr);
-        vkFreeMemory(deviceHandle, newMemory, nullptr);
-        return false;
-    }
-
-    if (mappedPtr && size > 0) {
-        void* newMapped = nullptr;
-        vkMapMemory(deviceHandle, newMemory, 0, allocInfo.allocationSize, 0, &newMapped);
-        memcpy(newMapped, mappedPtr, size);
-        vkUnmapMemory(deviceHandle, newMemory);
-    }
-
-    if (mappedPtr) vkUnmapMemory(deviceHandle, memory);
-    vkDestroyBuffer(deviceHandle, buffer, nullptr);
-    vkFreeMemory(deviceHandle, memory, nullptr);
-
-    buffer = newBuffer;
-    memory = newMemory;
+    if (oldSize > 0)
+        memcpy(mappedPtr, existing.data(), oldSize);
     
-    LOG_DEBUG("Buffer resized from %d bytes to %d bytes", capacity, newCapacity);
-    capacity = newCapacity;
-    vkMapMemory(deviceHandle, memory, 0, VK_WHOLE_SIZE, 0, &mappedPtr);
-    
+    size = oldSize;
     return true;
 }
 
 bool Buffer::Copy(VkCommandBuffer cmd, VkBuffer srcBuffer, VkDeviceSize copySize, VkDeviceSize srcOffset, VkDeviceSize dstOffset)
 {
-    // VK_CHECK_HANDLE(cmd, VkCommandBuffer, false);
-    // VK_CHECK_HANDLE(srcBuffer, VkBuffer, false);
+    VK_CHECK_HANDLE(cmd, VkCommandBuffer);
+    VK_CHECK_HANDLE(srcBuffer, VkBuffer);
 
     if (!(usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT)) {
-        LOG_WARN("dst buffer missing TRANSFER_DST_BIT");
+        LOG_WARN("Buffer create failed: %s - missing TRANSFER_DST_BIT", debugName ? debugName : "Unnamed");
         return false;
     }
 
@@ -264,4 +193,15 @@ void Buffer::Transition(VkCommandBuffer cmd, VkPipelineStageFlags dstStage, VkAc
 
     stage = dstStage;
     access = dstAccess;
+}
+
+void Buffer::BindIndex(VkCommandBuffer cmd)
+{
+    vkCmdBindIndexBuffer(cmd, buffer, 0, VK_INDEX_TYPE_UINT32);
+}
+
+void Buffer::BindVertex(VkCommandBuffer cmd)
+{
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(cmd, 0, 1, &buffer, offsets);
 }

@@ -27,12 +27,6 @@
 #include "Pipeline/GraphicsPipeline.h"
 
 #include "Buffer/Buffer.h"
-#include "Buffer/VertexBuffer.h"
-#include "Buffer/IndexBuffer.h"
-#include "Buffer/StagingBuffer.h"
-#include "Buffer/UniformBuffer.h"
-#include "Buffer/StorageBuffer.h"
-#include "Buffer/IndirectBuffer.h"
 
 #include "Image/Image2D.h"
 #include "Image/ImageView.h"

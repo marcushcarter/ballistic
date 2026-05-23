@@ -23,7 +23,6 @@ struct SamplerDesc {
 struct Sampler
 {
     VkSampler sampler = VK_NULL_HANDLE;
-    
     const char* debugName = nullptr;
 
     bool Create(VkDevice device, const SamplerDesc& desc);

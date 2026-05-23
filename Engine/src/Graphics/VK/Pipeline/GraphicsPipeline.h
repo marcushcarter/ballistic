@@ -41,6 +41,12 @@ struct GraphicsPipelineDesc
 {
     void* pNext = nullptr;
 
+    VkPipelineLayout layout = VK_NULL_HANDLE;
+    VkPipelineCache cache = VK_NULL_HANDLE;
+    
+    VkRenderPass renderPass = VK_NULL_HANDLE;
+    uint32_t subpass = 0;
+
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
     std::vector<VkVertexInputBindingDescription> bindings;
     std::vector<VkVertexInputAttributeDescription> attributes;
@@ -55,12 +61,11 @@ struct GraphicsPipelineDesc
     uint32_t numColorAttachments = 1;
     float lineWidth = 1.0f;
 
-    VkRenderPass renderPass = VK_NULL_HANDLE;
-    uint32_t subpass = 0;
+    const char* debugName = nullptr;
 };
 
 struct GraphicsPipeline : Pipeline
 {
     GraphicsPipeline() : Pipeline(VK_PIPELINE_BIND_POINT_GRAPHICS) {}
-    bool Create(VkDevice device, VkPipelineLayout layout, VkPipelineCache pipelineCache, const GraphicsPipelineDesc& desc);
+    bool Create(VkDevice device, const GraphicsPipelineDesc& desc);
 };

@@ -27,7 +27,8 @@ struct Renderer
     Queue graphicsQueue, presentQueue, transferQueue, computeQueue;
     bool hasAsyncCompute = false;
 
-    CommandPool commandPool;
+    CommandPool graphicsCommandPool;
+
     std::vector<CommandBuffer> commandBuffers;
     std::vector<Semaphore> imageAvailableSemaphores;
     std::vector<Semaphore> renderFinishedSemaphores;
@@ -38,7 +39,9 @@ struct Renderer
     std::vector<Image2D> swapchainImages;
     
     Allocator allocator;
+    
     DescriptorPool descriptorPool;
+    DescriptorPool imguiDescriptorPool;
 
     Image2D finalImage;
     Sampler nearestSampler;

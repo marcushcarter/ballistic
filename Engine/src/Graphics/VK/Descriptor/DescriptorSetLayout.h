@@ -11,11 +11,20 @@ inline VkDescriptorSetLayoutBinding SetLayoutBinding(uint32_t binding, VkDescrip
     return b;
 }
 
+struct DescriptorSetLayoutDesc
+{
+    std::vector<VkDescriptorSetLayoutBinding> bindings;
+    std::vector<VkDescriptorBindingFlags> bindingFlags;
+    VkDescriptorSetLayoutCreateFlags layoutFlags = 0;
+    const char* debugName = nullptr;
+};
+
 struct DescriptorSetLayout
 {
     VkDescriptorSetLayout layout = VK_NULL_HANDLE;
+    const char* debugName = nullptr;
 
-    bool Create(VkDevice device, const std::vector<VkDescriptorSetLayoutBinding>& bindings, const std::vector<VkDescriptorBindingFlags>& bindingFlags = {}, VkDescriptorSetLayoutCreateFlags layoutFlags = 0);
+    bool Create(VkDevice device, const DescriptorSetLayoutDesc& desc);
     void Destroy();
 
     VkDescriptorSetLayout Get() const { return layout; }

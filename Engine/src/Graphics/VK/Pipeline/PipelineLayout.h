@@ -9,11 +9,19 @@ inline VkPushConstantRange PushConstant(VkShaderStageFlags stage = VK_SHADER_STA
     return p;
 }
 
+struct PipelineLayoutDesc
+{
+    std::vector<VkDescriptorSetLayout> setLayouts;
+    std::vector<VkPushConstantRange> pushConstants;
+    const char* debugName = nullptr;
+};
+
 struct PipelineLayout
 {
     VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+    const char* debugName = nullptr;
 
-    bool Create(VkDevice device, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts, const std::vector<VkPushConstantRange>& pushConstants);
+    bool Create(VkDevice device, const PipelineLayoutDesc& desc);
     void Destroy();
 
     VkPipelineLayout& Get() { return pipelineLayout; }
