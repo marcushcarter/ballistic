@@ -38,6 +38,7 @@ using namespace glm;
 #include <algorithm>
 #include <fstream>
 #include <filesystem>
+#include <cstdio>
 
 #include "Core/Log.h"
 #include "Core/Assert.h"
