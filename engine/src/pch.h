@@ -39,6 +39,8 @@ using namespace glm;
 #include <fstream>
 #include <filesystem>
 #include <cstdio>
+#include <shlobj.h>
+#include <stdexcept>
 
 #include "Core/Log.h"
 #include "Core/Assert.h"

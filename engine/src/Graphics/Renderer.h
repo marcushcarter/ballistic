@@ -64,14 +64,19 @@ struct Renderer
     // std::vector<CommandBuffer> commandBuffers;
 
     std::function<void(VkCommandBuffer)> onSwapchainPass;
+    
+    std::string imguiIniPath;
+    std::filesystem::path cacheRoot;
 
     bool Start(Window& window);
-    bool CreateImGui(GLFWwindow* window);
-    bool Deserialize();
+    bool CreateImGui(GLFWwindow* window, const std::string& iniPath);
+    bool DeserializeScene(const std::string& path);
     
     void Shutdown();
     void DestroyImGui();
 
     bool BeginFrame();
     void EndFrame();
+    
+    // void SetCacheRoot(const std::filesystem::path& path) { cacheRoot = path; }
 };

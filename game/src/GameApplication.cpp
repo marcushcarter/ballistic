@@ -2,7 +2,6 @@
 
 void GameApplication::OnInit()
 {
-    LOG_DEBUG("Game initialized");
     // window.SetFullscreen(true);
     
     renderer.onSwapchainPass = [this](VkCommandBuffer cmd) {
@@ -11,6 +10,8 @@ void GameApplication::OnInit()
         renderer.blitPipeline.DescriptorSets(cmd, { renderer.finalImageInputSet.Get() });
         vkCmdDraw(cmd, 3, 1, 0, 0);
     };
+    
+    LOG_DEBUG("Game initialized");
 }
 
 void GameApplication::OnUpdate()

@@ -3,17 +3,13 @@
 
 void EditorApplication::OnInit()
 {
-    LOG_DEBUG("Editor initialized");
     window.SetEmbeddedIcon(IMG_ICON_COMP_PNG);
     window.SetTitlebarColor(0.2f, 0.2f, 0.2f);
+    window.SetTitle("Ballistic Engine - Project Manager");
     
-    renderer.CreateImGui(window.glfwWindow);
-
-    // std::ifstream f(LAYOUT_FILE);
-    // if (f.is_open()) {
-    //     std::string data((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-    //     ImGui::LoadIniSettingsFromMemory(data.c_str(), data.size());
-    // }
+    std::string iniPath;
+    SetupAppData(iniPath);
+    renderer.CreateImGui(window.glfwWindow, iniPath);
 
     finalTextureID = ImGui_ImplVulkan_AddTexture(
         renderer.linearSampler.Get(),
@@ -36,6 +32,28 @@ void EditorApplication::OnInit()
     renderer.onSwapchainPass = [this](VkCommandBuffer cmd) {
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
     };
+    
+    LOG_DEBUG("Editor initialized");
+}
+
+void EditorApplication::SetupAppData(std::string& outIniPath)
+{
+    PWSTR rawRoaming = nullptr;
+    SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &rawRoaming);
+    roamingRoot = std::filesystem::path(rawRoaming) / "Ballistic" / "BallisticEngine";
+    CoTaskMemFree(rawRoaming);
+    std::filesystem::create_directories(roamingRoot);
+
+    PWSTR rawLocal = nullptr;
+    SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &rawLocal);
+    localRoot = std::filesystem::path(rawLocal) / "Ballistic" / "BallisticEngine";
+    CoTaskMemFree(rawLocal);
+    std::filesystem::create_directories(localRoot);
+
+    outIniPath = (roamingRoot / "imgui.ini").string();
+
+    LOG_DEBUG("Roaming AppData: %s", roamingRoot.string().c_str());
+    LOG_DEBUG("Local AppData: %s", localRoot.string().c_str());
 }
 
 void EditorApplication::OnUpdate()
@@ -43,14 +61,6 @@ void EditorApplication::OnUpdate()
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    
-    // if (ImGui::GetIO().WantSaveIniSettings) {
-    //     size_t size = 0;
-    //     const char* data = ImGui::SaveIniSettingsToMemory(&size);
-    //     std::ofstream f(LAYOUT_FILE);
-    //     if (f.is_open()) f.write(data, size);
-    //     ImGui::GetIO().WantSaveIniSettings = false;
-    // }
 
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->Pos);

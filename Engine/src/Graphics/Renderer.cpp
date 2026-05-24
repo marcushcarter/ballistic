@@ -121,7 +121,7 @@ bool Renderer::Start(Window& window)
         .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
         .debugName = "FinalImage"
     }));
-
+    
     BE_ASSERT(linearSampler.Create(device.Get(), {
         .magFilter = VK_FILTER_LINEAR,
         .minFilter = VK_FILTER_LINEAR,
@@ -196,7 +196,7 @@ bool Renderer::Start(Window& window)
     return true;
 }
 
-bool Renderer::CreateImGui(GLFWwindow* window)
+bool Renderer::CreateImGui(GLFWwindow* window, const std::string& iniPath)
 {
     BE_ASSERT(imguiDescriptorPool.Create(device.Get(), {
         .samplers = 10,
@@ -211,7 +211,8 @@ bool Renderer::CreateImGui(GLFWwindow* window)
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    io.IniFilename = nullptr;
+    imguiIniPath = iniPath;
+    io.IniFilename = imguiIniPath.empty() ? nullptr : imguiIniPath.c_str();
     ImGui::StyleColorsDark();
 
     VkPipelineRenderingCreateInfo pipelineRenderingInfo{};
@@ -240,13 +241,12 @@ bool Renderer::CreateImGui(GLFWwindow* window)
     return true;
 }
 
-bool Renderer::Deserialize() {
-    return true;
-}
-
 void Renderer::Shutdown()
 {
     device.Wait();
+
+    logoImage.Destroy();
+    logoLongImage.Destroy();
 
     blitPipeline.Destroy();
     blitPipelineLayout.Destroy();
