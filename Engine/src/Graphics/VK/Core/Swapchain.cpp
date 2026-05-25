@@ -1,11 +1,12 @@
 #include "Swapchain.h"
 
-bool Swapchain::Create(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, VkExtent2D windowExtent, bool vsync, VkSwapchainKHR oldSwapchain)
+bool Swapchain::Create(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, VkExtent2D windowExtent, bool vsyncEnabled, VkSwapchainKHR oldSwapchain)
 {
     VK_CHECK_HANDLE(physicalDevice, VkPhysicalDevice);
     VK_CHECK_HANDLE(device, VkDevice);
     VK_CHECK_HANDLE(surface, VkSurfaceKHR);
 
+    vsync = vsyncEnabled;
     physicalDeviceHandle = physicalDevice;
     deviceHandle = device;
     surfaceHandle = surface;
@@ -55,12 +56,12 @@ bool Swapchain::Create(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfa
     return true;
 }
 
-bool Swapchain::Resize(VkExtent2D newExtent, bool vsync)
+bool Swapchain::Resize(VkExtent2D newExtent, bool newVsync)
 {
     VkSwapchainKHR oldSwapchain = swapchain;
 
     extent = newExtent;
-    if (!Create(physicalDeviceHandle, deviceHandle, surfaceHandle, extent, vsync, oldSwapchain)) {
+    if (!Create(physicalDeviceHandle, deviceHandle, surfaceHandle, extent, newVsync, oldSwapchain)) {
         LOG_ERROR("Failed to resize Vulkan swapchain");
         return false;
     }

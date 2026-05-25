@@ -10,6 +10,8 @@ struct Window
     uint32_t windowedWidth = 1280, windowedHeight = 800;
     int windowedX = 0, windowedY = 0;
 
+    std::function<void(uint32_t, uint32_t)> onFramebufferResize;
+
     bool Create(const char* title, uint32_t width, uint32_t height);
     void Destroy();
 

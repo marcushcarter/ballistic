@@ -2,7 +2,10 @@
 
 void GameApplication::OnInit()
 {
-    // window.SetFullscreen(true);
+    window.onFramebufferResize = [this](uint32_t w, uint32_t h) {
+        renderer.RequestWindowResize(w, h);
+        renderer.RequestSceneResize(w, h);
+    };
     
     renderer.onSwapchainPass = [this](VkCommandBuffer cmd) {
         VKViewportScissor(cmd, 0, 0, static_cast<float>(renderer.swapchain.extent.width), static_cast<float>(renderer.swapchain.extent.height));
@@ -10,6 +13,8 @@ void GameApplication::OnInit()
         renderer.blitPipeline.DescriptorSets(cmd, { renderer.finalImageInputSet.Get() });
         vkCmdDraw(cmd, 3, 1, 0, 0);
     };
+    
+    window.SetFullscreen(true);
     
     LOG_DEBUG("Game initialized");
 }

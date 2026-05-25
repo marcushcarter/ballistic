@@ -28,6 +28,26 @@ endforeach()
 file(WRITE ${RC_FILE} ${RC_CONTENT})
 file(WRITE ${H_FILE}  ${H_CONTENT})
 
+# ---- Fonts ----
+
+file(GLOB_RECURSE FONTS
+    "${CMAKE_CURRENT_SOURCE_DIR}/Fonts/*.ttf"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Fonts/*.otf"
+)
+
+set(FONT_ID 500)
+
+foreach(FONT_FILE ${FONTS})
+    get_filename_component(FNAME ${FONT_FILE} NAME)
+    string(TOUPPER ${FNAME} FNAME_UPPER)
+    string(REPLACE "." "_" RES_NAME ${FNAME_UPPER})
+    set(RES_NAME "FONT_${RES_NAME}")
+
+    string(APPEND RC_CONTENT "${FONT_ID} RCDATA \"${FONT_FILE}\"\n")
+    string(APPEND H_CONTENT "#define ${RES_NAME} ${FONT_ID}\n")
+    math(EXPR FONT_ID "${FONT_ID} + 1")
+endforeach()
+
 # ---- Shaders ----
 
 file(GLOB_RECURSE SHADERS

@@ -193,10 +193,11 @@ bool Renderer::Start(Window& window)
     transferCmd.Free();
     transferCommandPool.Destroy();
 
+    LOG_DEBUG("Renderer started");
     return true;
 }
 
-bool Renderer::CreateImGui(GLFWwindow* window, const std::string& iniPath)
+bool Renderer::CreateImGui(GLFWwindow* window)
 {
     BE_ASSERT(imguiDescriptorPool.Create(device.Get(), {
         .samplers = 10,
@@ -211,8 +212,7 @@ bool Renderer::CreateImGui(GLFWwindow* window, const std::string& iniPath)
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    imguiIniPath = iniPath;
-    io.IniFilename = imguiIniPath.empty() ? nullptr : imguiIniPath.c_str();
+    io.IniFilename = nullptr;
     ImGui::StyleColorsDark();
 
     VkPipelineRenderingCreateInfo pipelineRenderingInfo{};
@@ -238,6 +238,8 @@ bool Renderer::CreateImGui(GLFWwindow* window, const std::string& iniPath)
 
     ImGui_ImplGlfw_InitForVulkan(window, true);
     ImGui_ImplVulkan_Init(&initInfo);
+    
+    LOG_DEBUG("ImGui created");
     return true;
 }
 
@@ -272,6 +274,8 @@ void Renderer::Shutdown()
     surface.Destroy();
     debugMessenger.Destroy();
     instance.Destroy();
+    
+    LOG_DEBUG("Renderer shutdown");
 }
 
 void Renderer::DestroyImGui()
@@ -281,19 +285,73 @@ void Renderer::DestroyImGui()
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     imguiDescriptorPool.Destroy();
+    LOG_DEBUG("ImGui destroyed");
+}
+
+void Renderer::RequestWindowResize(uint32_t w, uint32_t h)
+{
+    if (w == 0 || h == 0) return;
+    pendingWindowW = w;
+    pendingWindowH = h;
+    windowResizeRequested = true;
+}
+
+void Renderer::RequestSceneResize(uint32_t w, uint32_t h)
+{
+    if (w == 0 || h == 0) return;
+    pendingSceneW = w;
+    pendingSceneH = h;
+    sceneResizeRequested = true;
+}
+
+void Renderer::RequestVSync(bool enabled)
+{
+    if (enabled == swapchain.vsync) return;
+    pendingVSync = enabled;
+    vsyncChangeRequested = true;
+}
+
+void Renderer::WindowResize()
+{
+    device.Wait();
+    swapchain.Resize({ pendingWindowW, pendingWindowH }, false);
+    std::vector<VkImage> rawImages = swapchain.GetImages();
+    for (uint32_t i = 0; i < frameCount; i++)
+        swapchainImages[i].WrapSwapchainImage(device.Get(), rawImages[i], swapchain.format, swapchain.extent);
+    windowResizeRequested = false;
+}
+
+void Renderer::SceneResize()
+{
+    device.Wait();
+    finalImage.Resize({ pendingSceneW, pendingSceneH });
+    finalImageInputSet.SetImages(0, { finalImage.GetView() }, linearSampler.Get(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    sceneResizeRequested = false;
+}
+
+void Renderer::ApplyVSync()
+{
+    device.Wait();
+    swapchain.Resize(swapchain.extent, pendingVSync);
+    std::vector<VkImage> rawImages = swapchain.GetImages();
+    for (uint32_t i = 0; i < frameCount; i++)
+        swapchainImages[i].WrapSwapchainImage(device.Get(), rawImages[i], swapchain.format, swapchain.extent);
+    vsyncChangeRequested = false;
 }
 
 bool Renderer::BeginFrame()
 {
-    // if (resizeRequested) { Resize(); return false; }
+    bool resized = false;
+    if (windowResizeRequested) { WindowResize(); resized = true; }
+    if (sceneResizeRequested) { SceneResize(); resized = true; }
+    if (vsyncChangeRequested) { ApplyVSync(); resized = true; }
+    if (resized) return false;
 
     inFlightFences[currentFrame].Wait();
     inFlightFences[currentFrame].Reset();
     
-    vkAcquireNextImageKHR(device.Get(), swapchain.Get(), UINT64_MAX, imageAvailableSemaphores[currentFrame].Get(), VK_NULL_HANDLE, &imageIndex);
-    
-    // VkResult result = vkAcquireNextImageKHR(device.Get(), swapchain.Get(), UINT64_MAX, imageAvailableSemaphores[currentFrame].Get(), VK_NULL_HANDLE, &imageIndex);
-    // if (result == VK_ERROR_OUT_OF_DATE_KHR) { resizeRequested = true; return false; }
+    VkResult result = vkAcquireNextImageKHR(device.Get(), swapchain.Get(), UINT64_MAX, imageAvailableSemaphores[currentFrame].Get(), VK_NULL_HANDLE, &imageIndex);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) { LOG_WARN("Swapchain out of date"); windowResizeRequested = true; return false; }
     
     commandBuffers[imageIndex].Reset();
     commandBuffers[imageIndex].Begin();
@@ -304,6 +362,8 @@ bool Renderer::BeginFrame()
 
 void Renderer::EndFrame()
 {
+    // --- Final Image Purplification ---
+
     TransitionSet toClear;
     toClear.AddImage(&finalImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
     toClear.Transition(cmd);
@@ -318,7 +378,7 @@ void Renderer::EndFrame()
 
     VkRenderingInfo finalRendering{};
     finalRendering.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-    finalRendering.renderArea = { {0, 0}, swapchain.extent };
+    finalRendering.renderArea = { {0, 0}, finalImage.extent };
     finalRendering.layerCount = 1;
     finalRendering.colorAttachmentCount = 1;
     finalRendering.pColorAttachments = &finalAttachment;
@@ -326,17 +386,7 @@ void Renderer::EndFrame()
     vkCmdBeginRendering(cmd, &finalRendering);
     vkCmdEndRendering(cmd);
 
-
-
-
-
-
-
-
-
-
-
-
+    // --- Swapchain Pass ---
 
     TransitionSet toAttachment;
     toAttachment.AddImage(&swapchainImages[imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_ASPECT_COLOR_BIT);

@@ -6,10 +6,12 @@ struct Window;
 
 struct Renderer
 {
-    // Window* window = nullptr;
-    // uint32_t width = 1, height = 1;
-    // float aspect = 1.0f;
-    // bool resizeRequested = false;
+    bool windowResizeRequested = false;
+    bool sceneResizeRequested = false;
+    bool vsyncChangeRequested = false;
+    uint32_t pendingWindowW = 0, pendingWindowH = 0;
+    uint32_t pendingSceneW = 0, pendingSceneH = 0;
+    bool pendingVSync = false;
 
     // CORE
 
@@ -64,19 +66,21 @@ struct Renderer
     // std::vector<CommandBuffer> commandBuffers;
 
     std::function<void(VkCommandBuffer)> onSwapchainPass;
-    
-    std::string imguiIniPath;
-    std::filesystem::path cacheRoot;
 
     bool Start(Window& window);
-    bool CreateImGui(GLFWwindow* window, const std::string& iniPath);
+    bool CreateImGui(GLFWwindow* window);
     bool DeserializeScene(const std::string& path);
     
     void Shutdown();
     void DestroyImGui();
 
+    void RequestWindowResize(uint32_t w, uint32_t h);
+    void RequestSceneResize(uint32_t w, uint32_t h);
+    void RequestVSync(bool enabled);
+    void WindowResize();
+    void SceneResize();
+    void ApplyVSync();
+
     bool BeginFrame();
     void EndFrame();
-    
-    // void SetCacheRoot(const std::filesystem::path& path) { cacheRoot = path; }
 };

@@ -28,6 +28,13 @@ bool Window::Create(const char* title, uint32_t w, uint32_t h)
     // glfwSetCursorPosCallback(glfwWindow, MouseCallback);
     // glfwSetJoystickCallback(JoystickCallback);
 
+    glfwSetFramebufferSizeCallback(glfwWindow, [](GLFWwindow* win, int w, int h) {
+        auto* self = static_cast<Window*>(glfwGetWindowUserPointer(win));
+        self->width  = (uint32_t)w;
+        self->height = (uint32_t)h;
+        if (self->onFramebufferResize) self->onFramebufferResize((uint32_t)w, (uint32_t)h);
+    });
+
     instance = this;
 
     LOG_DEBUG("Window created: %dx%d", w, h);
