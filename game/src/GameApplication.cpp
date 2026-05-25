@@ -14,7 +14,7 @@ void GameApplication::OnInit()
         vkCmdDraw(cmd, 3, 1, 0, 0);
     };
     
-    window.SetFullscreen(true);
+    // window.SetFullscreen(true);
     
     LOG_DEBUG("Game initialized");
 }

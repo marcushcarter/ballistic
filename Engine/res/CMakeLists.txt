@@ -1,52 +1,36 @@
 cmake_minimum_required(VERSION 3.20)
 
-# ---- Images ----
+# ---- Images / Fonts ----
 
-file(GLOB_RECURSE IMAGES
-    "${CMAKE_CURRENT_SOURCE_DIR}/Images/*.png"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Images/*.jpg"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Images/*.jpeg"
-)
-
-set(RC_FILE "${CMAKE_CURRENT_SOURCE_DIR}/Images.rc")
-set(H_FILE  "${CMAKE_CURRENT_SOURCE_DIR}/Images.h")
+set(RC_FILE "${CMAKE_CURRENT_SOURCE_DIR}/Resources.rc")
+set(H_FILE  "${CMAKE_CURRENT_SOURCE_DIR}/Resources.h")
 set(RC_CONTENT "")
-set(H_CONTENT  "#pragma once\n\n")
-set(IMAGE_ID   300)
+set(H_CONTENT "#pragma once\n\n")
 
-foreach(IMAGE_FILE ${IMAGES})
-    get_filename_component(FNAME ${IMAGE_FILE} NAME)
-    string(TOUPPER ${FNAME} FNAME_UPPER)
-    string(REPLACE "." "_" RES_NAME ${FNAME_UPPER})
-    set(RES_NAME "IMG_${RES_NAME}")
+set(IMAGE_ID 300)
+set(FONT_ID 500)
 
-    string(APPEND RC_CONTENT "${IMAGE_ID} RCDATA \"${IMAGE_FILE}\"\n")
-    string(APPEND H_CONTENT "#define ${RES_NAME} ${IMAGE_ID}\n")
-    math(EXPR IMAGE_ID "${IMAGE_ID} + 1")
-endforeach()
+macro(embed_resources PREFIX START_ID)
+    set(_ID ${START_ID})
+    foreach(_FILE ${ARGN})
+        get_filename_component(_FNAME ${_FILE} NAME)
+        string(TOUPPER ${_FNAME} _UPPER)
+        string(REPLACE "." "_" _NAME ${_UPPER})
+        string(REPLACE "-" "_" _NAME ${_NAME})
+        string(APPEND RC_CONTENT "${_ID} RCDATA \"${_FILE}\"\n")
+        string(APPEND H_CONTENT  "#define ${PREFIX}_${_NAME} ${_ID}\n")
+        math(EXPR _ID "${_ID} + 1")
+    endforeach()
+endmacro()
+
+file(GLOB_RECURSE IMAGES "${CMAKE_CURRENT_SOURCE_DIR}/Images/*.png" "${CMAKE_CURRENT_SOURCE_DIR}/Images/*.jpg" "${CMAKE_CURRENT_SOURCE_DIR}/Images/*.jpeg")
+file(GLOB_RECURSE FONTS  "${CMAKE_CURRENT_SOURCE_DIR}/Fonts/*.ttf" "${CMAKE_CURRENT_SOURCE_DIR}/Fonts/*.otf")
+
+embed_resources(IMG  300 ${IMAGES})
+embed_resources(FONT 500 ${FONTS})
 
 file(WRITE ${RC_FILE} ${RC_CONTENT})
 file(WRITE ${H_FILE}  ${H_CONTENT})
-
-# ---- Fonts ----
-
-file(GLOB_RECURSE FONTS
-    "${CMAKE_CURRENT_SOURCE_DIR}/Fonts/*.ttf"
-    "${CMAKE_CURRENT_SOURCE_DIR}/Fonts/*.otf"
-)
-
-set(FONT_ID 500)
-
-foreach(FONT_FILE ${FONTS})
-    get_filename_component(FNAME ${FONT_FILE} NAME)
-    string(TOUPPER ${FNAME} FNAME_UPPER)
-    string(REPLACE "." "_" RES_NAME ${FNAME_UPPER})
-    set(RES_NAME "FONT_${RES_NAME}")
-
-    string(APPEND RC_CONTENT "${FONT_ID} RCDATA \"${FONT_FILE}\"\n")
-    string(APPEND H_CONTENT "#define ${RES_NAME} ${FONT_ID}\n")
-    math(EXPR FONT_ID "${FONT_ID} + 1")
-endforeach()
 
 # ---- Shaders ----
 
@@ -60,7 +44,6 @@ file(GLOB_RECURSE SHADERS
 )
 
 set(SPIRV_FILES)
-
 foreach(SHADER_FILE ${SHADERS})
     get_filename_component(FNAME ${SHADER_FILE} NAME)
     set(OUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/${FNAME}.spv")
@@ -68,21 +51,21 @@ foreach(SHADER_FILE ${SHADERS})
     get_filename_component(EXT ${SHADER_FILE} EXT)
     string(TOLOWER ${EXT} EXT_LOWER)
 
-    if(EXT_LOWER STREQUAL ".vert")
+    if (EXT_LOWER STREQUAL ".vert")
         set(STAGE_FLAG "-fshader-stage=vert")
-    elseif(EXT_LOWER STREQUAL ".frag")
+    elseif (EXT_LOWER STREQUAL ".frag")
         set(STAGE_FLAG "-fshader-stage=frag")
-    elseif(EXT_LOWER STREQUAL ".comp")
+    elseif (EXT_LOWER STREQUAL ".comp")
         set(STAGE_FLAG "-fshader-stage=comp")
-    elseif(EXT_LOWER STREQUAL ".geom")
+    elseif (EXT_LOWER STREQUAL ".geom")
         set(STAGE_FLAG "-fshader-stage=geom")
-    elseif(EXT_LOWER STREQUAL ".tesc")
+    elseif (EXT_LOWER STREQUAL ".tesc")
         set(STAGE_FLAG "-fshader-stage=tesc")
-    elseif(EXT_LOWER STREQUAL ".tese")
+    elseif (EXT_LOWER STREQUAL ".tese")
         set(STAGE_FLAG "-fshader-stage=tese")
     else()
         message(FATAL_ERROR "[Shader] Unknown stage for ${SHADER_FILE}")
-    endif()
+            endif()
 
     add_custom_command(
         OUTPUT ${OUT_FILE}
@@ -91,7 +74,6 @@ foreach(SHADER_FILE ${SHADERS})
         COMMENT "Compiling ${FNAME}"
         VERBATIM
     )
-
     list(APPEND SPIRV_FILES ${OUT_FILE})
 endforeach()
 
@@ -112,6 +94,6 @@ add_custom_command(
 add_custom_target(CompileEngineShaders ALL DEPENDS ${SHADERS_HEADER})
 
 set(BALLISTIC_ENGINE_RC_FILES
-    "${CMAKE_CURRENT_SOURCE_DIR}/Images.rc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Resources.rc"
     CACHE INTERNAL "Engine RC files"
 )

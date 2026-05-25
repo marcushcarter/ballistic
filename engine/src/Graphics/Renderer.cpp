@@ -1,7 +1,7 @@
 #include "Renderer.h"
 #include "Core/Window.h"
 #include "Shaders.h"
-#include "Images.h"
+#include "Resources.h"
 
 inline bool LoadRCImage(VkDevice device, const VkPhysicalDeviceMemoryProperties& props, VkCommandBuffer cmd, int resourceID, Image2D& outImage, Buffer& outStaging, const char* debugName = nullptr)
 {
@@ -238,7 +238,33 @@ bool Renderer::CreateImGui(GLFWwindow* window)
 
     ImGui_ImplGlfw_InitForVulkan(window, true);
     ImGui_ImplVulkan_Init(&initInfo);
-    
+
+    HRSRC jbRes = FindResource(nullptr, MAKEINTRESOURCE(FONT_JETBRAINS_MONO_REGULAR_TTF), RT_RCDATA);
+    HGLOBAL jbMem = LoadResource(nullptr, jbRes);
+    DWORD jbSize = SizeofResource(nullptr, jbRes);
+
+    void* jbData = IM_ALLOC(jbSize);
+    memcpy(jbData, LockResource(jbMem), jbSize);
+
+    ImFontConfig jbCfg;
+    jbCfg.FontDataOwnedByAtlas = true;
+    io.Fonts->AddFontFromMemoryTTF(jbData, (int)jbSize, 14.0f, &jbCfg);
+
+    HRSRC faRes = FindResource(nullptr, MAKEINTRESOURCE(FONT_FA_SOLID_900_OTF), RT_RCDATA);
+    HGLOBAL faMem = LoadResource(nullptr, faRes);
+    DWORD faSize = SizeofResource(nullptr, faRes);
+
+    void* faData = IM_ALLOC(faSize);
+    memcpy(faData, LockResource(faMem), faSize);
+
+    static const ImWchar faRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+    ImFontConfig faCfg;
+    faCfg.MergeMode = true;
+    faCfg.PixelSnapH = true;
+    faCfg.FontDataOwnedByAtlas = true;
+    io.Fonts->AddFontFromMemoryTTF(faData, (int)faSize, 14.0f, &faCfg, faRanges);
+    io.Fonts->Build();
+
     LOG_DEBUG("ImGui created");
     return true;
 }
@@ -421,4 +447,91 @@ void Renderer::EndFrame()
     presentQueue.Present(swapchain.Get(), imageIndex, renderFinishedSemaphores[currentFrame].Get());
 
     currentFrame = (currentFrame + 1) % frameCount;   
+}
+
+bool Renderer::RenderLoadingScreen()
+{
+    bool resized = false;
+    if (windowResizeRequested) { WindowResize(); resized = true; }
+    if (sceneResizeRequested) { SceneResize(); resized = true; }
+    if (vsyncChangeRequested) { ApplyVSync(); resized = true; }
+    if (resized) return false;
+
+    inFlightFences[currentFrame].Wait();
+    inFlightFences[currentFrame].Reset();
+    
+    VkResult result = vkAcquireNextImageKHR(device.Get(), swapchain.Get(), UINT64_MAX, imageAvailableSemaphores[currentFrame].Get(), VK_NULL_HANDLE, &imageIndex);
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) { LOG_WARN("Swapchain out of date"); windowResizeRequested = true; return false; }
+    
+    commandBuffers[imageIndex].Reset();
+    commandBuffers[imageIndex].Begin();
+    cmd = commandBuffers[imageIndex].Get();
+
+    // --- Final Image Purplification ---
+
+    TransitionSet toClear;
+    toClear.AddImage(&finalImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
+    toClear.Transition(cmd);
+
+    VkRenderingAttachmentInfo finalAttachment{};
+    finalAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    finalAttachment.imageView = finalImage.GetView();
+    finalAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    finalAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    finalAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    finalAttachment.clearValue.color = { 1.0f, 0.0f, 1.0f, 1.0f };
+
+    VkRenderingInfo finalRendering{};
+    finalRendering.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    finalRendering.renderArea = { {0, 0}, finalImage.extent };
+    finalRendering.layerCount = 1;
+    finalRendering.colorAttachmentCount = 1;
+    finalRendering.pColorAttachments = &finalAttachment;
+
+    vkCmdBeginRendering(cmd, &finalRendering);
+    vkCmdEndRendering(cmd);
+
+    // --- Swapchain Pass ---
+
+    TransitionSet toAttachment;
+    toAttachment.AddImage(&swapchainImages[imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+    toAttachment.AddImage(&finalImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT);
+    toAttachment.Transition(cmd);
+
+    VkRenderingAttachmentInfo colorAttachment{};
+    colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    colorAttachment.imageView = swapchainImages[imageIndex].GetView();
+    colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+    VkRenderingInfo renderingInfo{};
+    renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    renderingInfo.renderArea = { {0, 0}, swapchain.extent };
+    renderingInfo.layerCount = 1;
+    renderingInfo.colorAttachmentCount = 1;
+    renderingInfo.pColorAttachments = &colorAttachment;
+
+    vkCmdBeginRendering(cmd, &renderingInfo);
+    // if (onSwapchainPass) onSwapchainPass(cmd);
+    
+    VKViewportScissor(cmd, 0, 0, static_cast<float>(swapchain.extent.width), static_cast<float>(swapchain.extent.height));
+    blitPipeline.Bind(cmd);
+    blitPipeline.DescriptorSets(cmd, { finalImageInputSet.Get() });
+    vkCmdDraw(cmd, 3, 1, 0, 0);
+
+    vkCmdEndRendering(cmd);
+
+    TransitionSet toPresent;
+    toPresent.AddImage(&swapchainImages[imageIndex], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, VK_IMAGE_ASPECT_COLOR_BIT);
+    toPresent.Transition(cmd);
+
+    commandBuffers[imageIndex].End();
+    graphicsQueue.Submit(cmd, imageAvailableSemaphores[currentFrame].Get(), VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, renderFinishedSemaphores[currentFrame].Get(), inFlightFences[currentFrame].Get());
+    presentQueue.Present(swapchain.Get(), imageIndex, renderFinishedSemaphores[currentFrame].Get());
+
+    currentFrame = (currentFrame + 1) % frameCount;
+    
+    return true;
 }

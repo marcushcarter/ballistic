@@ -14,7 +14,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     EditorApplication app;
-    app.Create("Ballistic Editor", 1280, 720);
+    app.Create("Ballistic Engine", 1120, 800);
     app.Run();
     app.Destroy();
     return 0;

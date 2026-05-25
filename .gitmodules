@@ -13,3 +13,6 @@
 [submodule "Thirdparty/vma"]
 	path = Thirdparty/vma
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+[submodule "Thirdparty/iconfontcppheaders"]
+	path = Thirdparty/iconfontcppheaders
+	url = https://github.com/juliettef/IconFontCppHeaders

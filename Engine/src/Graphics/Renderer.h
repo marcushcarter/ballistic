@@ -69,7 +69,6 @@ struct Renderer
 
     bool Start(Window& window);
     bool CreateImGui(GLFWwindow* window);
-    bool DeserializeScene(const std::string& path);
     
     void Shutdown();
     void DestroyImGui();
@@ -83,4 +82,5 @@ struct Renderer
 
     bool BeginFrame();
     void EndFrame();
+    bool RenderLoadingScreen();
 };

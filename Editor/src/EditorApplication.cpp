@@ -1,5 +1,5 @@
 #include "EditorApplication.h"
-#include "Images.h"
+#include "Resources.h"
 
 void EditorApplication::OnInit()
 {
@@ -46,27 +46,27 @@ void EditorApplication::OnUpdate()
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    if (inProjectManager)
+    if (inProjectManager) {
         DrawProjectManager();
-    else {
-        ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->Pos);
-        ImGui::SetNextWindowSize(viewport->Size);
-        ImGui::SetNextWindowViewport(viewport->ID);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-        ImGui::Begin("DockSpace", nullptr,
-            ImGuiWindowFlags_NoDocking |
-            ImGuiWindowFlags_NoTitleBar |
-            ImGuiWindowFlags_NoCollapse |
-            ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoBringToFrontOnFocus |
-            ImGuiWindowFlags_NoNavFocus |
-            ImGuiWindowFlags_NoBackground
-        );
-        ImGui::PopStyleVar();
-        ImGui::DockSpace(ImGui::GetID("MainDockSpace"), ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
-        ImGui::End();
+    } else {
+        DrawEditor();
+    }
+
+    if (openProjectRequested) {
+        openProjectRequested = false;
+        inProjectManager = false;
+        projectLoading = true;
+        LOG_INFO("Opening project: %s", pendingOpenPath.c_str());
+
+        loadFuture = std::async(std::launch::async, [this]() {
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+            projectLoading = false;
+        });
+    }
+
+    while (projectLoading && !window.ShouldClose()) {
+        window.PollEvents();
+        renderer.RenderLoadingScreen();
     }
 
     ImGui::Render();
@@ -173,7 +173,7 @@ void EditorApplication::DrawProjectManager()
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0,0,0,0));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0,0,0,0));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0,0,0,0));
-    ImGui::Button("Settings");
+    if (ImGui::Button(ICON_FA_WRENCH " Settings")) {}
     ImGui::PopStyleColor(3);
     ImGui::Spacing();
     
@@ -186,27 +186,25 @@ void EditorApplication::DrawProjectManager()
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f, 8.0f));
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 4.0f);
-    ImGui::Button("+ Create");
+    ImGui::Button(ICON_FA_PLUS " Create");
     ImGui::SameLine();
-    ImGui::Button("Import");
+    ImGui::Button(ICON_FA_FOLDER " Import");
     ImGui::SameLine();
     float sortLabelW = ImGui::CalcTextSize("Sort:").x + ImGui::GetStyle().ItemSpacing.x;
     float filterWidth = ImGui::GetContentRegionAvail().x - sortWidth - sortLabelW - ImGui::GetStyle().ItemSpacing.x * 3;
     ImGui::SetNextItemWidth(filterWidth);
-    ImGui::InputText("##filter", filterBuffer, sizeof(filterBuffer));
+    ImGui::InputTextWithHint("##filter", "Filter Projects", filterBuffer, sizeof(filterBuffer));
     ImGui::SameLine();
     ImGui::TextUnformatted("Sort:");
     ImGui::SameLine();
-    static int sortIndex = 0;
-    const char* sortOptions[] = { "Last Edited", "Name", "Path" };
+    const char* sortOptions[] = { "Favorite", "Last Edited", "Name", "Path" };
     ImGui::SetNextItemWidth(sortWidth);
-    ImGui::Combo("##sort", &sortIndex, sortOptions, 3);
+    ImGui::Combo("##sort", &sortIndex, sortOptions, 4);
     ImGui::PopStyleVar(3);
     ImGui::Spacing();
 
     float mainHeight = ImGui::GetContentRegionAvail().y;
     float listWidth = ImGui::GetContentRegionAvail().x - rightPanelWidth - ImGui::GetStyle().ItemSpacing.x;
-
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 6.0f);
     ImGui::BeginChild("ProjectList", ImVec2(listWidth, mainHeight), ImGuiChildFlags_Borders);
     DrawProjectList();
@@ -221,10 +219,9 @@ void EditorApplication::DrawProjectManager()
     ImGui::Separator();
     bool hasSelection = (selectedIndex >= 0 && selectedIndex < (int)projects.size());
     if (!hasSelection) ImGui::BeginDisabled();
-    if (ImGui::Button("Edit", ImVec2(-1, 0))) inProjectManager = false;
-    if (ImGui::Button("Rename", ImVec2(-1, 0))) {}
-    ImGui::Spacing();
-    if (ImGui::Button("Remove", ImVec2(-1, 0))) {}
+    if (ImGui::Button(ICON_FA_PENCIL " Edit", ImVec2(-1, 0))) RequestOpenProject(selectedIndex);
+    if (ImGui::Button(ICON_FA_I_CURSOR " Rename", ImVec2(-1, 0))) {}
+    if (ImGui::Button(ICON_FA_TRASH " Remove", ImVec2(-1, 0))) {}
     if (!hasSelection) ImGui::EndDisabled();
     ImGui::PopStyleVar(2);
     ImGui::EndChild();
@@ -241,28 +238,43 @@ void EditorApplication::DrawProjectManager()
     ImGui::End();
 }
 
-// void EditorApplication::DrawProjectList()
-// {
-
-// }
-
 void EditorApplication::DrawProjectList()
 {
-    const float rowH      = 64.0f;
-    const float rowPad    = 4.0f;
-    const float rounding  = 5.0f;
-    const float pad       = 8.0f;
+    const float rowH = 64.0f;
+    const float rowPad = 4.0f;
+    const float rounding = 5.0f;
+    const float pad = 8.0f;
+
+    std::vector<int> sortedIndices;
+    sortedIndices.reserve(projects.size());
+    for (int i = 0; i < (int)projects.size(); i++) {
+        if (filterBuffer[0] != '\0') {
+            auto toLower = [](std::string s) { std::transform(s.begin(), s.end(), s.begin(), ::tolower); return s; };
+            std::string f = toLower(filterBuffer);
+            if (toLower(projects[i].name).find(f) == std::string::npos && toLower(projects[i].path).find(f) == std::string::npos)
+                continue;
+        }
+        sortedIndices.push_back(i);
+    }
+
+    std::stable_sort(sortedIndices.begin(), sortedIndices.end(), [&](int a, int b) {
+        if (sortIndex == 0) return projects[a].favorite > projects[b].favorite;
+        if (sortIndex == 1) return projects[a].lastOpened > projects[b].lastOpened;
+        if (sortIndex == 2) return projects[a].name < projects[b].name;
+        if (sortIndex == 3) return projects[a].path < projects[b].path;
+        return false;
+    });
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-    for (int i = 0; i < (int)projects.size(); i++) {
-        auto& p = projects[i];
+    for (int idx : sortedIndices) {
+        auto& p = projects[idx];
+        int i = idx;
 
         if (filterBuffer[0] != '\0') {
             auto toLower = [](std::string s) { std::transform(s.begin(), s.end(), s.begin(), ::tolower); return s; };
             std::string f = toLower(filterBuffer);
-            if (toLower(p.name).find(f) == std::string::npos &&
-                toLower(p.path).find(f) == std::string::npos)
+            if (toLower(p.name).find(f) == std::string::npos && toLower(p.path).find(f) == std::string::npos)
                 continue;
         }
 
@@ -270,7 +282,7 @@ void EditorApplication::DrawProjectList()
 
         bool selected = (selectedIndex == i);
         ImVec2 rowMin = ImGui::GetCursorScreenPos();
-        float  availW = ImGui::GetContentRegionAvail().x;
+        float availW = ImGui::GetContentRegionAvail().x;
         ImVec2 rowMax = ImVec2(rowMin.x + availW, rowMin.y + rowH);
         ImDrawList* dl = ImGui::GetWindowDrawList();
 
@@ -279,62 +291,96 @@ void EditorApplication::DrawProjectList()
         else if (ImGui::IsMouseHoveringRect(rowMin, rowMax))
             dl->AddRectFilled(rowMin, rowMax, IM_COL32(255, 255, 255, 12), rounding);
 
-        ImGui::PushID(i);
-        if (ImGui::InvisibleButton("##row", ImVec2(availW, rowH))) {
-            selectedIndex = i;
-            if (ImGui::IsMouseDoubleClicked(0))
-                inProjectManager = false;
-        }
-        // ImGui::PopID();
-        ImGui::PopID();
-
-dl->AddLine(
-    ImVec2(rowMin.x + pad, rowMax.y),
-    ImVec2(rowMax.x - pad, rowMax.y),
-    IM_COL32(255, 255, 255, 15));
+        dl->AddLine(ImVec2(rowMin.x + pad, rowMax.y), ImVec2(rowMax.x - pad, rowMax.y), IM_COL32(255, 255, 255, 15));
 
         float thumbSize = rowH - pad * 2;
-        float contentX  = rowMin.x + pad * 3;
-        float contentY  = rowMin.y + pad;
+        float contentX = rowMin.x + pad * 3;
+        float contentY = rowMin.y + pad;
 
-        // thumbnail
-        dl->AddRectFilled(
-            ImVec2(contentX, contentY),
-            ImVec2(contentX + thumbSize, contentY + thumbSize),
-            IM_COL32(40, 40, 50, 255), 4.0f);
-        dl->AddRect(
-            ImVec2(contentX, contentY),
-            ImVec2(contentX + thumbSize, contentY + thumbSize),
-            IM_COL32(80, 80, 90, 255), 4.0f);
+        if (false) {
+            dl->AddRectFilled(ImVec2(contentX, contentY), ImVec2(contentX + thumbSize, contentY + thumbSize), IM_COL32(40, 40, 50, 255), 4.0f);
+            dl->AddRect(ImVec2(contentX, contentY), ImVec2(contentX + thumbSize, contentY + thumbSize), IM_COL32(80, 80, 90, 255), 4.0f);
+        } else {
+            dl->AddImage((ImTextureID)logoTextureID, ImVec2(contentX, contentY), ImVec2(contentX + thumbSize, contentY + thumbSize));
+        }
 
-        // fav star
-        dl->AddText(
-            ImVec2(rowMin.x + pad * 0.5f, rowMin.y + (rowH - ImGui::GetTextLineHeight()) * 0.5f),
-            p.favorite ? IM_COL32(255, 180, 0, 255) : IM_COL32(80, 80, 80, 255),
-            p.favorite ? "★" : "☆");
+        ImGui::PushID(i);
+        float starSize = ImGui::GetTextLineHeight();
+        float starX = rowMin.x + pad * 0.5f;
+        float starY = rowMin.y + (rowH - starSize) * 0.5f;
+        ImGui::SetCursorScreenPos(ImVec2(starX, starY));
+        if (ImGui::InvisibleButton("##fav", ImVec2(starSize, starSize))) {
+            projects[i].favorite = !projects[i].favorite;
+            SaveProjects();
+        }
+        bool starHovered = ImGui::IsItemHovered();
+        ImGui::SetCursorScreenPos(ImVec2(rowMin.x + starSize + pad, rowMin.y));
+        bool rowClicked = ImGui::InvisibleButton("##row", ImVec2(availW - starSize - pad, rowH));
+        bool rowDoubleClicked = ImGui::IsMouseDoubleClicked(0) && ImGui::IsItemHovered();
+        if (rowClicked) selectedIndex = i;
+        if (rowDoubleClicked) RequestOpenProject(i);
+        ImGui::PopID();
 
-        // name
+        dl->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(starX, starY), p.favorite ? IM_COL32(255,180,0,255) : starHovered ? IM_COL32(255,255,255,255) : IM_COL32(80,80,80,255), ICON_FA_STAR);
+
         float textX = contentX + thumbSize + pad;
-        dl->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
-            ImVec2(textX, contentY),
-            IM_COL32(220, 220, 220, 255),
-            p.name.c_str());
+        dl->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(textX, contentY), IM_COL32(220, 220, 220, 255), p.name.c_str());
+        dl->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 0.85f, ImVec2(textX, contentY + ImGui::GetTextLineHeight() + 3.0f), IM_COL32(110, 110, 110, 255), p.path.c_str());
 
-        // path
-        dl->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 0.85f,
-            ImVec2(textX, contentY + ImGui::GetTextLineHeight() + 3.0f),
-            IM_COL32(110, 110, 110, 255),
-            p.path.c_str());
-
-        // version + date right aligned
-        std::string meta = p.engineVersion + "   " + p.lastOpened;
+        std::string meta = p.lastOpened;
         float metaW = ImGui::CalcTextSize(meta.c_str()).x;
-        dl->AddText(ImGui::GetFont(), ImGui::GetFontSize(),
-            ImVec2(rowMax.x - metaW - pad, rowMin.y + (rowH - ImGui::GetTextLineHeight()) * 0.5f),
-            IM_COL32(100, 100, 100, 255),
-            meta.c_str());
+        dl->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(rowMax.x - metaW - pad, rowMin.y + (rowH - ImGui::GetTextLineHeight()) * 0.5f), IM_COL32(100, 100, 100, 255), meta.c_str());
     }
+
+    if (ImGui::IsMouseClicked(0) && !ImGui::IsAnyItemHovered())
+        selectedIndex = -1;
 
     ImGui::Dummy(ImVec2(0, rowPad));
     ImGui::PopStyleVar();
+}
+
+void EditorApplication::RequestOpenProject(int index)
+{
+    if (index < 0 || index >= (int)projects.size()) return;
+    pendingOpenPath = projects[index].path;
+    openProjectRequested = true;
+    currentProjectIndex = index;
+}
+
+void EditorApplication::DrawEditor()
+{
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
+    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::Begin("DockSpace", nullptr,
+        ImGuiWindowFlags_NoDocking |
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoBringToFrontOnFocus |
+        ImGuiWindowFlags_NoNavFocus |
+        ImGuiWindowFlags_NoBackground
+    );
+    ImGui::PopStyleVar();
+    ImGui::DockSpace(ImGui::GetID("MainDockSpace"), ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
+    ImGui::End();
+
+    ImGui::Begin("Test Panel");
+    ImGui::Text("Ballistic Engine");
+    ImGui::Separator();
+    ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+    ImGui::Text("Frame Time: %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
+    ImGui::End();
+
+    ImGui::Begin("Viewport");
+    ImVec2 size = ImGui::GetContentRegionAvail();
+    ImGui::Image((ImTextureID)finalTextureID, size);
+    size = ImVec2((float)renderer.logoImage.extent.width, (float)renderer.logoImage.extent.height);
+    ImGui::Image((ImTextureID)logoTextureID, size);
+    size = ImVec2((float)renderer.logoLongImage.extent.width, (float)renderer.logoLongImage.extent.height);
+    ImGui::Image((ImTextureID)logoLongTextureID, size);
+    ImGui::End();
 }

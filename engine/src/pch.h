@@ -29,6 +29,8 @@ using namespace glm;
 
 #include <stb_image.h>
 
+#include <IconsFontAwesome6.h>
+
 #include <windows.h>
 #include <dwmapi.h>
 #include <iostream>
@@ -41,6 +43,8 @@ using namespace glm;
 #include <cstdio>
 #include <shlobj.h>
 #include <stdexcept>
+#include <future>
+#include <atomic>
 
 #include "Core/Log.h"
 #include "Core/Assert.h"
