@@ -33,12 +33,13 @@ bool Device::Create(VkPhysicalDevice physicalDevice, uint32_t graphicsFamily, ui
     features12.descriptorBindingPartiallyBound = VK_TRUE;
     features12.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
 
-    VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{};
-    dynamicRenderingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
-    dynamicRenderingFeatures.dynamicRendering = VK_TRUE;
+    VkPhysicalDeviceVulkan13Features features13{};
+    features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    features13.dynamicRendering = VK_TRUE;
+    features13.shaderDemoteToHelperInvocation = VK_TRUE;
 
     features2.pNext = &features12;
-    features12.pNext = &dynamicRenderingFeatures;
+    features12.pNext = &features13;
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

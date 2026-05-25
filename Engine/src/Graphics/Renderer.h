@@ -48,10 +48,18 @@ struct Renderer
     Image2D logoLongImage;
     Sampler linearSampler;
 
-    DescriptorSetLayout finalImageInputSetLayout;
+    DescriptorSetLayout imageInputSetLayout;
     DescriptorSet finalImageInputSet;
     PipelineLayout blitPipelineLayout;
     GraphicsPipeline blitPipeline;
+    
+    DescriptorSet splashSet;
+    PipelineLayout splashPipelineLayout;
+    GraphicsPipeline splashPipeline;
+
+    struct SplashPushConstants {
+        float x, y, w, h;
+    };
 
     // std::vector<Image2D> images;
     // std::vector<Sampler> samplers;

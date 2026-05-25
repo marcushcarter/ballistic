@@ -129,21 +129,32 @@ bool Renderer::Start(Window& window)
         .debugName  = "LinearSampler"
     }));
 
-    BE_ASSERT(finalImageInputSetLayout.Create(device.Get(), {
+    BE_ASSERT(imageInputSetLayout.Create(device.Get(), {
         .bindings = { SetLayoutBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT) },
         .debugName = "FinalImageInputSetLayout"
     }));
-    
+
     BE_ASSERT(finalImageInputSet.Allocate(device.Get(), {
         .pool = descriptorPool.Get(),
-        .setLayout = finalImageInputSetLayout.Get(),
+        .setLayout = imageInputSetLayout.Get(),
         .debugName = "FinalImageInputSet"
     }));
-    finalImageInputSet.SetImages(0, { finalImage.GetView() }, linearSampler.Get(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    
+
+    BE_ASSERT(splashSet.Allocate(device.Get(), {
+        .pool = descriptorPool.Get(),
+        .setLayout = imageInputSetLayout.Get(),
+        .debugName = "SplashSet"
+    }));
+
     BE_ASSERT(blitPipelineLayout.Create(device.Get(), {
-        .setLayouts = { finalImageInputSetLayout.Get() },
+        .setLayouts = { imageInputSetLayout.Get() },
         .debugName = "BlitPipelineLayout"
+    }));
+
+    BE_ASSERT(splashPipelineLayout.Create(device.Get(), {
+        .setLayouts = { imageInputSetLayout.Get() },
+        .pushConstants = { PushConstant(VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(SplashPushConstants)) },
+        .debugName = "SplashPipelineLayout"
     }));
 
     Shader vert{}, frag{};
@@ -159,6 +170,16 @@ bool Renderer::Start(Window& window)
         .layout = blitPipelineLayout.Get(),
         .shaderStages = { PipelineShaderStage(vert.Get(), vert.stage), PipelineShaderStage(frag.Get(), frag.stage) },
         .debugName = "BlitPipeline"
+    }));
+
+    BE_ASSERT(vert.Compile(device.Get(), VK_SHADER_STAGE_VERTEX_BIT, { SHADER_SPRITE_VERT, SHADER_SPRITE_VERT + SHADER_SPRITE_VERT_SIZE / 4 }));    
+    BE_ASSERT(frag.Compile(device.Get(), VK_SHADER_STAGE_FRAGMENT_BIT, { SHADER_SPRITE_FRAG, SHADER_SPRITE_FRAG + SHADER_SPRITE_FRAG_SIZE / 4 }));
+
+    BE_ASSERT(splashPipeline.Create(device.Get(), {
+        .pNext = &renderingCreateInfo,
+        .layout = splashPipelineLayout.Get(),
+        .shaderStages = { PipelineShaderStage(vert.Get(), vert.stage), PipelineShaderStage(frag.Get(), frag.stage) },
+        .debugName = "SplashPipeline"
     }));
 
     vert.Destroy();
@@ -192,7 +213,10 @@ bool Renderer::Start(Window& window)
     for (auto& s : stagingBuffers) s.Destroy();
     transferCmd.Free();
     transferCommandPool.Destroy();
-
+    
+    finalImageInputSet.SetImages(0, { finalImage.GetView() }, linearSampler.Get(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    splashSet.SetImages(0, { logoImage.GetView() }, linearSampler.Get(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    
     LOG_DEBUG("Renderer started");
     return true;
 }
@@ -276,9 +300,13 @@ void Renderer::Shutdown()
     logoImage.Destroy();
     logoLongImage.Destroy();
 
+    splashPipeline.Destroy();
+    splashPipelineLayout.Destroy();
+
     blitPipeline.Destroy();
     blitPipelineLayout.Destroy();
-    finalImageInputSetLayout.Destroy();
+    imageInputSetLayout.Destroy();
+
     linearSampler.Destroy();
     finalImage.Destroy();
 
@@ -467,32 +495,6 @@ bool Renderer::RenderLoadingScreen()
     commandBuffers[imageIndex].Begin();
     cmd = commandBuffers[imageIndex].Get();
 
-    // --- Final Image Purplification ---
-
-    TransitionSet toClear;
-    toClear.AddImage(&finalImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
-    toClear.Transition(cmd);
-
-    VkRenderingAttachmentInfo finalAttachment{};
-    finalAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-    finalAttachment.imageView = finalImage.GetView();
-    finalAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    finalAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    finalAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    finalAttachment.clearValue.color = { 1.0f, 0.0f, 1.0f, 1.0f };
-
-    VkRenderingInfo finalRendering{};
-    finalRendering.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-    finalRendering.renderArea = { {0, 0}, finalImage.extent };
-    finalRendering.layerCount = 1;
-    finalRendering.colorAttachmentCount = 1;
-    finalRendering.pColorAttachments = &finalAttachment;
-
-    vkCmdBeginRendering(cmd, &finalRendering);
-    vkCmdEndRendering(cmd);
-
-    // --- Swapchain Pass ---
-
     TransitionSet toAttachment;
     toAttachment.AddImage(&swapchainImages[imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
     toAttachment.AddImage(&finalImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT);
@@ -504,7 +506,7 @@ bool Renderer::RenderLoadingScreen()
     colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachment.clearValue.color = { 0.0f, 0.0f, 0.0f, 1.0f };
+    colorAttachment.clearValue.color = { 0.03f, 0.03f, 0.03f, 1.0f };
 
     VkRenderingInfo renderingInfo{};
     renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
@@ -514,12 +516,17 @@ bool Renderer::RenderLoadingScreen()
     renderingInfo.pColorAttachments = &colorAttachment;
 
     vkCmdBeginRendering(cmd, &renderingInfo);
-    // if (onSwapchainPass) onSwapchainPass(cmd);
-    
-    VKViewportScissor(cmd, 0, 0, static_cast<float>(swapchain.extent.width), static_cast<float>(swapchain.extent.height));
-    blitPipeline.Bind(cmd);
-    blitPipeline.DescriptorSets(cmd, { finalImageInputSet.Get() });
-    vkCmdDraw(cmd, 3, 1, 0, 0);
+
+    float scale  = 0.3f;
+    float aspect = (float)logoImage.extent.width / (float)logoImage.extent.height;
+    float imgH = scale;
+    float imgW = scale * aspect * ((float)swapchain.extent.height / (float)swapchain.extent.width);
+    SplashPushConstants pc = { (1.0f - imgW) * 0.5f, (1.0f - imgH) * 0.5f, imgW, imgH };
+    VKViewportScissor(cmd, 0, 0, (float)swapchain.extent.width, (float)swapchain.extent.height);
+    splashPipeline.Bind(cmd);
+    splashPipeline.DescriptorSets(cmd, { splashSet.Get() });
+    splashPipeline.PushConstants(cmd, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc);
+    vkCmdDraw(cmd, 6, 1, 0, 0);
 
     vkCmdEndRendering(cmd);
 
@@ -532,6 +539,5 @@ bool Renderer::RenderLoadingScreen()
     presentQueue.Present(swapchain.Get(), imageIndex, renderFinishedSemaphores[currentFrame].Get());
 
     currentFrame = (currentFrame + 1) % frameCount;
-    
     return true;
 }
