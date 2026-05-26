@@ -27,5 +27,8 @@ struct Application
     virtual void OnUpdate() {}
     virtual void OnShutdown() {}
 
+    virtual void OnProjectOpened(const std::filesystem::path& path) { (void)path; }
+    virtual void OnProjectClosed() {}
+
     virtual ~Application() = default;
 };

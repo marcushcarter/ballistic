@@ -9,6 +9,8 @@ struct EditorApplication : Application
     std::filesystem::path localRoot;
     
     bool inProjectManager = true;
+
+    std::string activeIniPath;
     
     VkDescriptorSet finalTextureID = VK_NULL_HANDLE;
     VkDescriptorSet logoTextureID = VK_NULL_HANDLE;
@@ -27,7 +29,10 @@ struct EditorApplication : Application
     void OnInit() override;
     void OnUpdate() override;
     void OnShutdown() override;
+    
+    void OnProjectOpened(const std::filesystem::path& path) override;
+    void OnProjectClosed() override;
 
     void SetupAppData();
-    void DrawEditor();    
+    void DrawEditor();
 };

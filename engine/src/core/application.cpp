@@ -50,6 +50,9 @@ void Application::OpenProject(const std::filesystem::path& path)
         CloseProject();
         if (onProjectLoadFailed) onProjectLoadFailed();
         LOG_ERROR("Failed to open project: %s", path.string().c_str());
+    } else {
+        projectPath = path;
+        OnProjectOpened(path);
     }
 }
 
@@ -68,4 +71,6 @@ bool Application::DeserializeProject(const std::filesystem::path& path)
 void Application::CloseProject()
 {
     // destroy vulkan and scene stuff
+    OnProjectClosed();
+    LOG_INFO("PROJECT CLOSED");
 }

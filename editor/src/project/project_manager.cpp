@@ -537,7 +537,14 @@ void ProjectManager::DrawRenamePopup()
             if (ImGui::Button("Rename", ImVec2(120, 0))) {
                 projects[renameIndex].name = renameBuffer;
 
-                // update project.blst
+                auto now = std::chrono::system_clock::now();
+                std::time_t t = std::chrono::system_clock::to_time_t(now);
+                std::tm tm{};
+                localtime_s(&tm, &t);
+                char dateBuf[32];
+                strftime(dateBuf, sizeof(dateBuf), "%Y-%m-%d %H:%M", &tm);
+                projects[renameIndex].lastOpened = dateBuf;
+
                 std::filesystem::path blstPath = std::filesystem::path(projects[renameIndex].path) / "project.blst";
                 if (std::filesystem::exists(blstPath)) {
                     try {

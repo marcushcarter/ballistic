@@ -69,6 +69,23 @@ void EditorApplication::OnShutdown()
     LOG_DEBUG("Editor shutdown");
 }
 
+void EditorApplication::OnProjectOpened(const std::filesystem::path& path)
+{
+    activeIniPath = (path / "editor.ini").string();
+    ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = activeIniPath.c_str();
+    ImGui::LoadIniSettingsFromDisk(activeIniPath.c_str());
+}
+
+void EditorApplication::OnProjectClosed()
+{
+    if (!activeIniPath.empty()) {
+        ImGui::SaveIniSettingsToDisk(activeIniPath.c_str());
+        ImGui::GetIO().IniFilename = nullptr;
+        activeIniPath.clear();
+    }
+}
+
 void EditorApplication::SetupAppData()
 {
     PWSTR rawRoaming = nullptr;
@@ -108,19 +125,34 @@ void EditorApplication::DrawEditor()
     ImGui::DockSpace(ImGui::GetID("MainDockSpace"), ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
     ImGui::End();
 
-    ImGui::Begin("Test Panel");
-    ImGui::Text("Ballistic Engine");
-    ImGui::Separator();
-    ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-    ImGui::Text("Frame Time: %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
-    ImGui::End();
+    // ImGui::Begin("Test Panel");
+    // ImGui::Text("Ballistic Engine");
+    // ImGui::Separator();
+    // ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+    // ImGui::Text("Frame Time: %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
+    // ImGui::End();
 
-    ImGui::Begin("Viewport");
-    ImVec2 size = ImGui::GetContentRegionAvail();
-    ImGui::Image((ImTextureID)finalTextureID, size);
-    size = ImVec2((float)renderer.logoImage.extent.width, (float)renderer.logoImage.extent.height);
-    ImGui::Image((ImTextureID)logoTextureID, size);
-    size = ImVec2((float)renderer.logoLongImage.extent.width, (float)renderer.logoLongImage.extent.height);
-    ImGui::Image((ImTextureID)logoLongTextureID, size);
-    ImGui::End();
+    // ImGui::Begin("Viewport");
+    // ImVec2 size = ImGui::GetContentRegionAvail();
+    // ImGui::Image((ImTextureID)finalTextureID, size);
+    // size = ImVec2((float)renderer.logoImage.extent.width, (float)renderer.logoImage.extent.height);
+    // ImGui::Image((ImTextureID)logoTextureID, size);
+    // size = ImVec2((float)renderer.logoLongImage.extent.width, (float)renderer.logoLongImage.extent.height);
+    // ImGui::Image((ImTextureID)logoLongTextureID, size);
+    // ImGui::End();
+
+    // ImGui::Begin("Test");
+    // if (ImGui::Button("Quit")) {}
+    // if (ImGui::Button("Save and Quit")) {}
+    // ImGui::End();
+
+    if (ImGui::Begin("Project")) {
+        ImGui::TextDisabled("%s", projectPath.string().c_str());
+        ImGui::Separator();
+        if (ImGui::Button(ICON_FA_HOUSE " Project Manager")) {
+            CloseProject();
+            inProjectManager = true;
+        }
+        ImGui::End();
+    }
 }

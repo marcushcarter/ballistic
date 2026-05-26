@@ -77,7 +77,7 @@ foreach(SHADER_FILE ${SHADERS})
     list(APPEND SPIRV_FILES ${OUT_FILE})
 endforeach()
 
-set(SHADERS_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/Shaders.h")
+set(SHADERS_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/shaders.h")
 list(JOIN SPIRV_FILES "|" SPIRV_FILES_STR)
 
 add_custom_command(
