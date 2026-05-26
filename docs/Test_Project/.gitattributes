@@ -1,0 +1,17 @@
+* text=auto eol=lf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.tga binary
+*.wav binary
+*.mp3 binary
+*.ogg binary
+*.fbx binary
+*.blend binary
+
+# Engine files
+*.blst text eol=lf
+*.glsl text eol=lf
+*.hlsl text eol=lf

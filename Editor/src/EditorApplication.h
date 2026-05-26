@@ -1,6 +1,7 @@
 #pragma once
 #include "pch.h"
 #include <core/application.h>
+#include "Project/ProjectManager.h"
 
 struct EditorApplication : Application
 {
@@ -8,28 +9,12 @@ struct EditorApplication : Application
     std::filesystem::path localRoot;
     
     bool inProjectManager = true;
+    
+    VkDescriptorSet finalTextureID = VK_NULL_HANDLE;
+    VkDescriptorSet logoTextureID = VK_NULL_HANDLE;
+    VkDescriptorSet logoLongTextureID = VK_NULL_HANDLE;
 
-    struct ProjectEntry {
-        std::string path;
-        std::string name;
-        bool favorite = false;
-        std::string lastOpened;
-        std::string engineVersion;
-    };
-
-    std::vector<ProjectEntry> projects;
-    char filterBuffer[256] = {};
-    int currentProjectIndex = -1;
-    int removeConfirmIndex = -1;
-    int selectedIndex = -1;
-    int sortIndex = 0;
-
-    char createNameBuffer[256] = {};
-    char createPathBuffer[512] = {};
-    bool createEditNow = true;
-
-    std::filesystem::path pendingOpenPath;
-    bool openProjectRequested = false;
+    ProjectManager projectManager;
 
     // struct Theme {
     //     ImVec4 background = ImVec4(0.05f, 0.05f, 0.05f, 1.0f);
@@ -39,23 +24,10 @@ struct EditorApplication : Application
     //     ImVec4 text = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
     // } theme;
     
-    VkDescriptorSet finalTextureID = VK_NULL_HANDLE;
-    VkDescriptorSet logoTextureID = VK_NULL_HANDLE;
-    VkDescriptorSet logoLongTextureID = VK_NULL_HANDLE;
-    
     void OnInit() override;
     void OnUpdate() override;
     void OnShutdown() override;
 
     void SetupAppData();
-    void LoadProjects();
-    void SaveProjects();
-
-    void DrawProjectManager();
-    void DrawProjectList();
-    void DrawCreateProjectPopup();
-    void DrawRemoveProjectPopup();
-    void RequestOpenProject(int index);
-    
-    void DrawEditor();
+    void DrawEditor();    
 };

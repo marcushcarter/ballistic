@@ -60,12 +60,11 @@ bool Application::DeserializeProject(const std::filesystem::path& path)
         return false;
     }
 
-    // (void)path;
-    // std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    return false;
+    return true;
 }
-
+ 
 void Application::CloseProject()
 {
     // destroy vulkan and scene stuff
