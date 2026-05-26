@@ -26,6 +26,7 @@ target_link_libraries(ballistic_engine
     PUBLIC glm
     PUBLIC iconfontcppheaders
     PUBLIC tinyfiledialogs
+    PUBLIC tomlplusplus
     PUBLIC Shell32
 )
 

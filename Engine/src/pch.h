@@ -33,6 +33,8 @@ using namespace glm;
 
 #include <tinyfiledialogs.h>
 
+#include <toml++/toml.hpp>
+
 #include <windows.h>
 #include <dwmapi.h>
 #include <iostream>

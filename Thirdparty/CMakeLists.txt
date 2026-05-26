@@ -26,3 +26,6 @@ target_include_directories(iconfontcppheaders INTERFACE iconfontcppheaders)
 
 add_library(tinyfiledialogs STATIC tinyfiledialogs/tinyfiledialogs.c)
 target_include_directories(tinyfiledialogs PUBLIC tinyfiledialogs)
+
+add_library(tomlplusplus INTERFACE)
+target_include_directories(tomlplusplus INTERFACE tomlplusplus/include)

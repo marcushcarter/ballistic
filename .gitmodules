@@ -19,3 +19,6 @@
 [submodule "Thirdparty/tinyfiledialogs"]
 	path = Thirdparty/tinyfiledialogs
 	url = https://github.com/native-toolkit/tinyfiledialogs.git
+[submodule "Thirdparty/tomlplusplus"]
+	path = Thirdparty/tomlplusplus
+	url = https://github.com/marzer/tomlplusplus.git

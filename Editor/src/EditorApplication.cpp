@@ -107,45 +107,63 @@ void EditorApplication::LoadProjects()
     std::filesystem::path cfgPath = roamingRoot / "projects.cfg";
     if (!std::filesystem::exists(cfgPath)) return;
 
-    std::ifstream file(cfgPath);
-    std::string line;
-    ProjectEntry current;
-    bool hasCurrent = false;
+    try {
+        auto root = toml::parse_file(cfgPath.string());
+        auto arr = root["projects"].as_array();
+        if (!arr) return;
 
-    while (std::getline(file, line)) {
-        if (line.empty()) continue;
-        if (line.front() == '[' && line.back() == ']') {
-            if (hasCurrent) projects.push_back(current);
-            current = {};
-            current.path = line.substr(1, line.size() - 2);
-            hasCurrent = true;
-        } else {
-            auto eq = line.find('=');
-            if (eq == std::string::npos) continue;
-            std::string key = line.substr(0, eq);
-            std::string val = line.substr(eq + 1);
-            if (key == "name") current.name = val;
-            else if (key == "favorite") current.favorite = (val == "true");
-            else if (key == "last_opened") current.lastOpened = val;
-            else if (key == "engine_version") current.engineVersion = val;
-        }
+        arr->for_each([&](auto& el) {
+            if (!el.is_table()) return;
+            auto& t = *el.as_table();
+            ProjectEntry p;
+            p.path = t["path"].value_or<std::string>("");
+            p.favorite = t["favorite"].value_or(false);
+            p.lastOpened = t["last_opened"].value_or<std::string>("");
+            if (p.path.empty()) return;
+
+            std::filesystem::path blstPath = std::filesystem::path(p.path) / "project.blst";
+            if (std::filesystem::exists(blstPath)) {
+                try {
+                    auto blst = toml::parse_file(blstPath.string());
+                    p.name = blst["name"].value_or<std::string>(std::filesystem::path(p.path).filename().string());
+                    p.engineVersion = blst["engine_version"].value_or<std::string>("");
+                } catch (...) {
+                    p.name = std::filesystem::path(p.path).filename().string();
+                }
+            } else {
+                p.name = std::filesystem::path(p.path).filename().string();
+            }
+
+            projects.push_back(p);
+        });
+
+    } catch (const toml::parse_error& e) {
+        LOG_ERROR("Failed to parse projects.cfg: %s", e.what());
     }
-    if (hasCurrent) projects.push_back(current);
-    
+
     for (auto& p : projects)
         LOG_INFO("Project: %s | %s | %s | %s | %s", p.name.c_str(), p.path.c_str(), p.lastOpened.c_str(), p.engineVersion.c_str(), p.favorite ? "fav" : "");
 }
 
 void EditorApplication::SaveProjects()
 {
-    std::ofstream file(roamingRoot / "projects.cfg");
+    toml::table root;
+    toml::array projectsArray;
+
     for (auto& p : projects) {
-        file << "[" << p.path << "]\n";
-        file << "name=" << p.name << "\n";
-        file << "favorite=" << (p.favorite ? "true" : "false") << "\n";
-        file << "last_opened=" << p.lastOpened << "\n";
-        file << "engine_version=" << p.engineVersion << "\n\n";
+        toml::table entry;
+        entry.insert("name",           p.name);
+        entry.insert("path",           p.path);
+        entry.insert("favorite",       p.favorite);
+        entry.insert("last_opened",    p.lastOpened);
+        entry.insert("engine_version", p.engineVersion);
+        projectsArray.push_back(entry);
     }
+
+    root.insert("projects", projectsArray);
+
+    std::ofstream file(roamingRoot / "projects.cfg");
+    file << root;
 }
 
 void EditorApplication::DrawProjectManager()
@@ -197,17 +215,17 @@ void EditorApplication::DrawProjectManager()
     
     if (ImGui::Button(ICON_FA_FOLDER " Import")) {
         std::string picked = FileDialog("Import Project", nullptr, false, {
-        { L"Ballistic Project", L"*.blstc" },
+        { L"Ballistic Project", L"*.blst" },
         { L"All Files", L"*.*" }
     });
 
     if (!picked.empty()) {
-        std::filesystem::path blstcPath(picked);
-        std::filesystem::path projectFolder = blstcPath.parent_path();
+        std::filesystem::path blstPath(picked);
+        std::filesystem::path projectFolder = blstPath.parent_path();
 
         std::string name;
         std::string engineVersion;
-        std::ifstream file(blstcPath);
+        std::ifstream file(blstPath);
         std::string line;
         while (std::getline(file, line)) {
             auto eq = line.find('=');
@@ -290,10 +308,10 @@ void EditorApplication::DrawProjectManager()
     ImGui::EndChild();
 
     if (openCreatePopup)
-        ImGui::OpenPopup("CreateProject");
+        ImGui::OpenPopup("Create Project");
 
     if (removeConfirmIndex >= 0)
-        ImGui::OpenPopup("RemoveProject");
+        ImGui::OpenPopup("Remove Project");
 
     char versionText[128];
     snprintf(versionText, sizeof(versionText), "Ballistic Engine v%d.%d.%d.stable.official[%s]", APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH, APP_COMMIT);
@@ -487,7 +505,7 @@ void EditorApplication::DrawCreateProjectPopup()
         if (ImGui::Button("Create", ImVec2(120, 0))) {
             std::filesystem::create_directories(projectFolder);
 
-            std::ofstream blstc(projectFolder / "project.blstc");
+            std::ofstream blstc(projectFolder / "project.blst");
             blstc << "name=" << createNameBuffer << "\n";
             blstc << "engine_version=" << APP_VERSION_MAJOR << "." << APP_VERSION_MINOR << "." << APP_VERSION_PATCH << "\n";
 
@@ -537,7 +555,7 @@ void EditorApplication::DrawCreateProjectPopup()
 void EditorApplication::DrawRemoveProjectPopup()
 {
     bool open = true;
-    if (ImGui::BeginPopupModal("RemoveProject", &open, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (ImGui::BeginPopupModal("Remove Project", &open, ImGuiWindowFlags_AlwaysAutoResize)) {
         if (removeConfirmIndex >= 0 && removeConfirmIndex < (int)projects.size()) {
             ImGui::Text("Are you sure you want to remove:");
             ImGui::Spacing();
