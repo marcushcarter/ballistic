@@ -51,5 +51,5 @@ using namespace glm;
 #include <atomic>
 #include <shellapi.h>
 
-#include "Core/Log.h"
-#include "Core/Assert.h"
+#include "core/log.h"
+#include "core/assert.h"
