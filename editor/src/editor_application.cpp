@@ -8,6 +8,7 @@ void EditorApplication::OnInit()
     window.SetTitlebarColor(0.15f, 0.15f, 0.15f);
     window.onFramebufferResize = [this](uint32_t w, uint32_t h) {
         renderer.RequestWindowResize(w, h);
+        renderer.RequestSceneResize(w, h);
     };
     
     SetupAppData();
@@ -76,6 +77,8 @@ void EditorApplication::OnProjectOpened(const std::filesystem::path& path)
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = activeIniPath.c_str();
     ImGui::LoadIniSettingsFromDisk(activeIniPath.c_str());
+    
+    LOG_INFO("Editing project: %s", path.string().c_str());
 }
 
 void EditorApplication::OnProjectClosed()
@@ -154,6 +157,115 @@ void EditorApplication::DrawEditor()
             CloseProject();
             inProjectManager = true;
         }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        if (ImGui::Button(ICON_FA_PLUS " Add Image"))
+            ImGui::OpenPopup("Add Image");
+
+        ImGui::Spacing();
+
+        for (auto& img : project.images) {
+            ImGui::Text("%s", img.name.c_str());
+            ImGui::SameLine();
+            ImGui::TextDisabled("[%llu]", img.id);
+        }
+
+        if (ImGui::BeginPopupModal("Add Image", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            
+            ImGui::Text("Name");
+            ImGui::SetNextItemWidth(300);
+            ImGui::InputTextWithHint("##imgname", "GBuffer_Albedo", addImageNameBuffer, sizeof(addImageNameBuffer));
+
+            ImGui::Text("Format");
+            const char* formats[] = {
+                "R8G8B8A8_UNORM",
+                "R16G16B16A16_SFLOAT",
+                "R32G32B32A32_SFLOAT",
+                "D32_SFLOAT",
+                "D24_UNORM_S8_UINT"
+            };
+            ImGui::SetNextItemWidth(300);
+            ImGui::Combo("##format", &addImageFormatIndex, formats, IM_ARRAYSIZE(formats));
+
+            ImGui::Text("Size Mode");
+            const char* sizeModes[] = { "Viewport Relative", "Fixed" };
+            ImGui::SetNextItemWidth(300);
+            ImGui::Combo("##sizemode", &addImageSizeModeIndex, sizeModes, 2);
+
+            if (addImageSizeModeIndex == 0) {
+                ImGui::Text("Scale");
+                ImGui::SetNextItemWidth(140);
+                ImGui::InputFloat("W##relw", &addImageRelW, 0.1f, 0.0f, "%.2f");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(140);
+                ImGui::InputFloat("H##relh", &addImageRelH, 0.1f, 0.0f, "%.2f");
+            } else {
+                ImGui::Text("Size");
+                ImGui::SetNextItemWidth(140);
+                ImGui::InputScalar("W##fixw", ImGuiDataType_U32, &addImageFixedW);
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(140);
+                ImGui::InputScalar("H##fixh", ImGuiDataType_U32, &addImageFixedH);
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            static const VkFormat formatMap[] = {
+                VK_FORMAT_R8G8B8A8_UNORM,
+                VK_FORMAT_R16G16B16A16_SFLOAT,
+                VK_FORMAT_R32G32B32A32_SFLOAT,
+                VK_FORMAT_D32_SFLOAT,
+                VK_FORMAT_D24_UNORM_S8_UINT
+            };
+
+            bool nameEmpty = addImageNameBuffer[0] == '\0';
+            bool nameTaken = false;
+            for (auto& img : project.images)
+                if (img.name == addImageNameBuffer) { nameTaken = true; break; }
+
+            if (nameEmpty || nameTaken) {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+                if (nameEmpty)  ImGui::TextUnformatted("Name cannot be empty.");
+                if (nameTaken)  ImGui::TextUnformatted("Name already exists.");
+                ImGui::PopStyleColor();
+            }
+
+            bool canAdd = !nameEmpty && !nameTaken;
+            if (!canAdd) ImGui::BeginDisabled();
+            if (ImGui::Button("Add", ImVec2(120, 0))) {
+                RGImage img;
+                img.id = GenerateID();
+                img.name = addImageNameBuffer;
+                img.format = formatMap[addImageFormatIndex];
+                img.sizeMode = addImageSizeModeIndex == 0 ? RGImageSizeMode::ViewportRelative : RGImageSizeMode::Fixed;
+                img.relativeWidth = addImageRelW;
+                img.relativeHeight = addImageRelH;
+                img.fixedWidth = addImageFixedW;
+                img.fixedHeight = addImageFixedH;
+
+                renderer.RecreateImage(img);
+                project.images.push_back(img);
+
+                addImageNameBuffer[0] = '\0';
+                ImGui::CloseCurrentPopup();
+            }
+
+            if (!canAdd) ImGui::EndDisabled();
+
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
+                addImageNameBuffer[0] = '\0';
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
+        }
+
         ImGui::End();
     }
 }

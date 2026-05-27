@@ -43,7 +43,7 @@ bool Image2D::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& pr
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
-        LOG_ERROR("Image2D create failed: %s - vkCreateImage", debugName ? debugName : "Unnamed");
+        LOG_ERROR("Image2D create failed: %s - vkCreateImage", debugName.empty() ? "Unnamed" : debugName.c_str());
         return false;
     }
 
@@ -56,12 +56,12 @@ bool Image2D::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& pr
     allocInfo.memoryTypeIndex = FindMemoryType(props, memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     if (vkAllocateMemory(device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
-        LOG_ERROR("Image2D create failed: %s - vkAllocateMemory", debugName ? debugName : "Unnamed");
+        LOG_ERROR("Image2D create failed: %s - vkAllocateMemory", debugName.empty() ? "Unnamed" : debugName.c_str());
         return false;
     }
 
     if (vkBindImageMemory(device, image, memory, 0) != VK_SUCCESS) {
-        LOG_ERROR("Image2D create failed: %s - vkBindImageMemory", debugName ? debugName : "Unnamed");
+        LOG_ERROR("Image2D create failed: %s - vkBindImageMemory", debugName.empty() ? "Unnamed" : debugName.c_str());
         return false;
     }
 
@@ -78,22 +78,22 @@ bool Image2D::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& pr
     viewInfo.subresourceRange.layerCount = layers;
 
     if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
-        LOG_ERROR("Image2D create failed: %s - vkCreateImageView", debugName ? debugName : "Unnamed");
+        LOG_ERROR("Image2D create failed: %s - vkCreateImageView", debugName.empty() ? "Unnamed" : debugName.c_str());
         return false;
     }
 
-    if (debugName) {
+    if (!debugName.empty()) {
         VkDebugUtilsObjectNameInfoEXT nameInfo{};
         nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
         nameInfo.objectType = VK_OBJECT_TYPE_IMAGE;
         nameInfo.objectHandle = (uint64_t)image;
-        nameInfo.pObjectName = debugName;
+        nameInfo.pObjectName = debugName.c_str();
         auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
         if (func) func(device, &nameInfo);
     }
     
     LOG_DEBUG("Image2D created: %s (%ux%u, %s, usage %s)",
-        debugName ? debugName : "Unnamed",
+        debugName.empty() ? "Unnamed" : debugName.c_str(),
         extent.width, extent.height,
         vk::to_string(vk::Format(format)).c_str(),
         vk::to_string(vk::ImageUsageFlags(usage)).c_str()
@@ -132,16 +132,16 @@ bool Image2D::WrapSwapchainImage(VkDevice device, VkImage swapchainImage, VkForm
     viewInfo.subresourceRange.layerCount = layers;
 
     if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
-        LOG_ERROR("Image2D create failed: %s - vkCreateImageView", debugName ? debugName : "Unnamed");
+        LOG_ERROR("Image2D create failed: %s - vkCreateImageView", debugName.empty() ? "Unnamed" : debugName.c_str());
         return false;
     }
 
-    if (debugName) {
+    if (!debugName.empty()) {
         VkDebugUtilsObjectNameInfoEXT nameInfo{};
         nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
         nameInfo.objectType = VK_OBJECT_TYPE_IMAGE;
         nameInfo.objectHandle = (uint64_t)image;
-        nameInfo.pObjectName = debugName;
+        nameInfo.pObjectName = debugName.c_str();
         auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
         if (func) func(device, &nameInfo);
     }
@@ -157,7 +157,7 @@ bool Image2D::WrapSwapchainImage(VkDevice device, VkImage swapchainImage, VkForm
 bool Image2D::Resize(VkExtent2D newExtent)
 {
     if (!ownsImage) {
-        LOG_WARN("Image2D resize failed: %s - Cannot resize image that does not own its memory", debugName ? debugName : "Unnamed");
+        LOG_WARN("Image2D resize failed: %s - Cannot resize image that does not own its memory", debugName.empty() ? "Unnamed" : debugName.c_str());
         return false;
     }
 
@@ -184,7 +184,7 @@ void Image2D::Destroy()
         vkFreeMemory(deviceHandle, memory, nullptr);
         image = VK_NULL_HANDLE;
         memory = VK_NULL_HANDLE;
-        LOG_DEBUG("Image2D destroyed: %s", debugName ? debugName : "Unnamed");
+        LOG_DEBUG("Image2D destroyed: %s", debugName.empty() ? "Unnamed" : debugName.c_str());
     }
 
     deviceHandle = VK_NULL_HANDLE;

@@ -9,7 +9,7 @@ struct Image2DDesc
     VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     uint32_t mipLevels = 1;
     uint32_t layers = 1;
-    const char* debugName = nullptr;
+    std::string debugName;
 };
 
 struct Image2D
@@ -17,7 +17,7 @@ struct Image2D
     VkImage image = VK_NULL_HANDLE;
     VkImageView imageView = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
-    const char* debugName = nullptr;
+    std::string debugName;
 
     VkFormat format = VK_FORMAT_UNDEFINED;
     VkExtent2D extent = {};

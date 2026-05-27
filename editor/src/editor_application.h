@@ -16,7 +16,16 @@ struct EditorApplication : Application
     VkDescriptorSet logoTextureID = VK_NULL_HANDLE;
     VkDescriptorSet logoLongTextureID = VK_NULL_HANDLE;
 
+    bool pendingCloseProject = false;
     ProjectManager projectManager;
+
+    char addImageNameBuffer[256] = {};
+    int addImageFormatIndex = 0;
+    int addImageSizeModeIndex = 0;
+    float addImageRelW = 1.0f;
+    float addImageRelH = 1.0f;
+    uint32_t addImageFixedW = 1920;
+    uint32_t addImageFixedH = 1080;
 
     // struct Theme {
     //     ImVec4 background = ImVec4(0.05f, 0.05f, 0.05f, 1.0f);

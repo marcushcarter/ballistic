@@ -1,0 +1,25 @@
+[[images]]
+fixed_height = 1080
+fixed_width = 1920
+format = 'VK_FORMAT_R8G8B8A8_UNORM'
+id = 303105661830911400
+name = 'GBuffer_Albedo'
+relative_height = 1.0
+relative_width = 1.0
+size_mode = 'viewport_relative'
+usage_attachment = true
+usage_sampled = true
+usage_storage = false
+
+[[images]]
+fixed_height = 2048
+fixed_width = 2048
+format = 'VK_FORMAT_D32_SFLOAT'
+id = 1560270419196098283
+name = 'Shadow Map'
+relative_height = 1.0
+relative_width = 1.0
+size_mode = 'fixed'
+usage_attachment = true
+usage_sampled = true
+usage_storage = false

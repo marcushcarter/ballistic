@@ -53,3 +53,4 @@ using namespace glm;
 
 #include "core/log.h"
 #include "core/assert.h"
+#include "core/guid.h"

@@ -4,14 +4,15 @@
 
 struct Window;
 struct Project;
+struct RGImage;
 
 struct Renderer
 {
     bool windowResizeRequested = false;
-    bool sceneResizeRequested = false;
+    bool viewportResizeRequested = false;
     bool vsyncChangeRequested = false;
     uint32_t pendingWindowW = 0, pendingWindowH = 0;
-    uint32_t pendingSceneW = 0, pendingSceneH = 0;
+    uint32_t pendingViewportW = 0, pendingViewportH = 0;
     bool pendingVSync = false;
 
     // CORE
@@ -62,7 +63,14 @@ struct Renderer
         float x, y, w, h;
     };
 
-    // std::vector<Image2D> images;
+    struct AllocatedImage {
+        Image2D image;
+        bool viewportRelative = false;
+        float relativeWidth = 1.0f;
+        float relativeHeight = 1.0f;
+    };
+    std::unordered_map<uint64_t, AllocatedImage> allocatedImages;
+
     // std::vector<Sampler> samplers;
     // std::vector<RenderPass> renderPasses;
     // std::vector<Framebuffer> framebuffers;
@@ -83,13 +91,16 @@ struct Renderer
     void Shutdown();
     void DestroyImGui();
     void UnloadProject();
+    
+    void RecreateImage(const RGImage& desc);
+    void DestroyImage(uint64_t id);
 
     void RequestWindowResize(uint32_t w, uint32_t h);
     void RequestSceneResize(uint32_t w, uint32_t h);
     void RequestVSync(bool enabled);
 
     void WindowResize();
-    void SceneResize();
+    void ViewportResize();
     void ApplyVSync();
 
     bool BeginFrame();

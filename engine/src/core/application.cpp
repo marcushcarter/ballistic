@@ -17,7 +17,7 @@ void Application::Run()
     while (!window.ShouldClose()) {
         window.PollEvents();
         OnUpdate();
-
+        
         if (renderer.BeginFrame()) {
             renderer.EndFrame();
         }
@@ -52,8 +52,6 @@ void Application::OpenProject(const std::filesystem::path& path)
             projectLoading = false;
             return;
         }
-        
-        std::this_thread::sleep_for(std::chrono::seconds(1));
         
         projectDataReady = true;
     });

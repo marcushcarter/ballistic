@@ -6,6 +6,10 @@ void GameApplication::OnInit()
         renderer.RequestWindowResize(w, h);
         renderer.RequestSceneResize(w, h);
     };
+
+    onProjectLoadFailed = [this]() {
+        Destroy();
+    };
     
     renderer.onSwapchainPass = [this](VkCommandBuffer cmd) {
         VKViewportScissor(cmd, 0, 0, static_cast<float>(renderer.swapchain.extent.width), static_cast<float>(renderer.swapchain.extent.height));
@@ -23,11 +27,8 @@ void GameApplication::OnInit()
         vkCmdDraw(cmd, 6, 1, 0, 0);
     };
 
-    OpenProject(std::filesystem::current_path());
-
-    onProjectLoadFailed = [this]() {
-        Destroy();
-    };
+    // OpenProject(std::filesystem::current_path());
+    OpenProject("D:/Ballistic Games/ballistic-engine/docs/Test_Project");
 
     // window.SetFullscreen(true);
     

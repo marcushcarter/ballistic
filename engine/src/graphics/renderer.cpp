@@ -4,6 +4,34 @@
 #include "shaders.h"
 #include "resources.h"
 
+static VkImageAspectFlags ResolveAspect(VkFormat format)
+{
+    switch (format) {
+        case VK_FORMAT_D16_UNORM:
+        case VK_FORMAT_D32_SFLOAT:
+        case VK_FORMAT_X8_D24_UNORM_PACK32:
+            return VK_IMAGE_ASPECT_DEPTH_BIT;
+        case VK_FORMAT_D16_UNORM_S8_UINT:
+        case VK_FORMAT_D24_UNORM_S8_UINT:
+        case VK_FORMAT_D32_SFLOAT_S8_UINT:
+            return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+        default:
+            return VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+}
+
+static VkImageUsageFlags ResolveUsage(const RGImage& desc)
+{
+    VkImageUsageFlags flags = 0;
+    if (desc.usageAttachment) {
+        bool isDepth = desc.format == VK_FORMAT_D16_UNORM || desc.format == VK_FORMAT_D32_SFLOAT || desc.format == VK_FORMAT_X8_D24_UNORM_PACK32 || desc.format == VK_FORMAT_D16_UNORM_S8_UINT || desc.format == VK_FORMAT_D24_UNORM_S8_UINT || desc.format == VK_FORMAT_D32_SFLOAT_S8_UINT;
+        flags |= isDepth ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    }
+    if (desc.usageSampled) flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
+    if (desc.usageStorage) flags |= VK_IMAGE_USAGE_STORAGE_BIT;
+    return flags;
+}
+
 inline bool LoadRCImage(VkDevice device, const VkPhysicalDeviceMemoryProperties& props, VkCommandBuffer cmd, int resourceID, Image2D& outImage, Buffer& outStaging, const char* debugName = nullptr)
 {
     HRSRC res = FindResource(nullptr, MAKEINTRESOURCE(resourceID), RT_RCDATA);
@@ -296,7 +324,7 @@ bool Renderer::CreateImGui(GLFWwindow* window)
 
 bool Renderer::LoadProject(const Project& project)
 {
-    (void)project;
+    for (auto& desc : project.images) RecreateImage(desc);
     LOG_DEBUG("Project Vulkan objects loaded");
     return true;
 }
@@ -304,6 +332,8 @@ bool Renderer::LoadProject(const Project& project)
 void Renderer::Shutdown()
 {
     device.Wait();
+
+    UnloadProject();
 
     logoImage.Destroy();
     logoLongImage.Destroy();
@@ -352,7 +382,46 @@ void Renderer::DestroyImGui()
 
 void Renderer::UnloadProject()
 {
+    device.Wait();
+    for (auto& [id, entry] : allocatedImages) entry.image.Destroy();
+    allocatedImages.clear();
     LOG_DEBUG("Project Vulkan objects unloaded");
+}
+
+void Renderer::RecreateImage(const RGImage& desc)
+{
+    device.Wait();
+
+    auto it = allocatedImages.find(desc.id);
+    if (it != allocatedImages.end()) it->second.image.Destroy();
+
+    AllocatedImage entry;
+    entry.viewportRelative = desc.sizeMode == RGImageSizeMode::ViewportRelative;
+    entry.relativeWidth = desc.relativeWidth;
+    entry.relativeHeight = desc.relativeHeight;
+
+    VkExtent2D extent = entry.viewportRelative ? VkExtent2D{ finalImage.extent.width, finalImage.extent.height } : VkExtent2D{ desc.fixedWidth, desc.fixedHeight };
+
+    entry.image.Create(device.Get(), physicalDevice.memory, {
+        .extent = extent,
+        .format = desc.format,
+        .usage = ResolveUsage(desc),
+        .aspect = ResolveAspect(desc.format),
+        .debugName = desc.name.c_str()
+    });
+
+    allocatedImages[desc.id] = std::move(entry);
+    LOG_DEBUG("Allocated image: %s [%llu]", desc.name.c_str(), desc.id);
+}
+
+void Renderer::DestroyImage(uint64_t id)
+{
+    device.Wait();
+    auto it = allocatedImages.find(id);
+    if (it != allocatedImages.end()) {
+        it->second.image.Destroy();
+        allocatedImages.erase(it);
+    }
 }
 
 void Renderer::RequestWindowResize(uint32_t w, uint32_t h)
@@ -366,9 +435,9 @@ void Renderer::RequestWindowResize(uint32_t w, uint32_t h)
 void Renderer::RequestSceneResize(uint32_t w, uint32_t h)
 {
     if (w == 0 || h == 0) return;
-    pendingSceneW = w;
-    pendingSceneH = h;
-    sceneResizeRequested = true;
+    pendingViewportW = w;
+    pendingViewportH = h;
+    viewportResizeRequested = true;
 }
 
 void Renderer::RequestVSync(bool enabled)
@@ -388,12 +457,19 @@ void Renderer::WindowResize()
     windowResizeRequested = false;
 }
 
-void Renderer::SceneResize()
+void Renderer::ViewportResize()
 {
     device.Wait();
-    finalImage.Resize({ pendingSceneW, pendingSceneH });
+    
+    finalImage.Resize({ pendingViewportW, pendingViewportH });
     finalImageInputSet.SetImages(0, { finalImage.GetView() }, linearSampler.Get(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    sceneResizeRequested = false;
+    
+    for (auto& [id, entry] : allocatedImages) {
+        if (!entry.viewportRelative) continue;
+        entry.image.Resize({ (uint32_t)(pendingViewportW * entry.relativeWidth), (uint32_t)(pendingViewportH * entry.relativeHeight) });
+    }
+
+    viewportResizeRequested = false;
 }
 
 void Renderer::ApplyVSync()
@@ -410,7 +486,7 @@ bool Renderer::BeginFrame()
 {
     bool resized = false;
     if (windowResizeRequested) { WindowResize(); resized = true; }
-    if (sceneResizeRequested) { SceneResize(); resized = true; }
+    if (viewportResizeRequested) { ViewportResize(); resized = true; }
     if (vsyncChangeRequested) { ApplyVSync(); resized = true; }
     if (resized) return false;
 
@@ -494,7 +570,7 @@ bool Renderer::RenderLoadingScreen()
 {
     bool resized = false;
     if (windowResizeRequested) { WindowResize(); resized = true; }
-    if (sceneResizeRequested) { SceneResize(); resized = true; }
+    if (viewportResizeRequested) { ViewportResize(); resized = true; }
     if (vsyncChangeRequested) { ApplyVSync(); resized = true; }
     if (resized) return false;
 
@@ -554,3 +630,4 @@ bool Renderer::RenderLoadingScreen()
     currentFrame = (currentFrame + 1) % frameCount;
     return true;
 }
+
