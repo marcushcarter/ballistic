@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "window.h"
 #include "graphics/renderer.h"
+#include "project/project.h"
 
 struct Application
 {
@@ -10,17 +11,18 @@ struct Application
     
     std::future<void> loadFuture;
     std::atomic<bool> projectLoading{false};
+    std::atomic<bool> projectDataReady{false};
     std::atomic<bool> projectLoadFailed{false};
+
     std::function<void()> onProjectLoadFailed;
 
-    std::filesystem::path projectPath;
+    Project project;
 
     bool Create(const char* title, int width, int height);
     void Run();
     void Destroy();
 
     void OpenProject(const std::filesystem::path& path);
-    bool DeserializeProject(const std::filesystem::path& path);
     void CloseProject();
 
     virtual void OnInit() {}

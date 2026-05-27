@@ -3,6 +3,7 @@
 #include "vk/vk.h"
 
 struct Window;
+struct Project;
 
 struct Renderer
 {
@@ -77,13 +78,16 @@ struct Renderer
 
     bool Start(Window& window);
     bool CreateImGui(GLFWwindow* window);
+    bool LoadProject(const Project& project);
     
     void Shutdown();
     void DestroyImGui();
+    void UnloadProject();
 
     void RequestWindowResize(uint32_t w, uint32_t h);
     void RequestSceneResize(uint32_t w, uint32_t h);
     void RequestVSync(bool enabled);
+
     void WindowResize();
     void SceneResize();
     void ApplyVSync();

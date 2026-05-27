@@ -57,6 +57,7 @@ void EditorApplication::OnUpdate()
             OpenProject(requested);
         }
     } else {
+        window.SetTitle(("Ballistic Engine - " + project.name).c_str());
         DrawEditor();
     }
 
@@ -100,8 +101,8 @@ void EditorApplication::SetupAppData()
     CoTaskMemFree(rawLocal);
     std::filesystem::create_directories(localRoot);
 
-    LOG_INFO("Roaming AppData: %s", roamingRoot.string().c_str());
-    LOG_INFO("Local AppData: %s", localRoot.string().c_str());
+    LOG_DEBUG("Roaming AppData: %s", roamingRoot.string().c_str());
+    LOG_DEBUG("Local AppData: %s", localRoot.string().c_str());
 }
 
 void EditorApplication::DrawEditor()
@@ -147,7 +148,7 @@ void EditorApplication::DrawEditor()
     // ImGui::End();
 
     if (ImGui::Begin("Project")) {
-        ImGui::TextDisabled("%s", projectPath.string().c_str());
+        ImGui::TextDisabled("%s", project.path.string().c_str());
         ImGui::Separator();
         if (ImGui::Button(ICON_FA_HOUSE " Project Manager")) {
             CloseProject();

@@ -210,9 +210,6 @@ void ProjectManager::Load()
     } catch (const toml::parse_error& e) {
         LOG_ERROR("Failed to parse projects.cfg: %s", e.what());
     }
-
-    for (auto& p : projects)
-        LOG_INFO("Project: %s | %s | %s | %s | %s", p.name.c_str(), p.path.c_str(), p.lastOpened.c_str(), p.engineVersion.c_str(), p.favorite ? "fav" : "");
 }
 
 void ProjectManager::Save()
@@ -404,11 +401,11 @@ void ProjectManager::DrawCreatePopup()
         if (!canCreate) ImGui::BeginDisabled();
         if (ImGui::Button("Create", ImVec2(120, 0))) {
             std::filesystem::create_directories(projectFolder);
-            std::filesystem::create_directories(projectFolder / "Assets" / "Textures");
-            std::filesystem::create_directories(projectFolder / "Assets" / "Models");
-            std::filesystem::create_directories(projectFolder / "Assets" / "Audio");
-            std::filesystem::create_directories(projectFolder / "Assets" / "Scripts");
-            std::filesystem::create_directories(projectFolder / "Scenes");
+            // std::filesystem::create_directories(projectFolder / "Assets" / "Textures");
+            // std::filesystem::create_directories(projectFolder / "Assets" / "Models");
+            // std::filesystem::create_directories(projectFolder / "Assets" / "Audio");
+            // std::filesystem::create_directories(projectFolder / "Assets" / "Scripts");
+            // std::filesystem::create_directories(projectFolder / "Scenes");
             std::filesystem::create_directories(projectFolder / ".ballistic");
             SetFileAttributesA((projectFolder / ".ballistic").string().c_str(), FILE_ATTRIBUTE_HIDDEN);
 

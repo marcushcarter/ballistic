@@ -1,5 +1,6 @@
 #include "renderer.h"
 #include "core/window.h"
+#include "project/project.h"
 #include "shaders.h"
 #include "resources.h"
 
@@ -293,6 +294,13 @@ bool Renderer::CreateImGui(GLFWwindow* window)
     return true;
 }
 
+bool Renderer::LoadProject(const Project& project)
+{
+    (void)project;
+    LOG_DEBUG("Project Vulkan objects loaded");
+    return true;
+}
+
 void Renderer::Shutdown()
 {
     device.Wait();
@@ -340,6 +348,11 @@ void Renderer::DestroyImGui()
     ImGui::DestroyContext();
     imguiDescriptorPool.Destroy();
     LOG_DEBUG("ImGui destroyed");
+}
+
+void Renderer::UnloadProject()
+{
+    LOG_DEBUG("Project Vulkan objects unloaded");
 }
 
 void Renderer::RequestWindowResize(uint32_t w, uint32_t h)
