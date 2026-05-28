@@ -82,6 +82,8 @@ struct Renderer
     // std::vector<Fence> fences;
     // std::vector<CommandBuffer> commandBuffers;
 
+    std::function<void()> onViewportResized;
+
     std::function<void(VkCommandBuffer)> onSwapchainPass;
 
     bool Start(Window& window);
@@ -92,7 +94,7 @@ struct Renderer
     void DestroyImGui();
     void UnloadProject();
     
-    void RecreateImage(const RGImage& desc);
+    bool RecreateImage(const RGImage& desc);
     void DestroyImage(uint64_t id);
 
     void RequestWindowResize(uint32_t w, uint32_t h);

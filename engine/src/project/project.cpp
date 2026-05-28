@@ -184,7 +184,6 @@ bool Project::Save()
 
 void Project::Close()
 {
-    Save();
     name.clear();
     engineVersion.clear();
     path.clear();

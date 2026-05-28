@@ -28,6 +28,7 @@ target_link_libraries(ballistic_engine
     PUBLIC tinyfiledialogs
     PUBLIC tomlplusplus
     PUBLIC Shell32
+    PUBLIC imnodes
 )
 
 target_precompile_headers(ballistic_engine PRIVATE src/pch.h)

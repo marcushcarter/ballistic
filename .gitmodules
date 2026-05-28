@@ -22,3 +22,9 @@
 [submodule "Thirdparty/tomlplusplus"]
 	path = thirdparty/tomlplusplus
 	url = https://github.com/marzer/tomlplusplus.git
+[submodule "Thirdparty/imnodes"]
+	path = Thirdparty/imnodes
+	url = https://github.com/Nelarius/imnodes.git
+[submodule "thirdparty/imnodes"]
+	path = thirdparty/imnodes
+	url = https://github.com/Nelarius/imnodes.git

@@ -52,12 +52,15 @@ void Application::OpenProject(const std::filesystem::path& path)
             projectLoading = false;
             return;
         }
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         
         projectDataReady = true;
     });
 
     while (projectLoading && !window.ShouldClose()) {
         window.PollEvents();
+        window.SetTitle("");
 
         if (projectDataReady.exchange(false)) {
             if (!renderer.LoadProject(project)) {

@@ -292,6 +292,10 @@ bool Renderer::CreateImGui(GLFWwindow* window)
     ImGui_ImplGlfw_InitForVulkan(window, true);
     ImGui_ImplVulkan_Init(&initInfo);
 
+    ImNodes::CreateContext();
+    ImNodes::GetIO().EmulateThreeButtonMouse.Modifier = nullptr;
+    ImNodes::GetStyle().Flags = ImNodesStyleFlags_NodeOutline | ImNodesStyleFlags_GridLines;
+
     HRSRC jbRes = FindResource(nullptr, MAKEINTRESOURCE(FONT_JETBRAINS_MONO_REGULAR_TTF), RT_RCDATA);
     HGLOBAL jbMem = LoadResource(nullptr, jbRes);
     DWORD jbSize = SizeofResource(nullptr, jbRes);
@@ -373,6 +377,7 @@ void Renderer::Shutdown()
 void Renderer::DestroyImGui()
 {
     device.Wait();
+    ImNodes::DestroyContext();
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -388,12 +393,15 @@ void Renderer::UnloadProject()
     LOG_DEBUG("Project Vulkan objects unloaded");
 }
 
-void Renderer::RecreateImage(const RGImage& desc)
+bool Renderer::RecreateImage(const RGImage& desc)
 {
     device.Wait();
 
     auto it = allocatedImages.find(desc.id);
-    if (it != allocatedImages.end()) it->second.image.Destroy();
+    if (it != allocatedImages.end()) {
+        it->second.image.Destroy();
+        allocatedImages.erase(it);
+    }
 
     AllocatedImage entry;
     entry.viewportRelative = desc.sizeMode == RGImageSizeMode::ViewportRelative;
@@ -402,7 +410,7 @@ void Renderer::RecreateImage(const RGImage& desc)
 
     VkExtent2D extent = entry.viewportRelative ? VkExtent2D{ finalImage.extent.width, finalImage.extent.height } : VkExtent2D{ desc.fixedWidth, desc.fixedHeight };
 
-    entry.image.Create(device.Get(), physicalDevice.memory, {
+    bool ok = entry.image.Create(device.Get(), physicalDevice.memory, {
         .extent = extent,
         .format = desc.format,
         .usage = ResolveUsage(desc),
@@ -410,8 +418,14 @@ void Renderer::RecreateImage(const RGImage& desc)
         .debugName = desc.name.c_str()
     });
 
+    if (!ok) {
+        LOG_ERROR("RecreateImage failed: %s", desc.name.c_str());
+        return false;
+    }
+
     allocatedImages[desc.id] = std::move(entry);
     LOG_DEBUG("Allocated image: %s [%llu]", desc.name.c_str(), desc.id);
+    return true;
 }
 
 void Renderer::DestroyImage(uint64_t id)
@@ -470,6 +484,8 @@ void Renderer::ViewportResize()
     }
 
     viewportResizeRequested = false;
+
+    if (onViewportResized) onViewportResized();
 }
 
 void Renderer::ApplyVSync()
@@ -517,7 +533,7 @@ void Renderer::EndFrame()
     finalAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     finalAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     finalAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    finalAttachment.clearValue.color = { 1.0f, 0.0f, 1.0f, 1.0f };
+    finalAttachment.clearValue.color = { sinf((float)glfwGetTime()), 0.0f, 1.0f, 1.0f };
 
     VkRenderingInfo finalRendering{};
     finalRendering.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;

@@ -1,6 +1,6 @@
 #include "project_manager.h"
-#include "../file_dialog.h"
 #include "project/project.h"
+#include "file_dialog.h"
 
 void ProjectManager::Start(const std::filesystem::path& root, VkDescriptorSet tex, VkExtent2D extent)
 {

@@ -29,3 +29,7 @@ target_include_directories(tinyfiledialogs PUBLIC tinyfiledialogs)
 
 add_library(tomlplusplus INTERFACE)
 target_include_directories(tomlplusplus INTERFACE tomlplusplus/include)
+
+add_library(imnodes STATIC imnodes/imnodes.cpp)
+target_include_directories(imnodes PUBLIC imnodes imgui)
+target_link_libraries(imnodes PUBLIC imgui)
