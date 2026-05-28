@@ -1,5 +1,6 @@
 #include "project_manager.h"
 #include "../file_dialog.h"
+#include "project/project.h"
 
 void ProjectManager::Start(const std::filesystem::path& root, VkDescriptorSet tex, VkExtent2D extent)
 {
@@ -400,43 +401,8 @@ void ProjectManager::DrawCreatePopup()
         bool canCreate = createNameBuffer[0] != '\0' && createPathBuffer[0] != '\0' && !folderName.empty() && !pathInvalid;
         if (!canCreate) ImGui::BeginDisabled();
         if (ImGui::Button("Create", ImVec2(120, 0))) {
-            std::filesystem::create_directories(projectFolder);
-            // std::filesystem::create_directories(projectFolder / "Assets" / "Textures");
-            // std::filesystem::create_directories(projectFolder / "Assets" / "Models");
-            // std::filesystem::create_directories(projectFolder / "Assets" / "Audio");
-            // std::filesystem::create_directories(projectFolder / "Assets" / "Scripts");
-            // std::filesystem::create_directories(projectFolder / "Scenes");
-            std::filesystem::create_directories(projectFolder / ".ballistic");
-            SetFileAttributesA((projectFolder / ".ballistic").string().c_str(), FILE_ATTRIBUTE_HIDDEN);
-
-            toml::table blst;
-            blst.insert("name", std::string(createNameBuffer));
-            blst.insert("engine_version", std::format("{}.{}.{}", APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH));
-            std::ofstream blstFile(projectFolder / "project.blst");
-            blstFile << blst;
-
-            if (createVersionControlIndex == 1) {
-                std::ofstream gitignore(projectFolder / ".gitignore");
-                gitignore << "# Ballistic Engine\n";
-                gitignore << ".ballistic/\n";
-
-                std::ofstream gitattributes(projectFolder / ".gitattributes");
-                gitattributes << "* text=auto eol=lf\n\n";
-                gitattributes << "# Binary assets\n";
-                gitattributes << "*.png binary\n";
-                gitattributes << "*.jpg binary\n";
-                gitattributes << "*.jpeg binary\n";
-                gitattributes << "*.tga binary\n";
-                gitattributes << "*.wav binary\n";
-                gitattributes << "*.mp3 binary\n";
-                gitattributes << "*.ogg binary\n";
-                gitattributes << "*.fbx binary\n";
-                gitattributes << "*.blend binary\n\n";
-                gitattributes << "# Engine files\n";
-                gitattributes << "*.blst text eol=lf\n";
-                gitattributes << "*.glsl text eol=lf\n";
-                gitattributes << "*.hlsl text eol=lf\n";
-            }
+            Project temp;
+            temp.Create(projectFolder, createNameBuffer, createVersionControlIndex == 1);
 
             ProjectEntry entry;
             entry.name = createNameBuffer;

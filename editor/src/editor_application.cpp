@@ -76,7 +76,12 @@ void EditorApplication::OnProjectOpened(const std::filesystem::path& path)
     activeIniPath = (path / "editor.ini").string();
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = activeIniPath.c_str();
-    ImGui::LoadIniSettingsFromDisk(activeIniPath.c_str());
+
+    if (std::filesystem::exists(activeIniPath)) {
+        ImGui::LoadIniSettingsFromDisk(activeIniPath.c_str());
+    } else {
+        // ImGui::LoadIniSettingsFromMemory(DEFAULT_EDITOR_INI, strlen(DEFAULT_EDITOR_INI));
+    }
     
     LOG_INFO("Editing project: %s", path.string().c_str());
 }

@@ -1,9 +1,48 @@
 [[images]]
-fixed_height = 1080
-fixed_width = 1920
+fixed_height = 0
+fixed_width = 0
 format = 'VK_FORMAT_R8G8B8A8_UNORM'
-id = 303105661830911400
+id = 7357789195950777113
 name = 'GBuffer_Albedo'
+relative_height = 1.0
+relative_width = 1.0
+size_mode = 'viewport_relative'
+usage_attachment = true
+usage_sampled = true
+usage_storage = false
+
+[[images]]
+fixed_height = 0
+fixed_width = 0
+format = 'VK_FORMAT_R16G16B16A16_SFLOAT'
+id = 3239292152163410720
+name = 'GBuffer_Normal'
+relative_height = 1.0
+relative_width = 1.0
+size_mode = 'viewport_relative'
+usage_attachment = true
+usage_sampled = true
+usage_storage = false
+
+[[images]]
+fixed_height = 0
+fixed_width = 0
+format = 'VK_FORMAT_R8G8B8A8_UNORM'
+id = 1783086118895196922
+name = 'GBuffer_Material'
+relative_height = 1.0
+relative_width = 1.0
+size_mode = 'viewport_relative'
+usage_attachment = true
+usage_sampled = true
+usage_storage = false
+
+[[images]]
+fixed_height = 0
+fixed_width = 0
+format = 'VK_FORMAT_D32_SFLOAT'
+id = 3596483128275870622
+name = 'GBuffer_Depth'
 relative_height = 1.0
 relative_width = 1.0
 size_mode = 'viewport_relative'
@@ -15,11 +54,24 @@ usage_storage = false
 fixed_height = 2048
 fixed_width = 2048
 format = 'VK_FORMAT_D32_SFLOAT'
-id = 1560270419196098283
-name = 'Shadow Map'
+id = 4270328160459661311
+name = 'ShadowMap'
+relative_height = 0.0
+relative_width = 0.0
+size_mode = 'fixed'
+usage_attachment = true
+usage_sampled = true
+usage_storage = false
+
+[[images]]
+fixed_height = 0
+fixed_width = 0
+format = 'VK_FORMAT_R16G16B16A16_SFLOAT'
+id = 73312417576653211
+name = 'HdrLight'
 relative_height = 1.0
 relative_width = 1.0
-size_mode = 'fixed'
+size_mode = 'viewport_relative'
 usage_attachment = true
 usage_sampled = true
 usage_storage = false
