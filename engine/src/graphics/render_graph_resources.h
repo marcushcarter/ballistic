@@ -4,6 +4,7 @@
 #include "project/render_graph.h"
 
 struct Renderer;
+struct Project;
 
 struct RenderGraphResources
 {
@@ -17,8 +18,10 @@ struct RenderGraphResources
     std::unordered_map<uint64_t, AllocatedImage> images;
 
     bool RecreateImage(Renderer& renderer, const RGImage& desc);
-    void DestroyImage(Renderer& renderer, uint64_t id);
-    void DestroyAll(Renderer& renderer);
+    void DestroyImage(uint64_t id);
+    void DestroyAll();
 
-    void OnViewportResized(Renderer& renderer, uint32_t newWidth, uint32_t newHeight);
+    bool LoadProject(Renderer& renderer, const Project& project);
+
+    void ViewportResize(uint32_t newWidth, uint32_t newHeight);
 };

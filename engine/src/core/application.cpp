@@ -6,6 +6,7 @@ bool Application::Create(const char* title, int width, int height)
 
     window.Create(title, width, height);
     renderer.Start(window);   
+    splash.Create(renderer);
     OnInit();
     
     window.Show();
@@ -19,6 +20,7 @@ void Application::Run()
         OnUpdate();
         
         if (renderer.BeginFrame()) {
+            renderer.RecordSwapchainPass(renderer.onSwapchainPass);
             renderer.EndFrame();
         }
     }
@@ -27,6 +29,8 @@ void Application::Run()
 void Application::Destroy()
 {
     OnShutdown();
+    renderer.device.Wait();
+    splash.Destroy();
     renderer.Shutdown();
     window.Destroy();
 }
@@ -63,14 +67,14 @@ void Application::OpenProject(const std::filesystem::path& path)
         window.SetTitle("");
 
         if (projectDataReady.exchange(false)) {
-            if (!renderer.LoadProject(project)) {
+            if (!renderer.resources.LoadProject(renderer, project)) {
                 LOG_ERROR("Failed to load project Vulkan resources: %s", path.string().c_str());
                 projectLoadFailed = true;
             }
             projectLoading = false;
         }
 
-        renderer.RenderLoadingScreen();
+        splash.RenderLoadingFrame(renderer);
     }
 
     if (projectLoadFailed) {
@@ -85,6 +89,6 @@ void Application::OpenProject(const std::filesystem::path& path)
 void Application::CloseProject()
 {
     OnProjectClosed();
-    renderer.UnloadProject();
+    renderer.resources.DestroyAll();
     project.Close();
 }

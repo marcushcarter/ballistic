@@ -12,5 +12,6 @@ struct ImGuiLayer
     void Destroy();
 
     void NewFrame();
-    void Render(VkCommandBuffer cmd);
+    void Render();
+    void RecordDraw(VkCommandBuffer cmd);
 };

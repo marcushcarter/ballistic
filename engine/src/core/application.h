@@ -2,12 +2,14 @@
 #include "pch.h"
 #include "window.h"
 #include "graphics/renderer.h"
+#include "graphics/splash_renderer.h"
 #include "project/project.h"
 
 struct Application
 {
     Window window;
     Renderer renderer;
+    SplashRenderer splash;
     
     std::future<void> loadFuture;
     std::atomic<bool> projectLoading{false};

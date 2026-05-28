@@ -3,7 +3,7 @@
 #include "graphics/renderer.h"
 #include "file_dialog.h"
 
-void Editor::OnProjectOpened(const std::filesystem::path& path)
+void Editor::OpenProject(const std::filesystem::path& path)
 {
     std::filesystem::create_directories(path / ".ballistic" / "editor");
     
@@ -25,7 +25,7 @@ void Editor::OnProjectOpened(const std::filesystem::path& path)
     }
 }
 
-void Editor::OnProjectClosed(const std::filesystem::path& path)
+void Editor::CloseProject(const std::filesystem::path& path)
 {
     if (!activeIniPath.empty()) {
         ImGui::SaveIniSettingsToDisk(activeIniPath.c_str());
@@ -232,7 +232,7 @@ void Editor::DrawProjectPanel(Project& project, Renderer& renderer, bool& pendin
                 img.fixedWidth = addImageFixedW;
                 img.fixedHeight = addImageFixedH;
 
-                if (renderer.RecreateImage(img)) {
+                if (renderer.resources.RecreateImage(renderer, img)) {
                     project.images.push_back(img);
                     addImageNameBuffer[0] = '\0';
                     ImGui::CloseCurrentPopup();

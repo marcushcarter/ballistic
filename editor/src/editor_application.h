@@ -3,11 +3,14 @@
 #include <core/application.h>
 #include "editor/project_manager.h"
 #include "editor/editor.h"
+#include "editor/app_data.h"
+#include "graphics/imgui_layer.h"
 
 struct EditorApplication : Application
 {
-    std::filesystem::path roamingRoot;
-    std::filesystem::path localRoot;
+    AppDataPaths appData;
+
+    ImGuiLayer imguiLayer;
     
     bool inProjectManager = true;
     bool pendingCloseProject = false;
@@ -25,6 +28,4 @@ struct EditorApplication : Application
     
     void OnProjectOpened(const std::filesystem::path& path) override;
     void OnProjectClosed() override;
-
-    void SetupAppData();
 };

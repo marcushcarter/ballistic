@@ -1,6 +1,7 @@
 #pragma once
 #include "pch.h"
 #include "vk/vk.h"
+#include "render_graph_resources.h"
 
 struct Window;
 struct Project;
@@ -43,33 +44,16 @@ struct Renderer
     Allocator allocator;
 
     DescriptorPool descriptorPool;
-    DescriptorPool imguiDescriptorPool;
 
     Image2D finalImage;
-    Image2D logoImage;
-    Image2D logoLongImage;
     Sampler linearSampler;
 
     DescriptorSetLayout imageInputSetLayout;
     DescriptorSet finalImageInputSet;
     PipelineLayout blitPipelineLayout;
     GraphicsPipeline blitPipeline;
-    
-    DescriptorSet splashSet;
-    PipelineLayout splashPipelineLayout;
-    GraphicsPipeline splashPipeline;
 
-    struct SplashPushConstants {
-        float x, y, w, h;
-    };
-
-    struct AllocatedImage {
-        Image2D image;
-        bool viewportRelative = false;
-        float relativeWidth = 1.0f;
-        float relativeHeight = 1.0f;
-    };
-    std::unordered_map<uint64_t, AllocatedImage> allocatedImages;
+    RenderGraphResources resources;
 
     // std::vector<Sampler> samplers;
     // std::vector<RenderPass> renderPasses;
@@ -82,20 +66,12 @@ struct Renderer
     // std::vector<Fence> fences;
     // std::vector<CommandBuffer> commandBuffers;
 
-    std::function<void()> onViewportResized;
+    std::function<void()> onViewportResized; // pretty much only for updatign the imgui final texture descriptor set
 
     std::function<void(VkCommandBuffer)> onSwapchainPass;
 
     bool Start(Window& window);
-    bool CreateImGui(GLFWwindow* window);
-    bool LoadProject(const Project& project);
-    
     void Shutdown();
-    void DestroyImGui();
-    void UnloadProject();
-    
-    bool RecreateImage(const RGImage& desc);
-    void DestroyImage(uint64_t id);
 
     void RequestWindowResize(uint32_t w, uint32_t h);
     void RequestSceneResize(uint32_t w, uint32_t h);
@@ -106,6 +82,6 @@ struct Renderer
     void ApplyVSync();
 
     bool BeginFrame();
+    void RecordSwapchainPass(const std::function<void(VkCommandBuffer)>& content);
     void EndFrame();
-    bool RenderLoadingScreen();
 };

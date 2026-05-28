@@ -9,11 +9,37 @@ void EditorApplication::OnInit()
         renderer.RequestWindowResize(w, h);
     };
     
-    SetupAppData();
+    appData = ResolveAppDataPaths();
 
-    renderer.CreateImGui(window.glfwWindow);
+    imguiLayer.Create(renderer, window.glfwWindow);
+
+    ImGuiIO& io = ImGui::GetIO();
+    {
+        HRSRC jbRes = FindResource(nullptr, MAKEINTRESOURCE(FONT_JETBRAINS_MONO_REGULAR_TTF), RT_RCDATA);
+        HGLOBAL jbMem = LoadResource(nullptr, jbRes);
+        DWORD jbSize = SizeofResource(nullptr, jbRes);
+        void* jbData = IM_ALLOC(jbSize);
+        memcpy(jbData, LockResource(jbMem), jbSize);
+        ImFontConfig jbCfg;
+        jbCfg.FontDataOwnedByAtlas = true;
+        io.Fonts->AddFontFromMemoryTTF(jbData, (int)jbSize, 14.0f, &jbCfg);
+
+        HRSRC faRes = FindResource(nullptr, MAKEINTRESOURCE(FONT_FA_SOLID_900_OTF), RT_RCDATA);
+        HGLOBAL faMem = LoadResource(nullptr, faRes);
+        DWORD faSize = SizeofResource(nullptr, faRes);
+        void* faData = IM_ALLOC(faSize);
+        memcpy(faData, LockResource(faMem), faSize);
+        static const ImWchar faRanges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+        ImFontConfig faCfg;
+        faCfg.MergeMode = true;
+        faCfg.PixelSnapH = true;
+        faCfg.FontDataOwnedByAtlas = true;
+        io.Fonts->AddFontFromMemoryTTF(faData, (int)faSize, 14.0f, &faCfg, faRanges);
+        io.Fonts->Build();
+    }
+
     renderer.onSwapchainPass = [this](VkCommandBuffer cmd) {
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+        imguiLayer.RecordDraw(cmd);
     };
 
     finalTextureID = ImGui_ImplVulkan_AddTexture(
@@ -23,12 +49,12 @@ void EditorApplication::OnInit()
     );
     logoTextureID = ImGui_ImplVulkan_AddTexture(
         renderer.linearSampler.Get(),
-        renderer.logoImage.GetView(),
+        splash.logoImage.GetView(),
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     );
     logoLongTextureID = ImGui_ImplVulkan_AddTexture(
         renderer.linearSampler.Get(),
-        renderer.logoLongImage.GetView(),
+        splash.logoLongImage.GetView(),
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     );
 
@@ -41,8 +67,7 @@ void EditorApplication::OnInit()
         );
     };
 
-    projectManager.Start(roamingRoot, logoLongTextureID, renderer.logoLongImage.extent);
-    projectManager.Load();
+    projectManager.Start(appData.roamingRoot, logoLongTextureID, splash.logoLongImage.extent);
 
     onProjectLoadFailed = [this]() {
         inProjectManager = true;
@@ -60,9 +85,7 @@ void EditorApplication::OnUpdate()
 
     editor.Update(project);
 
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
+    imguiLayer.NewFrame();
 
     if (inProjectManager) {
         window.SetTitle("Ballistic Engine - Project Manager");
@@ -76,41 +99,24 @@ void EditorApplication::OnUpdate()
         editor.Draw(project, renderer, pendingCloseProject, finalTextureID);
     }
 
-    ImGui::Render();
+    imguiLayer.Render();
 }
 
 void EditorApplication::OnShutdown()
 {
-    renderer.DestroyImGui();
+    renderer.device.Wait();
+    imguiLayer.Destroy();
     LOG_DEBUG("Editor shutdown");
 }
 
 void EditorApplication::OnProjectOpened(const std::filesystem::path& path)
 {
-    editor.OnProjectOpened(path);
+    editor.OpenProject(path);
     LOG_INFO("Editing project: %s", path.string().c_str());
 }
 
 void EditorApplication::OnProjectClosed()
 {
-    editor.OnProjectClosed(project.path);
+    editor.CloseProject(project.path);
     inProjectManager = true;
-}
-
-void EditorApplication::SetupAppData()
-{
-    PWSTR rawRoaming = nullptr;
-    SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &rawRoaming);
-    roamingRoot = std::filesystem::path(rawRoaming) / "Ballistic" / "BallisticEngine";
-    CoTaskMemFree(rawRoaming);
-    std::filesystem::create_directories(roamingRoot);
-
-    PWSTR rawLocal = nullptr;
-    SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &rawLocal);
-    localRoot = std::filesystem::path(rawLocal) / "Ballistic" / "BallisticEngine";
-    CoTaskMemFree(rawLocal);
-    std::filesystem::create_directories(localRoot);
-
-    LOG_DEBUG("Roaming AppData: %s", roamingRoot.string().c_str());
-    LOG_DEBUG("Local AppData: %s", localRoot.string().c_str());
 }

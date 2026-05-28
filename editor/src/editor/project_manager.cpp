@@ -1,10 +1,11 @@
 #include "project_manager.h"
 #include "project/project.h"
 #include "file_dialog.h"
+#include "core/timestamp.h"
 
 void ProjectManager::Start(const std::filesystem::path& root, VkDescriptorSet tex, VkExtent2D extent)
 {
-    roamingRoot = root;
+    registry.Load(root);
     logoLongTextureID = tex;
     logoLongExtent = extent;
 }
@@ -74,28 +75,16 @@ std::filesystem::path ProjectManager::Draw()
                 engineVersion = blst["engine_version"].value_or<std::string>("");
             } catch (...) {}
 
-            bool alreadyExists = false;
-            for (auto& p : projects) {
-                if (p.path == projectFolder.string()) { alreadyExists = true; break; }
-            }
-
-            if (!alreadyExists) {
+            if (registry.Find(projectFolder) == nullptr) {
                 ProjectEntry entry;
                 entry.name = name.empty() ? projectFolder.filename().string() : name;
                 entry.path = projectFolder.string();
                 entry.favorite = false;
                 entry.engineVersion = engineVersion.empty() ? std::to_string(APP_VERSION_MAJOR) + "." + std::to_string(APP_VERSION_MINOR) + "." + std::to_string(APP_VERSION_PATCH) : engineVersion;
+                entry.lastOpened = FormatTimestampNow();
 
-                auto now = std::chrono::system_clock::now();
-                std::time_t t = std::chrono::system_clock::to_time_t(now);
-                std::tm tm{};
-                localtime_s(&tm, &t);
-                char dateBuf[32];
-                strftime(dateBuf, sizeof(dateBuf), "%Y-%m-%d %H:%M", &tm);
-                entry.lastOpened = dateBuf;
-
-                projects.push_back(entry);
-                Save();
+                registry.Add(entry);
+                registry.Save();
             }
         }
     }
@@ -128,7 +117,7 @@ std::filesystem::path ProjectManager::Draw()
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f, 8.0f));
     ImGui::Separator();
-    bool hasSelection = (selectedIndex >= 0 && selectedIndex < (int)projects.size());
+    bool hasSelection = (selectedIndex >= 0 && selectedIndex < (int)registry.entries.size());
     if (!hasSelection) ImGui::BeginDisabled();
 
     if (ImGui::Button(ICON_FA_PENCIL " Edit", ImVec2(-1, 0))) {
@@ -137,7 +126,7 @@ std::filesystem::path ProjectManager::Draw()
 
     if (ImGui::Button(ICON_FA_I_CURSOR " Rename", ImVec2(-1, 0))) {
         renameIndex = selectedIndex;
-        strncpy_s(renameBuffer, sizeof(renameBuffer), projects[selectedIndex].name.c_str(), sizeof(renameBuffer) - 1);
+        strncpy_s(renameBuffer, sizeof(renameBuffer), registry.entries[selectedIndex].name.c_str(), sizeof(renameBuffer) - 1);
     }
     
     if (ImGui::Button(ICON_FA_TRASH " Remove", ImVec2(-1, 0))) {
@@ -171,66 +160,6 @@ std::filesystem::path ProjectManager::Draw()
     return pendingOpenPath;
 }
 
-void ProjectManager::Load()
-{
-    projects.clear();
-    std::filesystem::path cfgPath = roamingRoot / "projects.cfg";
-    if (!std::filesystem::exists(cfgPath)) return;
-
-    try {
-        auto root = toml::parse_file(cfgPath.string());
-        auto arr = root["projects"].as_array();
-        if (!arr) return;
-
-        arr->for_each([&](auto& el) {
-            if (!el.is_table()) return;
-            auto& t = *el.as_table();
-
-            ProjectEntry p;
-            p.path = t["path"].value_or<std::string>("");
-            p.favorite = t["favorite"].value_or(false);
-            p.lastOpened = t["last_opened"].value_or<std::string>("");
-            if (p.path.empty()) return;
-
-            std::filesystem::path blstPath = std::filesystem::path(p.path) / "project.blst";
-            if (std::filesystem::exists(blstPath)) {
-                try {
-                    auto blst = toml::parse_file(blstPath.string());
-                    p.name = blst["name"].value_or<std::string>(std::filesystem::path(p.path).filename().string());
-                    p.engineVersion = blst["engine_version"].value_or<std::string>("");
-                } catch (...) {
-                    p.name = std::filesystem::path(p.path).filename().string();
-                }
-            } else {
-                p.name = std::filesystem::path(p.path).filename().string();
-            }
-
-            projects.push_back(p);
-        });
-
-    } catch (const toml::parse_error& e) {
-        LOG_ERROR("Failed to parse projects.cfg: %s", e.what());
-    }
-}
-
-void ProjectManager::Save()
-{
-    toml::table root;
-    toml::array arr;
-
-    for (auto& p : projects) {
-        toml::table entry;
-        entry.insert("path", p.path);
-        entry.insert("favorite", p.favorite);
-        entry.insert("last_opened", p.lastOpened);
-        arr.push_back(entry);
-    }
-
-    root.insert("projects", arr);
-    std::ofstream file(roamingRoot / "projects.cfg");
-    file << root;
-}
-
 void ProjectManager::DrawList()
 {
     const float rowH = 64.0f;
@@ -245,20 +174,20 @@ void ProjectManager::DrawList()
     std::string filterStr = toLower(filterBuffer);
 
     std::vector<int> sortedIndices;
-    sortedIndices.reserve(projects.size());
-    for (int i = 0; i < (int)projects.size(); i++) {
+    sortedIndices.reserve(registry.entries.size());
+    for (int i = 0; i < (int)registry.entries.size(); i++) {
         if (!filterStr.empty()) {
-            if (toLower(projects[i].name).find(filterStr) == std::string::npos && toLower(projects[i].path).find(filterStr) == std::string::npos)
+            if (toLower(registry.entries[i].name).find(filterStr) == std::string::npos && toLower(registry.entries[i].path).find(filterStr) == std::string::npos)
                 continue;
         }
         sortedIndices.push_back(i);
     }
 
     std::stable_sort(sortedIndices.begin(), sortedIndices.end(), [&](int a, int b) {
-        if (projects[a].favorite != projects[b].favorite) return projects[a].favorite > projects[b].favorite;
-        if (sortIndex == 0) return projects[a].lastOpened > projects[b].lastOpened;
-        if (sortIndex == 1) return projects[a].name < projects[b].name;
-        if (sortIndex == 2) return projects[a].path < projects[b].path;
+        if (registry.entries[a].favorite != registry.entries[b].favorite) return registry.entries[a].favorite > registry.entries[b].favorite;
+        if (sortIndex == 0) return registry.entries[a].lastOpened > registry.entries[b].lastOpened;
+        if (sortIndex == 1) return registry.entries[a].name < registry.entries[b].name;
+        if (sortIndex == 2) return registry.entries[a].path < registry.entries[b].path;
         return false;
     });
 
@@ -274,7 +203,7 @@ void ProjectManager::DrawList()
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
     for (int idx : sortedIndices) {
-        auto& p = projects[idx];
+        auto& p = registry.entries[idx];
 
         ImGui::Dummy(ImVec2(0, rowPad));
 
@@ -310,7 +239,7 @@ void ProjectManager::DrawList()
         ImGui::SetCursorScreenPos(ImVec2(starX, starY));
         if (ImGui::InvisibleButton("##fav", ImVec2(starSize, starSize))) {
             p.favorite = !p.favorite;
-            Save();
+            registry.Save();
         }
         bool starHovered = ImGui::IsItemHovered();
 
@@ -356,10 +285,7 @@ void ProjectManager::DrawCreatePopup()
         std::filesystem::path projectFolder = std::filesystem::path(createPathBuffer) / folderName;
 
         bool folderExistsOnDisk = !folderName.empty() && createPathBuffer[0] != '\0' && std::filesystem::exists(projectFolder);
-        bool alreadyRegistered  = false;
-        for (auto& p : projects) {
-            if (std::filesystem::path(p.path) == projectFolder) { alreadyRegistered = true; break; }
-        }
+        bool alreadyRegistered  = registry.Find(projectFolder) != nullptr;
         bool parentPathInvalid = createPathBuffer[0] != '\0' && !std::filesystem::exists(createPathBuffer);
         bool pathInvalid = parentPathInvalid || folderExistsOnDisk || alreadyRegistered;
 
@@ -409,19 +335,12 @@ void ProjectManager::DrawCreatePopup()
             entry.path = projectFolder.string();
             entry.favorite = false;
             entry.engineVersion = std::to_string(APP_VERSION_MAJOR) + "." + std::to_string(APP_VERSION_MINOR) + "." + std::to_string(APP_VERSION_PATCH);
+            entry.lastOpened = FormatTimestampNow();
 
-            auto now = std::chrono::system_clock::now();
-            std::time_t t = std::chrono::system_clock::to_time_t(now);
-            std::tm tm{};
-            localtime_s(&tm, &t);
-            char dateBuf[32];
-            strftime(dateBuf, sizeof(dateBuf), "%Y-%m-%d %H:%M", &tm);
-            entry.lastOpened = dateBuf;
+            registry.Add(entry);
+            registry.Save();
 
-            projects.push_back(entry);
-            Save();
-
-            if (createEditNow) RequestOpen((int)projects.size() - 1);
+            if (createEditNow) RequestOpen((int)registry.entries.size() - 1);
             createNameBuffer[0] = '\0';
             createPathBuffer[0] = '\0';
             ImGui::CloseCurrentPopup();
@@ -448,11 +367,11 @@ void ProjectManager::DrawRemovePopup()
 {
     bool open = true;
     if (ImGui::BeginPopupModal("Remove Project", &open, ImGuiWindowFlags_AlwaysAutoResize)) {
-        if (removeConfirmIndex >= 0 && removeConfirmIndex < (int)projects.size()) {
+        if (removeConfirmIndex >= 0 && removeConfirmIndex < (int)registry.entries.size()) {
             ImGui::Text("Are you sure you want to remove:");
             ImGui::Spacing();
-            ImGui::TextColored(ImVec4(1,1,1,1), "%s", projects[removeConfirmIndex].name.c_str());
-            ImGui::TextDisabled("%s", projects[removeConfirmIndex].path.c_str());
+            ImGui::TextColored(ImVec4(1,1,1,1), "%s", registry.entries[removeConfirmIndex].name.c_str());
+            ImGui::TextDisabled("%s", registry.entries[removeConfirmIndex].path.c_str());
             ImGui::Spacing();
             ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "This will delete the project folder from disk.");
             ImGui::Spacing();
@@ -460,15 +379,15 @@ void ProjectManager::DrawRemovePopup()
             ImGui::Spacing();
 
             if (ImGui::Button("Yes, Delete", ImVec2(120, 0))) {
-                std::filesystem::path projectPath = projects[removeConfirmIndex].path;
+                std::filesystem::path projectPath = registry.entries[removeConfirmIndex].path;
                 if (std::filesystem::exists(projectPath)) std::filesystem::remove_all(projectPath);
 
-                projects.erase(projects.begin() + removeConfirmIndex);
+                registry.Remove(removeConfirmIndex);
                 if (selectedIndex == removeConfirmIndex) selectedIndex = -1;
                 else if (selectedIndex >  removeConfirmIndex) selectedIndex--;
 
                 removeConfirmIndex = -1;
-                Save();
+                registry.Save();
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();
@@ -487,7 +406,7 @@ void ProjectManager::DrawRenamePopup()
 {
     bool open = true;
     if (ImGui::BeginPopupModal("Rename Project", &open, ImGuiWindowFlags_AlwaysAutoResize)) {
-        if (renameIndex >= 0 && renameIndex < (int)projects.size()) {
+        if (renameIndex >= 0 && renameIndex < (int)registry.entries.size()) {
             ImGui::Text("New Name");
             ImGui::SetNextItemWidth(300);
             ImGui::InputTextWithHint("##rename", "Project Name", renameBuffer, sizeof(renameBuffer));
@@ -495,20 +414,13 @@ void ProjectManager::DrawRenamePopup()
             ImGui::Separator();
             ImGui::Spacing();
 
-            bool canRename = renameBuffer[0] != '\0' && projects[renameIndex].name != renameBuffer;
+            bool canRename = renameBuffer[0] != '\0' && registry.entries[renameIndex].name != renameBuffer;
             if (!canRename) ImGui::BeginDisabled();
             if (ImGui::Button("Rename", ImVec2(120, 0))) {
-                projects[renameIndex].name = renameBuffer;
+                registry.entries[renameIndex].name = renameBuffer;
+                registry.entries[renameIndex].lastOpened = FormatTimestampNow();
 
-                auto now = std::chrono::system_clock::now();
-                std::time_t t = std::chrono::system_clock::to_time_t(now);
-                std::tm tm{};
-                localtime_s(&tm, &t);
-                char dateBuf[32];
-                strftime(dateBuf, sizeof(dateBuf), "%Y-%m-%d %H:%M", &tm);
-                projects[renameIndex].lastOpened = dateBuf;
-
-                std::filesystem::path blstPath = std::filesystem::path(projects[renameIndex].path) / "project.blst";
+                std::filesystem::path blstPath = std::filesystem::path(registry.entries[renameIndex].path) / "project.blst";
                 if (std::filesystem::exists(blstPath)) {
                     try {
                         auto blst = toml::parse_file(blstPath.string());
@@ -518,7 +430,7 @@ void ProjectManager::DrawRenamePopup()
                     } catch (...) {}
                 }
 
-                Save();
+                registry.Save();
                 renameIndex = -1;
                 ImGui::CloseCurrentPopup();
             }
@@ -552,7 +464,7 @@ void ProjectManager::DrawSettingsPopup()
 
 void ProjectManager::RequestOpen(int index)
 {
-    if (index < 0 || index >= (int)projects.size()) return;
-    pendingOpenPath = projects[index].path;
-    openRequested   = true;
+    if (index < 0 || index >= (int)registry.entries.size()) return;
+    pendingOpenPath = registry.entries[index].path;
+    openRequested = true;
 }

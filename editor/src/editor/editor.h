@@ -27,8 +27,8 @@ struct Editor
     uint32_t pendingViewportH = 0;
     bool viewportSizeChanged = false;
 
-    void OnProjectOpened(const std::filesystem::path& path);
-    void OnProjectClosed(const std::filesystem::path& path);
+    void OpenProject(const std::filesystem::path& path);
+    void CloseProject(const std::filesystem::path& path);
     void Save(const std::filesystem::path& path);
 
     void Update(Project& project);
