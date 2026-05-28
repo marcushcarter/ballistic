@@ -17,18 +17,15 @@ struct RGImage {
     bool usageStorage = false;
 };
 
-// struct RGPass {
-//     uint64_t id = 0;
-//     std::string name;
-//     bool enabled = true;
-//     std::vector<uint64_t> reads;
-//     std::vector<uint64_t> writes;
-// };
+struct RGPass {
+    uint64_t id = 0;
+    std::string name;
+    std::string engineHook;
+    bool enabled = true;
+    std::vector<uint64_t> reads;
+    std::vector<uint64_t> writes;
+};
 
-// struct RenderGraph {
-//     std::vector<uint64_t> passes;
-// };
-
-// struct CompiledGraph {
-//     std::vector<RGPass*> sortedPasses;
-// };
+struct RenderGraph {
+    std::vector<uint64_t> passOrder;
+};

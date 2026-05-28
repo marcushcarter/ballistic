@@ -9,7 +9,8 @@ struct Project
     std::filesystem::path path;
 
     std::vector<RGImage> images;
-    // std::vector<RenderGraph> graphs;
+    std::vector<RGPass> passes;
+    RenderGraph graph;
 
     bool Create(const std::filesystem::path& projectFolder, const std::string& projectName, bool initGit);
     bool Load(const std::filesystem::path& projectPath);

@@ -48,6 +48,21 @@ bool Project::Create(const std::filesystem::path& projectFolder, const std::stri
     images.push_back({ GenerateID(), "ShadowMap",        VK_FORMAT_D32_SFLOAT,           RGImageSizeMode::Fixed,            0.0f, 0.0f, 2048, 2048 });
     images.push_back({ GenerateID(), "HdrLight",         VK_FORMAT_R16G16B16A16_SFLOAT,  RGImageSizeMode::ViewportRelative, 1.0f, 1.0f });
 
+    // uint64_t shadowPassID   = GenerateID();
+    // uint64_t zprepassID     = GenerateID();
+    // uint64_t gbufferPassID  = GenerateID();
+    // uint64_t lightingPassID = GenerateID();
+    // uint64_t postPassID     = GenerateID();
+
+    // passes.push_back({ shadowPassID,  "ShadowPass",   "Shadow",   true, {}, { shadowMapID } });
+    // passes.push_back({ zprepassID,    "ZPrepass",      "ZPrepass", true, {}, { depthID } });
+    // passes.push_back({ gbufferPassID, "GBufferPass",   "GBuffer",  true, {}, { albedoID, normalID, materialID, depthID } });
+    // passes.push_back({ lightingPassID,"LightingPass",  "Lighting", true, { albedoID, normalID, materialID, depthID, shadowMapID }, { hdrLightID } });
+    // passes.push_back({ postPassID,    "PostProcess",   "PostProcess", true, { hdrLightID }, {} });  // writes to FinalImage implicitly
+
+    // graph.passOrder = { shadowPassID, zprepassID, gbufferPassID, lightingPassID, postPassID };
+    // graph.passOrder = { shadowPassID };
+
     std::filesystem::create_directories(projectFolder);
     // std::filesystem::create_directories(projectFolder / "Assets" / "Textures");
     // std::filesystem::create_directories(projectFolder / "Assets" / "Models");
