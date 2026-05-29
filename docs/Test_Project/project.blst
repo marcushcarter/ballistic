@@ -1,2 +1,84 @@
 engine_version = '0.1.0'
 name = 'Test Project'
+passes = []
+
+[graph]
+pass_order = []
+
+[[images]]
+fixed_height = 0
+fixed_width = 0
+format = 'VK_FORMAT_R8G8B8A8_UNORM'
+id = 1901703338606791410
+name = 'GBuffer_Albedo'
+relative_height = 1.0
+relative_width = 1.0
+size_mode = 'viewport_relative'
+usage_attachment = true
+usage_sampled = true
+usage_storage = false
+
+[[images]]
+fixed_height = 0
+fixed_width = 0
+format = 'VK_FORMAT_R16G16B16A16_SFLOAT'
+id = 7809105351042918042
+name = 'GBuffer_Normal'
+relative_height = 1.0
+relative_width = 1.0
+size_mode = 'viewport_relative'
+usage_attachment = true
+usage_sampled = true
+usage_storage = false
+
+[[images]]
+fixed_height = 0
+fixed_width = 0
+format = 'VK_FORMAT_R8G8B8A8_UNORM'
+id = 6361068507317144762
+name = 'GBuffer_Material'
+relative_height = 1.0
+relative_width = 1.0
+size_mode = 'viewport_relative'
+usage_attachment = true
+usage_sampled = true
+usage_storage = false
+
+[[images]]
+fixed_height = 0
+fixed_width = 0
+format = 'VK_FORMAT_D32_SFLOAT'
+id = 5038729516449338561
+name = 'GBuffer_Depth'
+relative_height = 1.0
+relative_width = 1.0
+size_mode = 'viewport_relative'
+usage_attachment = true
+usage_sampled = true
+usage_storage = false
+
+[[images]]
+fixed_height = 0
+fixed_width = 0
+format = 'VK_FORMAT_R16G16B16A16_SFLOAT'
+id = 8791134442530249290
+name = 'HdrLight'
+relative_height = 1.0
+relative_width = 1.0
+size_mode = 'viewport_relative'
+usage_attachment = true
+usage_sampled = true
+usage_storage = false
+
+[[images]]
+fixed_height = 2048
+fixed_width = 2048
+format = 'VK_FORMAT_D32_SFLOAT'
+id = 34231794846623997
+name = 'ShadowMap'
+relative_height = 1.0
+relative_width = 1.0
+size_mode = 'fixed'
+usage_attachment = true
+usage_sampled = true
+usage_storage = false

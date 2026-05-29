@@ -1,4 +1,5 @@
 #include "editor.h"
+#include "workspace.h"
 #include "project/project.h"
 #include "graphics/renderer.h"
 #include "file_dialog.h"
@@ -41,7 +42,7 @@ void Editor::CloseProject(const std::filesystem::path& path)
     }
 }
 
-void Editor::Save(const std::filesystem::path& path)
+void Editor::SaveLayout(const std::filesystem::path& path)
 {
     if (!activeIniPath.empty()) {
         ImGui::SaveIniSettingsToDisk(activeIniPath.c_str());
@@ -53,25 +54,30 @@ void Editor::Save(const std::filesystem::path& path)
     }
 }
 
-void Editor::Update(Project& project)
+void Editor::SaveProjectAndLayout(EditorContext& ctx)
 {
-    if (!project.IsOpen()) return;
+    ctx.project.Save();
+    SaveLayout(ctx.project.path);
+    ctx.workspace.TouchProject(ctx.project.path);
+}
 
+void Editor::Update(EditorContext& ctx)
+{
+    if (!ctx.project.IsOpen()) return;
+ 
     autosaveTimer += ImGui::GetIO().DeltaTime;
-    if (autosaveEnabled && autosaveTimer >= autosaveInterval) {
+    if (ctx.workspace.config.autosaveEnabled && autosaveTimer >= ctx.workspace.config.autosaveInterval) {
         autosaveTimer = 0.0f;
-        project.Save();
-        Save(project.path);
+        SaveProjectAndLayout(ctx);
         LOG_DEBUG("Autosaved project");
     }
 }
 
-void Editor::Draw(Project& project, Renderer& renderer, bool& pendingCloseProject, VkDescriptorSet finalTextureID)
+void Editor::Draw(EditorContext& ctx)
 {
     DrawDockSpace();
-
-    DrawViewport(renderer, finalTextureID);
-    DrawProjectPanel(project, renderer, pendingCloseProject);
+    DrawViewport(ctx);
+    DrawProjectPanel(ctx);
     DrawRenderGraphPanel();
 }
 
@@ -97,7 +103,7 @@ void Editor::DrawDockSpace()
     ImGui::End();
 }
 
-void Editor::DrawViewport(Renderer& renderer, VkDescriptorSet finalTextureID)
+void Editor::DrawViewport(EditorContext& ctx)
 {
     if (ImGui::Begin("Viewport")) {
         ImVec2 size = ImGui::GetContentRegionAvail();
@@ -116,30 +122,30 @@ void Editor::DrawViewport(Renderer& renderer, VkDescriptorSet finalTextureID)
             if (w > 0 && h > 0 && (w != lastViewportW || h != lastViewportH)) {
                 lastViewportW = w;
                 lastViewportH = h;
-                renderer.RequestSceneResize(w, h);
+                ctx.renderer.RequestSceneResize(w, h);
             }
             viewportSizeChanged = false;
         }
 
-        ImGui::Image((ImTextureID)finalTextureID, size);
+        ImGui::Image((ImTextureID)ctx.finalTextureID, size);
     }
     ImGui::End();
 }
 
-void Editor::DrawProjectPanel(Project& project, Renderer& renderer, bool& pendingCloseProject)
+void Editor::DrawProjectPanel(EditorContext& ctx)
 {
+    Project& project = ctx.project;
+
     if (ImGui::Begin("Project")) {
         ImGui::TextDisabled("%s", project.path.string().c_str());
         ImGui::Separator();
         if (ImGui::Button(ICON_FA_HOUSE " Project Manager")) {
-            project.Save();
-            Save(project.path);
-            pendingCloseProject = true;
+            SaveProjectAndLayout(ctx);
+            ctx.requestCloseProject = true;
         }
         ImGui::SameLine();
         if (ImGui::Button(ICON_FA_FLOPPY_DISK " Save")) {
-            project.Save();
-            Save(project.path);
+            SaveProjectAndLayout(ctx);
         }
 
         ImGui::Spacing();
@@ -222,23 +228,23 @@ void Editor::DrawProjectPanel(Project& project, Renderer& renderer, bool& pendin
             bool canAdd = !nameEmpty && !nameTaken;
             if (!canAdd) ImGui::BeginDisabled();
             if (ImGui::Button("Add", ImVec2(120, 0))) {
-                RGImage img;
+                ResourceImageDesc img;
                 img.id = GenerateID();
                 img.name = addImageNameBuffer;
                 img.format = formatMap[addImageFormatIndex];
-                img.sizeMode = addImageSizeModeIndex == 0 ? RGImageSizeMode::ViewportRelative : RGImageSizeMode::Fixed;
+                img.sizeMode = addImageSizeModeIndex == 0 ? ImageSizeMode::ViewportRelative : ImageSizeMode::Fixed;
+                
                 img.relativeWidth = addImageRelW;
                 img.relativeHeight = addImageRelH;
                 img.fixedWidth = addImageFixedW;
                 img.fixedHeight = addImageFixedH;
 
-                if (renderer.resources.RecreateImage(renderer, img)) {
+                if (ctx.renderer.resources.CreateImage(ctx.renderer, img)) {
                     project.images.push_back(img);
                     addImageNameBuffer[0] = '\0';
                     ImGui::CloseCurrentPopup();
                 }
             }
-
             if (!canAdd) ImGui::EndDisabled();
 
             ImGui::SameLine();

@@ -1,14 +1,45 @@
 #include "project_loader.h"
+#include "project.h"
 
 void ProjectLoader::Begin(Project& project, const std::filesystem::path& path)
 {
-    // TODO: move async lambda from Application::OpenProject
-    (void)project;
-    (void)path;
+    done   = false;
+    failed = false;
+ 
+    future = std::async(std::launch::async, [this, &project, path]()
+    {
+        if (!std::filesystem::exists(path)) {
+            LOG_ERROR("Project path does not exist: %s", path.string().c_str());
+            failed = true;
+            done   = true;
+            return;
+        }
+ 
+        if (!project.Load(path)) {
+            LOG_ERROR("Failed to deserialize project: %s", path.string().c_str());
+            failed = true;
+            done   = true;
+            return;
+        }
+ 
+        // Artificial delay so the splash is visible; remove once load is heavy enough.
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+ 
+        done = true;
+    });
 }
 
-bool Poll()
+ProjectLoader::Status ProjectLoader::Poll() const
 {
-    // TODO: returns true when loading has terminated
-    return false;
+    if (!future.valid()) return Status::Idle;
+    if (!done.load()) return Status::Loading;
+    return failed.load() ? Status::Failed : Status::Succeeded;
+}
+
+void ProjectLoader::Reset()
+{
+    if (future.valid()) future.get();   // join the worker
+    done   = false;
+    failed = false;
+
 }

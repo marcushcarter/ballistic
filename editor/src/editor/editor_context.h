@@ -3,16 +3,15 @@
 
 struct Project;
 struct Renderer;
-struct SplashRenderer;
+struct EditorWorkspace;
 
 struct EditorContext
 {
     Project& project;
     Renderer& renderer;
-    SplashRenderer& splash;
-
+    EditorWorkspace& workspace;
+ 
     VkDescriptorSet finalTextureID = VK_NULL_HANDLE;
-
+ 
     bool requestCloseProject = false;
-    bool requestSave = false;
 };

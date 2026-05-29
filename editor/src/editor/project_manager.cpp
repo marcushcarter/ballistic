@@ -3,15 +3,17 @@
 #include "file_dialog.h"
 #include "core/timestamp.h"
 
-void ProjectManager::Start(const std::filesystem::path& root, VkDescriptorSet tex, VkExtent2D extent)
+void ProjectManager::Start(EditorWorkspace& ws, VkDescriptorSet tex, VkExtent2D extent)
 {
-    registry.Load(root);
+    workspace = &ws;
     logoLongTextureID = tex;
     logoLongExtent = extent;
 }
 
 std::filesystem::path ProjectManager::Draw()
 {
+    ProjectRegistry& registry = workspace->registry;
+
     openRequested = false;
     pendingOpenPath.clear();
 
@@ -162,6 +164,8 @@ std::filesystem::path ProjectManager::Draw()
 
 void ProjectManager::DrawList()
 {
+    ProjectRegistry& registry = workspace->registry;
+
     const float rowH = 64.0f;
     const float rowPad = 4.0f;
     const float rounding = 5.0f;
@@ -270,6 +274,8 @@ void ProjectManager::DrawList()
 
 void ProjectManager::DrawCreatePopup()
 {
+    ProjectRegistry& registry = workspace->registry;
+
     bool open = true;
     if (ImGui::BeginPopupModal("Create Project", &open, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text("Project Name");
@@ -365,6 +371,8 @@ void ProjectManager::DrawCreatePopup()
 
 void ProjectManager::DrawRemovePopup()
 {
+    ProjectRegistry& registry = workspace->registry;
+
     bool open = true;
     if (ImGui::BeginPopupModal("Remove Project", &open, ImGuiWindowFlags_AlwaysAutoResize)) {
         if (removeConfirmIndex >= 0 && removeConfirmIndex < (int)registry.entries.size()) {
@@ -404,6 +412,8 @@ void ProjectManager::DrawRemovePopup()
 
 void ProjectManager::DrawRenamePopup()
 {
+    ProjectRegistry& registry = workspace->registry;
+
     bool open = true;
     if (ImGui::BeginPopupModal("Rename Project", &open, ImGuiWindowFlags_AlwaysAutoResize)) {
         if (renameIndex >= 0 && renameIndex < (int)registry.entries.size()) {
@@ -453,9 +463,18 @@ void ProjectManager::DrawSettingsPopup()
         ImGui::Text("Settings");
         ImGui::Separator();
 
-        // TODO
-        
+        ImGui::Checkbox("Autosave", &workspace->config.autosaveEnabled);
+        ImGui::BeginDisabled(!workspace->config.autosaveEnabled);
+        ImGui::SetNextItemWidth(160);
+        ImGui::InputFloat("Interval(s)", &workspace->config.autosaveInterval, 10.0f, 60.0f, "%.0f");
+        ImGui::EndDisabled();
         ImGui::Spacing();
+
+        if (ImGui::Button("Save", ImVec2(120, 0))) {
+            workspace->Save();
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
         if (ImGui::Button("Close", ImVec2(120, 0)))
             ImGui::CloseCurrentPopup();
         ImGui::EndPopup();
@@ -464,6 +483,7 @@ void ProjectManager::DrawSettingsPopup()
 
 void ProjectManager::RequestOpen(int index)
 {
+    ProjectRegistry& registry = workspace->registry;
     if (index < 0 || index >= (int)registry.entries.size()) return;
     pendingOpenPath = registry.entries[index].path;
     openRequested = true;

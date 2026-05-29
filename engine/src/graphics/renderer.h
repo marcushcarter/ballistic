@@ -1,7 +1,7 @@
 #pragma once
 #include "pch.h"
 #include "vk/vk.h"
-#include "render_graph_resources.h"
+#include "gpu_resources.h"
 
 struct Window;
 struct Project;
@@ -53,7 +53,7 @@ struct Renderer
     PipelineLayout blitPipelineLayout;
     GraphicsPipeline blitPipeline;
 
-    RenderGraphResources resources;
+    GpuResources resources;
 
     // std::vector<Sampler> samplers;
     // std::vector<RenderPass> renderPasses;
@@ -67,7 +67,6 @@ struct Renderer
     // std::vector<CommandBuffer> commandBuffers;
 
     std::function<void()> onViewportResized; // pretty much only for updatign the imgui final texture descriptor set
-
     std::function<void(VkCommandBuffer)> onSwapchainPass;
 
     bool Start(Window& window);

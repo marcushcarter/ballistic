@@ -4,28 +4,31 @@
 #include "graphics/renderer.h"
 #include "graphics/splash_renderer.h"
 #include "project/project.h"
+#include "project/project_loader.h"
+
+enum class AppState { Active, LoadingProject };
 
 struct Application
 {
     Window window;
     Renderer renderer;
     SplashRenderer splash;
-    
-    std::future<void> loadFuture;
-    std::atomic<bool> projectLoading{false};
-    std::atomic<bool> projectDataReady{false};
-    std::atomic<bool> projectLoadFailed{false};
-
-    std::function<void()> onProjectLoadFailed;
 
     Project project;
+    ProjectLoader loader;
+
+    AppState state = AppState::Active;
+
+    std::function<void()> onProjectLoadFailed;
 
     bool Create(const char* title, int width, int height);
     void Run();
     void Destroy();
 
     void OpenProject(const std::filesystem::path& path);
+    void TickLoading();
     void CloseProject();
+
 
     virtual void OnInit() {}
     virtual void OnUpdate() {}

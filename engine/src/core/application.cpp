@@ -17,6 +17,12 @@ void Application::Run()
 {
     while (!window.ShouldClose()) {
         window.PollEvents();
+ 
+        if (state == AppState::LoadingProject) {
+            TickLoading();
+            continue;
+        }
+
         OnUpdate();
         
         if (renderer.BeginFrame()) {
@@ -37,52 +43,46 @@ void Application::Destroy()
 
 void Application::OpenProject(const std::filesystem::path& path)
 {
-    projectLoading = true;
-    projectDataReady = false;
-    projectLoadFailed = false;
+    state = AppState::LoadingProject;
+    loader.Begin(project, path);
+}
 
-    loadFuture = std::async(std::launch::async, [this, path]()
-    {
-        if (!std::filesystem::exists(path)) {
-            LOG_ERROR("Project path does not exist: %s", path.string().c_str());
-            projectLoadFailed = true;
-            projectLoading = false;
+void Application::TickLoading()
+{
+    switch (loader.Poll()) {
+        case ProjectLoader::Status::Loading:
+            splash.RenderLoadingFrame(renderer);
             return;
-        }
-
-        if (!project.Load(path)) {
-            LOG_ERROR("Failed to deserialize project: %s", path.string().c_str());
-            projectLoadFailed = true;
-            projectLoading = false;
+ 
+        case ProjectLoader::Status::Failed:
+            loader.Reset();
+            state = AppState::Active;
+            CloseProject();
+            if (onProjectLoadFailed) onProjectLoadFailed();
             return;
-        }
-
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        
-        projectDataReady = true;
-    });
-
-    while (projectLoading && !window.ShouldClose()) {
-        window.PollEvents();
-        window.SetTitle("");
-
-        if (projectDataReady.exchange(false)) {
-            if (!renderer.resources.LoadProject(renderer, project)) {
-                LOG_ERROR("Failed to load project Vulkan resources: %s", path.string().c_str());
-                projectLoadFailed = true;
+ 
+        case ProjectLoader::Status::Succeeded: {
+            // CPU data is ready and the worker has produced it; create the GPU
+            // mirror here on the main thread, which owns the device/queue.
+            bool ok = renderer.resources.LoadProject(renderer, project);
+            loader.Reset();
+            state = AppState::Active;
+ 
+            if (!ok) {
+                LOG_ERROR("Failed to load project GPU resources: %s", project.path.string().c_str());
+                CloseProject();
+                if (onProjectLoadFailed) onProjectLoadFailed();
+                return;
             }
-            projectLoading = false;
+ 
+            OnProjectOpened(project.path);
+            return;
         }
-
-        splash.RenderLoadingFrame(renderer);
-    }
-
-    if (projectLoadFailed) {
-        projectLoadFailed = false;
-        CloseProject();
-        if (onProjectLoadFailed) onProjectLoadFailed();
-    } else {
-        OnProjectOpened(project.path);
+ 
+        case ProjectLoader::Status::Idle:
+        default:
+            state = AppState::Active;
+            return;
     }
 }
 

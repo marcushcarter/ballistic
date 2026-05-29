@@ -6,12 +6,13 @@ struct Renderer;
 
 struct ProjectLoader
 {
-    std::future<void> loadFuture;
-    std::atomic<bool> loading{false};
-    std::atomic<bool> dataReady{false};
+    enum class Status { Idle, Loading, Succeeded, Failed };
+ 
+    std::future<void> future;
+    std::atomic<bool> done{false};
     std::atomic<bool> failed{false};
 
     void Begin(Project& project, const std::filesystem::path& path);
-
-    bool Poll();
+    Status Poll() const;
+    void Reset();
 };

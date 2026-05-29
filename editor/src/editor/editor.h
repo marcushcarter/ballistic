@@ -1,5 +1,6 @@
 #pragma once
 #include "pch.h"
+#include "editor_context.h"
 
 struct Project;
 struct Renderer;
@@ -9,8 +10,6 @@ struct Editor
     std::string activeIniPath;
     ImNodesEditorContext* renderGraphContext = nullptr;
 
-    bool autosaveEnabled = true;
-    float autosaveInterval = 120.0f;
     float autosaveTimer = 0.0f;
 
     char addImageNameBuffer[256] = {};
@@ -29,13 +28,14 @@ struct Editor
 
     void OpenProject(const std::filesystem::path& path);
     void CloseProject(const std::filesystem::path& path);
-    void Save(const std::filesystem::path& path);
+    void SaveLayout(const std::filesystem::path& path);
+    void SaveProjectAndLayout(EditorContext& ctx);
 
-    void Update(Project& project);
-    void Draw(Project& project, Renderer& renderer, bool& pendingCloseProject, VkDescriptorSet finalTextureID);
+    void Update(EditorContext& ctx);
+    void Draw(EditorContext& ctx);
 
     void DrawDockSpace();
-    void DrawViewport(Renderer& renderer, VkDescriptorSet finalTextureID);
-    void DrawProjectPanel(Project& project, Renderer& renderer, bool& pendingCloseProject);
+    void DrawViewport(EditorContext& ctx);
+    void DrawProjectPanel(EditorContext& ctx);
     void DrawRenderGraphPanel();
 };

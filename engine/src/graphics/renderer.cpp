@@ -201,7 +201,7 @@ void Renderer::ViewportResize()
     finalImageInputSet.SetImages(0, { finalImage.GetView() }, linearSampler.Get(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     
-    resources.ViewportResize(pendingViewportW, pendingViewportH);
+    resources.ResizeViewport(pendingViewportW, pendingViewportH);
     
     if (onViewportResized) onViewportResized();
     viewportResizeRequested = false;

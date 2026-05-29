@@ -1,10 +1,10 @@
 #pragma once
 #include "pch.h"
-#include "project_registry.h"
+#include "workspace.h"
 
 struct ProjectManager
 {
-    ProjectRegistry registry;
+    EditorWorkspace* workspace = nullptr;
 
     VkDescriptorSet logoLongTextureID = VK_NULL_HANDLE;
     VkExtent2D logoLongExtent = {};
@@ -25,7 +25,7 @@ struct ProjectManager
     std::filesystem::path pendingOpenPath;
     bool openRequested = false;
 
-    void Start(const std::filesystem::path& roamingRoot, VkDescriptorSet logoLongTex, VkExtent2D logoLongExtent);
+    void Start(EditorWorkspace& workspace, VkDescriptorSet logoLongTex, VkExtent2D logoLongExtent);
 
     std::filesystem::path Draw();
 

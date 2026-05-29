@@ -1,6 +1,6 @@
 #pragma once
 #include "pch.h"
-#include "render_graph.h"
+#include "resource_desc.h"
 
 struct Project
 {
@@ -8,7 +8,7 @@ struct Project
     std::string engineVersion;
     std::filesystem::path path;
 
-    std::vector<RGImage> images;
+    std::vector<ResourceImageDesc> images;
     std::vector<RGPass> passes;
     RenderGraph graph;
 

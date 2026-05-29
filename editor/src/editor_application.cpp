@@ -8,9 +8,9 @@ void EditorApplication::OnInit()
     window.onFramebufferResize = [this](uint32_t w, uint32_t h) {
         renderer.RequestWindowResize(w, h);
     };
-    
-    appData = ResolveAppDataPaths();
 
+    workspace.Load();
+    
     imguiLayer.Create(renderer, window.glfwWindow);
 
     ImGuiIO& io = ImGui::GetIO();
@@ -67,7 +67,7 @@ void EditorApplication::OnInit()
         );
     };
 
-    projectManager.Start(appData.roamingRoot, logoLongTextureID, splash.logoLongImage.extent);
+    projectManager.Start(workspace, logoLongTextureID, splash.logoLongImage.extent);
 
     onProjectLoadFailed = [this]() {
         inProjectManager = true;
@@ -78,13 +78,6 @@ void EditorApplication::OnInit()
 
 void EditorApplication::OnUpdate()
 {
-    if (pendingCloseProject) {
-        CloseProject();
-        pendingCloseProject = false;
-    }
-
-    editor.Update(project);
-
     imguiLayer.NewFrame();
 
     if (inProjectManager) {
@@ -96,7 +89,15 @@ void EditorApplication::OnUpdate()
         }
     } else {
         window.SetTitle(("Ballistic Engine - " + project.name).c_str());
-        editor.Draw(project, renderer, pendingCloseProject, finalTextureID);
+
+        EditorContext ctx{ project, renderer, workspace };
+        ctx.finalTextureID = finalTextureID;
+
+        editor.Update(ctx);
+        editor.Draw(ctx);
+
+        if (ctx.requestCloseProject)
+            CloseProject();
     }
 
     imguiLayer.Render();
@@ -105,6 +106,7 @@ void EditorApplication::OnUpdate()
 void EditorApplication::OnShutdown()
 {
     renderer.device.Wait();
+    workspace.Save();
     imguiLayer.Destroy();
     LOG_DEBUG("Editor shutdown");
 }
@@ -112,6 +114,7 @@ void EditorApplication::OnShutdown()
 void EditorApplication::OnProjectOpened(const std::filesystem::path& path)
 {
     editor.OpenProject(path);
+    workspace.TouchProject(path);
     LOG_INFO("Editing project: %s", path.string().c_str());
 }
 
