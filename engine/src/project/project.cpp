@@ -7,19 +7,6 @@ bool Project::Create(const std::filesystem::path& projectFolder, const std::stri
     engineVersion = std::format("{}.{}.{}", APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH);
     path = projectFolder;
 
-    images.push_back({ GenerateID(), "GBuffer_Albedo",   VK_FORMAT_R8G8B8A8_UNORM,       ImageSizeMode::ViewportRelative, 1.0f, 1.0f });
-    images.push_back({ GenerateID(), "GBuffer_Normal",   VK_FORMAT_R16G16B16A16_SFLOAT,  ImageSizeMode::ViewportRelative, 1.0f, 1.0f });
-    images.push_back({ GenerateID(), "GBuffer_Material", VK_FORMAT_R8G8B8A8_UNORM,       ImageSizeMode::ViewportRelative, 1.0f, 1.0f });
-    images.push_back({ GenerateID(), "GBuffer_Depth",    VK_FORMAT_D32_SFLOAT,           ImageSizeMode::ViewportRelative, 1.0f, 1.0f });
-    // images.push_back({ GenerateID(), "ShadowMap",        VK_FORMAT_D32_SFLOAT,           ImageSizeMode::Fixed,            0.0f, 0.0f, 2048, 2048 });
-    images.push_back({ GenerateID(), "HdrLight",         VK_FORMAT_R16G16B16A16_SFLOAT,  ImageSizeMode::ViewportRelative, 1.0f, 1.0f });
-
-    ResourceImageDesc shadow{ GenerateID(), "ShadowMap", VK_FORMAT_D32_SFLOAT };
-    shadow.sizeMode = ImageSizeMode::Fixed;
-    shadow.fixedWidth = 2048;
-    shadow.fixedHeight = 2048;
-    images.push_back(shadow);
-
     std::filesystem::create_directories(projectFolder);
     // std::filesystem::create_directories(projectFolder / "Assets" / "Textures");
     // std::filesystem::create_directories(projectFolder / "Assets" / "Models");
@@ -82,8 +69,5 @@ void Project::Close()
     name.clear();
     engineVersion.clear();
     path.clear();
-    images.clear();
-    passes.clear();
-    graph.passOrder.clear();
     LOG_DEBUG("Project closed");
 }

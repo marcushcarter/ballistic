@@ -3,26 +3,24 @@
 
 void ProjectLoader::Begin(Project& project, const std::filesystem::path& path)
 {
-    done   = false;
+    done = false;
     failed = false;
  
-    future = std::async(std::launch::async, [this, &project, path]()
-    {
+    future = std::async(std::launch::async, [this, &project, path]() {
         if (!std::filesystem::exists(path)) {
             LOG_ERROR("Project path does not exist: %s", path.string().c_str());
             failed = true;
-            done   = true;
+            done = true;
             return;
         }
  
         if (!project.Load(path)) {
             LOG_ERROR("Failed to deserialize project: %s", path.string().c_str());
             failed = true;
-            done   = true;
+            done = true;
             return;
         }
  
-        // Artificial delay so the splash is visible; remove once load is heavy enough.
         std::this_thread::sleep_for(std::chrono::seconds(1));
  
         done = true;
@@ -38,8 +36,7 @@ ProjectLoader::Status ProjectLoader::Poll() const
 
 void ProjectLoader::Reset()
 {
-    if (future.valid()) future.get();   // join the worker
-    done   = false;
+    if (future.valid()) future.get();
+    done = false;
     failed = false;
-
 }

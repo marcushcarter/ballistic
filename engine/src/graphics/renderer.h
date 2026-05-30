@@ -1,11 +1,9 @@
 #pragma once
 #include "pch.h"
 #include "vk/vk.h"
-#include "gpu_resources.h"
 
 struct Window;
 struct Project;
-struct RGImage;
 
 struct Renderer
 {
@@ -52,8 +50,6 @@ struct Renderer
     DescriptorSet finalImageInputSet;
     PipelineLayout blitPipelineLayout;
     GraphicsPipeline blitPipeline;
-
-    GpuResources resources;
 
     // std::vector<Sampler> samplers;
     // std::vector<RenderPass> renderPasses;

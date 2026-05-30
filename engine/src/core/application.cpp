@@ -62,18 +62,8 @@ void Application::TickLoading()
             return;
  
         case ProjectLoader::Status::Succeeded: {
-            // CPU data is ready and the worker has produced it; create the GPU
-            // mirror here on the main thread, which owns the device/queue.
-            bool ok = renderer.resources.LoadProject(renderer, project);
             loader.Reset();
             state = AppState::Active;
- 
-            if (!ok) {
-                LOG_ERROR("Failed to load project GPU resources: %s", project.path.string().c_str());
-                CloseProject();
-                if (onProjectLoadFailed) onProjectLoadFailed();
-                return;
-            }
  
             OnProjectOpened(project.path);
             return;
@@ -89,6 +79,5 @@ void Application::TickLoading()
 void Application::CloseProject()
 {
     OnProjectClosed();
-    renderer.resources.DestroyAll();
     project.Close();
 }
