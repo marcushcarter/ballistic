@@ -48,12 +48,12 @@ void EditorApplication::OnInit()
     );
     logoTextureID = ImGui_ImplVulkan_AddTexture(
         renderer.linearSampler.Get(),
-        splash.logoImage.GetView(),
+        renderer.logoImage.GetView(),
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     );
     logoLongTextureID = ImGui_ImplVulkan_AddTexture(
         renderer.linearSampler.Get(),
-        splash.logoLongImage.GetView(),
+        renderer.logoLongImage.GetView(),
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     );
 
@@ -66,12 +66,13 @@ void EditorApplication::OnInit()
         );
     };
 
-    projectManager.Start(workspace, logoLongTextureID, splash.logoLongImage.extent);
+    projectManager.Start(workspace, logoLongTextureID, renderer.logoLongImage.extent);
 
     onProjectLoadFailed = [this]() {
         inProjectManager = true;
     };
     
+    window.Show();
     LOG_DEBUG("Editor initialized");
 }
 

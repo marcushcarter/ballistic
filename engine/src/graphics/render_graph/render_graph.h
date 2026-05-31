@@ -1,13 +1,11 @@
 #pragma once
 #include "pch.h"
-#include "pass.h"
 #include "graphics/vk/image/image_2d.h"
 #include "graphics/vk/buffer/buffer.h"
 #include "transient_resource.h"
 #include "transient_heap.h"
 
 struct Image2D;
-struct Pass;
 
 struct ResourceHandle {
     uint32_t resource = UINT32_MAX;
@@ -26,7 +24,8 @@ struct RenderGraph
     };
 
     struct Node {
-        std::unique_ptr<Pass> pass;
+        const char* name = "Pass";
+        std::function<void(VkCommandBuffer, RenderGraph&)> execute;
         std::vector<Use> uses;
         VkQueueFlagBits queue = VK_QUEUE_GRAPHICS_BIT;
         uint32_t refCount = 0;
@@ -86,21 +85,45 @@ struct RenderGraph
     void BeginFrame(uint64_t frameIndex, uint64_t completedFrameIndex);
     void Reset();
 
-    int32_t Resolve(const char* name);
-    ResourceHandle RecordWrite(uint32_t resource, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
-    ResourceHandle RecordRead(uint32_t resource, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
-
     ResourceHandle ImportImage(const char* name, Image2D* image);
     ResourceHandle ImportBuffer(const char* name, Buffer* buffer);
     ResourceHandle CreateImage(const char* name, const TransientImageDesc& desc, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
     ResourceHandle CreateBuffer(const char* name, const TransientBufferDesc& desc, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
+
+    int32_t Resolve(const char* name);
+    ResourceHandle RecordWrite(uint32_t resource, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
+    ResourceHandle RecordRead(uint32_t resource, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
     
     ResourceHandle ReadImage(const char* name, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
     ResourceHandle WriteImage(const char* name, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
     ResourceHandle ReadBuffer(const char* name, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
     ResourceHandle WriteBuffer(const char* name, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
+
+    ResourceHandle GetHandle(const char* name);
+    ResourceHandle ReadImage(ResourceHandle handle, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
+    ResourceHandle WriteImage(ResourceHandle handle, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
+    ResourceHandle ReadBuffer(ResourceHandle handle, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
+    ResourceHandle WriteBuffer(ResourceHandle handle, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
     
-    void AddPass(std::unique_ptr<Pass> pass);
+    template <typename Data, typename Setup, typename Execute>
+    Data AddPass(const char* name, Setup&& setup, Execute&& execute)
+    {
+        nodes.emplace_back();
+        currentPassIdx = (int32_t)nodes.size() - 1;
+        Node& node = nodes.back();
+        node.name = name;
+ 
+        Data data{};
+        currentSetup = &node;
+        setup(*this, data);
+        currentSetup = nullptr;
+        currentPassIdx = -1;
+ 
+        node.execute = [exec = std::forward<Execute>(execute), data](VkCommandBuffer cmd, RenderGraph& g) {
+            exec(cmd, data, g);
+        };
+        return data;
+    }
     
     void Compile();
     void Execute(VkCommandBuffer cmd);

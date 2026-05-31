@@ -1,5 +1,4 @@
 #include "render_graph.h"
-#include "pass.h"
 
 static VkExtent2D ComputeExtent(const TransientImageDesc& d, VkExtent2D vp)
 {
@@ -16,8 +15,7 @@ static bool HasWrite(VkAccessFlags2 a)
     return (a & W) != 0;
 }
 
-
-void RenderGraph::Init(VkDevice d, VmaAllocator a) { device = d; vma = a; }
+void RenderGraph::Init(VkDevice d, VmaAllocator a) { device = d; vma = a; heap.Init(d, a); }
 void RenderGraph::Shutdown() { heap.Shutdown(); }
 void RenderGraph::SetViewport(VkExtent2D e) { viewportExtent = e; }
 
@@ -36,32 +34,6 @@ void RenderGraph::Reset()
     plan.clear();
     currentSetup = nullptr;
     currentPassIdx = -1;
-}
-
-int32_t RenderGraph::Resolve(const char* name)
-{
-    auto it = nameMap.find(name);
-    if (it == nameMap.end()) { LOG_ERROR("RenderGraph: resource '%s' not found (must be Imported first)", name); return -1; }
-    return (int32_t)it->second;
-}
-
-ResourceHandle RenderGraph::RecordWrite(uint32_t resIdx, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access)
-{
-    Resource& res = resources[resIdx];
-    res.versions.push_back({ currentPassIdx, 0 });
-    ResourceHandle h{ resIdx, (uint16_t)(res.versions.size() - 1) };
-    if (currentSetup) currentSetup->uses.push_back({ h, layout, stage, access, true });
-    return h;
-}
-
-ResourceHandle RenderGraph::RecordRead(uint32_t resIdx, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access)
-{
-    Resource& res = resources[resIdx];
-    uint16_t ver = (uint16_t)(res.versions.size() - 1);
-    res.versions[ver].readRefCount++;
-    ResourceHandle h{ resIdx, ver };
-    if (currentSetup) currentSetup->uses.push_back({ h, layout, stage, access, false });
-    return h;
 }
 
 ResourceHandle RenderGraph::ImportImage(const char* name, Image2D* image)
@@ -122,6 +94,32 @@ ResourceHandle RenderGraph::CreateBuffer(const char* name, const TransientBuffer
     return RecordWrite(idx, VK_IMAGE_LAYOUT_UNDEFINED, stage, access);
 }
 
+int32_t RenderGraph::Resolve(const char* name)
+{
+    auto it = nameMap.find(name);
+    if (it == nameMap.end()) { LOG_ERROR("RenderGraph: resource '%s' not found (must be Imported first)", name); return -1; }
+    return (int32_t)it->second;
+}
+
+ResourceHandle RenderGraph::RecordWrite(uint32_t resIdx, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access)
+{
+    Resource& res = resources[resIdx];
+    res.versions.push_back({ currentPassIdx, 0 });
+    ResourceHandle h{ resIdx, (uint16_t)(res.versions.size() - 1) };
+    if (currentSetup) currentSetup->uses.push_back({ h, layout, stage, access, true });
+    return h;
+}
+
+ResourceHandle RenderGraph::RecordRead(uint32_t resIdx, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access)
+{
+    Resource& res = resources[resIdx];
+    uint16_t ver = (uint16_t)(res.versions.size() - 1);
+    res.versions[ver].readRefCount++;
+    ResourceHandle h{ resIdx, ver };
+    if (currentSetup) currentSetup->uses.push_back({ h, layout, stage, access, false });
+    return h;
+}
+
 ResourceHandle RenderGraph::ReadImage(const char* n, VkImageLayout l, VkPipelineStageFlags2 s, VkAccessFlags2 a)
 {
     int32_t r = Resolve(n);
@@ -146,16 +144,39 @@ ResourceHandle RenderGraph::WriteBuffer(const char* n, VkPipelineStageFlags2 s, 
     return r < 0 ? ResourceHandle{} : RecordWrite((uint32_t)r, VK_IMAGE_LAYOUT_UNDEFINED, s, a);
 }
 
-void RenderGraph::AddPass(std::unique_ptr<Pass> pass)
+ResourceHandle RenderGraph::GetHandle(const char* name)
 {
-    nodes.emplace_back();
-    currentPassIdx = (int32_t)nodes.size() - 1;
-    Node& node = nodes.back();
-    node.pass = std::move(pass);
-    currentSetup = &node;
-    node.pass->Setup(*this);
-    currentSetup = nullptr;
-    currentPassIdx = -1;
+    int32_t r = Resolve(name);
+    if (r < 0) return {};
+    return { (uint32_t)r, (uint16_t)(resources[(uint32_t)r].versions.size() - 1) };
+}
+
+ResourceHandle RenderGraph::ReadImage(ResourceHandle h, VkImageLayout l, VkPipelineStageFlags2 s, VkAccessFlags2 a)
+{
+    if (!h.IsValid()) return {};
+    Resource& res = resources[h.resource];
+    if (h.version < res.versions.size()) res.versions[h.version].readRefCount++;
+    if (currentSetup) currentSetup->uses.push_back({ h, l, s, a, false });
+    return h;
+}
+
+ResourceHandle RenderGraph::WriteImage(ResourceHandle h, VkImageLayout l, VkPipelineStageFlags2 s, VkAccessFlags2 a)
+{
+    return h.IsValid() ? RecordWrite(h.resource, l, s, a) : ResourceHandle{};
+}
+
+ResourceHandle RenderGraph::ReadBuffer(ResourceHandle h, VkPipelineStageFlags2 s, VkAccessFlags2 a)
+{
+    if (!h.IsValid()) return {};
+    Resource& res = resources[h.resource];
+    if (h.version < res.versions.size()) res.versions[h.version].readRefCount++;
+    if (currentSetup) currentSetup->uses.push_back({ h, VK_IMAGE_LAYOUT_UNDEFINED, s, a, false });
+    return h;
+}
+
+ResourceHandle RenderGraph::WriteBuffer(ResourceHandle h, VkPipelineStageFlags2 s, VkAccessFlags2 a)
+{
+    return h.IsValid() ? RecordWrite(h.resource, VK_IMAGE_LAYOUT_UNDEFINED, s, a) : ResourceHandle{};
 }
 
 void RenderGraph::Compile()
@@ -171,9 +192,9 @@ void RenderGraph::Compile()
     }
 
     std::vector<std::pair<uint32_t, uint16_t>> dead;
-    for (uint32_t ri = 0; ri < resources.size(); ++ri) {
+    for (uint32_t ri = 0; ri < resources.size(); ri++) {
         Resource& r = resources[ri];
-        for (uint16_t v = 1; v < (uint16_t)r.versions.size(); ++v)
+        for (uint16_t v = 1; v < (uint16_t)r.versions.size(); v++)
             if (r.versions[v].readRefCount == 0) dead.push_back({ ri, v });
     }
     
@@ -233,9 +254,7 @@ void RenderGraph::Compile()
             req.lastPass = (uint32_t)r.lastPass;
             r.heapSlot = (int32_t)requests.size();
             requests.push_back(req);
-
         } else if (r.kind == Kind::TransientBuffer) {
-
             TransientRequest req{};
             req.kind = TransientRequest::Kind::Buffer;
             req.bufferDesc = r.bufferDesc;
@@ -244,7 +263,6 @@ void RenderGraph::Compile()
             req.lastPass = (uint32_t)r.lastPass;
             r.heapSlot = (int32_t)requests.size();
             requests.push_back(req);
-
         }
     }
     heap.Realize(requests, frameIndex);
@@ -283,11 +301,9 @@ void RenderGraph::Compile()
             const bool isImage = (r.kind == Kind::TransientImage || r.kind == Kind::ExternalImage);
 
             if (u.isWrite) {
-
                 const VkPipelineStageFlags2 src = t.prodStage | t.readStages;
                 const VkAccessFlags2 srcAcc = t.prodAccess | t.readAccess;
                 const bool layoutChange = isImage && (t.layout != u.layout);
-                
                 if (layoutChange || src != 0) {
                     Barrier b{};
                     b.handle = u.handle;
@@ -300,19 +316,15 @@ void RenderGraph::Compile()
                     b.dstAccess = u.access;
                     step.barriers.push_back(b);
                 }
-
                 t.layout = u.layout;
                 t.prodStage = u.stage;
                 t.prodAccess = u.access;
                 t.flushed = 0;
                 t.readStages = 0;
                 t.readAccess = 0;
-            
             } else {
-                
                 const bool layoutChange = isImage && (t.layout != u.layout);
                 const bool needVis = HasWrite(t.prodAccess) && ((u.stage & ~t.flushed) != 0);
-                
                 if (layoutChange || needVis) {
                     Barrier b{};
                     b.handle = u.handle;
@@ -327,7 +339,6 @@ void RenderGraph::Compile()
                     t.layout = u.layout;
                     t.flushed |= u.stage;
                 }
-
                 t.readStages |= u.stage;
                 t.readAccess |= u.access;
             }
@@ -339,7 +350,6 @@ void RenderGraph::Compile()
         Track& t = track[ri];
         const VkPipelineStageFlags2 fStage = t.prodStage | t.readStages;
         const VkAccessFlags2 fAccess= t.prodAccess | t.readAccess;
-
         if (r.kind == Kind::ExternalImage && r.externalImage) {
             r.externalImage->layout = t.layout;
             r.externalImage->stage = (VkPipelineStageFlags)fStage;
@@ -407,7 +417,7 @@ void RenderGraph::Execute(VkCommandBuffer cmd)
                 vkCmdPipelineBarrier2(cmd, &dep);
             }
         }
-        step.node->pass->Execute(cmd, *this);
+        if (step.node->execute) step.node->execute(cmd, *this);
     }
 }
 

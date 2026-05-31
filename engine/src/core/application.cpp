@@ -5,11 +5,9 @@ bool Application::Create(const char* title, int width, int height)
     LOG_INFO("%s v%d.%d.%d.stable.official.%s - https://ballisticgames.ca", APP_NAME, APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH, APP_COMMIT);
 
     window.Create(title, width, height);
-    renderer.Start(window);   
-    splash.Create(renderer);
+    renderer.Start(window);
     OnInit();
-    
-    window.Show();
+
     return true;
 }
 
@@ -32,7 +30,6 @@ void Application::Destroy()
 {
     OnShutdown();
     renderer.device.Wait();
-    splash.Destroy();
     renderer.Shutdown();
     window.Destroy();
 }
@@ -47,7 +44,6 @@ void Application::TickLoading()
 {
     switch (loader.Poll()) {
         case ProjectLoader::Status::Loading:
-            splash.RenderLoadingFrame(renderer);
             return;
  
         case ProjectLoader::Status::Failed:

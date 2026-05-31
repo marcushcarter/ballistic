@@ -34,6 +34,7 @@ void GameApplication::OnProjectOpened(const std::filesystem::path& path)
 {
     (void)path;
     window.SetTitle(project.name.c_str());
+    window.Show();
     // window.SetFullscreen(true);
 }
 

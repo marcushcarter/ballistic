@@ -46,6 +46,8 @@ struct Renderer
     DescriptorPool descriptorPool;
 
     Image2D finalImage;
+    Image2D logoImage;
+    Image2D logoLongImage;
     Sampler linearSampler;
 
     DescriptorSetLayout imageInputSetLayout;

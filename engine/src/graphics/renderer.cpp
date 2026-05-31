@@ -5,6 +5,51 @@
 #include "resources.h"
 #include "render_graph/render_path.h"
 
+inline bool LoadRCImage(VkDevice device, VmaAllocator vma, VkCommandBuffer cmd, int resourceID, Image2D& outImage, Buffer& outStaging, const char* debugName = nullptr)
+{
+    HRSRC res = FindResource(nullptr, MAKEINTRESOURCE(resourceID), RT_RCDATA);
+    if (!res) {
+        LOG_ERROR("LoadRCImage failed: resource %d not found", resourceID);
+        return false;
+    }
+    
+    HGLOBAL mem = LoadResource(nullptr, res);
+    void* data = LockResource(mem);
+    DWORD size = SizeofResource(nullptr, res);
+
+    int w, h, channels;
+    stbi_uc* pixels = stbi_load_from_memory((const stbi_uc*)data, (int)size, &w, &h, &channels, 4);
+    if (!pixels) {
+        LOG_ERROR("LoadRCImage failed: stbi decode failed for resource %d", resourceID);
+        return false;
+    }
+
+    VkDeviceSize imageSize = (VkDeviceSize)w * h * 4;
+
+    if (!outImage.Create(device, vma, {
+        .extent = { (uint32_t)w, (uint32_t)h },
+        .format = VK_FORMAT_R8G8B8A8_UNORM,
+        .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
+        .debugName = debugName
+    })) { stbi_image_free(pixels); return false; }
+
+    if (!outStaging.Create(device, vma, {
+        .size = imageSize,
+        .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        .hostVisible = true
+    })) { stbi_image_free(pixels); return false; }
+
+    outStaging.Update(pixels, imageSize);
+    stbi_image_free(pixels);
+
+    outImage.Transition(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT);
+    outImage.CopyBuffer(cmd, outStaging.Get());
+    outImage.Transition(cmd, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT);
+
+    return true;
+}
+
 bool Renderer::Start(Window& window)
 {
     uint32_t glfwExtCount = 0;
@@ -125,6 +170,33 @@ bool Renderer::Start(Window& window)
     vert.Destroy();
     frag.Destroy();
 
+    CommandPool transferCommandPool;
+    BE_ASSERT(transferCommandPool.Create(device.Get(), {
+        .queueFamilyIndex = transferQueue.familyIndex,
+        .transient = true,
+        .debugName = "TransferCommandPool"
+    }));
+    
+    CommandBuffer transferCmd;
+    BE_ASSERT(transferCmd.Allocate(device.Get(), transferCommandPool.Get(), false, "SplashTransferCommandBuffer"));
+    transferCmd.Begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+    std::vector<Buffer> stagingBuffers;
+    
+    Buffer& logoStaging = stagingBuffers.emplace_back();
+    BE_ASSERT(LoadRCImage(device.Get(), allocator.Get(), transferCmd.Get(), IMG_LOGO_PNG, logoImage, logoStaging, "LogoImage"));
+
+    Buffer& logoLongStaging = stagingBuffers.emplace_back();
+    BE_ASSERT(LoadRCImage(device.Get(), allocator.Get(), transferCmd.Get(), IMG_LOGO_LONG_PNG, logoLongImage, logoLongStaging, "LogoLongImage"));
+    
+    transferCmd.End();
+    transferQueue.Submit(transferCmd.Get());
+    transferQueue.WaitIdle();
+
+    for (auto& s : stagingBuffers) s.Destroy();
+    transferCmd.Free();
+    transferCommandPool.Destroy();
+    
     finalImageInputSet.SetImages(0, { finalImage.GetView() }, linearSampler.Get(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     
     LOG_DEBUG("Renderer started");
@@ -134,6 +206,9 @@ bool Renderer::Start(Window& window)
 void Renderer::Shutdown()
 {
     device.Wait();
+    
+    logoImage.Destroy();
+    logoLongImage.Destroy();
 
     blitPipeline.Destroy();
     blitPipelineLayout.Destroy();
