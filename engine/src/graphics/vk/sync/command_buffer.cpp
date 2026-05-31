@@ -1,4 +1,5 @@
 #include "command_buffer.h"
+#include "graphics/vk/misc/utils.h"
 
 bool CommandBuffer::Allocate(VkDevice device, VkCommandPool commandPool, bool secondary, const char* name)
 {
@@ -21,16 +22,7 @@ bool CommandBuffer::Allocate(VkDevice device, VkCommandPool commandPool, bool se
         return false;
     }
 
-    if (debugName) {
-        VkDebugUtilsObjectNameInfoEXT nameInfo{};
-        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-        nameInfo.objectType = VK_OBJECT_TYPE_COMMAND_BUFFER;
-        nameInfo.objectHandle = (uint64_t)commandBuffer;
-        nameInfo.pObjectName = debugName;
-        auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
-        if (func) func(device, &nameInfo);
-    }
-
+    SetObjectName(device, VK_OBJECT_TYPE_COMMAND_BUFFER, (uint64_t)commandBuffer, debugName);
     LOG_DEBUG("Command Buffer allocated: %s", debugName ? debugName : "Unnamed");
     return true;
 }

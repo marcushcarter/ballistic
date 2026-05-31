@@ -1,4 +1,5 @@
 #include "pipeline_cache.h"
+#include "graphics/vk/misc/utils.h"
 
 bool PipelineCache::Load(VkDevice device, const std::string& path)
 {
@@ -31,6 +32,7 @@ bool PipelineCache::Load(VkDevice device, const std::string& path)
         return false;
     }
 
+    SetObjectName(device, VK_OBJECT_TYPE_PIPELINE_CACHE, (uint64_t)cache, "PipelineCache");
     LOG_DEBUG("Pipeline Cache loaded");
     return true;
 }

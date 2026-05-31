@@ -1,14 +1,5 @@
 #include "buffer.h"
-
-inline uint32_t FindMemoryType(const VkPhysicalDeviceMemoryProperties& props, uint32_t typeFilter, VkMemoryPropertyFlags requiredFlags)
-{
-    for (uint32_t i = 0; i < props.memoryTypeCount; i++) {
-        if ((typeFilter & (1 << i)) && (props.memoryTypes[i].propertyFlags & requiredFlags) == requiredFlags) {
-            return i;
-        }
-    }
-    throw std::runtime_error("Failed to find suitable memory type");
-}
+#include "graphics/vk/misc/utils.h"
 
 inline VkDeviceSize NextPowerOfTwo(VkDeviceSize x)
 {
@@ -23,18 +14,19 @@ inline VkDeviceSize NextPowerOfTwo(VkDeviceSize x)
     return x + 1;
 }
 
-bool Buffer::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& props, const BufferDesc& desc)
+bool Buffer::Create(VkDevice device, VmaAllocator vma, const BufferDesc& desc)
 {
     VK_CHECK_HANDLE(device, VkDevice);
+    VK_CHECK_HANDLE(vma, VmaAllocator);
 
     Destroy();
-    size = 0;
-    capacity = 0;
     usage = desc.usage;
     hostVisible = desc.hostVisible;
     debugName = desc.debugName;
+    size = 0;
+    capacity = 0;
     deviceHandle = device;
-    memoryProps = &props;
+    vmaHandle = vma;
 
     if (!hostVisible)
         usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -44,48 +36,32 @@ bool Buffer::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& pro
     createInfo.size = std::max<VkDeviceSize>(1, desc.size);
     createInfo.usage = usage;
     createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    
-    if (vkCreateBuffer(device, &createInfo, nullptr, &buffer) != VK_SUCCESS) {
-        LOG_ERROR("Buffer create failed: %s - vkCreateBuffer", debugName ? debugName : "Unnamed");
+
+    VmaAllocationCreateInfo allocInfo{};
+    if (hostVisible) {
+        allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+        allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    } else {
+        allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+    }
+
+    VmaAllocationInfo allocationInfo{};
+
+    if (vmaCreateBuffer(vma, &createInfo, &allocInfo, &buffer, &allocation, &allocationInfo) != VK_SUCCESS) {
+        LOG_ERROR("Buffer create failed: %s - vmaCreateBuffer", debugName ? debugName : "Unnamed");
         return false;
     }
 
-    VkMemoryRequirements memReq{};
-    vkGetBufferMemoryRequirements(device, buffer, &memReq);
-
-    capacity = memReq.size;
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memReq.size;
-    allocInfo.memoryTypeIndex = FindMemoryType(props, memReq.memoryTypeBits, hostVisible ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    if (vkAllocateMemory(device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
-        LOG_ERROR("Buffer create failed: %s - vkAllocateMemory", debugName ? debugName : "Unnamed");
-        return false;
-    }
-
-    if (vkBindBufferMemory(device, buffer, memory, 0) != VK_SUCCESS) {
-        LOG_ERROR("Buffer create failed: %s - vkBindBufferMemory", debugName ? debugName : "Unnamed");
-        return false;
-    }
+    capacity = createInfo.size;
 
     if (hostVisible)
-        vkMapMemory(device, memory, 0, VK_WHOLE_SIZE, 0, &mappedPtr);
+        mappedPtr = allocationInfo.pMappedData;
 
-    if (debugName) {
-        VkDebugUtilsObjectNameInfoEXT nameInfo{};
-        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-        nameInfo.objectType = VK_OBJECT_TYPE_BUFFER;
-        nameInfo.objectHandle = (uint64_t)buffer;
-        nameInfo.pObjectName = debugName;
-        auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
-        if (func) func(device, &nameInfo);
-    }
+    SetObjectName(device, VK_OBJECT_TYPE_BUFFER, (uint64_t)buffer, debugName);
 
-    LOG_DEBUG("Buffer created: %s (%d bytes, usage %s, %s)",
+    LOG_DEBUG("Buffer created: %s (%llu bytes, usage %s, %s)",
         debugName ? debugName : "Unnamed",
-        capacity,
+        static_cast<unsigned long long>(capacity),
         vk::to_string(vk::BufferUsageFlags(usage)).c_str(),
         hostVisible ? "Host Visible" : "Device Local"
     );
@@ -95,18 +71,17 @@ bool Buffer::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& pro
 
 void Buffer::Destroy()
 {
-    if (mappedPtr) {
-        vkUnmapMemory(deviceHandle, memory);
-        mappedPtr = nullptr;
-    }
+    mappedPtr = nullptr;
     if (buffer != VK_NULL_HANDLE) {
-        vkDestroyBuffer(deviceHandle, buffer, nullptr);
-        vkFreeMemory(deviceHandle, memory, nullptr);
+        vmaDestroyBuffer(vmaHandle, buffer, allocation);
         buffer = VK_NULL_HANDLE;
+        allocation = VK_NULL_HANDLE;
         LOG_DEBUG("Buffer destroyed: %s", debugName ? debugName : "Unnamed");
     }
     size = 0;
     capacity = 0;
+    stage = 0;
+    access = 0;
 }
 
 bool Buffer::Update(void* data, VkDeviceSize dataSize, VkDeviceSize offset)
@@ -138,11 +113,11 @@ bool Buffer::Resize(VkDeviceSize newSize)
 
     std::vector<uint8_t> existing(size);
     if (size > 0 && mappedPtr)
-        memcpy(existing.data(), mappedPtr, size);
+        memcpy(existing.data(), mappedPtr, static_cast<size_t>(size));
 
     VkDeviceSize oldSize = size;
         
-    if (!Create(deviceHandle, *memoryProps, {
+    if (!Create(deviceHandle, vmaHandle, {
         .size = newCapacity,
         .usage = usage,
         .hostVisible = hostVisible,
@@ -150,7 +125,7 @@ bool Buffer::Resize(VkDeviceSize newSize)
     })) return false;
 
     if (oldSize > 0)
-        memcpy(mappedPtr, existing.data(), oldSize);
+        memcpy(mappedPtr, existing.data(), static_cast<size_t>(oldSize));
     
     size = oldSize;
     return true;

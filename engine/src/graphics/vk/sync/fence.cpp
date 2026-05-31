@@ -1,4 +1,5 @@
 #include "fence.h"
+#include "graphics/vk/misc/utils.h"
 
 bool Fence::Create(VkDevice device, bool signaled, const char* name)
 {
@@ -17,16 +18,7 @@ bool Fence::Create(VkDevice device, bool signaled, const char* name)
         return false;
     }
 
-    if (debugName) {
-        VkDebugUtilsObjectNameInfoEXT nameInfo{};
-        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-        nameInfo.objectType = VK_OBJECT_TYPE_FENCE;
-        nameInfo.objectHandle = (uint64_t)fence;
-        nameInfo.pObjectName = debugName;
-        auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
-        if (func) func(device, &nameInfo);
-    }
-
+    SetObjectName(device, VK_OBJECT_TYPE_FENCE, (uint64_t)fence, debugName);
     LOG_DEBUG("Fence created: %s", debugName ? debugName : "Unnamed");
     return true;
 }

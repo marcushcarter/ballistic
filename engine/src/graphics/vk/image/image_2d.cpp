@@ -1,18 +1,9 @@
 #include "image_2d.h"
 
-inline uint32_t FindMemoryType(const VkPhysicalDeviceMemoryProperties& props, uint32_t typeFilter, VkMemoryPropertyFlags requiredFlags)
-{
-    for (uint32_t i = 0; i < props.memoryTypeCount; i++) {
-        if ((typeFilter & (1 << i)) && (props.memoryTypes[i].propertyFlags & requiredFlags) == requiredFlags) {
-            return i;
-        }
-    }
-    throw std::runtime_error("Failed to find suitable memory type");
-}
-
-bool Image2D::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& props, const Image2DDesc& desc)
+bool Image2D::Create(VkDevice device, VmaAllocator vma, const Image2DDesc& desc)
 {
     VK_CHECK_HANDLE(device, VkDevice);
+    VK_CHECK_HANDLE(vma, VmaAllocator);
 
     Destroy();
     extent = desc.extent;
@@ -26,7 +17,7 @@ bool Image2D::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& pr
     access = 0;
     layout = VK_IMAGE_LAYOUT_UNDEFINED;
     deviceHandle = device;
-    memoryProps = &props;
+    vmaHandle = vma;
     ownsImage = true;
 
     VkImageCreateInfo imageInfo{};
@@ -42,26 +33,12 @@ bool Image2D::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& pr
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
-        LOG_ERROR("Image2D create failed: %s - vkCreateImage", debugName.empty() ? "Unnamed" : debugName.c_str());
-        return false;
-    }
+    VmaAllocationCreateInfo allocInfo{};
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    VkMemoryRequirements memReq{};
-    vkGetImageMemoryRequirements(device, image, &memReq);
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memReq.size;
-    allocInfo.memoryTypeIndex = FindMemoryType(props, memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    if (vkAllocateMemory(device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
-        LOG_ERROR("Image2D create failed: %s - vkAllocateMemory", debugName.empty() ? "Unnamed" : debugName.c_str());
-        return false;
-    }
-
-    if (vkBindImageMemory(device, image, memory, 0) != VK_SUCCESS) {
-        LOG_ERROR("Image2D create failed: %s - vkBindImageMemory", debugName.empty() ? "Unnamed" : debugName.c_str());
+    if (vmaCreateImage(vma, &imageInfo, &allocInfo, &image, &allocation, nullptr) != VK_SUCCESS) {
+        LOG_ERROR("Image2D create failed: %s - vmaCreateImage", debugName.empty() ? "Unnamed" : debugName.c_str());
         return false;
     }
 
@@ -77,7 +54,7 @@ bool Image2D::Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& pr
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount = layers;
 
-    if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
+    if (vkCreateImageView(device, &viewInfo, nullptr, &view) != VK_SUCCESS) {
         LOG_ERROR("Image2D create failed: %s - vkCreateImageView", debugName.empty() ? "Unnamed" : debugName.c_str());
         return false;
     }
@@ -131,7 +108,7 @@ bool Image2D::WrapSwapchainImage(VkDevice device, VkImage swapchainImage, VkForm
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount = layers;
 
-    if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
+    if (vkCreateImageView(device, &viewInfo, nullptr, &view) != VK_SUCCESS) {
         LOG_ERROR("Image2D create failed: %s - vkCreateImageView", debugName.empty() ? "Unnamed" : debugName.c_str());
         return false;
     }
@@ -161,7 +138,7 @@ bool Image2D::Resize(VkExtent2D newExtent)
         return false;
     }
 
-    return Create(deviceHandle, *memoryProps, {
+    return Create(deviceHandle, vmaHandle, {
         .extent = newExtent,
         .format = format,
         .usage = usage,
@@ -174,23 +151,24 @@ bool Image2D::Resize(VkExtent2D newExtent)
 
 void Image2D::Destroy()
 {
-    if (imageView != VK_NULL_HANDLE) {
-        vkDestroyImageView(deviceHandle, imageView, nullptr);
-        imageView = VK_NULL_HANDLE;
+    if (view != VK_NULL_HANDLE) {
+        vkDestroyImageView(deviceHandle, view, nullptr);
+        view = VK_NULL_HANDLE;
     }
 
     if (image != VK_NULL_HANDLE && ownsImage) {
-        vkDestroyImage(deviceHandle, image, nullptr);
-        vkFreeMemory(deviceHandle, memory, nullptr);
+        vmaDestroyImage(vmaHandle, image, allocation);
         image = VK_NULL_HANDLE;
-        memory = VK_NULL_HANDLE;
+        allocation = VK_NULL_HANDLE;
         LOG_DEBUG("Image2D destroyed: %s", debugName.empty() ? "Unnamed" : debugName.c_str());
     }
 
-    deviceHandle = VK_NULL_HANDLE;
     stage = 0;
     access = 0;
     layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    
+    vmaHandle = VK_NULL_HANDLE;
+    deviceHandle = VK_NULL_HANDLE;
 }
 
 bool Image2D::CopyBuffer(VkCommandBuffer cmd, VkBuffer srcBuffer, VkDeviceSize bufferOffset, VkOffset3D imageOffset)

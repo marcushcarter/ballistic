@@ -1,4 +1,5 @@
 #include "sampler.h"
+#include "graphics/vk/misc/utils.h"
 
 bool Sampler::Create(VkDevice device, const SamplerDesc& desc)
 {
@@ -31,16 +32,7 @@ bool Sampler::Create(VkDevice device, const SamplerDesc& desc)
         return false;
     }
     
-    if (debugName) {
-        VkDebugUtilsObjectNameInfoEXT nameInfo{};
-        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-        nameInfo.objectType = VK_OBJECT_TYPE_SAMPLER;
-        nameInfo.objectHandle = (uint64_t)sampler;
-        nameInfo.pObjectName = debugName;
-        auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
-        if (func) func(device, &nameInfo);
-    }
-    
+    SetObjectName(device, VK_OBJECT_TYPE_SAMPLER, (uint64_t)sampler, debugName);
     LOG_DEBUG("Sampler created: %s", debugName ? debugName : "Unnamed");
     return true;
 }

@@ -1,4 +1,5 @@
 #include "pipeline_layout.h"
+#include "graphics/vk/misc/utils.h"
 
 bool PipelineLayout::Create(VkDevice device, const PipelineLayoutDesc& desc)
 {
@@ -19,17 +20,8 @@ bool PipelineLayout::Create(VkDevice device, const PipelineLayoutDesc& desc)
         LOG_ERROR("Pipeline Layout create failed: %s - vkCreatePipelineLayout", debugName ? debugName : "Unnamed");
         return false;
     }
-    
-    if (debugName) {
-        VkDebugUtilsObjectNameInfoEXT nameInfo{};
-        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-        nameInfo.objectType = VK_OBJECT_TYPE_PIPELINE_LAYOUT;
-        nameInfo.objectHandle = (uint64_t)pipelineLayout;
-        nameInfo.pObjectName = debugName;
-        auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
-        if (func) func(device, &nameInfo);
-    }
-    
+
+    SetObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)pipelineLayout, debugName);
     LOG_DEBUG("Pipeline Layout created: %s", debugName ? debugName : "Unnamed");
     return true;
 }

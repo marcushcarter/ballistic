@@ -1,16 +1,5 @@
 #include "transient_resource.h"
-
-static void SetObjectName(VkDevice device, VkObjectType type, uint64_t handle, const char* name)
-{
-    if (!name) return;
-    auto fn = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
-    if (!fn) return;
-    VkDebugUtilsObjectNameInfoEXT info{ VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };
-    info.objectType   = type;
-    info.objectHandle = handle;
-    info.pObjectName  = name;
-    fn(device, &info);
-}
+#include "graphics/vk/misc/utils.h"
 
 bool PhysicalImage::CreateUnbound(VkDevice device, const TransientImageDesc& d, VkExtent2D resolved)
 {

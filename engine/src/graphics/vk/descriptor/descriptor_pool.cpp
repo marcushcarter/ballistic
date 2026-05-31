@@ -1,4 +1,5 @@
 #include "descriptor_pool.h"
+#include "graphics/vk/misc/utils.h"
 
 bool DescriptorPool::Create(VkDevice device, const DescriptorPoolDesc& desc)
 {
@@ -51,16 +52,7 @@ bool DescriptorPool::Create(VkDevice device, const DescriptorPoolDesc& desc)
         return false;
     }
 
-    if (debugName) {
-        VkDebugUtilsObjectNameInfoEXT nameInfo{};
-        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-        nameInfo.objectType = VK_OBJECT_TYPE_DESCRIPTOR_POOL;
-        nameInfo.objectHandle = (uint64_t)descriptorPool;
-        nameInfo.pObjectName = debugName;
-        auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
-        if (func) func(device, &nameInfo);
-    }
-
+    SetObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_POOL, (uint64_t)descriptorPool, debugName);
     LOG_DEBUG("Descriptor Pool created: %s (%u max sets)", debugName ? debugName : "Unnamed", maxSets);
     return true;
 }

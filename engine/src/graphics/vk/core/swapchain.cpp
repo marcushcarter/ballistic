@@ -1,4 +1,5 @@
 #include "swapchain.h"
+#include "graphics/vk/misc/utils.h"
 
 bool Swapchain::Create(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfaceKHR surface, VkExtent2D windowExtent, bool vsyncEnabled, VkSwapchainKHR oldSwapchain)
 {
@@ -47,6 +48,8 @@ bool Swapchain::Create(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfa
         LOG_ERROR("Failed to create Vulkan swapchain");
         return false;
     }
+
+    SetObjectName(device, VK_OBJECT_TYPE_SWAPCHAIN_KHR, (uint64_t)swapchain, "Swapchain");
 
     LOG_DEBUG("Swapchain created: (%dx%d, vsync %s)",
         extent.width, extent.height,

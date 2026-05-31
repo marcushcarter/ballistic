@@ -1,4 +1,5 @@
 #include "device.h"
+#include "graphics/vk/misc/utils.h"
 
 bool Device::Create(VkPhysicalDevice physicalDevice, uint32_t graphicsFamily, uint32_t presentFamily, uint32_t transferFamily, const std::vector<const char*>& requiredExtensions)
 {
@@ -55,7 +56,8 @@ bool Device::Create(VkPhysicalDevice physicalDevice, uint32_t graphicsFamily, ui
         LOG_ERROR("Failed to create Vulkan device");
         return false;
     }
-
+    
+    SetObjectName(device, VK_OBJECT_TYPE_DEVICE, (uint64_t)device, "Device");
     LOG_DEBUG("Logical Device created");
     return true;
 }

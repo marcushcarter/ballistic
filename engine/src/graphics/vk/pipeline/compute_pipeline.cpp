@@ -1,4 +1,5 @@
 #include "compute_pipeline.h"
+#include "graphics/vk/misc/utils.h"
 
 bool ComputePipeline::Create(VkDevice device, const ComputePipelineDesc& desc)
 {
@@ -19,17 +20,8 @@ bool ComputePipeline::Create(VkDevice device, const ComputePipelineDesc& desc)
         LOG_ERROR("Compute Pipeline create failed: %s - vkCreateComputePipelines", debugName ? debugName : "Unnamed");
         return false;
     }
-    
-    if (debugName) {
-        VkDebugUtilsObjectNameInfoEXT nameInfo{};
-        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-        nameInfo.objectType = VK_OBJECT_TYPE_PIPELINE;
-        nameInfo.objectHandle = (uint64_t)pipeline;
-        nameInfo.pObjectName = debugName;
-        auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
-        if (func) func(device, &nameInfo);
-    }
 
+    SetObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)pipeline, debugName);
     LOG_DEBUG("Compute Pipeline created: %s", debugName ? debugName : "Unnamed");
     return true;
 }

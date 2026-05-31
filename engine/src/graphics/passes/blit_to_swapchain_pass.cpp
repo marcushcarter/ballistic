@@ -31,7 +31,7 @@ void BlitToSwapchainPass::Execute(VkCommandBuffer cmd, RenderGraph& g)
 
     vkCmdBeginRendering(cmd, &info);
 
-    VKViewportScissor(cmd, 0, 0, (float)ext.width, (float)ext.height);
+    ViewportScissor(cmd, 0, 0, (float)ext.width, (float)ext.height);
     renderer->blitPipeline.Bind(cmd);
     renderer->blitPipeline.DescriptorSets(cmd, { renderer->finalImageInputSet.Get() });
     vkCmdDraw(cmd, 3, 1, 0, 0);

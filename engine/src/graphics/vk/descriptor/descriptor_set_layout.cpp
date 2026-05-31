@@ -1,4 +1,5 @@
 #include "descriptor_set_layout.h"
+#include "graphics/vk/misc/utils.h"
 
 bool DescriptorSetLayout::Create(VkDevice device, const DescriptorSetLayoutDesc& desc)
 {
@@ -24,17 +25,8 @@ bool DescriptorSetLayout::Create(VkDevice device, const DescriptorSetLayoutDesc&
         LOG_ERROR("Descriptor Set Layout create failed: %s - vkCreateDescriptorSetLayout", debugName ? debugName : "Unnamed");
         return false;
     }
-
-    if (debugName) {
-        VkDebugUtilsObjectNameInfoEXT nameInfo{};
-        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-        nameInfo.objectType = VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT;
-        nameInfo.objectHandle = (uint64_t)layout;
-        nameInfo.pObjectName = debugName;
-        auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
-        if (func) func(device, &nameInfo);
-    }
-
+    
+    SetObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, (uint64_t)layout, debugName);
     LOG_DEBUG("Descriptor Set Layout created: %s", debugName ? debugName : "Unnamed");
     return true;
 }

@@ -4,7 +4,7 @@
 #include "resources.h"
 #include "graphics/render_paths/splash_render_path.h"
 
-inline bool LoadRCImage(VkDevice device, const VkPhysicalDeviceMemoryProperties& props, VkCommandBuffer cmd, int resourceID, Image2D& outImage, Buffer& outStaging, const char* debugName = nullptr)
+inline bool LoadRCImage(VkDevice device, VmaAllocator vma, VkCommandBuffer cmd, int resourceID, Image2D& outImage, Buffer& outStaging, const char* debugName = nullptr)
 {
     HRSRC res = FindResource(nullptr, MAKEINTRESOURCE(resourceID), RT_RCDATA);
     if (!res) {
@@ -25,7 +25,7 @@ inline bool LoadRCImage(VkDevice device, const VkPhysicalDeviceMemoryProperties&
 
     VkDeviceSize imageSize = (VkDeviceSize)w * h * 4;
 
-    if (!outImage.Create(device, props, {
+    if (!outImage.Create(device, vma, {
         .extent = { (uint32_t)w, (uint32_t)h },
         .format = VK_FORMAT_R8G8B8A8_UNORM,
         .usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
@@ -33,7 +33,7 @@ inline bool LoadRCImage(VkDevice device, const VkPhysicalDeviceMemoryProperties&
         .debugName = debugName
     })) { stbi_image_free(pixels); return false; }
 
-    if (!outStaging.Create(device, props, {
+    if (!outStaging.Create(device, vma, {
         .size = imageSize,
         .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         .hostVisible = true
@@ -95,12 +95,10 @@ bool SplashRenderer::Create(Renderer& renderer)
     std::vector<Buffer> stagingBuffers;
     
     Buffer& logoStaging = stagingBuffers.emplace_back();
-    BE_ASSERT(LoadRCImage(renderer.device.Get(), renderer.physicalDevice.memory, transferCmd.Get(),
-        IMG_LOGO_PNG, logoImage, logoStaging, "LogoImage"));
+    BE_ASSERT(LoadRCImage(renderer.device.Get(), renderer.allocator.Get(), transferCmd.Get(), IMG_LOGO_PNG, logoImage, logoStaging, "LogoImage"));
 
     Buffer& logoLongStaging = stagingBuffers.emplace_back();
-    BE_ASSERT(LoadRCImage(renderer.device.Get(), renderer.physicalDevice.memory, transferCmd.Get(),
-        IMG_LOGO_LONG_PNG, logoLongImage, logoLongStaging, "LogoLongImage"));
+    BE_ASSERT(LoadRCImage(renderer.device.Get(), renderer.allocator.Get(), transferCmd.Get(), IMG_LOGO_LONG_PNG, logoLongImage, logoLongStaging, "LogoLongImage"));
     
     transferCmd.End();
     renderer.transferQueue.Submit(transferCmd.Get());
@@ -159,7 +157,7 @@ bool SplashRenderer::RenderLoadingFrame(Renderer& renderer)
 void SplashRenderer::RecordQuad(Renderer& renderer, VkCommandBuffer cmd, float xNorm, float yNorm, float wNorm, float hNorm)
 {
     PushConstants pc = { xNorm, yNorm, wNorm, hNorm };
-    VKViewportScissor(cmd, 0, 0, (float)renderer.swapchain.extent.width, (float)renderer.swapchain.extent.height);
+    ViewportScissor(cmd, 0, 0, (float)renderer.swapchain.extent.width, (float)renderer.swapchain.extent.height);
     splashPipeline.Bind(cmd);
     splashPipeline.DescriptorSets(cmd, { splashSet.Get() });
     splashPipeline.PushConstants(cmd, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc);

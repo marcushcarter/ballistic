@@ -1,4 +1,5 @@
 #include "descriptor_set.h"
+#include "graphics/vk/misc/utils.h"
 
 bool DescriptorSet::Allocate(VkDevice device, const DescriptorSetDesc& desc)
 {
@@ -18,17 +19,8 @@ bool DescriptorSet::Allocate(VkDevice device, const DescriptorSetDesc& desc)
         LOG_ERROR("Descriptor Set create failed: %s - vkAllocateDescriptorSets", debugName ? debugName : "Unnamed");
         return false;
     }
-    
-    if (debugName) {
-        VkDebugUtilsObjectNameInfoEXT nameInfo{};
-        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-        nameInfo.objectType = VK_OBJECT_TYPE_DESCRIPTOR_SET;
-        nameInfo.objectHandle = (uint64_t)set;
-        nameInfo.pObjectName = debugName;
-        auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
-        if (func) func(device, &nameInfo);
-    }
 
+    SetObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)set, debugName);
     LOG_DEBUG("Descriptor Set allocated: %s", debugName ? debugName : "Unnamed");
     return true;
 }

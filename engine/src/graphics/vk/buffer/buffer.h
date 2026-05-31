@@ -36,7 +36,7 @@ struct BufferDesc
 struct Buffer
 {
     VkBuffer buffer = VK_NULL_HANDLE;
-    VkDeviceMemory memory = VK_NULL_HANDLE;
+    VmaAllocation allocation = VK_NULL_HANDLE;
     const char* debugName = nullptr;
 
     VkDeviceSize capacity = 0;
@@ -47,11 +47,8 @@ struct Buffer
 
     VkPipelineStageFlags stage = 0;
     VkAccessFlags access = 0;
-    
-    VkDevice deviceHandle = VK_NULL_HANDLE;
-    const VkPhysicalDeviceMemoryProperties* memoryProps = nullptr;
 
-    bool Create(VkDevice device, const VkPhysicalDeviceMemoryProperties& props, const BufferDesc& desc);
+    bool Create(VkDevice device, VmaAllocator vma, const BufferDesc& desc);
     void Destroy();
 
     bool Update(void* data, VkDeviceSize size, VkDeviceSize offset = 0);
@@ -63,4 +60,8 @@ struct Buffer
     void BindVertex(VkCommandBuffer cmd);
     
     VkBuffer Get() const { return buffer; }
+
+private:
+    VkDevice deviceHandle = VK_NULL_HANDLE;
+    VmaAllocator vmaHandle = VK_NULL_HANDLE;
 };

@@ -74,7 +74,7 @@ bool Renderer::Start(Window& window)
         .debugName = "MainDescriptorPool"
     }));
 
-    BE_ASSERT(finalImage.Create(device.Get(), physicalDevice.memory, {
+    BE_ASSERT(finalImage.Create(device.Get(), allocator.Get(), {
         .extent = swapchain.extent,
         .format = VK_FORMAT_R16G16B16A16_SFLOAT,
         .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT,

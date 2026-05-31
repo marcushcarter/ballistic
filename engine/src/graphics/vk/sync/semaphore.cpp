@@ -1,4 +1,5 @@
 #include "semaphore.h"
+#include "graphics/vk/misc/utils.h"
 
 bool Semaphore::Create(VkDevice device, const char* name)
 {
@@ -18,16 +19,7 @@ bool Semaphore::Create(VkDevice device, const char* name)
         return false;
     }
 
-    if (debugName) {
-        VkDebugUtilsObjectNameInfoEXT nameInfo{};
-        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-        nameInfo.objectType = VK_OBJECT_TYPE_SEMAPHORE;
-        nameInfo.objectHandle = (uint64_t)semaphore;
-        nameInfo.pObjectName = debugName;
-        auto func = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");
-        if (func) func(device, &nameInfo);
-    }
-
+    SetObjectName(device, VK_OBJECT_TYPE_SEMAPHORE, (uint64_t)semaphore, debugName);
     LOG_DEBUG("Semaphore created: %s", debugName ? debugName : "Unnamed");
     return true;
 }
