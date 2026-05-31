@@ -52,6 +52,7 @@ using namespace glm;
 #include <atomic>
 #include <shellapi.h>
 #include <memory>
+#include <numeric>
 
 #include "core/log.h"
 #include "core/assert.h"

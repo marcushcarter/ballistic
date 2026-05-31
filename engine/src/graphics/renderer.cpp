@@ -56,7 +56,8 @@ bool Renderer::Start(Window& window)
     
     BE_ASSERT(allocator.Create(instance.Get(), physicalDevice.Get(), device.Get()));
 
-    graph.Start(device.Get(), physicalDevice.memory);
+    graph.Init(device.Get(), allocator.Get());
+    frameNumber = frameCount;
 
     BE_ASSERT(descriptorPool.Create(device.Get(), {
         .samplers = 1000,
@@ -226,9 +227,9 @@ void Renderer::Render(RenderPath& path)
 {
     if (!BeginFrame()) return;
 
-    graph.Reset();
-    graph.Import("finalImage", &finalImage);
-    graph.Import("swapchain", &swapchainImages[imageIndex]);
+    graph.BeginFrame(frameNumber, frameNumber - frameCount);
+    graph.ImportImage("finalImage", &finalImage);
+    graph.ImportImage("swapchain", &swapchainImages[imageIndex]);
 
     path.Build(graph);
     graph.Compile();
@@ -268,5 +269,6 @@ void Renderer::EndFrame()
     graphicsQueue.Submit(cmd, imageAvailableSemaphores[currentFrame].Get(), VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, renderFinishedSemaphores[currentFrame].Get(), inFlightFences[currentFrame].Get());
     presentQueue.Present(swapchain.Get(), imageIndex, renderFinishedSemaphores[currentFrame].Get());
 
-    currentFrame = (currentFrame + 1) % frameCount;   
+    currentFrame = (currentFrame + 1) % frameCount;
+    frameNumber++; 
 }
