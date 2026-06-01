@@ -8,7 +8,9 @@ ResourceHandle AddImGuiPass(RenderGraph& g, Renderer* renderer, ImGuiLayer* imgu
     PassData out = g.AddPass<PassData>("ImGuiPass",
     [&](RenderGraph& builder, PassData& data) {
         data.src = builder.ReadImage("finalImage", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
+        builder.ReadImage("Test Transient Image", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
         data.dst = builder.WriteImage("swapchain", VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+        builder.ReadBuffer("MyBuffer", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_ACCESS_2_SHADER_READ_BIT);
     },
     [renderer, imguiLayer](VkCommandBuffer cmd, const PassData& data, RenderGraph& g) {
         VkImageView swapView = g.GetImageView(data.dst);

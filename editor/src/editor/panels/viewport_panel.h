@@ -1,6 +1,6 @@
 #pragma once
 #include "pch.h"
-#include "../editor_context.h"
+#include "editor/editor_context.h"
 
 struct ViewportPanel
 {

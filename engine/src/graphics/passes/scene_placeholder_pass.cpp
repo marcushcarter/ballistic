@@ -6,6 +6,22 @@ ResourceHandle AddScenePlaceholderPass(RenderGraph& g)
     PassData out = g.AddPass<PassData>("ScenePlaceholderPass",
     [&](RenderGraph& builder, PassData& data) {
         data.dst = builder.WriteImage("finalImage", VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+        
+        builder.CreateImage("Test Transient Image", {
+            .format = VK_FORMAT_R8G8B8A8_UNORM,
+            .usage  = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
+        },
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+
+        // builder.CreateBuffer("MyBuffer", {
+        //     .size  = sizeof(float) * 1024,
+        //     .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        // },
+        // VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+        // VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
     },
     [](VkCommandBuffer cmd, const PassData& data, RenderGraph& g) {
         VkImageView view = g.GetImageView(data.dst);

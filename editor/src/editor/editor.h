@@ -2,6 +2,7 @@
 #include "pch.h"
 #include "editor_context.h"
 #include "panels/viewport_panel.h"
+#include "panels/render_graph_panel.h"
 
 struct Project;
 struct Renderer;
@@ -9,19 +10,11 @@ struct Renderer;
 struct Editor
 {
     ViewportPanel viewport;
+    RenderGraphPanel graph;
 
     std::string activeIniPath;
-    ImNodesEditorContext* renderGraphContext = nullptr;
 
     float autosaveTimer = 0.0f;
-
-    char addImageNameBuffer[256] = {};
-    int  addImageFormatIndex = 0;
-    int  addImageSizeModeIndex = 0;
-    float addImageRelW = 1.0f;
-    float addImageRelH = 1.0f;
-    uint32_t addImageFixedW = 1920;
-    uint32_t addImageFixedH = 1080;
 
     void OpenProject(const std::filesystem::path& path);
     void CloseProject(const std::filesystem::path& path);
@@ -32,5 +25,4 @@ struct Editor
     void Draw(EditorContext& ctx);
 
     void DrawProjectPanel(EditorContext& ctx);
-    void DrawRenderGraphPanel();
 };

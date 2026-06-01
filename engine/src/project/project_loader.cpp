@@ -21,8 +21,6 @@ void ProjectLoader::Begin(Project& project, const std::filesystem::path& path)
             return;
         }
  
-        std::this_thread::sleep_for(std::chrono::seconds(1));
- 
         done = true;
     });
 }

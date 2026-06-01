@@ -16,8 +16,8 @@ void Editor::OpenProject(const std::filesystem::path& path)
         // ImGui::LoadIniSettingsFromMemory(DEFAULT_EDITOR_INI, strlen(DEFAULT_EDITOR_INI));
     }
 
-    renderGraphContext = ImNodes::EditorContextCreate();
-    ImNodes::EditorContextSet(renderGraphContext);
+    graph.context = ImNodes::EditorContextCreate();
+    ImNodes::EditorContextSet(graph.context);
     std::string nodesPath = (path / ".ballistic/editor/nodes_rendergraph.ini").string();
     if (std::filesystem::exists(nodesPath)) {
         ImNodes::LoadCurrentEditorStateFromIniFile(nodesPath.c_str());
@@ -34,11 +34,11 @@ void Editor::CloseProject(const std::filesystem::path& path)
         activeIniPath.clear();
     }
 
-    if (renderGraphContext) {
-        ImNodes::EditorContextSet(renderGraphContext);
+    if (graph.context) {
+        ImNodes::EditorContextSet(graph.context);
         ImNodes::SaveCurrentEditorStateToIniFile((path / ".ballistic" / "editor" / "nodes_rendergraph.ini").string().c_str());
-        ImNodes::EditorContextFree(renderGraphContext);
-        renderGraphContext = nullptr;
+        ImNodes::EditorContextFree(graph.context);
+        graph.context = nullptr;
     }
 }
 
@@ -48,8 +48,8 @@ void Editor::SaveLayout(const std::filesystem::path& path)
         ImGui::SaveIniSettingsToDisk(activeIniPath.c_str());
     }
 
-    if (renderGraphContext) {
-        ImNodes::EditorContextSet(renderGraphContext);
+    if (graph.context) {
+        ImNodes::EditorContextSet(graph.context);
         ImNodes::SaveCurrentEditorStateToIniFile((path / ".ballistic" / "editor" / "nodes_rendergraph.ini").string().c_str());
     }
 }
@@ -95,8 +95,8 @@ void Editor::Draw(EditorContext& ctx)
     ImGui::End();
     
     viewport.Draw(ctx);
+    graph.Draw(ctx);
     DrawProjectPanel(ctx);
-    DrawRenderGraphPanel();
 }
 
 void Editor::DrawProjectPanel(EditorContext& ctx)
@@ -114,55 +114,6 @@ void Editor::DrawProjectPanel(EditorContext& ctx)
         if (ImGui::Button(ICON_FA_FLOPPY_DISK " Save")) {
             SaveProjectAndLayout(ctx);
         }
-    }
-    ImGui::End();
-}
-
-void Editor::DrawRenderGraphPanel()
-{
-    if (ImGui::Begin("Render Graph", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
-        ImNodes::EditorContextSet(renderGraphContext);
-        ImNodes::BeginNodeEditor();
-
-        ImNodes::GetIO().EmulateThreeButtonMouse.Modifier = nullptr;
-        ImNodes::GetStyle().Flags = ImNodesStyleFlags_NodeOutline | ImNodesStyleFlags_GridLines;
-
-        ImNodesIO& io = ImNodes::GetIO();
-        io.LinkDetachWithModifierClick.Modifier = &ImGui::GetIO().KeyCtrl;
-
-        ImNodes::BeginNode(1);
-            ImNodes::BeginNodeTitleBar();
-            ImGui::TextUnformatted("GBufferPass");
-            ImNodes::EndNodeTitleBar();
-            ImNodes::BeginOutputAttribute(2);
-            ImGui::Text("GBuffer_Albedo");
-            ImNodes::EndOutputAttribute();
-            ImNodes::BeginOutputAttribute(3);
-            ImGui::Text("GBuffer_Depth");
-            ImNodes::EndOutputAttribute();
-        ImNodes::EndNode();
-
-        ImNodes::BeginNode(4);
-            ImNodes::BeginNodeTitleBar();
-            ImGui::TextUnformatted("LightingPass");
-            ImNodes::EndNodeTitleBar();
-            ImNodes::BeginInputAttribute(5);
-            ImGui::Text("GBuffer_Albedo");
-            ImNodes::EndInputAttribute();
-            ImNodes::BeginInputAttribute(6);
-            ImGui::Text("GBuffer_Depth");
-            ImNodes::EndInputAttribute();
-            ImNodes::BeginOutputAttribute(7);
-            ImGui::Text("HdrLight");
-            ImNodes::EndOutputAttribute();
-        ImNodes::EndNode();
-
-        ImNodes::Link(1, 2, 5);
-        ImNodes::Link(2, 3, 6);
-
-        ImNodes::MiniMap();
-        // ImNodes::MiniMap(0.2f, ImNodesMiniMapLocation_TopRight);
-        ImNodes::EndNodeEditor();
     }
     ImGui::End();
 }
