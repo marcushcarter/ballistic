@@ -2,7 +2,7 @@
 #include "pch.h"
 #include "transient_resource.h"
 
-struct GlobalDescriptorHeap;
+struct BindlessHeap;
 
 struct TransientRequest
 {
@@ -39,7 +39,7 @@ struct TransientHeap
 
     VkDevice device = VK_NULL_HANDLE;
     VmaAllocator vma = VK_NULL_HANDLE;
-    GlobalDescriptorHeap* bindless = nullptr;
+    BindlessHeap* bindless = nullptr;
     uint64_t currentHash = 0;
     bool realizedOnce = false;
 
@@ -58,7 +58,7 @@ struct TransientHeap
         uint32_t bucketCount = 0, imageCount = 0, bufferCount = 0;
     } stats;
 
-    void Init(VkDevice device, VmaAllocator vma, GlobalDescriptorHeap* bindless);
+    void Init(VkDevice device, VmaAllocator vma, BindlessHeap* bindless);
     void Shutdown();
 
     bool Realize(const std::vector<TransientRequest>& requests, uint64_t frameIndex);

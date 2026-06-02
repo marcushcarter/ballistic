@@ -1,5 +1,5 @@
 #include "transient_heap.h"
-#include "global_descriptor_heap.h"
+#include "bindless_heap.h"
 
 static VkDeviceSize AlignUp(VkDeviceSize v, VkDeviceSize a) { return (v + a - 1) & ~(a - 1); }
 
@@ -30,7 +30,7 @@ static uint64_t HashRequests(const std::vector<TransientRequest>& reqs)
     return h;
 }
 
-void TransientHeap::Init(VkDevice d, VmaAllocator a, GlobalDescriptorHeap* h) { device = d; vma = a; bindless = h; }
+void TransientHeap::Init(VkDevice d, VmaAllocator a, BindlessHeap* h) { device = d; vma = a; bindless = h; }
 
 void TransientHeap::Shutdown()
 {

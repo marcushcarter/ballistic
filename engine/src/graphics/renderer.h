@@ -3,7 +3,7 @@
 #include "vk/vk.h"
 #include "render_graph/render_graph.h"
 #include "render_graph/render_path.h"
-#include "render_graph/global_descriptor_heap.h"
+#include "render_graph/bindless_heap.h"
 
 struct Window;
 struct Project;
@@ -50,7 +50,7 @@ struct Renderer
     Image2D logoLongImage;
     Sampler linearSampler;
 
-    GlobalDescriptorHeap globalDescriptorHeap;
+    BindlessHeap bindlessHeap;
     PipelineLayout globalPipelineLayout;
 
     PipelineCache pipelineCache;
@@ -89,7 +89,6 @@ struct Renderer
     void SetRenderPath(std::unique_ptr<RenderPath> path) { renderPath = std::move(path); }
 
     void Render();
-    void Render(RenderPath& path);
 
     bool BeginFrame();
     void EndFrame();

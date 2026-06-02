@@ -6,7 +6,7 @@
 #include "transient_heap.h"
 
 struct Image2D;
-struct GlobalDescriptorHeap;
+struct BindlessHeap;
 
 struct ResourceHandle {
     uint32_t resource = UINT32_MAX;
@@ -80,7 +80,7 @@ struct RenderGraph
     VkDevice device = VK_NULL_HANDLE;
     VmaAllocator vma = VK_NULL_HANDLE;
 
-    void Init(VkDevice device, VmaAllocator vma, GlobalDescriptorHeap* h);
+    void Init(VkDevice device, VmaAllocator vma, BindlessHeap* bindless);
     void Shutdown();
     void SetViewport(VkExtent2D extent);
     void BeginFrame(uint64_t frameIndex, uint64_t completedFrameIndex);

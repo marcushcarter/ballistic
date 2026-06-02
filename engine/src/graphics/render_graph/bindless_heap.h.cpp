@@ -1,7 +1,7 @@
-#include "global_descriptor_heap.h"
+#include "bindless_heap.h"
 #include "graphics/vk/misc/utils.h"
 
-bool GlobalDescriptorHeap::Create(VkDevice device, const GlobalDescriptorHeapDesc& d)
+bool BindlessHeap::Create(VkDevice device, const BindlessHeapDesc& d)
 {
     VK_CHECK_HANDLE(device, VkDevice);
 
@@ -31,7 +31,7 @@ bool GlobalDescriptorHeap::Create(VkDevice device, const GlobalDescriptorHeapDes
     layoutInfo.pBindings = bindings;
 
     if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &layout) != VK_SUCCESS) {
-        LOG_ERROR("GlobalDescriptorHeap: vkCreateDescriptorSetLayout failed: (%s)", d.debugName ? d.debugName : "unnamed");
+        LOG_ERROR("BindlessHeap: vkCreateDescriptorSetLayout failed: (%s)", d.debugName ? d.debugName : "unnamed");
         return false;
     }
 
@@ -48,7 +48,7 @@ bool GlobalDescriptorHeap::Create(VkDevice device, const GlobalDescriptorHeapDes
     poolInfo.pPoolSizes = poolSizes;
 
     if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &pool) != VK_SUCCESS) {
-        LOG_ERROR("GlobalDescriptorHeap: vkCreateDescriptorPool failed: (%s)", d.debugName ? d.debugName : "unnamed");
+        LOG_ERROR("BindlessHeap: vkCreateDescriptorPool failed: (%s)", d.debugName ? d.debugName : "unnamed");
         return false;
     }
 
@@ -59,16 +59,16 @@ bool GlobalDescriptorHeap::Create(VkDevice device, const GlobalDescriptorHeapDes
     alloc.pSetLayouts = &layout;
 
     if (vkAllocateDescriptorSets(device, &alloc, &set) != VK_SUCCESS) {
-        LOG_ERROR("GlobalDescriptorHeap: vkAllocateDescriptorSets failed: (%s)", d.debugName ? d.debugName : "unnamed");
+        LOG_ERROR("BindlessHeap: vkAllocateDescriptorSets failed: (%s)", d.debugName ? d.debugName : "unnamed");
         return false;
     }
 
     SetObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)set, d.debugName);
-    LOG_DEBUG("GlobalDescriptorHeap created (%u sampled, %u storage, %u samplers)", d.sampledImages, d.storageImages, d.samplers);
+    LOG_DEBUG("BindlessHeap created (%u sampled, %u storage, %u samplers)", d.sampledImages, d.storageImages, d.samplers);
     return true;
 }
 
-void GlobalDescriptorHeap::Destroy()
+void BindlessHeap::Destroy()
 {
     if (pool) vkDestroyDescriptorPool(deviceHandle, pool, nullptr);
     if (layout) vkDestroyDescriptorSetLayout(deviceHandle, layout, nullptr);
@@ -93,21 +93,21 @@ static void WriteImage(VkDevice device, VkDescriptorSet set, uint32_t binding, u
     vkUpdateDescriptorSets(device, 1, &w, 0, nullptr);
 }
 
-uint32_t GlobalDescriptorHeap::RegisterSampledImage(VkImageView view)
+uint32_t BindlessHeap::RegisterSampledImage(VkImageView view)
 {
     uint32_t i = sampledAlloc.Acquire();
     WriteImage(deviceHandle, set, BINDING_SAMPLED, i, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     return i;
 }
 
-uint32_t GlobalDescriptorHeap::RegisterStorageImage(VkImageView view)
+uint32_t BindlessHeap::RegisterStorageImage(VkImageView view)
 {
     uint32_t i = storageAlloc.Acquire();
     WriteImage(deviceHandle, set, BINDING_STORAGE, i, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, view, VK_IMAGE_LAYOUT_GENERAL);
     return i;
 }
 
-uint32_t GlobalDescriptorHeap::RegisterSampler(VkSampler sampler)
+uint32_t BindlessHeap::RegisterSampler(VkSampler sampler)
 {
     uint32_t i = samplerAlloc.Acquire();
     VkDescriptorImageInfo info{}; info.sampler = sampler;

@@ -115,15 +115,15 @@ bool Renderer::Start(Window& window)
         .debugName  = "LinearSampler"
     }));
 
-    BE_ASSERT(globalDescriptorHeap.Create(device.Get(), {
+    BE_ASSERT(bindlessHeap.Create(device.Get(), {
         .sampledImages = 16384,
         .storageImages = 4096,
         .samplers = 256,
-        .debugName = "GlobalDescriptorHeap"
+        .debugName = "BindlessHeap"
     }));
 
     BE_ASSERT(globalPipelineLayout.Create(device.Get(), {
-        .setLayouts = { globalDescriptorHeap.GetLayout() },
+        .setLayouts = { bindlessHeap.GetLayout() },
         .pushConstants = { PushConstant(VK_SHADER_STAGE_ALL, 0, 128) },
         .debugName = "GlobalPipelineLayout"
     }));
@@ -157,11 +157,11 @@ bool Renderer::Start(Window& window)
         transferCommandPool.Destroy();
     }
 
-    finalImage.bindlessSampled = globalDescriptorHeap.RegisterSampledImage(finalImage.GetView());
-    finalImage.bindlessStorage = globalDescriptorHeap.RegisterStorageImage(finalImage.GetView());
-    linearSampler.bindlessSampler = globalDescriptorHeap.RegisterSampler(linearSampler.Get());
+    finalImage.bindlessSampled = bindlessHeap.RegisterSampledImage(finalImage.GetView());
+    finalImage.bindlessStorage = bindlessHeap.RegisterStorageImage(finalImage.GetView());
+    linearSampler.bindlessSampler = bindlessHeap.RegisterSampler(linearSampler.Get());
 
-    graph.Init(device.Get(), allocator.Get(), &globalDescriptorHeap);
+    graph.Init(device.Get(), allocator.Get(), &bindlessHeap);
     frameNumber = frameCount;
 
     graph.SetViewport(finalImage.extent);
@@ -179,7 +179,7 @@ void Renderer::Shutdown()
     graph.Shutdown();
 
     globalPipelineLayout.Destroy();
-    globalDescriptorHeap.Destroy();
+    bindlessHeap.Destroy();
 
     linearSampler.Destroy();
     logoImage.Destroy();
@@ -285,10 +285,10 @@ void Renderer::ViewportResize()
     
     finalImage.Resize({ pendingViewportW, pendingViewportH });
     graph.SetViewport(finalImage.extent);
-    globalDescriptorHeap.FreeSampledImage(finalImage.bindlessSampled);
-    globalDescriptorHeap.FreeStorageImage(finalImage.bindlessStorage);
-    finalImage.bindlessSampled = globalDescriptorHeap.RegisterSampledImage(finalImage.GetView());
-    finalImage.bindlessStorage = globalDescriptorHeap.RegisterStorageImage(finalImage.GetView());
+    bindlessHeap.FreeSampledImage(finalImage.bindlessSampled);
+    bindlessHeap.FreeStorageImage(finalImage.bindlessStorage);
+    finalImage.bindlessSampled = bindlessHeap.RegisterSampledImage(finalImage.GetView());
+    finalImage.bindlessStorage = bindlessHeap.RegisterStorageImage(finalImage.GetView());
         
     if (onViewportResized) onViewportResized();
     viewportResizeRequested = false;
@@ -306,22 +306,17 @@ void Renderer::ApplyVSync()
 
 void Renderer::Render()
 {
-    if (renderPath) Render(*renderPath);
-}
-
-void Renderer::Render(RenderPath& path)
-{
-    if (!BeginFrame()) return;
+    if (!renderPath || !BeginFrame()) return;
 
     graph.BeginFrame(frameNumber, frameNumber - frameCount);
     graph.ImportImage("finalImage", &finalImage);
     graph.ImportImage("swapchain", &swapchainImages[imageIndex]);
     
-    VkDescriptorSet pDescriptorSets = { globalDescriptorHeap.GetSet() };
+    VkDescriptorSet pDescriptorSets = { bindlessHeap.GetSet() };
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, globalPipelineLayout.Get(), 0, 1, &pDescriptorSets, 0, nullptr);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, globalPipelineLayout.Get(), 0, 1, &pDescriptorSets, 0, nullptr);
 
-    path.Build(graph);
+    renderPath->Build(graph);
     graph.Compile();
     graph.Execute(cmd);
 

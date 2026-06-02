@@ -15,7 +15,7 @@ static bool HasWrite(VkAccessFlags2 a)
     return (a & W) != 0;
 }
 
-void RenderGraph::Init(VkDevice d, VmaAllocator a, GlobalDescriptorHeap* h) { device = d; vma = a; heap.Init(d, a, h); }
+void RenderGraph::Init(VkDevice d, VmaAllocator a, BindlessHeap* h) { device = d; vma = a; heap.Init(d, a, h); }
 void RenderGraph::Shutdown() { heap.Shutdown(); }
 void RenderGraph::SetViewport(VkExtent2D e) { viewportExtent = e; }
 

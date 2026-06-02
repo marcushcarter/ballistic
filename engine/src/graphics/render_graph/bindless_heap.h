@@ -1,7 +1,7 @@
 #pragma once
 #include "pch.h"
 
-struct GlobalDescriptorHeapDesc
+struct BindlessHeapDesc
 {
     uint32_t sampledImages = 16384;
     uint32_t storageImages = 4096;
@@ -9,7 +9,7 @@ struct GlobalDescriptorHeapDesc
     const char* debugName = nullptr;
 };
 
-struct GlobalDescriptorHeap
+struct BindlessHeap
 {
     enum : uint32_t {
         BINDING_SAMPLED = 0,
@@ -33,7 +33,7 @@ struct GlobalDescriptorHeap
     };
     IndexAllocator sampledAlloc, storageAlloc, samplerAlloc;
 
-    bool Create(VkDevice device, const GlobalDescriptorHeapDesc& desc);
+    bool Create(VkDevice device, const BindlessHeapDesc& desc);
     void Destroy();
 
     uint32_t RegisterSampledImage(VkImageView view);
