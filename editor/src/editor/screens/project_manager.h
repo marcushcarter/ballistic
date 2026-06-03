@@ -1,6 +1,6 @@
 #pragma once
 #include "pch.h"
-#include "workspace.h"
+#include "editor/workspace/workspace.h"
 
 struct ProjectManager
 {

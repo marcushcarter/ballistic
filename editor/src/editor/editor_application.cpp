@@ -76,9 +76,48 @@ void EditorApplication::OnInit()
     LOG_DEBUG("Editor initialized");
 }
 
+static void custom_temp() {
+    if (ImGui::Begin("Panel")) {
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        float halfH = avail.y * 0.5f;
+
+        if (ImGui::BeginChild("TopChild", ImVec2(0, halfH), ImGuiChildFlags_Borders)) {
+            if (ImGui::BeginTabBar("TopTabs")) {
+                if (ImGui::BeginTabItem("Tab A")) {
+                    ImGui::EndTabItem();
+                }
+                if (ImGui::BeginTabItem("Tab B")) {
+                    ImGui::EndTabItem();
+                }
+                ImGui::EndTabBar();
+            }
+        }
+        ImGui::EndChild();
+
+        // --- Bottom Half ---
+        if (ImGui::BeginChild("BottomChild", ImVec2(0, 0), ImGuiChildFlags_Borders)) {
+            ImGui::Text("Bottom child content");
+
+            float spacing = ImGui::GetStyle().ItemSpacing.x;
+            float frameH = ImGui::GetFrameHeight();
+
+            static char inputBuf[256] = "";
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - frameH - spacing);
+            ImGui::InputText("##Input", inputBuf, sizeof(inputBuf));
+            ImGui::SameLine();
+            ImGui::Button("X", ImVec2(frameH, frameH));
+        }
+        ImGui::EndChild();
+
+    }
+    ImGui::End();
+}
+
 void EditorApplication::OnUpdate()
 {
     imguiLayer.NewFrame();
+
+    custom_temp();
 
     if (inProjectManager) {
         window.SetTitle("Ballistic Engine - Project Manager");
@@ -90,7 +129,7 @@ void EditorApplication::OnUpdate()
     } else {
         window.SetTitle(("Ballistic Engine - " + project.name).c_str());
 
-        EditorContext ctx{ project, renderer, workspace };
+        EditorContext ctx{ project, renderer, workspace, settings, theme };
         ctx.finalTextureID = finalTextureID;
 
         editor.Update(ctx);

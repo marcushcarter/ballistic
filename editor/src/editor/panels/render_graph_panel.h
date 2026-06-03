@@ -1,6 +1,7 @@
 #pragma once
 #include "pch.h"
-#include "editor/editor_context.h"
+
+struct EditorContext;
 
 struct RenderGraphPanel
 {

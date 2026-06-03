@@ -1,8 +1,8 @@
 #include "project_manager.h"
 #include "project/project.h"
 #include "core/timestamp.h"
-#include "utils/file_dialog.h"
-#include "utils/process.h"
+#include "platform/file_dialog.h"
+#include "platform/process.h"
 
 void ProjectManager::Start(EditorWorkspace& ws, VkDescriptorSet tex, VkExtent2D extent)
 {

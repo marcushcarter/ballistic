@@ -1,8 +1,8 @@
 #include "editor.h"
-#include "workspace.h"
+#include "editor/workspace/workspace.h"
 #include "project/project.h"
 #include "graphics/renderer.h"
-#include "utils/file_dialog.h"
+#include "platform/file_dialog.h"
 
 void Editor::OpenProject(const std::filesystem::path& path)
 {
@@ -97,6 +97,26 @@ void Editor::Draw(EditorContext& ctx)
     viewport.Draw(ctx);
     graph.Draw(ctx);
     DrawProjectPanel(ctx);
+
+    ImGui::Begin("Editor Info");
+
+    VmaTotalStatistics stats;
+    vmaCalculateStatistics(ctx.renderer.allocator.Get(), &stats);
+    
+    uint64_t usedBytes = stats.total.statistics.allocationBytes;
+    uint64_t allocatedBytes = stats.total.statistics.blockBytes;
+    float usedMB = usedBytes / (1024.0f * 1024.0f);
+    float allocatedMB = allocatedBytes / (1024.0f * 1024.0f);
+    ImGui::Text("VRAM Used: %.2f MB", usedMB);
+    ImGui::Text("VRAM Reserved: %.2f MB", allocatedMB);
+    
+    VmaAllocationInfo info;
+    vmaGetAllocationInfo(ctx.renderer.allocator.Get(), ctx.renderer.finalImage.GetAllocation(), &info);
+    uint64_t bytes = info.size;
+    float finalImageMB = bytes / (1024.0f * 1024.0f);
+    ImGui::Text("Final Image VRAM: %.2f MB", finalImageMB);
+
+    ImGui::End();
 }
 
 void Editor::DrawProjectPanel(EditorContext& ctx)

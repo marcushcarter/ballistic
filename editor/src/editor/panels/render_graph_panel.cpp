@@ -1,5 +1,5 @@
 #include "render_graph_panel.h"
-#include "editor/editor_context.h"
+#include "editor/context.h"
 #include "graphics/renderer.h"
 #include "graphics/render_graph/render_graph.h"
 

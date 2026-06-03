@@ -1,4 +1,4 @@
-#include "editor_application.h"
+#include "editor/editor_application.h"
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {

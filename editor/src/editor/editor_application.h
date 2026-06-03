@@ -1,14 +1,18 @@
 #pragma once
 #include "pch.h"
-#include <core/application.h>
-#include "editor/workspace.h"
-#include "editor/project_manager.h"
-#include "editor/editor.h"
+#include "core/application.h"
+#include "workspace/workspace.h"
+#include "workspace/settings.h"
+#include "workspace/theme.h"
+#include "screens/project_manager.h"
+#include "screens/editor.h"
 #include "graphics/imgui_layer.h"
 
 struct EditorApplication : Application
 {
     EditorWorkspace workspace;
+    EditorSettings settings;
+    EditorTheme theme;
 
     ImGuiLayer imguiLayer;
     

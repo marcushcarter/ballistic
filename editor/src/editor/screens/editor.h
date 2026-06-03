@@ -1,8 +1,8 @@
 #pragma once
 #include "pch.h"
-#include "editor_context.h"
-#include "panels/viewport_panel.h"
-#include "panels/render_graph_panel.h"
+#include "editor/context.h"
+#include "editor/panels/viewport_panel.h"
+#include "editor/panels/render_graph_panel.h"
 
 struct Project;
 struct Renderer;
