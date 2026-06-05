@@ -1,5 +1,5 @@
 #pragma once
-#include <graphics/vk/vk.h>
+#include <vk/vk.h>
 #include <graphics/render_graph/render_graph.h>
 #include <graphics/render_graph/render_path.h>
 #include <functional>

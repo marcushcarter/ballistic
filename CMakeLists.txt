@@ -27,6 +27,7 @@ include(Platform)
 include(Dependencies)
 
 add_subdirectory(thirdparty)
+add_subdirectory(vk)
 add_subdirectory(engine)
 
 option(BALLISTIC_BUILD_EDITOR "Build the editor" ON)

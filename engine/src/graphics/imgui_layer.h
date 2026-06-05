@@ -1,5 +1,5 @@
 #pragma once
-#include <graphics/vk/descriptor/descriptor_pool.h>
+#include <vk/descriptor/descriptor_pool.h>
 
 struct Renderer;
 struct GLFWwindow;

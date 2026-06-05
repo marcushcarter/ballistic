@@ -19,9 +19,7 @@ target_link_options(ballistic_engine INTERFACE "/ignore:4099")
 
 target_link_libraries(ballistic_engine
     PUBLIC ballistic_compiler_options
-    PUBLIC Vulkan::Vulkan
-    PUBLIC Vulkan::shaderc_combined
-    PUBLIC vma
+    PUBLIC vk
     PUBLIC glfw
     PUBLIC stb
     PUBLIC imgui
@@ -29,8 +27,8 @@ target_link_libraries(ballistic_engine
     PUBLIC iconfontcppheaders
     PUBLIC tinyfiledialogs
     PUBLIC tomlplusplus
-    PUBLIC Shell32
     PUBLIC imnodes
+    PUBLIC Shell32
     PRIVATE dwmapi
 )
 
