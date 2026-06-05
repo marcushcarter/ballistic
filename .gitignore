@@ -8,9 +8,6 @@
 /*.ninja
 /.vscode/
 
-Resources/Shaders/**/*.spv
-*.exe
-
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles

@@ -1,5 +1,6 @@
 #include <game/game_application.h>
 #include <graphics/render_paths/game_render_path.h>
+#include <core/log.h>
 
 void GameApplication::OnInit()
 {
@@ -17,7 +18,7 @@ void GameApplication::OnInit()
     // OpenProject(std::filesystem::current_path());
     OpenProject("D:/Ballistic Games/ballistic-engine/docs/samples/Test_Project");
     
-    // LOG_DEBUG("Game initialized");
+    LOG_DEBUG("Game initialized");
 }
 
 void GameApplication::OnUpdate()
@@ -27,7 +28,7 @@ void GameApplication::OnUpdate()
 
 void GameApplication::OnShutdown()
 {
-    // LOG_DEBUG("Game shutdown");
+    LOG_DEBUG("Game shutdown");
 }
 
 void GameApplication::OnProjectOpened(const std::filesystem::path& path)

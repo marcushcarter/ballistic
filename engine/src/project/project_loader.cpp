@@ -1,5 +1,6 @@
 #include <project/project_loader.h>
 #include <project/project.h>
+#include <core/log.h>
 
 void ProjectLoader::Begin(Project& project, const std::filesystem::path& path)
 {
@@ -8,14 +9,14 @@ void ProjectLoader::Begin(Project& project, const std::filesystem::path& path)
  
     future = std::async(std::launch::async, [this, &project, path]() {
         if (!std::filesystem::exists(path)) {
-            // LOG_ERROR("Project path does not exist: %s", path.string().c_str());
+            LOG_ERROR("Project path does not exist: %s", path.string().c_str());
             failed = true;
             done = true;
             return;
         }
  
         if (!project.Load(path)) {
-            // LOG_ERROR("Failed to deserialize project: %s", path.string().c_str());
+            LOG_ERROR("Failed to deserialize project: %s", path.string().c_str());
             failed = true;
             done = true;
             return;

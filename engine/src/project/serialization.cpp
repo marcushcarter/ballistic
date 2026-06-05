@@ -1,5 +1,6 @@
 #include <project/serialization.h>
 #include <project/project.h>
+#include <core/log.h>
 #include <toml++/toml.hpp>
 #include <fstream>
 
@@ -51,7 +52,7 @@ bool Serialize(const Project& project)
         f << root;
         return true;
     } catch (...) {
-        // LOG_ERROR("Failed to save project.blst");
+        LOG_ERROR("Failed to save project.blst");
         return false;
     }
 }
@@ -60,7 +61,7 @@ bool Deserialize(Project& project)
 {
     const std::filesystem::path blstPath = project.path / "project.blst";
     if (!std::filesystem::exists(blstPath)) {
-        // LOG_ERROR("project.blst not found: %s", blstPath.string().c_str());
+        LOG_ERROR("project.blst not found: %s", blstPath.string().c_str());
         return false;
     }
  
@@ -72,7 +73,7 @@ bool Deserialize(Project& project)
         return true;
     } catch (const toml::parse_error& e) {
         (void)e;
-        // LOG_ERROR("Failed to parse project.blst: %s", e.what());
+        LOG_ERROR("Failed to parse project.blst: %s", e.what());
         return false;
     }
 }

@@ -1,15 +1,16 @@
 #include <core/window.h>
-#include <windows.h>
-#include <dwmapi.h>
+#include <core/log.h>
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 #include <stb_image.h>
+#include <windows.h>
+#include <dwmapi.h>
 
 bool Window::Create(const char* title, uint32_t w, uint32_t h)
 {
     if (!glfwInit()) {
-        // LOG_FATAL("Failed to initialize GLFW");
+        LOG_FATAL("Failed to initialize GLFW");
         return false;
     }
 
@@ -23,7 +24,7 @@ bool Window::Create(const char* title, uint32_t w, uint32_t h)
 
     glfwWindow = glfwCreateWindow(w, h, title, nullptr, nullptr);
     if (!glfwWindow) {
-        // LOG_FATAL("Failed to create GLFW window");
+        LOG_FATAL("Failed to create GLFW window");
         glfwTerminate();
         return false;
     }
@@ -43,7 +44,7 @@ bool Window::Create(const char* title, uint32_t w, uint32_t h)
 
     instance = this;
 
-    // LOG_DEBUG("Window created: %dx%d", w, h);
+    LOG_DEBUG("Window created: %dx%d", w, h);
     return true;
 }
 
@@ -53,7 +54,7 @@ void Window::Destroy()
         glfwDestroyWindow(glfwWindow);
         glfwTerminate();
         glfwWindow = nullptr;
-        // LOG_DEBUG("Window destroyed");
+        LOG_DEBUG("Window destroyed");
     }
 }
 
@@ -98,7 +99,7 @@ bool Window::SetIcon(const char* path)
     int w, h, channels;
     stbi_uc* data = stbi_load(path, &w, &h, &channels, 4);
     if (!data) {
-        // LOG_ERROR("Window failed to load icon: %s", path);
+        LOG_ERROR("Window failed to load icon: %s", path);
         return false;
     }
 

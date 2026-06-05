@@ -1,8 +1,8 @@
 #include <editor/screens/project_manager.h>
 #include <project/project.h>
-#include <core/timestamp.h>
 #include <platform/file_dialog.h>
 #include <platform/process.h>
+#include <core/timestamp.h>
 #include <toml++/toml.hpp>
 #include <fstream>
 #include <imgui.h>

@@ -3,6 +3,7 @@
 #include <project/project.h>
 #include <graphics/renderer.h>
 #include <platform/file_dialog.h>
+#include <core/log.h>
 #include <imgui.h>
 #include <imnodes.h>
 #include <IconsFontAwesome6.h>
@@ -76,7 +77,7 @@ void Editor::Update(EditorContext& ctx)
     if (ctx.workspace.config.autosaveEnabled && autosaveTimer >= ctx.workspace.config.autosaveInterval) {
         autosaveTimer = 0.0f;
         SaveProjectAndLayout(ctx);
-        // LOG_DEBUG("Autosaved project");
+        LOG_DEBUG("Autosaved project");
     }
 }
 
