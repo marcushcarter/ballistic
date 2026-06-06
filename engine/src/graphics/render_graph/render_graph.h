@@ -138,5 +138,7 @@ struct RenderGraph
     VkImage GetVkImage(ResourceHandle h);
     VkExtent2D GetImageExtent(ResourceHandle h);
     VkImageAspectFlags GetImageAspect(ResourceHandle h);
+    
     VkBuffer GetVkBuffer(ResourceHandle h);
+    VkDeviceAddress GetDeviceAddress(ResourceHandle h);
 };

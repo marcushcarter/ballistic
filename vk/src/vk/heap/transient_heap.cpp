@@ -9,12 +9,15 @@ static uint64_t HashRequests(const std::vector<TransientRequest>& reqs)
     uint64_t h = 1469598103934665603ull;
     auto mix = [&](const void* p, size_t n) {
         const uint8_t* b = (const uint8_t*)p;
-        for (size_t i = 0; i < n; ++i) { h ^= b[i]; h *= 1099511628211ull; }
+        for (size_t i = 0; i < n; ++i) {
+            h ^= b[i];
+            h *= 1099511628211ull;
+        }
     };
     for (const auto& r : reqs) {
         mix(&r.kind, sizeof(r.kind));
         mix(&r.firstPass, sizeof(r.firstPass));
-        mix(&r.lastPass,  sizeof(r.lastPass));
+        mix(&r.lastPass, sizeof(r.lastPass));
         if (r.kind == TransientRequest::Kind::Image) {
             mix(&r.imageDesc.format, sizeof(VkFormat));
             mix(&r.imageDesc.usage, sizeof(VkImageUsageFlags));
@@ -67,7 +70,9 @@ bool TransientHeap::Realize(const std::vector<TransientRequest>& requests, uint6
     for (size_t i = 0; i < n; ++i) {
         const TransientRequest& r = requests[i];
         Slot& s = slots[i];
-        s.kind = r.kind; s.firstPass = r.firstPass; s.lastPass = r.lastPass;
+        s.kind = r.kind;
+        s.firstPass = r.firstPass;
+        s.lastPass = r.lastPass;
 
         if (r.kind == TransientRequest::Kind::Image) {
             PhysicalImage img{};
@@ -111,7 +116,7 @@ bool TransientHeap::Realize(const std::vector<TransientRequest>& requests, uint6
             if (usage & VK_IMAGE_USAGE_SAMPLED_BIT) img.bindlessSampled = bindless->RegisterSampledImage(img.view);
             if (usage & VK_IMAGE_USAGE_STORAGE_BIT) img.bindlessStorage = bindless->RegisterStorageImage(img.view);
         } else {
-            if (!buffers[s.physIndex].Bind(vma, backing, s.offset)) return false;
+            if (!buffers[s.physIndex].Bind(device, vma, backing, s.offset)) return false;
             stats.bufferCount++;
         }
         stats.sumResourceBytes += s.memReq.size;
@@ -124,7 +129,9 @@ uint32_t TransientHeap::FindOrCreateBucket(TransientRequest::Kind kind, uint32_t
 {
     for (uint32_t i = 0; i < buckets.size(); ++i)
         if (buckets[i].kind == kind && buckets[i].memoryTypeBits == typeBits) return i;
-    Bucket b{}; b.kind = kind; b.memoryTypeBits = typeBits;
+    Bucket b{};
+    b.kind = kind;
+    b.memoryTypeBits = typeBits;
     buckets.push_back(std::move(b));
     return (uint32_t)buckets.size() - 1;
 }
@@ -145,15 +152,20 @@ VkDeviceSize TransientHeap::PlaceBucket(Bucket& b)
 
         int best = -1; VkDeviceSize bestOff = 0;
         for (int f = 0; f < (int)freeList.size(); ++f) {
-            if (freeList[f].freeAtPass >= s.firstPass) continue;   // occupant still live -> cannot reuse
+            if (freeList[f].freeAtPass >= s.firstPass) continue;
             const VkDeviceSize off = AlignUp(freeList[f].offset, al);
             if (off + sz <= freeList[f].offset + freeList[f].size &&
                 (best < 0 || freeList[f].size < freeList[best].size)) { best = f; bestOff = off; }
         }
-        if (best >= 0) { s.offset = bestOff; freeList.erase(freeList.begin() + best); }
-        else           { s.offset = AlignUp(high, al); high = s.offset + sz; }
+        if (best >= 0) {
+            s.offset = bestOff;
+            freeList.erase(freeList.begin() + best);
+        } else {
+            s.offset = AlignUp(high, al);
+            high = s.offset + sz;
+        }
 
-        freeList.push_back({ s.offset, sz, s.lastPass });          // reusable once this resource dies
+        freeList.push_back({ s.offset, sz, s.lastPass });
     }
     return high;
 }
@@ -167,7 +179,7 @@ bool TransientHeap::EnsureBacking(Bucket& b)
 
     VmaAllocationCreateInfo aci{};
     aci.usage = VMA_MEMORY_USAGE_UNKNOWN;
-    aci.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;    // transient RTs/scratch are device-local
+    aci.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
     if (vmaAllocateMemory(vma, &req, &aci, &b.backing, nullptr) != VK_SUCCESS) {
         // LOG_ERROR("TransientHeap: backing alloc failed (%llu bytes, typeBits 0x%x)", (unsigned long long)b.size, b.memoryTypeBits);

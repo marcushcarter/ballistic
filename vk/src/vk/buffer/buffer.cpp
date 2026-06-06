@@ -23,14 +23,14 @@ bool Buffer::Create(VkDevice device, VmaAllocator vma, const BufferDesc& desc)
     debugName = desc.debugName;
     size = 0;
     capacity = 0;
+    deviceAddress = 0;
     deviceHandle = device;
     vmaHandle = vma;
 
     if (!hostVisible)
         usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-    VkBufferCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    VkBufferCreateInfo createInfo{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
     createInfo.size = std::max<VkDeviceSize>(1, desc.size);
     createInfo.usage = usage;
     createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -55,6 +55,12 @@ bool Buffer::Create(VkDevice device, VmaAllocator vma, const BufferDesc& desc)
     if (hostVisible)
         mappedPtr = allocationInfo.pMappedData;
 
+    if (usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
+        VkBufferDeviceAddressInfo info{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+        info.buffer = buffer;
+        deviceAddress = vkGetBufferDeviceAddress(device, &info);
+    }
+
     // SetObjectName(device, VK_OBJECT_TYPE_BUFFER, (uint64_t)buffer, debugName);
 
     // LOG_DEBUG("Buffer created: %s (%llu bytes, usage %s, %s)",
@@ -70,6 +76,7 @@ bool Buffer::Create(VkDevice device, VmaAllocator vma, const BufferDesc& desc)
 void Buffer::Destroy()
 {
     mappedPtr = nullptr;
+    deviceAddress = 0;
     if (buffer) {
         vmaDestroyBuffer(vmaHandle, buffer, allocation);
         buffer = VK_NULL_HANDLE;

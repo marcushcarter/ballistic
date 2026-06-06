@@ -11,23 +11,23 @@ struct BufferDesc
     const char* debugName = nullptr;
 
     static BufferDesc Vertex(VkDeviceSize size, bool hostVisible = false, const char* debugName = nullptr) {
-        return { size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, hostVisible, debugName };
+        return { size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, hostVisible, debugName };
     }
 
     static BufferDesc Index(VkDeviceSize size, bool hostVisible = false, const char* debugName = nullptr) {
-        return { size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, hostVisible, debugName };
+        return { size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, hostVisible, debugName };
     }
 
     static BufferDesc Uniform(VkDeviceSize size, const char* debugName = nullptr) {
-        return { size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, true, debugName };
+        return { size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, true, debugName };
     }
 
     static BufferDesc Storage(VkDeviceSize size, bool hostVisible = false, const char* debugName = nullptr) {
-        return { size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, hostVisible, debugName };
+        return { size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, hostVisible, debugName };
     }
 
     static BufferDesc Indirect(VkDeviceSize size, bool hostVisible = false, const char* debugName = nullptr) {
-        return { size, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, hostVisible, debugName };
+        return { size, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, hostVisible, debugName };
     }
 
     static BufferDesc Staging(VkDeviceSize size) {
@@ -46,6 +46,8 @@ struct Buffer
     VkBufferUsageFlags usage = 0;
     void* mappedPtr = nullptr;
     bool hostVisible = false;
+
+    VkDeviceAddress deviceAddress = 0;
 
     VkPipelineStageFlags stage = 0;
     VkAccessFlags access = 0;

@@ -49,9 +49,11 @@ struct PhysicalBuffer
     VkBuffer buffer = VK_NULL_HANDLE;
     VkDeviceSize size = 0;
     VkMemoryRequirements memReq = {};
+    
+    VkDeviceAddress deviceAddress = 0;
 
     bool CreateUnbound(VkDevice device, const TransientBufferDesc& desc);
-    bool Bind(VmaAllocator vma, VmaAllocation backing, VkDeviceSize offset);
+    bool Bind(VkDevice device, VmaAllocator vma, VmaAllocation backing, VkDeviceSize offset);
     void Destroy(VkDevice device);
 };
 

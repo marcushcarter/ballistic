@@ -82,12 +82,17 @@ bool PhysicalBuffer::CreateUnbound(VkDevice device, const TransientBufferDesc& d
     return true;
 }
 
-bool PhysicalBuffer::Bind(VmaAllocator vma, VmaAllocation backing, VkDeviceSize offset)
+bool PhysicalBuffer::Bind(VkDevice device, VmaAllocator vma, VmaAllocation backing, VkDeviceSize offset)
 {    
     if (vmaBindBufferMemory2(vma, backing, offset, buffer, nullptr) != VK_SUCCESS) {
         // LOG_ERROR("PhysicalBuffer: vmaBindBufferMemory2 failed (offset %llu)", (unsigned long long)offset);
         return false;
     }
+
+    VkBufferDeviceAddressInfo info{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+    info.buffer = buffer;
+    deviceAddress = vkGetBufferDeviceAddress(device, &info);
+
     return true;
 }
 

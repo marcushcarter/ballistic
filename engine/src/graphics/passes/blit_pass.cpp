@@ -36,9 +36,10 @@ void SwapchainBlitFeature::DestroyResources()
 
 void SwapchainBlitFeature::AddPass(RenderGraph& g)
 {
-    struct PassData { ResourceHandle src, dst; };
+    struct PassData { ResourceHandle src, dst, frameUn; };
     PassData out = g.AddPass<PassData>("BlitToSwapchainPass",
     [&](RenderGraph& builder, PassData& data) {
+        data.frameUn = builder.ReadBuffer("frameUniformBuffer", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
         data.src = builder.ReadImage("finalImage", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
         data.dst = builder.WriteImage("swapchain", VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
     },
@@ -66,9 +67,10 @@ void SwapchainBlitFeature::AddPass(RenderGraph& g)
 
         ViewportScissor(cmd, 0, 0, (float)ext.width, (float)ext.height);
         pipeline.Bind(cmd);
-        struct { uint32_t srcIndex, samplerIndex; } pc;
+        struct { uint32_t srcIndex, samplerIndex; VkDeviceAddress address; } pc;
         pc.srcIndex = g.GetBindlessSampled(data.src);
         pc.samplerIndex = renderer->linearSampler.bindlessSampler;
+        pc.address = g.GetDeviceAddress(data.frameUn);
         vkCmdPushConstants(cmd, renderer->globalPipelineLayout.Get(), VK_SHADER_STAGE_ALL, 0, sizeof(pc), &pc);
         vkCmdDraw(cmd, 3, 1, 0, 0);
 

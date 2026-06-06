@@ -60,6 +60,8 @@ struct Renderer
 
     std::filesystem::path projectPath;
 
+    FrameRing frameUniformRing;
+
     // std::vector<Sampler> samplers;
     // std::vector<RenderPass> renderPasses;
     // std::vector<Framebuffer> framebuffers;

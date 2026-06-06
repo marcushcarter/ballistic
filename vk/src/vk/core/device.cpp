@@ -44,6 +44,7 @@ bool Device::Create(VkPhysicalDevice physicalDevice, uint32_t graphicsFamily, ui
 
     if (!Require(supported12.descriptorIndexing, "descriptorIndexing")) return false;
     if (!Require(supported12.runtimeDescriptorArray, "runtimeDescriptorArray")) return false;
+    if (!Require(supported12.bufferDeviceAddress, "bufferDeviceAddress")) return false;
 
     if (!Require(supported12.descriptorBindingPartiallyBound, "descriptorBindingPartiallyBound")) return false;
     if (!Require(supported12.descriptorBindingSampledImageUpdateAfterBind, "descriptorBindingSampledImageUpdateAfterBind")) return false;
@@ -66,6 +67,7 @@ bool Device::Create(VkPhysicalDevice physicalDevice, uint32_t graphicsFamily, ui
     features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     features12.descriptorIndexing = VK_TRUE;
     features12.runtimeDescriptorArray = VK_TRUE;
+    features12.bufferDeviceAddress = VK_TRUE;
     features12.descriptorBindingPartiallyBound = VK_TRUE;
     features12.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
     features12.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;

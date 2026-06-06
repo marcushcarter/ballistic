@@ -6,6 +6,7 @@ bool Allocator::Create(VkInstance instance, VkPhysicalDevice physicalDevice, VkD
     Destroy();
 
     VmaAllocatorCreateInfo createInfo{};
+    createInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     createInfo.physicalDevice = physicalDevice;
     createInfo.device = device;
     createInfo.instance = instance;

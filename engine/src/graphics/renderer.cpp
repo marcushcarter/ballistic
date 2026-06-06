@@ -181,6 +181,10 @@ bool Renderer::Start(Window& window)
 
     graph.SetViewport(finalImage.extent);
 
+    frameUniformRing.Create(device.Get(), allocator.Get(), frameCount, {
+        BufferDesc::Uniform(128, "frameUniformBuffer")
+    });
+
     LOG_DEBUG("Renderer started");
     return true;
 }
@@ -190,6 +194,8 @@ void Renderer::Shutdown()
     device.Wait();
 
     UnloadProject();
+
+    frameUniformRing.Destroy();
 
     graph.Shutdown();
 
@@ -308,10 +314,17 @@ void Renderer::ApplyVSync()
 void Renderer::Render()
 {
     if (!renderPath || !BeginFrame()) return;
+    
+    struct TEMPBUFFERSTRUCT {
+        float color[3] = { 1.0f, 0.5f, 1.0f };
+    } temp;
+
+    frameUniformRing.Current(currentFrame).Update(&temp, sizeof(TEMPBUFFERSTRUCT), 0);
 
     graph.BeginFrame(frameNumber, frameNumber - frameCount);
     graph.ImportImage("finalImage", &finalImage);
     graph.ImportImage("swapchain", &swapchainImages[imageIndex]);
+    graph.ImportBuffer("frameUniformBuffer", &frameUniformRing.Current(currentFrame));
     
     VkDescriptorSet pDescriptorSets = { bindlessHeap.GetSet() };
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, globalPipelineLayout.Get(), 0, 1, &pDescriptorSets, 0, nullptr);

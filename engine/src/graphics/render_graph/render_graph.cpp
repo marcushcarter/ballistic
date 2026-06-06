@@ -476,3 +476,11 @@ VkBuffer RenderGraph::GetVkBuffer(ResourceHandle h)
     if (r.kind == Kind::ExternalBuffer && r.externalBuffer) return r.externalBuffer->Get();
     return VK_NULL_HANDLE;
 }
+
+VkDeviceAddress RenderGraph::GetDeviceAddress(ResourceHandle h)
+{
+    Resource& r = resources[h.resource];
+    if (r.kind == Kind::ExternalBuffer && r.externalBuffer) return r.externalBuffer->deviceAddress;
+    if (r.kind == Kind::TransientBuffer) return heap.GetBuffer((uint32_t)r.heapSlot).deviceAddress;
+    return 0;
+}
