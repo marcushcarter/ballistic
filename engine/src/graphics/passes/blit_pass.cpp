@@ -2,8 +2,8 @@
 #include <graphics/render_graph/render_graph.h>
 #include <graphics/render_graph/render_path.h>
 #include <graphics/renderer.h>
-#include <resources.h>
 #include <core/assert.h>
+#include <resources.h>
 
 bool SwapchainBlitFeature::CreateResources(Renderer& r)
 {

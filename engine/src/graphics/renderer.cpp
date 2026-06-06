@@ -250,6 +250,7 @@ void Renderer::UnloadProject()
     device.Wait();
     if (renderPath) renderPath->DestroyResources();
     pipelineCache.Destroy();
+    projectPath.clear();
     LOG_INFO("PROJECT CLOSED NOW");
 }
 

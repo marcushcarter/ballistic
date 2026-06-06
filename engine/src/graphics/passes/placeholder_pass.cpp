@@ -2,23 +2,43 @@
 #include <graphics/render_graph/render_graph.h>
 #include <graphics/render_graph/render_path.h>
 #include <graphics/renderer.h>
-#include <GLFW/glfw3.h>
+#include <core/assert.h>
+#include <resources.h>
 
 bool PlaceholderFeature::CreateResources(Renderer& r)
 {
-    (void)r;
+    renderer = &r;
+    
+    Shader vert{}, frag{};
+    BE_ASSERT(vert.LoadOrCompile(r.device.Get(), VK_SHADER_STAGE_VERTEX_BIT, LoadShaderSource(SHADER_TRIANGLE_VERT), r.projectPath / ".ballistic/cache/shaders/triangle.vert.spv", "triangle.vert"));    
+    BE_ASSERT(frag.LoadOrCompile(r.device.Get(), VK_SHADER_STAGE_FRAGMENT_BIT, LoadShaderSource(SHADER_TRIANGLE_FRAG), r.projectPath / ".ballistic/cache/shaders/triangle.frag.spv", "triangle.frag"));
+
+    PipelineRenderingInfo renderingInfo;
+    renderingInfo.colorFormats = { r.swapchain.format };
+    auto renderingCreateInfo = renderingInfo.Get();
+
+    BE_ASSERT(pipeline.Create(r.device.Get(), {
+        .pNext = &renderingCreateInfo,
+        .layout = r.globalPipelineLayout.Get(),
+        .cache = r.pipelineCache.Get(),
+        .shaderStages = { PipelineShaderStage(vert.Get(), vert.stage), PipelineShaderStage(frag.Get(), frag.stage) },
+        .debugName = "TrianglePipeline"
+    }));
+
+    vert.Destroy();
+    frag.Destroy();
     return true;
 }
 
 void PlaceholderFeature::DestroyResources()
 {
-
+    pipeline.Destroy();
 }
 
 void PlaceholderFeature::AddPass(RenderGraph& g, FrameGraph& fg)
 {
     struct PassData { ResourceHandle dst; };
-    PassData out = g.AddPass<PassData>("PlaceholderPass",
+    PassData out = g.AddPass<PassData>("TrianglePass",
     [&](RenderGraph& builder, PassData& data) {
         data.dst = builder.WriteImage(fg.finalImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
         fg.finalImage = data.dst;
@@ -34,7 +54,7 @@ void PlaceholderFeature::AddPass(RenderGraph& g, FrameGraph& fg)
         color.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         color.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        color.clearValue.color = { sinf((float)glfwGetTime()) / 2 + 0.5f, 0.0f, 1.0f, 1.0f };
+        color.clearValue.color = { 1.0f, 1.0f, 1.0f, 1.0f };
 
         VkRenderingInfo info{};
         info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
@@ -44,6 +64,11 @@ void PlaceholderFeature::AddPass(RenderGraph& g, FrameGraph& fg)
         info.pColorAttachments = &color;
 
         vkCmdBeginRendering(cmd, &info);
+
+        ViewportScissor(cmd, 0, 0, (float)ext.width, (float)ext.height);
+        pipeline.Bind(cmd);
+        vkCmdDraw(cmd, 3, 1, 0, 0);
+
         vkCmdEndRendering(cmd);
     });
 

@@ -5,3 +5,5 @@
 501 RCDATA "D:/Ballistic Games/ballistic-engine/engine/res/fonts/jetbrains-mono-regular.ttf"
 700 RCDATA "D:/Ballistic Games/ballistic-engine/engine/res/shaders/blit.frag"
 701 RCDATA "D:/Ballistic Games/ballistic-engine/engine/res/shaders/fullscreen.vert"
+702 RCDATA "D:/Ballistic Games/ballistic-engine/engine/res/shaders/triangle.frag"
+703 RCDATA "D:/Ballistic Games/ballistic-engine/engine/res/shaders/triangle.vert"
