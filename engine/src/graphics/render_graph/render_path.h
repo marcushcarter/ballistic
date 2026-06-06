@@ -6,9 +6,8 @@ struct RenderGraph;
 
 struct RenderPath
 {
-    // Renderer* renderer = nullptr;
-    // Scene* scene = nullptr;
-
     virtual ~RenderPath() = default;
+    virtual bool CreateResources(Renderer& renderer) = 0;
+    virtual void DestroyResources() = 0;
     virtual void Build(RenderGraph& graph) = 0;
 };

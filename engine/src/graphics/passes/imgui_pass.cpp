@@ -1,8 +1,9 @@
-#include <graphics/passes/scene_placeholder_pass.h>
+#include <graphics/passes/imgui_pass.h>
+#include <graphics/render_graph/render_graph.h>
 #include <graphics/renderer.h>
 #include <graphics/imgui_layer.h>
 
-ResourceHandle AddImGuiPass(RenderGraph& g, Renderer* renderer, ImGuiLayer* imguiLayer)
+void AddImGuiPass(RenderGraph& g, Renderer* renderer, ImGuiLayer* imguiLayer)
 {    
     struct PassData { ResourceHandle dst; };
     PassData out = g.AddPass<PassData>("ScenePlaceholderPass",
@@ -34,5 +35,4 @@ ResourceHandle AddImGuiPass(RenderGraph& g, Renderer* renderer, ImGuiLayer* imgu
         imguiLayer->RecordDraw(cmd);
         vkCmdEndRendering(cmd);
     });
-    return out.dst;
 }

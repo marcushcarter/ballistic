@@ -5,6 +5,7 @@
 #include <graphics/render_graph/render_path.h>
 #include <core/assert.h>
 #include <core/log.h>
+#include <vulkan/vulkan.hpp>
 #include <stb_image.h>
 
 inline bool LoadRCImage(VkDevice device, VmaAllocator vma, VkCommandBuffer cmd, int resourceID, Image2D& outImage, Buffer& outStaging, const char* debugName = nullptr)
@@ -74,6 +75,17 @@ bool Renderer::Start(Window& window)
     BE_ASSERT(transferQueue.Acquire(device.Get(), physicalDevice.transferFamily));
     BE_ASSERT(computeQueue.Acquire(device.Get(), physicalDevice.computeFamily));
     hasAsyncCompute = physicalDevice.HasDedicatedCompute();
+
+    LOG_INFO("Vulkan %d.%d.%d - Driver %d.%d.%d - Using Device: %s (%s)",
+        VK_API_VERSION_MAJOR(physicalDevice.properties.apiVersion),
+        VK_API_VERSION_MINOR(physicalDevice.properties.apiVersion),
+        VK_API_VERSION_PATCH(physicalDevice.properties.apiVersion),
+        VK_API_VERSION_MAJOR(physicalDevice.properties.driverVersion),
+        VK_API_VERSION_MINOR(physicalDevice.properties.driverVersion),
+        VK_API_VERSION_PATCH(physicalDevice.properties.driverVersion),
+        physicalDevice.properties.deviceName,
+        vk::to_string(vk::PhysicalDeviceType(physicalDevice.properties.deviceType)).c_str()
+    );
 
     BE_ASSERT(swapchain.Create(physicalDevice.Get(), device.Get(), surface.Get(), { window.width, window.height }, false));
     std::vector<VkImage> rawImages = swapchain.GetImages();
@@ -213,27 +225,11 @@ void Renderer::Shutdown()
 bool Renderer::LoadProject(const std::filesystem::path& path)
 {
     auto start = std::chrono::high_resolution_clock::now();
+
+    projectPath = path;
     BE_ASSERT(pipelineCache.Load(device.Get(), path / ".ballistic/cache/pipelines/pipeline_cache.bin"));
 
-    Shader vert{}, frag{}, comp{};
-    BE_ASSERT(vert.LoadOrCompile(device.Get(), VK_SHADER_STAGE_VERTEX_BIT, LoadShaderSource(SHADER_FULLSCREEN_VERT), path / ".ballistic/cache/shaders/fullscreen.vert.spv", "fullscreen.vert"));    
-    BE_ASSERT(frag.LoadOrCompile(device.Get(), VK_SHADER_STAGE_FRAGMENT_BIT, LoadShaderSource(SHADER_BLIT_FRAG), path / ".ballistic/cache/shaders/blit.frag.spv", "blit.frag"));
-
-    PipelineRenderingInfo renderingInfo;
-    renderingInfo.colorFormats = { swapchain.format };
-    auto renderingCreateInfo = renderingInfo.Get();
-
-    BE_ASSERT(blitPipeline.Create(device.Get(), {
-        .pNext = &renderingCreateInfo,
-        .layout = globalPipelineLayout.Get(),
-        .cache = pipelineCache.Get(),
-        .shaderStages = { PipelineShaderStage(vert.Get(), vert.stage), PipelineShaderStage(frag.Get(), frag.stage) },
-        .debugName = "BlitPipeline"
-    }));
-
-    vert.Destroy();
-    frag.Destroy();
-    comp.Destroy();
+    if (renderPath) BE_ASSERT(renderPath->CreateResources(*this));
 
     BE_ASSERT(pipelineCache.Save(device.Get(), path / ".ballistic/cache/pipelines/pipeline_cache.bin"));
     pipelineCache.Destroy();
@@ -245,7 +241,9 @@ bool Renderer::LoadProject(const std::filesystem::path& path)
 
 void Renderer::UnloadProject()
 {
-    blitPipeline.Destroy();
+    device.Wait();
+    if (renderPath) renderPath->DestroyResources();
+    pipelineCache.Destroy();
     LOG_INFO("PROJECT CLOSED NOW");
 }
 

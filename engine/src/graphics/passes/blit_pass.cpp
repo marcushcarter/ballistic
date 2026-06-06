@@ -1,7 +1,40 @@
-#include <graphics/passes/blit_to_swapchain_pass.h>
+#include <graphics/passes/blit_pass.h>
+#include <graphics/render_graph/render_graph.h>
 #include <graphics/renderer.h>
+#include <resources.h>
+#include <core/assert.h>
 
-ResourceHandle AddBlitToSwapchainPass(RenderGraph& g, Renderer* renderer)
+bool SwapchainBlitFeature::CreateResources(Renderer& r)
+{
+    renderer = &r;
+    
+    Shader vert{}, frag{};
+    BE_ASSERT(vert.LoadOrCompile(r.device.Get(), VK_SHADER_STAGE_VERTEX_BIT, LoadShaderSource(SHADER_FULLSCREEN_VERT), r.projectPath / ".ballistic/cache/shaders/fullscreen.vert.spv", "fullscreen.vert"));    
+    BE_ASSERT(frag.LoadOrCompile(r.device.Get(), VK_SHADER_STAGE_FRAGMENT_BIT, LoadShaderSource(SHADER_BLIT_FRAG), r.projectPath / ".ballistic/cache/shaders/blit.frag.spv", "blit.frag"));
+
+    PipelineRenderingInfo renderingInfo;
+    renderingInfo.colorFormats = { r.swapchain.format };
+    auto renderingCreateInfo = renderingInfo.Get();
+
+    BE_ASSERT(pipeline.Create(r.device.Get(), {
+        .pNext = &renderingCreateInfo,
+        .layout = r.globalPipelineLayout.Get(),
+        .cache = r.pipelineCache.Get(),
+        .shaderStages = { PipelineShaderStage(vert.Get(), vert.stage), PipelineShaderStage(frag.Get(), frag.stage) },
+        .debugName = "BlitPipeline"
+    }));
+
+    vert.Destroy();
+    frag.Destroy();
+    return true;
+}
+
+void SwapchainBlitFeature::DestroyResources()
+{
+    pipeline.Destroy();
+}
+
+void SwapchainBlitFeature::AddPass(RenderGraph& g)
 {
     struct PassData { ResourceHandle src, dst; };
     PassData out = g.AddPass<PassData>("BlitToSwapchainPass",
@@ -9,7 +42,7 @@ ResourceHandle AddBlitToSwapchainPass(RenderGraph& g, Renderer* renderer)
         data.src = builder.ReadImage("finalImage", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
         data.dst = builder.WriteImage("swapchain", VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
     },
-    [renderer](VkCommandBuffer cmd, const PassData& data, RenderGraph& g) {    
+    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g) {    
         VkImageView swapView = g.GetImageView(data.dst);
         VkExtent2D ext = g.GetImageExtent(data.dst);
         if (!swapView || !renderer) return;
@@ -32,7 +65,7 @@ ResourceHandle AddBlitToSwapchainPass(RenderGraph& g, Renderer* renderer)
         vkCmdBeginRendering(cmd, &info);
 
         ViewportScissor(cmd, 0, 0, (float)ext.width, (float)ext.height);
-        renderer->blitPipeline.Bind(cmd);
+        pipeline.Bind(cmd);
         struct { uint32_t srcIndex, samplerIndex; } pc;
         pc.srcIndex = g.GetBindlessSampled(data.src);
         pc.samplerIndex = renderer->linearSampler.bindlessSampler;
@@ -41,5 +74,4 @@ ResourceHandle AddBlitToSwapchainPass(RenderGraph& g, Renderer* renderer)
 
         vkCmdEndRendering(cmd);
     });
-    return out.dst;
 }

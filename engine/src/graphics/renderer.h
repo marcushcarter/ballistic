@@ -53,10 +53,12 @@ struct Renderer
     PipelineLayout globalPipelineLayout;
 
     PipelineCache pipelineCache;
-    GraphicsPipeline blitPipeline;
+    // GraphicsPipeline blitPipeline;
 
     RenderGraph graph;
     std::unique_ptr<RenderPath> renderPath;
+
+    std::filesystem::path projectPath;
 
     // std::vector<Sampler> samplers;
     // std::vector<RenderPass> renderPasses;
