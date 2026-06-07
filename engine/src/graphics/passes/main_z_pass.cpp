@@ -18,26 +18,27 @@ void MainZPass::DestroyResources()
 
 void MainZPass::AddPass(RenderGraph& g, FrameGraph& fg)
 {
-    struct PassData { ResourceHandle dst; };
+    struct PassData { ResourceHandle depth; };
     PassData out = g.AddPass<PassData>("MainZPass",
-    [&](RenderGraph& builder, PassData& data) {
-        data.dst = builder.CreateImage("MainZBuffer",
-            {
-                .format = VK_FORMAT_D32_SFLOAT,
-                .usage  = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                .aspect = VK_IMAGE_ASPECT_DEPTH_BIT,
-            },
-            VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-            VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
-            VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
-        );
-        fg.mainZBuffer = data.dst;
+    [&](RenderGraph& builder, PassData& data)
+    {
+        data.depth = builder.CreateImage("MainZBuffer", {
+            .format = VK_FORMAT_D32_SFLOAT,
+            .usage  = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            .aspect = VK_IMAGE_ASPECT_DEPTH_BIT,
+            .debugName = "MainZBuffer",
+        },
+        VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+        VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+        VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
+
+        fg.mainZBuffer = data.depth;
     },
     [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g) {
         (void)cmd;
 
-        VkImageView view = g.GetImageView(data.dst);
-        VkExtent2D ext = g.GetImageExtent(data.dst);
+        VkImageView view = g.GetImageView(data.depth);
+        VkExtent2D ext = g.GetImageExtent(data.depth);
         if (!view) return;
 
         VkRenderingAttachmentInfo depth{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };

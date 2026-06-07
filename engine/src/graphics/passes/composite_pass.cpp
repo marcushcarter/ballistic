@@ -1,55 +1,53 @@
-#include <graphics/passes/hbao_pass.h>
+#include <graphics/passes/composite_pass.h>
 #include <graphics/render_graph/render_graph.h>
 #include <graphics/render_graph/render_path.h>
 #include <graphics/renderer.h>
 #include <core/assert.h>
 #include <resources.h>
 
-bool HBAOPass::CreateResources(Renderer& r)
+bool CompositePass::CreateResources(Renderer& r)
 {
     renderer = &r;
     return true;
 }
 
-void HBAOPass::DestroyResources()
+void CompositePass::DestroyResources()
 {
 
 }
 
-void HBAOPass::AddPass(RenderGraph& g, FrameGraph& fg)
+void CompositePass::AddPass(RenderGraph& g, FrameGraph& fg)
 {
     struct PassData {
-        ResourceHandle depth;
-        ResourceHandle normal;
-        ResourceHandle hbao;
+        ResourceHandle lightDiffuseSss;
+        ResourceHandle lightSpecular;
+        ResourceHandle light;
     };
-    
-    PassData out = g.AddPass<PassData>("HBAOPass",
+
+    PassData out = g.AddPass<PassData>("CompositePass",
     [&](RenderGraph& builder, PassData& data)
     {
-        data.depth = builder.ReadImage(fg.mainZBuffer,
+        data.lightDiffuseSss = builder.ReadImage(fg.lightDiffuseSSSImage,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
         VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 
-        data.normal = builder.ReadImage(fg.gbuffer.normal,
+        builder.ReadImage(fg.lightDiffuseSSSImage,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, 
+        VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
         VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 
-        data.hbao = builder.CreateImage("AORawImage", {
-            .format = VK_FORMAT_R8_UNORM,
+        data.light = builder.CreateImage("LightImage", {
+            .format = VK_FORMAT_R16G16B16A16_SFLOAT,
             .usage  = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
             .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
-            .widthScale = 0.5f,
-            .heightScale = 0.5f,
-            .debugName = "HBAOBlurredImage",
+            .debugName = "light",
         },
         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
         VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
-
-        fg.aoRaw = data.hbao;
+        
+        fg.lightImage = data.light;
     },
     [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g) {
         (void)cmd;

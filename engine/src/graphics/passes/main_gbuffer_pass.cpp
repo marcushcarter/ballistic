@@ -19,42 +19,59 @@ void MainGBufferPass::DestroyResources()
 
 void MainGBufferPass::AddPass(RenderGraph& g, FrameGraph& fg)
 {
-    (void)fg;
+    struct PassData {
+        ResourceHandle albedo;
+        ResourceHandle normal;
+        ResourceHandle material;
+        ResourceHandle depth;
+    };
 
-    struct PassData { ResourceHandle dstAlbedo, dstNormal; };
     PassData out = g.AddPass<PassData>("MainGBufferPass",
-    [&](RenderGraph& builder, PassData& data) {
+    [&](RenderGraph& builder, PassData& data)
+    {
+        data.depth = builder.ReadImage(fg.mainZBuffer,
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT,
+        VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT);
 
-        data.dstAlbedo = builder.CreateImage("GBufferAlbedo",
-            {
-                .format = VK_FORMAT_D32_SFLOAT,
-                .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                .aspect = VK_IMAGE_ASPECT_DEPTH_BIT,
-            },
-            VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-            VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
-            VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
-        );
+        data.albedo = builder.CreateImage("GBufferAlbedo", {
+            .format = VK_FORMAT_R8G8B8A8_UNORM,
+            .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
+            .debugName = "GBufferAlbedo",
+        },
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
 
-        data.dstNormal = builder.CreateImage("GBufferNormal",
-            {
-                .format = VK_FORMAT_D32_SFLOAT,
-                .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                .aspect = VK_IMAGE_ASPECT_DEPTH_BIT,
-            },
-            VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-            VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
-            VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
-        );
+        data.normal = builder.CreateImage("GBufferNormal", {
+            .format = VK_FORMAT_A2B10G10R10_UNORM_PACK32,
+            .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
+            .debugName = "GBufferNormal", 
+        },
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
 
-        fg.gbuffer.albedo = data.dstAlbedo;
-        fg.gbuffer.normal = data.dstNormal;
+        data.material = builder.CreateImage("GBufferMaterial", {
+            .format = VK_FORMAT_R8G8B8A8_UNORM,
+            .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
+            .debugName = "GBufferMaterial",
+        },
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+
+        fg.gbuffer.albedo = data.albedo;
+        fg.gbuffer.normal = data.normal;
+        fg.gbuffer.material = data.material;
     },
     [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g) {
         (void)cmd;
         (void)data;
         (void)g;
-        // (void)fg;
 
         // VkImageView view = g.GetImageView(data.dst);
         // VkExtent2D ext = g.GetImageExtent(data.dst);

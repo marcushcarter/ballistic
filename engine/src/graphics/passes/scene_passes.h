@@ -4,7 +4,10 @@
 #include <graphics/passes/hbao_pass.h>
 #include <graphics/passes/hbao_blur_pass.h>
 #include <graphics/passes/light_pass.h>
+#include <graphics/passes/sss_pass.h>
+#include <graphics/passes/composite_pass.h>
 #include <graphics/passes/placeholder_pass.h>
+#include <graphics/passes/overlay_pass.h>
 
 struct Renderer;
 struct RenderGraph;
@@ -17,7 +20,10 @@ struct ScenePasses
     HBAOPass hbaoPass;
     HBAOBlurPass hbaoBlurPass;
     LightPass lightPass;
+    SSSPass sssPass;
+    CompositePass compositePass;
     PlaceholderPass placeholderPass;
+    OverlayPass overlayPass;
 
     bool CreateResources(Renderer& r) {
         mainZPass.CreateResources(r);
@@ -25,7 +31,10 @@ struct ScenePasses
         hbaoPass.CreateResources(r);
         hbaoBlurPass.CreateResources(r);
         lightPass.CreateResources(r);
+        sssPass.CreateResources(r);
+        compositePass.CreateResources(r);
         placeholderPass.CreateResources(r);
+        overlayPass.CreateResources(r);
         return true;
     }
 
@@ -35,7 +44,10 @@ struct ScenePasses
         hbaoPass.DestroyResources();
         hbaoBlurPass.DestroyResources();
         lightPass.DestroyResources();
+        sssPass.DestroyResources();
+        compositePass.DestroyResources();
         placeholderPass.DestroyResources();
+        overlayPass.DestroyResources();
     }
     
     void Build(RenderGraph& g, FrameGraph& fg) {
@@ -48,17 +60,19 @@ struct ScenePasses
         hbaoPass.AddPass(g, fg);
         hbaoBlurPass.AddPass(g, fg);
         lightPass.AddPass(g, fg);
-        
-        // subsurfacescattering
+        sssPass.AddPass(g, fg);
+        compositePass.AddPass(g, fg);
+
         // skyandfog
         // haircoverage (depth testing)
         // maintransparentdepth
         // maintransparent
         // fgtransparent
         // finalpost
-        // overlay
-        // upsampling
         
         placeholderPass.AddPass(g, fg);
+        overlayPass.AddPass(g, fg);
+        
+        // upsampling
     }
 };

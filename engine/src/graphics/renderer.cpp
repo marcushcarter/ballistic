@@ -325,9 +325,9 @@ void Renderer::Render()
     graph.BeginFrame(frameNumber, frameNumber - frameCount);
     
     FrameGraph fg{};
-    fg.finalImage = graph.ImportImage("finalImage", &finalImage);
-    fg.swapchain = graph.ImportImage("swapchain", &swapchainImages[imageIndex]);
-    fg.frameUniform = graph.ImportBuffer("frameUniformBuffer", &frameUniformRing.Current(currentFrame));
+    fg.finalImage = graph.ImportImage("FinalImage", &finalImage);
+    fg.swapchain = graph.ImportImage("Swapchain", &swapchainImages[imageIndex]);
+    fg.frameUniform = graph.ImportBuffer("FrameUniformBuffer", &frameUniformRing.Current(currentFrame));
     
     VkDescriptorSet pDescriptorSets = { bindlessHeap.GetSet() };
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, globalPipelineLayout.Get(), 0, 1, &pDescriptorSets, 0, nullptr);

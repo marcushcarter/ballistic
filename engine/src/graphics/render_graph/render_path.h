@@ -4,7 +4,7 @@
 struct Renderer;
 struct RenderGraph;
 
-struct GBufferOutput { ResourceHandle albedo, normal; };
+struct GBufferOutput { ResourceHandle albedo, normal, material; };
 
 struct FrameGraph {
     // Imported
@@ -16,7 +16,11 @@ struct FrameGraph {
     GBufferOutput gbuffer;
     ResourceHandle aoRaw;
     ResourceHandle aoBlurred;
-    ResourceHandle hdrLightImage;
+    
+    ResourceHandle lightDiffuseImage;
+    ResourceHandle lightDiffuseSSSImage;
+    ResourceHandle ligthSpecularImage;
+    ResourceHandle lightImage;
 };
 
 struct RenderPath
