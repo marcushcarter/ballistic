@@ -3,6 +3,7 @@
 #include <graphics/render_graph/render_path.h>
 #include <graphics/renderer.h>
 #include <graphics/imgui_layer.h>
+#include <core/log.h>
 
 void AddImGuiPass(RenderGraph& g, FrameGraph& fg, Renderer* renderer, ImGuiLayer* imguiLayer, bool hasProject)
 {    
@@ -16,7 +17,7 @@ void AddImGuiPass(RenderGraph& g, FrameGraph& fg, Renderer* renderer, ImGuiLayer
             VK_ACCESS_2_SHADER_READ_BIT);
         }
 
-        data.swapchain = builder.WriteImage(fg.swapchain,
+        data.swapchain = builder.WriteImage("Swapchain",
         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
         VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);

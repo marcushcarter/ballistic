@@ -29,10 +29,10 @@ void MainGBufferPass::AddPass(RenderGraph& g, FrameGraph& fg)
     PassData out = g.AddPass<PassData>("MainGBufferPass",
     [&](RenderGraph& builder, PassData& data)
     {
-        data.depth = builder.ReadImage(fg.mainZBuffer,
-        VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-        VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT,
-        VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT);
+        // data.depth = builder.ReadImage(fg.mainZBuffer,
+        // VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+        // VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT,
+        // VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT);
 
         data.albedo = builder.CreateImage("GBufferAlbedo", {
             .format = VK_FORMAT_R8G8B8A8_UNORM,
@@ -68,31 +68,49 @@ void MainGBufferPass::AddPass(RenderGraph& g, FrameGraph& fg)
         fg.gbuffer.normal = data.normal;
         fg.gbuffer.material = data.material;
     },
-    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g) {
-        (void)cmd;
-        (void)data;
-        (void)g;
+    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g)
+    {
+        VkExtent2D ext = g.GetImageExtent(data.albedo);
 
-        // VkImageView view = g.GetImageView(data.dst);
-        // VkExtent2D ext = g.GetImageExtent(data.dst);
-        // if (!view) return;
+        VkRenderingAttachmentInfo albedoAttachment{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+        albedoAttachment.imageView = g.GetImageView(data.albedo);
+        albedoAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        albedoAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        albedoAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        albedoAttachment.clearValue.color = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+        VkRenderingAttachmentInfo normalAttachment{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+        normalAttachment.imageView = g.GetImageView(data.normal);
+        normalAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        normalAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        normalAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        normalAttachment.clearValue.color = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+        VkRenderingAttachmentInfo materialAttachment{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+        materialAttachment.imageView = g.GetImageView(data.material);
+        materialAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        materialAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        materialAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        materialAttachment.clearValue.color = { 0.0f, 0.0f, 0.0f, 0.0f };
 
         // VkRenderingAttachmentInfo depth{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-        // depth.imageView = view;
+        // depth.imageView = g.GetImageView(data.depth);
         // depth.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
         // depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         // depth.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         // depth.clearValue.depthStencil = { 1.0f, 0 };
 
-        // VkRenderingInfo info{ VK_STRUCTURE_TYPE_RENDERING_INFO };
-        // info.renderArea = { {0,0}, ext };
-        // info.layerCount = 1;
-        // info.colorAttachmentCount = 0;
-        // info.pColorAttachments = nullptr;
+        VkRenderingAttachmentInfo colorAttachments[3] = { albedoAttachment, normalAttachment, materialAttachment };
+        
+        VkRenderingInfo info{ VK_STRUCTURE_TYPE_RENDERING_INFO };
+        info.renderArea = { {0,0}, ext };
+        info.layerCount = 1;
+        info.colorAttachmentCount = 3;
+        info.pColorAttachments = colorAttachments;
         // info.pDepthAttachment = &depth;
 
-        // vkCmdBeginRendering(cmd, &info);
-        // vkCmdEndRendering(cmd);
+        vkCmdBeginRendering(cmd, &info);
+        vkCmdEndRendering(cmd);
     });
 
 }

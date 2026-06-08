@@ -104,10 +104,14 @@ struct RenderGraph
     ResourceHandle WriteBuffer(const char* name, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
 
     ResourceHandle GetHandle(const char* name);
+
     ResourceHandle ReadImage(ResourceHandle handle, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
     ResourceHandle WriteImage(ResourceHandle handle, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
     ResourceHandle ReadBuffer(ResourceHandle handle, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
     ResourceHandle WriteBuffer(ResourceHandle handle, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
+    
+    ResourceHandle ReadWriteImage(ResourceHandle h, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
+    ResourceHandle ReadWriteBuffer(ResourceHandle h, VkPipelineStageFlags2 stage, VkAccessFlags2 access);
     
     template <typename Data, typename Setup, typename Execute>
     Data AddPass(const char* name, Setup&& setup, Execute&& execute)

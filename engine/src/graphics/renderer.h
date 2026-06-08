@@ -62,13 +62,6 @@ struct Renderer
 
     FrameRing frameUniformRing;
 
-    // std::vector<Sampler> samplers;
-    // std::vector<RenderPass> renderPasses;
-    // std::vector<Framebuffer> framebuffers;
-    // std::vector<Buffer> buffers;
-    // std::vector<DescriptorSetLayout> setLayouts;
-    // std::vector<DescriptorSet> descriptorSets;
-    // std::vector<PipelineLayout> pipelineLayouts;
     // std::vector<Semaphore> semaphores;
     // std::vector<Fence> fences;
     // std::vector<CommandBuffer> commandBuffers;

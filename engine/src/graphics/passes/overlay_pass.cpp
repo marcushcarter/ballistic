@@ -22,43 +22,31 @@ void OverlayPass::AddPass(RenderGraph& g, FrameGraph& fg)
     PassData out = g.AddPass<PassData>("OverlayPass",
     [&](RenderGraph& builder, PassData& data)
     {
-        data.finalImage = builder.ReadImage(fg.finalImage,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-        VK_ACCESS_2_SHADER_READ_BIT);
-
-        data.finalImage = builder.WriteImage(fg.finalImage,
+        data.finalImage = builder.ReadWriteImage(fg.finalImage,
         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
         VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
         
         fg.finalImage = data.finalImage;
     },
-    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g) {
-        (void)cmd;
-        (void)data;
-        (void)g;
+    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g)
+    {
+        VkExtent2D ext = g.GetImageExtent(data.finalImage);
 
-        // VkImageView view = g.GetImageView(data.dst);
-        // VkExtent2D ext = g.GetImageExtent(data.dst);
-        // if (!view) return;
+        VkRenderingAttachmentInfo color{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+        color.imageView = g.GetImageView(data.finalImage);
+        color.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        color.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+        color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-        // VkRenderingAttachmentInfo depth{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-        // depth.imageView = view;
-        // depth.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-        // depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        // depth.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        // depth.clearValue.depthStencil = { 1.0f, 0 };
+        VkRenderingInfo info{ VK_STRUCTURE_TYPE_RENDERING_INFO };
+        info.renderArea = { {0,0}, ext };
+        info.layerCount = 1;
+        info.colorAttachmentCount = 1;
+        info.pColorAttachments = &color;
 
-        // VkRenderingInfo info{ VK_STRUCTURE_TYPE_RENDERING_INFO };
-        // info.renderArea = { {0,0}, ext };
-        // info.layerCount = 1;
-        // info.colorAttachmentCount = 0;
-        // info.pColorAttachments = nullptr;
-        // info.pDepthAttachment = &depth;
-
-        // vkCmdBeginRendering(cmd, &info);
-        // vkCmdEndRendering(cmd);
+        vkCmdBeginRendering(cmd, &info);
+        vkCmdEndRendering(cmd);
     });
 
 }

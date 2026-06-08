@@ -18,14 +18,20 @@ void SSSPass::DestroyResources()
 
 void SSSPass::AddPass(RenderGraph& g, FrameGraph& fg)
 {
-    struct PassData { ResourceHandle lightDiffuse, depth, material, lightDiffuseSss; };
+    struct PassData {
+        ResourceHandle lightDiffuse;
+        ResourceHandle depth;
+        ResourceHandle material;
+        ResourceHandle lightDiffuseSss;
+    };
+
     PassData out = g.AddPass<PassData>("SSSPass",
     [&](RenderGraph& builder, PassData& data)
     {
-        data.depth = builder.ReadImage(fg.mainZBuffer,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-        VK_ACCESS_2_SHADER_READ_BIT);
+        // data.depth = builder.ReadImage(fg.mainZBuffer,
+        // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        // VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+        // VK_ACCESS_2_SHADER_READ_BIT);
 
         data.material = builder.ReadImage(fg.gbuffer.material,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -47,33 +53,26 @@ void SSSPass::AddPass(RenderGraph& g, FrameGraph& fg)
         VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
         VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
 
-        fg.lightDiffuseSSSImage = data.lightDiffuseSss;
+        fg.lightDiffuseSssImage = data.lightDiffuseSss;
     },
-    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g) {
-        (void)cmd;
-        (void)data;
-        (void)g;
+    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g)
+    {    
+        VkExtent2D ext = g.GetImageExtent(data.lightDiffuseSss);
 
-        // VkImageView view = g.GetImageView(data.dst);
-        // VkExtent2D ext = g.GetImageExtent(data.dst);
-        // if (!view) return;
+        VkRenderingAttachmentInfo color{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+        color.imageView = g.GetImageView(data.lightDiffuseSss);
+        color.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        color.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-        // VkRenderingAttachmentInfo depth{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-        // depth.imageView = view;
-        // depth.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-        // depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        // depth.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        // depth.clearValue.depthStencil = { 1.0f, 0 };
+        VkRenderingInfo info{ VK_STRUCTURE_TYPE_RENDERING_INFO };
+        info.renderArea = { {0,0}, ext };
+        info.layerCount = 1;
+        info.colorAttachmentCount = 1;
+        info.pColorAttachments = &color;
 
-        // VkRenderingInfo info{ VK_STRUCTURE_TYPE_RENDERING_INFO };
-        // info.renderArea = { {0,0}, ext };
-        // info.layerCount = 1;
-        // info.colorAttachmentCount = 0;
-        // info.pColorAttachments = nullptr;
-        // info.pDepthAttachment = &depth;
-
-        // vkCmdBeginRendering(cmd, &info);
-        // vkCmdEndRendering(cmd);
+        vkCmdBeginRendering(cmd, &info);
+        vkCmdEndRendering(cmd);
     });
 
 }

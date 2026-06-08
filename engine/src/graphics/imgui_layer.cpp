@@ -42,7 +42,9 @@ bool ImGuiLayer::Create(Renderer& renderer, GLFWwindow* window)
     initInfo.ImageCount = renderer.frameCount;
     initInfo.UseDynamicRendering = true;
     initInfo.PipelineInfoMain.PipelineRenderingCreateInfo = pipelineRenderingInfo;
-    // initInfo.CheckVkResultFn = [](VkResult err){ if(err) LOG_ERROR(" "); };
+    initInfo.CheckVkResultFn = [](VkResult err){ if(err) LOG_ERROR(" "); };
+    
+    // initInfo.MinAllocationSize = 1024 * 1024;
 
     ImGui_ImplGlfw_InitForVulkan(window, true);
     ImGui_ImplVulkan_Init(&initInfo);

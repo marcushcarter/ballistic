@@ -121,7 +121,10 @@ bool TransientHeap::Realize(const std::vector<TransientRequest>& requests, uint6
         }
         stats.sumResourceBytes += s.memReq.size;
     }
+
     stats.bucketCount = (uint32_t)buckets.size();
+    currentHash = hash;
+    realizedOnce = true;
     return true;
 }
 
@@ -234,7 +237,7 @@ void TransientHeap::DumpStats() const
 
 PhysicalImage& TransientHeap::GetImage(uint32_t slot)
 {
-    // ASSERT(slots[slot].kind == TransientRequest::Kind::Image);
+    // (slots[slot].kind == TransientRequest::Kind::Image);
     return images[slots[slot].physIndex];
 }
 

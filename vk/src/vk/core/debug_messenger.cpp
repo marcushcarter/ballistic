@@ -1,5 +1,6 @@
 #include <vk/core/debug_messenger.h>
 #include <iostream>
+#include <windows.h>
 
 bool DebugMessenger::Create(VkInstance instance, VkDebugUtilsMessageSeverityFlagsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, bool enableValidation)
 {
@@ -47,18 +48,27 @@ void DebugMessenger::Destroy()
 
 VKAPI_ATTR VkBool32 DebugMessenger::DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT, const VkDebugUtilsMessengerCallbackDataEXT* data, void*)
 {
-    // if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-
-    // } // LOG_ERROR("[VULKAN] %s", data->pMessage);
-    // else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-
-    // } // LOG_WARN("[VULKAN] %s", data->pMessage);
-    // else {
-
-    // } // LOG_DEBUG("[VULKAN] %s", data->pMessage);
-    // return VK_FALSE;
+    HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+    SetConsoleTextAttribute(console, 12);
 
     const char* level = (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) ? "ERROR" : (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) ? "WARN" : "INFO";
     std::cerr << "\n[VULKAN][" << level << "] " << data->pMessage << "\n";
+
+    
+    // if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+    //     SetConsoleTextAttribute(console, 12);
+    //     std::cerr << "\n[VULKAN][ERROR] " << data->pMessage << "\n";
+
+    // } else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+    //     SetConsoleTextAttribute(console, 12);
+    //     std::cerr << "\n[VULKAN][WARN] " << data->pMessage << "\n";
+
+    // } else {
+    //     SetConsoleTextAttribute(console, 7);
+    //     std::cerr << "\n[VULKAN][INFO] " << data->pMessage << "\n";
+
+    // }
+    
+    SetConsoleTextAttribute(console, 7);
     return VK_FALSE;
 }

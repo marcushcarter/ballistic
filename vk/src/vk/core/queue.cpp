@@ -7,7 +7,7 @@ bool Queue::Acquire(VkDevice device, uint32_t family)
     return true;
 }
 
-void Queue::Submit(VkCommandBuffer cmd, VkSemaphore waitSemaphore, VkPipelineStageFlags waitStage, VkSemaphore signalSemaphore, VkFence fence)
+VkResult Queue::Submit(VkCommandBuffer cmd, VkSemaphore waitSemaphore, VkPipelineStageFlags waitStage, VkSemaphore signalSemaphore, VkFence fence)
 {
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -26,10 +26,10 @@ void Queue::Submit(VkCommandBuffer cmd, VkSemaphore waitSemaphore, VkPipelineSta
         submitInfo.pSignalSemaphores = &signalSemaphore;
     }
 
-    vkQueueSubmit(queue, 1, &submitInfo, fence);
+    return vkQueueSubmit(queue, 1, &submitInfo, fence);
 }
 
-void Queue::Present(VkSwapchainKHR swapchain, uint32_t imageIndex, VkSemaphore waitSemaphore)
+VkResult Queue::Present(VkSwapchainKHR swapchain, uint32_t imageIndex, VkSemaphore waitSemaphore)
 {
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -39,7 +39,7 @@ void Queue::Present(VkSwapchainKHR swapchain, uint32_t imageIndex, VkSemaphore w
     presentInfo.pSwapchains = &swapchain;
     presentInfo.pImageIndices = &imageIndex;
 
-    vkQueuePresentKHR(queue, &presentInfo);
+    return vkQueuePresentKHR(queue, &presentInfo);
 }
 
 void Queue::WaitIdle() { vkQueueWaitIdle(queue); }

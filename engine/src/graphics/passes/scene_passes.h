@@ -8,6 +8,7 @@
 #include <graphics/passes/composite_pass.h>
 #include <graphics/passes/placeholder_pass.h>
 #include <graphics/passes/overlay_pass.h>
+#include <core/log.h>
 
 struct Renderer;
 struct RenderGraph;
@@ -59,6 +60,7 @@ struct ScenePasses
 
         hbaoPass.AddPass(g, fg);
         hbaoBlurPass.AddPass(g, fg);
+
         lightPass.AddPass(g, fg);
         sssPass.AddPass(g, fg);
         compositePass.AddPass(g, fg);

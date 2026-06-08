@@ -25,7 +25,7 @@ void LightPass::AddPass(RenderGraph& g, FrameGraph& fg)
         ResourceHandle material;
         ResourceHandle hbaoBlurred;
         ResourceHandle lightDiffuse;
-        ResourceHandle ligthSpecular;
+        ResourceHandle lightSpecular;
         // ResourceHandle shadowHeightfield;
         // ResourceHandle shadowCascade0;
         // ResourceHandle shadowCascade1;
@@ -36,10 +36,10 @@ void LightPass::AddPass(RenderGraph& g, FrameGraph& fg)
     PassData out = g.AddPass<PassData>("LightPass",
     [&](RenderGraph& builder, PassData& data)
     {
-        data.depth = builder.ReadImage(fg.mainZBuffer,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-        VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+        // data.depth = builder.ReadImage(fg.mainZBuffer,
+        // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        // VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+        // VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 
         data.albedo = builder.ReadImage(fg.gbuffer.albedo,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -77,7 +77,7 @@ void LightPass::AddPass(RenderGraph& g, FrameGraph& fg)
         VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
         VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
         
-        data.ligthSpecular = builder.CreateImage("LightSpecularImage", {
+        data.lightSpecular = builder.CreateImage("LightSpecularImage", {
             .format = VK_FORMAT_R16G16B16A16_SFLOAT,
             .usage  = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
             .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -88,33 +88,38 @@ void LightPass::AddPass(RenderGraph& g, FrameGraph& fg)
         VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
 
         fg.lightDiffuseImage = data.lightDiffuse;
-        fg.ligthSpecularImage = data.ligthSpecular;
+        fg.lightSpecularImage = data.lightSpecular;
     },
-    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g) {
-        (void)cmd;
-        (void)data;
-        (void)g;
+    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g)
+    {
+        VkExtent2D ext = g.GetImageExtent(data.lightDiffuse);
 
-        // VkImageView view = g.GetImageView(data.dst);
-        // VkExtent2D ext = g.GetImageExtent(data.dst);
-        // if (!view) return;
+        VkRenderingAttachmentInfo diffuseAttachment{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+        diffuseAttachment.imageView = g.GetImageView(data.lightDiffuse);
+        diffuseAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        diffuseAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        diffuseAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        diffuseAttachment.clearValue.color = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-        // VkRenderingAttachmentInfo depth{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-        // depth.imageView = view;
-        // depth.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-        // depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        // depth.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        // depth.clearValue.depthStencil = { 1.0f, 0 };
+        VkRenderingAttachmentInfo specularAttachment{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+        specularAttachment.imageView = g.GetImageView(data.lightSpecular);
+        specularAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        specularAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        specularAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        specularAttachment.clearValue.color = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-        // VkRenderingInfo info{ VK_STRUCTURE_TYPE_RENDERING_INFO };
-        // info.renderArea = { {0,0}, ext };
-        // info.layerCount = 1;
-        // info.colorAttachmentCount = 0;
-        // info.pColorAttachments = nullptr;
-        // info.pDepthAttachment = &depth;
+        VkRenderingAttachmentInfo colorAttachments[2] = { diffuseAttachment, specularAttachment };
+        
+        VkRenderingInfo info{ VK_STRUCTURE_TYPE_RENDERING_INFO };
+        info.renderArea = { {0,0}, ext };
+        info.layerCount = 1;
+        info.colorAttachmentCount = 2;
+        info.pColorAttachments = colorAttachments;
 
         // vkCmdBeginRendering(cmd, &info);
         // vkCmdEndRendering(cmd);
+        
+        (void)cmd;
     });
 
 }

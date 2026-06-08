@@ -9,8 +9,8 @@ struct Queue
 
     bool Acquire(VkDevice device, uint32_t family);
 
-    void Submit(VkCommandBuffer cmd, VkSemaphore waitSemaphore = VK_NULL_HANDLE, VkPipelineStageFlags waitStage = 0, VkSemaphore signalSemaphore = VK_NULL_HANDLE, VkFence fence = VK_NULL_HANDLE);
-    void Present(VkSwapchainKHR swapchain, uint32_t imageIndex, VkSemaphore waitSemaphore);
+    VkResult Submit(VkCommandBuffer cmd, VkSemaphore waitSemaphore = VK_NULL_HANDLE, VkPipelineStageFlags waitStage = 0, VkSemaphore signalSemaphore = VK_NULL_HANDLE, VkFence fence = VK_NULL_HANDLE);
+    VkResult Present(VkSwapchainKHR swapchain, uint32_t imageIndex, VkSemaphore waitSemaphore);
     
     void WaitIdle();
 

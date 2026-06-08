@@ -20,10 +20,32 @@ bool Swapchain::Create(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfa
     if (caps.maxImageCount > 0 && imageCount > caps.maxImageCount)
         imageCount = caps.maxImageCount;
 
-    VkSurfaceFormatKHR surfaceFormat{};
-    surfaceFormat.format = VK_FORMAT_B8G8R8A8_SRGB;
-    surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+    uint32_t formatCount = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, nullptr);
+    std::vector<VkSurfaceFormatKHR> surfaceFormats(formatCount);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, surfaceFormats.data());
+
+    VkSurfaceFormatKHR surfaceFormat = surfaceFormats[0];
+    for (const auto& f : surfaceFormats) {
+        if (f.format == VK_FORMAT_B8G8R8A8_SRGB && f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            surfaceFormat = f;
+            break;
+        }
+    }
     format = surfaceFormat.format;
+
+    uint32_t presentModeCount = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, nullptr);
+    std::vector<VkPresentModeKHR> presentModes(presentModeCount);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, presentModes.data());
+
+    VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
+    if (!vsync) {
+        bool picked = false;
+        for (auto m : presentModes) if (m == VK_PRESENT_MODE_IMMEDIATE_KHR) { presentMode = m; picked = true; break; }
+        if (!picked)
+            for (auto m : presentModes) if (m == VK_PRESENT_MODE_MAILBOX_KHR) { presentMode = m; break; }
+    }
 
     VkSwapchainCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -45,13 +67,6 @@ bool Swapchain::Create(VkPhysicalDevice physicalDevice, VkDevice device, VkSurfa
         // LOG_ERROR("Failed to create Vulkan swapchain");
         return false;
     }
-
-    // SetObjectName(device, VK_OBJECT_TYPE_SWAPCHAIN_KHR, (uint64_t)swapchain, "Swapchain");
-
-    // LOG_DEBUG("Swapchain created: (%dx%d, vsync %s)",
-    //     extent.width, extent.height,
-    //     vsync ? "On" : "Off"
-    // );
 
     return true;
 }

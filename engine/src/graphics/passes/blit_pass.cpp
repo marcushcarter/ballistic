@@ -39,15 +39,29 @@ void SwapchainBlitPass::AddPass(RenderGraph& g, FrameGraph& fg)
 {
     struct PassData { ResourceHandle src, dst, frameUn; };
     PassData out = g.AddPass<PassData>("SwapchainBlitPass",
-    [&](RenderGraph& builder, PassData& data) {
+    [&](RenderGraph& builder, PassData& data)
+    {
         // builder.ReadImage(fg.mainZBuffer, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
-        data.frameUn = builder.ReadBuffer(fg.frameUniform, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
-        data.src = builder.ReadImage(fg.finalImage, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
 
-        data.dst = builder.WriteImage(fg.swapchain, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+        builder.ReadImage(fg.mainZBuffer,
+        VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+        VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT,
+        VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT);
+
+        data.src = builder.ReadImage(fg.finalImage,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+        VK_ACCESS_2_SHADER_READ_BIT);
+
+        data.dst = builder.WriteImage(fg.swapchain,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+
         fg.swapchain = data.dst;
     },
-    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g) {    
+    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g)
+    {    
         VkImageView swapView = g.GetImageView(data.dst);
         VkExtent2D ext = g.GetImageExtent(data.dst);
         if (!swapView) return;
@@ -69,10 +83,9 @@ void SwapchainBlitPass::AddPass(RenderGraph& g, FrameGraph& fg)
 
         ViewportScissor(cmd, 0, 0, (float)ext.width, (float)ext.height);
         pipeline.Bind(cmd);
-        struct { uint32_t srcIndex, samplerIndex; VkDeviceAddress address; } pc;
+        struct { uint32_t srcIndex, samplerIndex; } pc;
         pc.srcIndex = g.GetBindlessSampled(data.src);
         pc.samplerIndex = renderer->linearSampler.bindlessSampler;
-        pc.address = g.GetDeviceAddress(data.frameUn);
         vkCmdPushConstants(cmd, renderer->globalPipelineLayout.Get(), VK_SHADER_STAGE_ALL, 0, 128, &pc);
         vkCmdDraw(cmd, 3, 1, 0, 0);
 

@@ -19,7 +19,7 @@ void HBAOBlurPass::DestroyResources()
 void HBAOBlurPass::AddPass(RenderGraph& g, FrameGraph& fg)
 {
     struct PassData {
-        ResourceHandle hbao;
+        ResourceHandle hbaoRaw;
         ResourceHandle depth;
         ResourceHandle hbaoBlurred;
     };
@@ -27,15 +27,15 @@ void HBAOBlurPass::AddPass(RenderGraph& g, FrameGraph& fg)
     PassData out = g.AddPass<PassData>("HBAOBlurPass",
     [&](RenderGraph& builder, PassData& data)
     {
-        data.hbao = builder.ReadImage(fg.aoRaw,
+        data.hbaoRaw = builder.ReadImage(fg.aoRaw,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
         VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 
-        data.depth = builder.ReadImage(fg.mainZBuffer,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-        VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+        // data.depth = builder.ReadImage(fg.mainZBuffer,
+        // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        // VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+        // VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 
         data.hbaoBlurred = builder.CreateImage("AOBlurImage", {
             .format = VK_FORMAT_R8_UNORM,
@@ -51,31 +51,25 @@ void HBAOBlurPass::AddPass(RenderGraph& g, FrameGraph& fg)
 
         fg.aoBlurred = data.hbaoBlurred;
     },
-    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g) {
-        (void)cmd;
-        (void)data;
-        (void)g;
+    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g)
+    {
+        VkExtent2D ext = g.GetImageExtent(data.hbaoBlurred);
 
-        // VkImageView view = g.GetImageView(data.dst);
-        // VkExtent2D ext = g.GetImageExtent(data.dst);
-        // if (!view) return;
+        VkRenderingAttachmentInfo color{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+        color.imageView = g.GetImageView(data.hbaoBlurred);
+        color.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        color.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        color.clearValue.color = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-        // VkRenderingAttachmentInfo depth{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-        // depth.imageView = view;
-        // depth.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-        // depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        // depth.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        // depth.clearValue.depthStencil = { 1.0f, 0 };
+        VkRenderingInfo info{ VK_STRUCTURE_TYPE_RENDERING_INFO };
+        info.renderArea = { {0,0}, ext };
+        info.layerCount = 1;
+        info.colorAttachmentCount = 1;
+        info.pColorAttachments = &color;
 
-        // VkRenderingInfo info{ VK_STRUCTURE_TYPE_RENDERING_INFO };
-        // info.renderArea = { {0,0}, ext };
-        // info.layerCount = 1;
-        // info.colorAttachmentCount = 0;
-        // info.pColorAttachments = nullptr;
-        // info.pDepthAttachment = &depth;
-
-        // vkCmdBeginRendering(cmd, &info);
-        // vkCmdEndRendering(cmd);
+        vkCmdBeginRendering(cmd, &info);
+        vkCmdEndRendering(cmd);
     });
 
 }

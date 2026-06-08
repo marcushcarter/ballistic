@@ -179,6 +179,20 @@ ResourceHandle RenderGraph::WriteBuffer(ResourceHandle h, VkPipelineStageFlags2 
     return h.IsValid() ? RecordWrite(h.resource, VK_IMAGE_LAYOUT_UNDEFINED, s, a) : ResourceHandle{};
 }
 
+ResourceHandle RenderGraph::ReadWriteImage(ResourceHandle h, VkImageLayout layout, VkPipelineStageFlags2 stage, VkAccessFlags2 access)
+{
+    if (!h.IsValid()) return {};
+    ReadImage(h, layout, stage, access);
+    return WriteImage(h, layout, stage, access);
+}
+
+ResourceHandle RenderGraph::ReadWriteBuffer(ResourceHandle h, VkPipelineStageFlags2 stage, VkAccessFlags2 access)
+{
+    if (!h.IsValid()) return {};
+    ReadBuffer(h, stage, access);
+    return WriteBuffer(h, stage, access);
+}
+
 void RenderGraph::Compile()
 {
     for (Resource& r : resources)
@@ -324,20 +338,32 @@ void RenderGraph::Compile()
                 t.readAccess = 0;
             } else {
                 const bool layoutChange = isImage && (t.layout != u.layout);
-                const bool needVis = HasWrite(t.prodAccess) && ((u.stage & ~t.flushed) != 0);
+                const bool writePending = HasWrite(t.prodAccess);
+                const bool needVis = writePending && ((u.stage & ~t.flushed) != 0);
+
                 if (layoutChange || needVis) {
                     Barrier b{};
                     b.handle = u.handle;
                     b.isImage = isImage;
                     b.oldLayout = t.layout;
                     b.newLayout = u.layout;
-                    b.srcStage = t.prodStage;
-                    b.srcAccess = t.prodAccess;
+
+                    if (writePending) {
+                        b.srcStage = t.prodStage | t.readStages;
+                        b.srcAccess = t.prodAccess;
+                    } else {
+                        b.srcStage = t.readStages ? t.readStages : t.prodStage;
+                        b.srcAccess = 0;
+                    }
+
                     b.dstStage = u.stage;
                     b.dstAccess = u.access;
                     step.barriers.push_back(b);
+
                     t.layout = u.layout;
                     t.flushed |= u.stage;
+                    t.prodStage  = 0;
+                    t.prodAccess = 0;
                 }
                 t.readStages |= u.stage;
                 t.readAccess |= u.access;

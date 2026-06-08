@@ -31,8 +31,8 @@ bool Instance::Create(const char* name, uint32_t major, uint32_t minor, uint32_t
 
     VkValidationFeatureEnableEXT enabledValidation[] = {
         VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
-        VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,            // optional, heavier
-        VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,         // optional
+        // VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,            // optional, heavier
+        // VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,         // optional
     };
 
     VkValidationFeaturesEXT validationFeatures{ VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT };

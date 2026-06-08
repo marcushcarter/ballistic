@@ -18,8 +18,8 @@ struct FrameGraph {
     ResourceHandle aoBlurred;
     
     ResourceHandle lightDiffuseImage;
-    ResourceHandle lightDiffuseSSSImage;
-    ResourceHandle ligthSpecularImage;
+    ResourceHandle lightDiffuseSssImage;
+    ResourceHandle lightSpecularImage;
     ResourceHandle lightImage;
 };
 

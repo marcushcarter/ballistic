@@ -27,19 +27,19 @@ void CompositePass::AddPass(RenderGraph& g, FrameGraph& fg)
     PassData out = g.AddPass<PassData>("CompositePass",
     [&](RenderGraph& builder, PassData& data)
     {
-        data.lightDiffuseSss = builder.ReadImage(fg.lightDiffuseSSSImage,
+        data.lightDiffuseSss = builder.ReadImage(fg.lightDiffuseSssImage,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
         VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 
-        builder.ReadImage(fg.lightDiffuseSSSImage,
+        data.lightSpecular= builder.ReadImage(fg.lightSpecularImage,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
         VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 
-        data.light = builder.CreateImage("LightImage", {
+        data.light = builder.CreateImage("CompositeLightImage", {
             .format = VK_FORMAT_R16G16B16A16_SFLOAT,
-            .usage  = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
             .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
             .debugName = "light",
         },
@@ -49,31 +49,25 @@ void CompositePass::AddPass(RenderGraph& g, FrameGraph& fg)
         
         fg.lightImage = data.light;
     },
-    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g) {
-        (void)cmd;
-        (void)data;
-        (void)g;
+    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g)
+    {
+        VkExtent2D ext = g.GetImageExtent(data.light);
 
-        // VkImageView view = g.GetImageView(data.dst);
-        // VkExtent2D ext = g.GetImageExtent(data.dst);
-        // if (!view) return;
+        VkRenderingAttachmentInfo color{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+        color.imageView = g.GetImageView(data.light);
+        color.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        color.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        color.clearValue.color = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-        // VkRenderingAttachmentInfo depth{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-        // depth.imageView = view;
-        // depth.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-        // depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        // depth.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        // depth.clearValue.depthStencil = { 1.0f, 0 };
+        VkRenderingInfo info{ VK_STRUCTURE_TYPE_RENDERING_INFO };
+        info.renderArea = { {0,0}, ext };
+        info.layerCount = 1;
+        info.colorAttachmentCount = 1;
+        info.pColorAttachments = &color;
 
-        // VkRenderingInfo info{ VK_STRUCTURE_TYPE_RENDERING_INFO };
-        // info.renderArea = { {0,0}, ext };
-        // info.layerCount = 1;
-        // info.colorAttachmentCount = 0;
-        // info.pColorAttachments = nullptr;
-        // info.pDepthAttachment = &depth;
-
-        // vkCmdBeginRendering(cmd, &info);
-        // vkCmdEndRendering(cmd);
+        vkCmdBeginRendering(cmd, &info);
+        vkCmdEndRendering(cmd);
     });
 
 }

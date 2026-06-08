@@ -41,10 +41,15 @@ void PlaceholderPass::AddPass(RenderGraph& g, FrameGraph& fg)
     PassData out = g.AddPass<PassData>("PlaceholderPass",
     [&](RenderGraph& builder, PassData& data)
     {
-        builder.ReadImage(fg.lightImage,
-        VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
-        VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-        VK_ACCESS_2_SHADER_READ_BIT);
+        // builder.ReadImage(fg.lightImage,
+        // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        // VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+        // VK_ACCESS_2_SHADER_READ_BIT);
+        
+        builder.ReadImage(fg.mainZBuffer,
+        VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+        VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT,
+        VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT);
 
         data.dst = builder.WriteImage(fg.finalImage,
         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -53,13 +58,12 @@ void PlaceholderPass::AddPass(RenderGraph& g, FrameGraph& fg)
 
         fg.finalImage = data.dst;
     },
-    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g) {
-        VkImageView view = g.GetImageView(data.dst);
+    [this](VkCommandBuffer cmd, const PassData& data, RenderGraph& g)
+    {
         VkExtent2D ext = g.GetImageExtent(data.dst);
-        if (!view) return;
 
         VkRenderingAttachmentInfo color{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-        color.imageView = view;
+        color.imageView = g.GetImageView(data.dst);
         color.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         color.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -72,11 +76,9 @@ void PlaceholderPass::AddPass(RenderGraph& g, FrameGraph& fg)
         info.pColorAttachments = &color;
 
         vkCmdBeginRendering(cmd, &info);
-
         ViewportScissor(cmd, 0, 0, (float)ext.width, (float)ext.height);
         pipeline.Bind(cmd);
         vkCmdDraw(cmd, 3, 1, 0, 0);
-
         vkCmdEndRendering(cmd);
     });
 

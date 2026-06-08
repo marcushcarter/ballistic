@@ -362,14 +362,23 @@ bool Renderer::BeginFrame()
     commandBuffers[imageIndex].Begin();
     cmd = commandBuffers[imageIndex].Get();
 
+    Image2D& sc = swapchainImages[imageIndex];
+    sc.layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    sc.stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    sc.access = 0;
+
     return true;
 }
 
 void Renderer::EndFrame()
 {
     commandBuffers[imageIndex].End();
-    graphicsQueue.Submit(cmd, imageAvailableSemaphores[currentFrame].Get(), VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, renderFinishedSemaphores[currentFrame].Get(), inFlightFences[currentFrame].Get());
-    presentQueue.Present(swapchain.Get(), imageIndex, renderFinishedSemaphores[currentFrame].Get());
+
+    VkResult sub = graphicsQueue.Submit(cmd, imageAvailableSemaphores[currentFrame].Get(), VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, renderFinishedSemaphores[currentFrame].Get(), inFlightFences[currentFrame].Get());
+    if (sub != VK_SUCCESS) LOG_ERROR("vkQueueSubmit: %d", sub);   // -4 == VK_ERROR_DEVICE_LOST
+
+    VkResult pres = presentQueue.Present(swapchain.Get(), imageIndex, renderFinishedSemaphores[currentFrame].Get());
+    if (pres != VK_SUCCESS && pres != VK_SUBOPTIMAL_KHR) LOG_ERROR("vkQueuePresent: %d", pres);
 
     currentFrame = (currentFrame + 1) % frameCount;
     frameNumber++; 

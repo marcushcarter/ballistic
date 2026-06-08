@@ -33,6 +33,6 @@ struct EditorRenderPath : RenderPath
             scenePasses.Build(g, fg);
         }
 
-        AddImGuiPass(g, fg, renderer, imguiLayer, resourcesReady);
+        AddImGuiPass(g, fg, renderer, imguiLayer, !resourcesReady);
     }
 };
