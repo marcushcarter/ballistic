@@ -6,6 +6,7 @@ file(GLOB_RECURSE LAUNCHER_SOURCES
 
 add_executable(ballistic_launcher
     ${LAUNCHER_SOURCES}
+    ${PROJECT_SOURCE_DIR}/assets/icons/editor_app.rc
 )
 
 target_include_directories(ballistic_launcher

@@ -64,6 +64,8 @@ struct LauncherApplication
 
     void Setup();
     void Shutdown();
+
+    void RequestResize();
     void RecreateSwapchain();
 
     VkCommandBuffer BeginFrame();

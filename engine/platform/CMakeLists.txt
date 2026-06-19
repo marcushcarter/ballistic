@@ -8,7 +8,11 @@ target_include_directories(ballistic_platform
 )
 
 target_link_libraries(ballistic_platform
-    PUBLIC
-        glfw
-        dwmapi
+PUBLIC
+    glfw
+    imgui
+PRIVATE
+    dwmapi
 )
+
+target_compile_definitions(ballistic_platform PRIVATE BALLISTIC_VERSION_STR="${BALLISTIC_VERSION}")

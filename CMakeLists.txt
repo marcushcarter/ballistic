@@ -29,14 +29,24 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release)
 include(CompilerOptions)
 include(Platform)
 include(Dependencies)
+include(EmbedAssets)
 
 add_subdirectory(thirdparty)
+add_subdirectory(engine)
+
+set(BALLISTIC_GENERATED_DIR ${CMAKE_BINARY_DIR}/generated)
+file(MAKE_DIRECTORY ${BALLISTIC_GENERATED_DIR})
+
+ballistic_generate_asset_rc(
+    ${BALLISTIC_GENERATED_DIR}/embedded_assets.rc
+    ${CMAKE_SOURCE_DIR}/assets/fonts
+    ${CMAKE_SOURCE_DIR}/assets/images
+    ${CMAKE_SOURCE_DIR}/assets/shaders
+)
 
 option(BALLISTIC_BUILD_EDITOR "Build the editor" ON)
 option(BALLISTIC_BUILD_GAME "Build the game runtime" ON)
 option(BALLISTIC_BUILD_LAUNCHER "Build the launcher" ON)
-
-add_subdirectory(engine)
 
 add_subdirectory(launcher)
 
