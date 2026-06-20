@@ -18,8 +18,8 @@
 
 ### Clone Repository
 ```bash
-git clone --recursive https://github.com/marcushcarter/ballistic.git ballistic
-cd ballistic
+git clone --recursive https://github.com/marcushcarter/ballistic.git Ballistic
+cd Ballistic
 git submodule update --init --recursive
 ```
 
