@@ -1,6 +1,8 @@
 #pragma once
-#include <drivers/windows/window_driver_windows.h>
-#include <drivers/imgui/imgui_layer.h>
+#include <drivers/windows/window_driver_win32.h>
+#include <drivers/vulkan/rendering_device_driver_vulkan.h>
+#include <drivers/vulkan/rendering_context_driver_vulkan.h>
+#include <drivers/imgui/imgui_driver.h>
 #include <string>
 
 namespace ballistic {
@@ -14,8 +16,11 @@ struct ApplicationCreateInfo
 
 struct Application
 {
-    WindowDriverWindows window;
-    ImGuiLayer imgui_layer;
+    drivers::WindowDriverWin32 window;
+    drivers::RenderingContextDriverVulkan vulkan_context;
+    drivers::RenderingDeviceDriverVulkan vulkan_device;
+    drivers::ImGuiDriver imgui;
+    
     ApplicationCreateInfo create_info;
 
     void create(const ApplicationCreateInfo& p_info);

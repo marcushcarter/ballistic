@@ -2,9 +2,9 @@
 #include <windows.h>
 #include <string>
 
-namespace ballistic {
+namespace ballistic::drivers {
 
-struct WindowDriverWindows
+struct WindowDriverWin32
 {
     HWND hwnd = nullptr;
     bool close_requested = false;

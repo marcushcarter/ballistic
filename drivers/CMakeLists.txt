@@ -4,7 +4,12 @@ file(GLOB_RECURSE BALLISTIC_DRIVERS_SOURCES CONFIGURE_DEPENDS
 )
 
 add_library(ballistic_drivers STATIC ${BALLISTIC_DRIVERS_SOURCES})
-target_include_directories(ballistic_drivers PUBLIC ${CMAKE_SOURCE_DIR})
+
+target_include_directories(ballistic_drivers
+PUBLIC
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_BINARY_DIR}/generated
+)
 
 target_link_libraries(ballistic_drivers
 PUBLIC

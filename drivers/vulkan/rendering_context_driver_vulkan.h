@@ -2,7 +2,7 @@
 
 #include <drivers/vulkan/ballistic_vulkan.h>
 
-namespace ballistic {
+namespace ballistic::drivers {
 
 struct RenderingContextDriverVulkan
 {

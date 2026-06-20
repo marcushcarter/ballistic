@@ -2,9 +2,9 @@
 #include <vulkan/vulkan.h>
 #include <windows.h>
 
-namespace ballistic {
+namespace ballistic::drivers {
 
-struct ImGuiLayerCreateInfo
+struct ImGuiDriverCreateInfo
 {
     HWND hwnd = nullptr;
     VkInstance instance = VK_NULL_HANDLE;
@@ -17,11 +17,11 @@ struct ImGuiLayerCreateInfo
     uint32_t image_count = 2;
 };
 
-struct ImGuiLayer
+struct ImGuiDriver
 {
     VkDescriptorPool descriptor_pool;
 
-    void create(const ImGuiLayerCreateInfo& p_info);
+    void create(const ImGuiDriverCreateInfo& p_info);
     void destroy();
 
     void new_frame();

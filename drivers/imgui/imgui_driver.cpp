@@ -1,12 +1,12 @@
-#include <drivers/imgui/imgui_layer.h>
+#include <drivers/imgui/imgui_driver.h>
 #include <backends/imgui_impl_win32.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <vulkan/vulkan.h>
 #include <iostream>
 
-namespace ballistic {
+namespace ballistic::drivers {
     
-void ImGuiLayer::create(const ImGuiLayerCreateInfo& p_info)
+void ImGuiDriver::create(const ImGuiDriverCreateInfo& p_info)
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -39,7 +39,7 @@ void ImGuiLayer::create(const ImGuiLayerCreateInfo& p_info)
     ImGui_ImplVulkan_Init(&init_info);
 }
 
-void ImGuiLayer::destroy()
+void ImGuiDriver::destroy()
 {
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplWin32_Shutdown();
@@ -47,19 +47,19 @@ void ImGuiLayer::destroy()
     // descriptorPool.Destroy();
 }
 
-void ImGuiLayer::new_frame()
+void ImGuiDriver::new_frame()
 {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 }
 
-void ImGuiLayer::render()
+void ImGuiDriver::render()
 {
     ImGui::Render();
 }
 
-void ImGuiLayer::record_commands(VkCommandBuffer p_cmd)
+void ImGuiDriver::record_commands(VkCommandBuffer p_cmd)
 {
     ImDrawData* draw_data = ImGui::GetDrawData();
     if (draw_data) {
