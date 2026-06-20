@@ -9,6 +9,8 @@ endfunction()
 if(BALLISTIC_BUILD_EDITOR)
     add_executable(ballistic_editor_app WIN32
         resources/editor.rc
+        ${CMAKE_BINARY_DIR}/generated/embedded_assets_shared.rc
+        ${CMAKE_BINARY_DIR}/generated/embedded_assets_editor.rc
         main_editor.cpp
     )
     target_link_libraries(ballistic_editor_app PRIVATE ballistic_core)
@@ -18,6 +20,7 @@ endif()
 if(BALLISTIC_BUILD_GAME)
     add_executable(ballistic_game WIN32
         resources/game.rc
+        ${CMAKE_BINARY_DIR}/generated/embedded_assets_shared.rc
         main_game.cpp
     )
     target_link_libraries(ballistic_game PRIVATE ballistic_core)

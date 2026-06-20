@@ -36,10 +36,14 @@ set(BALLISTIC_GENERATED_DIR ${CMAKE_BINARY_DIR}/generated)
 file(MAKE_DIRECTORY ${BALLISTIC_GENERATED_DIR})
 
 ballistic_generate_asset_rc(
-    ${BALLISTIC_GENERATED_DIR}/embedded_assets.rc
-    ${CMAKE_SOURCE_DIR}/assets/fonts
-    ${CMAKE_SOURCE_DIR}/assets/images
-    ${CMAKE_SOURCE_DIR}/assets/shaders
+    ${BALLISTIC_GENERATED_DIR}/embedded_assets_shared.rc
+    ${CMAKE_SOURCE_DIR}/assets/shared/shaders
+    ${CMAKE_SOURCE_DIR}/assets/shared/images
+)
+
+ballistic_generate_asset_rc(
+    ${BALLISTIC_GENERATED_DIR}/embedded_assets_editor.rc
+    ${CMAKE_SOURCE_DIR}/assets/editor/logos
 )
 
 option(BALLISTIC_BUILD_EDITOR "Build the editor" ON)

@@ -42,4 +42,4 @@ class RenderingDriverDeviceVulkan {
 
     // set_object_name
     // get resource handle
-}
+};

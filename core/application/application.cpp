@@ -1,49 +1,39 @@
 #include <core/application/application.h>
 #include <windows.h>
+#include <chrono>
 
-static LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+namespace ballistic {
+
+void Application::create(const ApplicationCreateInfo& p_info)
 {
-    switch (msg) {
-        case WM_DESTROY:
-            PostQuitMessage(0);
-            return 0;
-    }
-    return DefWindowProcW(hwnd, msg, wparam, lparam);
+    create_info = p_info;
+    window.create(p_info.window_title, p_info.width, p_info.height);
 }
 
-int Application::Run()
+void Application::destroy()
 {
-    const wchar_t* class_name = L"BallisticWindow";
+    window.destroy();
+}
 
-    WNDCLASSW wc{};
-    wc.lpfnWndProc = WindowProc;
-    wc.hInstance = GetModuleHandleW(nullptr);
-    wc.lpszClassName = class_name;
+int Application::run()
+{
+    on_init();
 
-    RegisterClassW(&wc);
+    auto lastTime = std::chrono::steady_clock::now();
+    auto startTime = lastTime;
 
-    HWND hwnd = CreateWindowExW(
-        0,
-        class_name,
-        L"Ballistic Engine",
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT,
-        CW_USEDEFAULT,
-        1280,
-        720,
-        nullptr,
-        nullptr,
-        wc.hInstance,
-        nullptr
-    );
+    while (!window.should_close()) {
+        auto now = std::chrono::steady_clock::now();
+        double delta = std::chrono::duration<double>(now - lastTime).count();
+        lastTime = now;
 
-    ShowWindow(hwnd, SW_SHOW);
-
-    MSG msg{};
-    while (GetMessageW(&msg, nullptr, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessageW(&msg);
+        window.poll_events();
+        on_update((float)delta);
     }
 
-    return static_cast<int>(msg.wParam);
+    on_shutdown();
+    destroy();
+    return 0;
+}
+
 }

@@ -18,7 +18,7 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName",     "Ballistic Games"
-            VALUE "FileDescription", "Ballistic Console Wrapper"
+            VALUE "FileDescription", "Ballistic Engine (Console)"
             VALUE "FileVersion",     BALLISTIC_VERSION_NUMBER
             VALUE "InternalName",    "ballistic_console_wrapper"
             VALUE "ProductName",     BALLISTIC_VERSION_NAME

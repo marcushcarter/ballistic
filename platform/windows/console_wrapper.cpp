@@ -35,6 +35,8 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
+    AllowSetForegroundWindow(pi.dwProcessId);
+
     AssignProcessToJobObject(jobHandle, pi.hProcess);
     ResumeThread(pi.hThread);
     CloseHandle(pi.hThread);

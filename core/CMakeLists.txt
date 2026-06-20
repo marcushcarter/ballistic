@@ -10,5 +10,4 @@ target_include_directories(ballistic_core PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(ballistic_core PUBLIC
     ballistic_drivers
     ballistic_compiler_options
-    glfw
 )

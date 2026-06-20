@@ -1,13 +1,13 @@
-#include <core/application/Application.h>
+#include <core/application/editor_application.h>
 #include <windows.h>
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    Application::CreateInfo info;
-    // info.windowTitle = L"Ballistic Editor";
-    // info.width = 1280;
-    // info.height = 720;
+    ballistic::ApplicationCreateInfo info;
+    info.window_title = L"Ballistic Editor";
+    info.width = 1280;
+    info.height = 720;
 
-    Application app(info);
-    // while(true){}
-    return app.Run();
+    ballistic::EditorApplication app;
+    app.create(info);
+    return app.run();
 }
