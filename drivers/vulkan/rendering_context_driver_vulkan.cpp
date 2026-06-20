@@ -1,7 +1,447 @@
 #include <drivers/vulkan/rendering_context_driver_vulkan.h>
+#include <core/error/error_macros.h>
+#include <core/version.h>
+#include <windows.h>
+#include <iostream>
 
 namespace ballistic::drivers {
 
+Error RenderingContextDriverVulkan::_initialize_vulkan_version()
+{
+    using enum Error;
 
+    typedef VkResult(VKAPI_PTR* PFN_vkEnumerateInstanceVersion)(uint32_t*);
+    auto enumerate_instance_version = reinterpret_cast<PFN_vkEnumerateInstanceVersion>(
+        vkGetInstanceProcAddr(nullptr, "vkEnumerateInstanceVersion")
+    );
+
+    if (enumerate_instance_version) {
+        uint32_t api_version = 0;
+        VkResult result = enumerate_instance_version(&api_version);
+
+        BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS, Failed,
+            "vkEnumerateInstanceVersion failed unexpectedly.");
+
+        instance_api_version = api_version;
+    } else {
+        instance_api_version = VK_API_VERSION_1_0;
+    }
+
+    BALLISTIC_ERR_FAIL_COND_V_MSG(instance_api_version < VK_API_VERSION_1_2, Failed,
+        "Your graphics driver only supports an older version of Vulkan than this engine requires (1.2 minimum)."
+        "Please update your GPU drvier.");
+
+    return Ok;
+}
+
+void RenderingContextDriverVulkan::_register_requested_instance_extension(const std::string& p_extension_name, bool p_required)
+{
+    requested_instance_extensions[p_extension_name] = p_required;
+}
+
+Error RenderingContextDriverVulkan::_initialize_instance_extensions()
+{
+    using enum Error;
+
+    enabled_instance_extension_names.clear();
+
+    _register_requested_instance_extension(VK_KHR_SURFACE_EXTENSION_NAME, true);
+    _register_requested_instance_extension(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, true);
+    
+    _register_requested_instance_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true);
+    // _register_requested_instance_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, false);
+    _register_requested_instance_extension(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME, false);
+
+    uint32_t instance_extension_count = 0;
+    VkResult result = vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, nullptr);
+
+    BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS && result != VK_INCOMPLETE, Failed,
+        "vkEnumerateInstanceExtensionProperties (count query) failed.");
+    BALLISTIC_ERR_FAIL_COND_V_MSG(instance_extension_count == 0, Failed,
+        "No Vulkan instance extensions were found.");
+
+    std::vector<VkExtensionProperties> instance_extensions(instance_extension_count);
+    result = vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, instance_extensions.data());
+
+    BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS && result != VK_INCOMPLETE, Failed,
+        "vkEnumerateInstanceExtensionProperties (fetch) failed.");
+
+    for (const auto& extension : instance_extensions) {
+        std::string extension_name(extension.extensionName);
+        if (requested_instance_extensions.contains(extension_name)) {
+            enabled_instance_extension_names.insert(extension_name);
+        }
+    }
+
+    for (const auto& [name, is_required] : requested_instance_extensions) {
+        if (!enabled_instance_extension_names.contains(name)) {
+            BALLISTIC_ERR_FAIL_COND_V_MSG(is_required, Failed,
+                ("Required Vulkan instance extension " + name + " was not found.").c_str());
+        }
+    }
+        
+    return Ok;
+}
+
+Error RenderingContextDriverVulkan::_find_validation_layers()
+{
+    using enum Error;
+
+    enabled_validation_layer_names.clear();
+
+    uint32_t instance_layer_count = 0;
+    VkResult result = vkEnumerateInstanceLayerProperties(&instance_layer_count, nullptr);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS, Failed,
+        "vkEnumerateInstanceLayerProperties (count query) failed.");
+
+    if (instance_layer_count == 0) {
+        return Ok;
+    }
+
+    std::vector<VkLayerProperties> layer_properties(instance_layer_count);
+    result = vkEnumerateInstanceLayerProperties(&instance_layer_count, layer_properties.data());
+    BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS, Failed,
+        "vkEnumerateInstanceLayerProperties (fetch) failed.");
+
+    for (const auto& properties : layer_properties) {
+        if (strcmp(properties.layerName, "VK_LAYER_KHRONOS_validation") == 0) {
+            enabled_validation_layer_names.push_back("VK_LAYER_KHRONOS_validation");
+            break;
+        }
+    }
+
+    if (enabled_validation_layer_names.empty()) {
+        fprintf(stderr, "[Ballistic] Warning: VK_LAYER_KHRONOS_validation not found. Running without validation layers.\n");
+    }
+
+    return Ok;
+}
+
+VKAPI_ATTR VkBool32 VKAPI_CALL RenderingContextDriverVulkan::_debug_messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT p_message_severity, VkDebugUtilsMessageTypeFlagsEXT p_message_type, const VkDebugUtilsMessengerCallbackDataEXT *p_callback_data, void *p_user_data)
+{
+    (void)p_message_type;
+
+    auto* self = reinterpret_cast<RenderingContextDriverVulkan*>(p_user_data);
+    (void)self;
+
+    const char* level = (p_message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) ? "ERROR"
+        : (p_message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) ? "WARN" : "INFO";
+    std::cerr << "\n[VULKAN][" << level << "] " << p_callback_data->pMessage << "\n";
+    
+    return VK_FALSE;
+}
+
+Error RenderingContextDriverVulkan::_initialize_instance()
+{
+    using enum Error;
+
+    Error err = _find_validation_layers();
+	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+
+    // Instance
+    VkApplicationInfo app_info{ VK_STRUCTURE_TYPE_APPLICATION_INFO };
+    app_info.pApplicationName = BALLISTIC_VERSION_NAME;
+    app_info.applicationVersion = VK_MAKE_VERSION(BALLISTIC_VERSION_MAJOR, BALLISTIC_VERSION_MINOR, BALLISTIC_VERSION_PATCH);
+    app_info.pEngineName = BALLISTIC_VERSION_NAME;
+    app_info.engineVersion = VK_MAKE_VERSION(BALLISTIC_VERSION_MAJOR, BALLISTIC_VERSION_MINOR, BALLISTIC_VERSION_PATCH);
+    app_info.apiVersion = instance_api_version;
+
+    std::vector<const char*> extension_name_ptrs;
+    for (const auto& name : enabled_instance_extension_names) {
+        extension_name_ptrs.push_back(name.c_str());
+    }
+    bool validation_enabled = !enabled_validation_layer_names.empty();
+
+    VkValidationFeatureEnableEXT enabled_validation_features[] = {
+        VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+    };
+
+    VkValidationFeaturesEXT validation_features{ VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT };
+    validation_features.enabledValidationFeatureCount = static_cast<uint32_t>(std::size(enabled_validation_features));
+    validation_features.pEnabledValidationFeatures = enabled_validation_features;
+
+    VkInstanceCreateInfo instance_ci{ VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
+    instance_ci.pApplicationInfo = &app_info;
+    instance_ci.enabledExtensionCount = static_cast<uint32_t>(extension_name_ptrs.size());
+    instance_ci.ppEnabledExtensionNames = extension_name_ptrs.data();
+    instance_ci.enabledLayerCount = static_cast<uint32_t>(enabled_validation_layer_names.size());
+    instance_ci.ppEnabledLayerNames = enabled_validation_layer_names.empty() ? nullptr : enabled_validation_layer_names.data();
+
+    if (validation_enabled) {
+        extension_name_ptrs.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
+        instance_ci.enabledExtensionCount = static_cast<uint32_t>(extension_name_ptrs.size());
+        instance_ci.ppEnabledExtensionNames = extension_name_ptrs.data();
+        instance_ci.pNext = &validation_features;
+    }
+
+    VkResult result = vkCreateInstance(&instance_ci, nullptr, &instance);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS, Failed,
+        "vkCreateInstance failed. Do you have a compatible Vulkan driver installed?");
+
+    // Debug Messenger
+    if (validation_enabled) {
+        functions.DebugUtilsMessengerCallbackEXT = _debug_messenger_callback;
+
+        VkDebugUtilsMessengerCreateInfoEXT debug_messenger_ci{ VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT };
+        debug_messenger_ci.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        debug_messenger_ci.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        debug_messenger_ci.pfnUserCallback = functions.DebugUtilsMessengerCallbackEXT;
+        debug_messenger_ci.pUserData = this;
+
+        auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+        BALLISTIC_ERR_FAIL_COND_V_MSG(!func, Failed, "vkCreateDebugUtilsMessengerEXT not present.");
+
+        VkResult debug_result = func(instance, &debug_messenger_ci, nullptr, &debug_messenger);
+        BALLISTIC_ERR_FAIL_COND_V_MSG(debug_result != VK_SUCCESS, Failed, "Failed to create Vulkan debug messenger.");
+    }
+
+    // fill functions
+
+    return Ok;
+}
+
+Error RenderingContextDriverVulkan::_initialize_devices()
+{
+    using enum Error;
+
+    physical_devices.clear();
+
+    uint32_t physical_device_count = 0;
+    VkResult err = vkEnumeratePhysicalDevices(instance, &physical_device_count, nullptr);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "vkEnumeratePhysicalDevices (count query) failed.");
+    BALLISTIC_ERR_FAIL_COND_V_MSG(physical_device_count == 0, Failed, "No Vulkan-capable GPUs were found on this system.");
+
+    driver_devices.resize(physical_device_count);
+    physical_devices.resize(physical_device_count);
+    device_queue_families.resize(physical_device_count);
+    err = vkEnumeratePhysicalDevices(instance, &physical_device_count, physical_devices.data());
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "vkEnumeratePhysicalDevices (fetch) failed.");
+
+	for (uint32_t i = 0; i < physical_devices.size(); i++) {
+		VkPhysicalDeviceProperties props;
+		vkGetPhysicalDeviceProperties(physical_devices[i], &props);
+
+		DriverDevice& driver_device = driver_devices[i];
+        driver_device.name = std::wstring(props.deviceName, props.deviceName + strlen(props.deviceName));
+        driver_device.vendor_id = props.vendorID;
+        driver_device.device_type = props.deviceType;
+
+		uint32_t queue_family_properties_count = 0;
+		vkGetPhysicalDeviceQueueFamilyProperties(physical_devices[i], &queue_family_properties_count, nullptr);
+
+		if (queue_family_properties_count > 0) {
+			device_queue_families[i].properties.resize(queue_family_properties_count);
+			vkGetPhysicalDeviceQueueFamilyProperties(physical_devices[i], &queue_family_properties_count, device_queue_families[i].properties.data());
+		}
+	}
+
+    return Ok;
+}
+
+Error RenderingContextDriverVulkan::initialize()
+{
+    using enum Error;
+    Error err;
+    err = _initialize_vulkan_version();
+	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+
+    err = _initialize_instance_extensions();
+	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+
+    err = _initialize_instance();
+	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+
+    err = _initialize_devices();
+	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+
+    return Ok;
+}
+
+Error RenderingContextDriverVulkan::surface_create(HWND p_hwnd)
+{
+    using enum Error;
+
+    VkWin32SurfaceCreateInfoKHR surface_ci{ VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
+    surface_ci.hinstance = GetModuleHandleW(nullptr);
+    surface_ci.hwnd = p_hwnd;
+
+    VkResult result = vkCreateWin32SurfaceKHR(instance, &surface_ci, nullptr, &surface.surface);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS, Failed,
+        "vkCreateWin32SurfaceKHR failed.");
+
+    return Ok;
+}
+
+void RenderingContextDriverVulkan::surface_set_size(uint32_t p_width, uint32_t p_height)
+{
+	surface.width = p_width;
+	surface.height = p_height;
+	surface.needs_resize = true;
+}
+
+void RenderingContextDriverVulkan::surface_set_vsync(bool p_vsync_enabled)
+{
+	surface.vsync_enabled = p_vsync_enabled;
+	surface.needs_resize = true;
+}
+
+static void resolve_queue_families(VkPhysicalDevice p_device, VkSurfaceKHR p_surface, const std::vector<VkQueueFamilyProperties>& p_queue_properties, int& r_graphics, int& r_present, int& r_transfer, int& r_compute)
+{
+    r_graphics = -1;
+    r_present = -1;
+    r_transfer = -1;
+    r_compute = -1;
+
+    for (uint32_t q = 0; q < p_queue_properties.size(); ++q) {
+        if (r_graphics < 0 && (p_queue_properties[q].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+            r_graphics = q;
+        }
+
+        VkBool32 can_present = VK_FALSE;
+        vkGetPhysicalDeviceSurfaceSupportKHR(p_device, q, p_surface, &can_present);
+        if (r_present < 0 && can_present) {
+            r_present = q;
+        }
+
+        if (r_transfer < 0 && (p_queue_properties[q].queueFlags & VK_QUEUE_TRANSFER_BIT)
+            && !(p_queue_properties[q].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+            r_transfer = q;
+        }
+        if (r_compute < 0 && (p_queue_properties[q].queueFlags & VK_QUEUE_COMPUTE_BIT)
+            && !(p_queue_properties[q].queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+            r_compute = q;
+        }
+    }
+
+    if (r_transfer < 0) r_transfer = r_graphics;
+    if (r_compute < 0) r_compute = r_graphics;
+}
+
+static bool device_has_required_extensions(VkPhysicalDevice p_device, const std::vector<const char*>& p_required)
+{
+    uint32_t ext_count = 0;
+    vkEnumerateDeviceExtensionProperties(p_device, nullptr, &ext_count, nullptr);
+    std::vector<VkExtensionProperties> extensions(ext_count);
+    vkEnumerateDeviceExtensionProperties(p_device, nullptr, &ext_count, extensions.data());
+
+    for (const char* required : p_required) {
+        bool found = false;
+        for (const auto& ext : extensions) {
+            if (strcmp(required, ext.extensionName) == 0) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) return false;
+    }
+    return true;
+}
+
+Error RenderingContextDriverVulkan::physical_device_select(int p_override_index)
+{
+    using enum Error;
+
+    BALLISTIC_ERR_FAIL_COND_V_MSG(surface.surface == VK_NULL_HANDLE, Failed,
+        "select_physical_device() requires create_surface() to have already succeeded.");
+
+    static const std::vector<const char*> required_device_extensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    };
+
+    if (p_override_index >= 0) {
+        BALLISTIC_ERR_FAIL_COND_V_MSG(static_cast<size_t>(p_override_index) >= physical_devices.size(), Failed,
+            "Requested physical device index is out of range.");
+
+        VkPhysicalDevice candidate = physical_devices[p_override_index];
+
+        BALLISTIC_ERR_FAIL_COND_V_MSG(!device_has_required_extensions(candidate, required_device_extensions), Failed,
+            "Requested physical device does not support required extensions.");
+
+        int graphics, present, transfer, compute;
+        resolve_queue_families(candidate, surface.surface, device_queue_families[p_override_index].properties,
+            graphics, present, transfer, compute);
+
+        BALLISTIC_ERR_FAIL_COND_V_MSG(graphics < 0 || present < 0, Failed,
+            "Requested physical device lacks required queue support.");
+
+        optimal_device_index = p_override_index;
+        graphics_queue_family = static_cast<uint32_t>(graphics);
+        present_queue_family = static_cast<uint32_t>(present);
+        transfer_queue_family = static_cast<uint32_t>(transfer);
+        compute_queue_family = static_cast<uint32_t>(compute);
+
+        return Ok;
+    }
+
+    int highest_score = -1;
+
+    for (uint32_t i = 0; i < physical_devices.size(); ++i) {
+        VkPhysicalDevice candidate = physical_devices[i];
+
+        if (!device_has_required_extensions(candidate, required_device_extensions)) {
+            continue;
+        }
+
+        int graphics, present, transfer, compute;
+        resolve_queue_families(candidate, surface.surface, device_queue_families[i].properties,
+            graphics, present, transfer, compute);
+
+        if (graphics < 0 || present < 0) {
+            continue;
+        }
+
+        VkPhysicalDeviceProperties properties{};
+        vkGetPhysicalDeviceProperties(candidate, &properties);
+
+        int score = 0;
+        if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) score += 1000;
+        if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) score += 500;
+        score += static_cast<int>(properties.limits.maxImageDimension2D);
+
+        if (score > highest_score) {
+            highest_score = score;
+            optimal_device_index = i;
+            graphics_queue_family = static_cast<uint32_t>(graphics);
+            present_queue_family = static_cast<uint32_t>(present);
+            transfer_queue_family = static_cast<uint32_t>(transfer);
+            compute_queue_family = static_cast<uint32_t>(compute);
+        }
+    }
+
+    BALLISTIC_ERR_FAIL_COND_V_MSG(optimal_device_index == -1, Failed,
+        "No suitable GPU found (missing required extensions or queue support).");
+
+    return Ok;
+}
+
+VkInstance RenderingContextDriverVulkan::instance_get() const {
+    return instance;
+}
+
+const DriverDevice& RenderingContextDriverVulkan::device_get(uint32_t p_device_index) const {
+    return driver_devices[p_device_index];
+}
+
+uint32_t RenderingContextDriverVulkan::device_get_count() {
+    return static_cast<uint32_t>(driver_devices.size());
+}
+
+VkPhysicalDevice RenderingContextDriverVulkan::physical_device_get(uint32_t p_device_index) const {
+    return physical_devices[p_device_index];
+}
+
+VkQueueFamilyProperties RenderingContextDriverVulkan::queue_family_get(uint32_t p_device_index, uint32_t p_queue_family_index) const {
+    return device_queue_families[p_device_index].properties[p_queue_family_index];
+}
+
+uint32_t RenderingContextDriverVulkan::queue_family_get_count(uint32_t p_device_index) const {
+    return static_cast<uint32_t>(device_queue_families[p_device_index].properties.size());
+}
+
+// 	bool queue_family_supports_present(VkPhysicalDevice p_physical_device, uint32_t p_queue_family_index, SurfaceID p_surface) const;
+
+const RenderingContextDriverVulkan::Functions& RenderingContextDriverVulkan::functions_get() const {
+    return functions;
+}
 
 }

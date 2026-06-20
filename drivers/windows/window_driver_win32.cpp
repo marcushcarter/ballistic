@@ -92,6 +92,18 @@ LRESULT CALLBACK WindowDriverWin32::wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_w
         case WM_DESTROY:
             PostQuitMessage(0);
             return 0;
+        case WM_SIZE:
+            if (self) {
+                uint32_t new_width = LOWORD(p_lparam);
+                uint32_t new_height = HIWORD(p_lparam);
+
+                if (new_width > 0 && new_height > 0) {
+                    self->pending_width = new_width;
+                    self->pending_height = new_height;
+                    self->resize_requested = true;
+                }
+            }
+            return 0;
     }
 
     return DefWindowProcW(p_hwnd, p_msg, p_wparam, p_lparam);
