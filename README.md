@@ -1,6 +1,6 @@
 <div align="center">
 
-![Hero Section](./.github/assets/logo_long.png)
+![Hero Section](./misc/logo/logo.svg)
     <a href="https://www.youtube.com/@playballisticgames" target="_blank" rel="noopener">
     <img src="https://img.shields.io/badge/youtube-d95652.svg?style=flat-square&logo=youtube&logoColor=white" alt="YouTube" style="height:20px;">
     </a>
