@@ -1,4 +1,5 @@
 #include <drivers/imgui/imgui_driver.h>
+#include <core/error/error_macros.h>
 #include <backends/imgui_impl_win32.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <vulkan/vulkan.h>
@@ -6,8 +7,10 @@
 
 namespace ballistic::drivers {
     
-void ImGuiDriver::create(const ImGuiDriverCreateInfo& p_info)
+Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_info)
 {
+    using enum Error;
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -17,6 +20,9 @@ void ImGuiDriver::create(const ImGuiDriverCreateInfo& p_info)
     ImGui::StyleColorsDark();
 
     // create descriptor pool
+
+    BALLISTIC_ERR_FAIL_COND_V_MSG(!ImGui_ImplWin32_Init(p_info.hwnd), Failed,
+        "Failed to initialize ImGui Win32 backend.");
 
     VkPipelineRenderingCreateInfo pipeline_rendering_info{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
     pipeline_rendering_info.colorAttachmentCount = 1;
@@ -35,8 +41,10 @@ void ImGuiDriver::create(const ImGuiDriverCreateInfo& p_info)
     init_info.PipelineInfoMain.PipelineRenderingCreateInfo = pipeline_rendering_info;
     init_info.CheckVkResultFn = [](VkResult err){ if(err) std::cerr << " "; };
 
-    ImGui_ImplWin32_Init(p_info.hwnd);
-    ImGui_ImplVulkan_Init(&init_info);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(!ImGui_ImplVulkan_Init(&init_info), Failed,
+        "Failed to initialize ImGui Vulkan backend.");
+
+    return Ok;
 }
 
 void ImGuiDriver::destroy()

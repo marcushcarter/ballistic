@@ -2,9 +2,9 @@
 
 namespace ballistic {
 
-void GameApplication::on_init()
+Error GameApplication::on_init()
 {
-
+    return Error::Ok;
 }
 
 void GameApplication::on_update(float p_dt)

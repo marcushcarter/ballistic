@@ -1,4 +1,5 @@
 #pragma once
+#include <core/error/error.h>
 #include <vulkan/vulkan.h>
 #include <windows.h>
 
@@ -21,7 +22,7 @@ struct ImGuiDriver
 {
     VkDescriptorPool descriptor_pool;
 
-    void create(const ImGuiDriverCreateInfo& p_info);
+    Error create(const ImGuiDriverCreateInfo& p_info);
     void destroy();
 
     void new_frame();

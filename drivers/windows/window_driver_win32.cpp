@@ -1,4 +1,5 @@
 #include <drivers/windows/window_driver_win32.h>
+#include <core/error/error_macros.h>
 #include <backends/imgui_impl_win32.h>
 #include <dwmapi.h>
 
@@ -11,8 +12,10 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hWnd, UINT m
 
 namespace ballistic::drivers {    
 
-void WindowDriverWin32::create(const std::wstring& p_title, int p_width, int p_height)
+Error WindowDriverWin32::create(const std::wstring& p_title, int p_width, int p_height)
 {
+    using enum Error;
+    
     WNDCLASSW wc{};
     wc.lpfnWndProc = wnd_proc;
     wc.hInstance = GetModuleHandleW(nullptr);
@@ -26,8 +29,12 @@ void WindowDriverWin32::create(const std::wstring& p_title, int p_width, int p_h
         nullptr, nullptr, wc.hInstance, this
     );
 
+    BALLISTIC_ERR_FAIL_COND_V(!hwnd, Failed);
+
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
     ShowWindow(hwnd, SW_SHOW);
+
+    return Ok;
 }
 
 void WindowDriverWin32::destroy()
@@ -47,17 +54,28 @@ void WindowDriverWin32::poll_events()
     }
 }
 
-void WindowDriverWin32::set_icon(HICON p_icon)
+Error WindowDriverWin32::set_icon(HICON p_icon)
 {
-    if (p_icon) {
-        SendMessageW(hwnd, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(p_icon));
-        SendMessageW(hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(p_icon));
-    }
+    using enum Error;
+
+    BALLISTIC_ERR_FAIL_COND_V(!p_icon, Failed);
+
+    SendMessageW(hwnd, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(p_icon));
+    SendMessageW(hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(p_icon));
+
+    return Ok;
 }
 
-void WindowDriverWin32::set_titlebar_color(COLORREF p_color)
-{
-    DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, &p_color, sizeof(p_color));
+Error WindowDriverWin32::set_titlebar_color(COLORREF p_color)
+{    
+    using enum Error;
+
+    HRESULT result = DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, &p_color, sizeof(p_color));
+
+    BALLISTIC_ERR_FAIL_COND_V_MSG(FAILED(result), Failed,
+        "DwmSetWindowAttribute failed — DWMWA_CAPTION_COLOR requires Windows 11 (build 22000+).");
+
+    return Ok;
 }
 
 LRESULT CALLBACK WindowDriverWin32::wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_wparam, LPARAM p_lparam)

@@ -3,6 +3,7 @@
 #include <drivers/vulkan/rendering_device_driver_vulkan.h>
 #include <drivers/vulkan/rendering_context_driver_vulkan.h>
 #include <drivers/imgui/imgui_driver.h>
+#include <core/error/error.h>
 #include <string>
 
 namespace ballistic {
@@ -23,12 +24,12 @@ struct Application
     
     ApplicationCreateInfo create_info;
 
-    void create(const ApplicationCreateInfo& p_info);
+    Error create(const ApplicationCreateInfo& p_info);
     void destroy();
 
     int run();
 
-    virtual void on_init() {}
+    virtual Error on_init() { return Error::Ok; }
     virtual void on_update(float p_dt) { (void)p_dt; }
     virtual void on_shutdown() {}
 
