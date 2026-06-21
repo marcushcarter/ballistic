@@ -45,6 +45,7 @@ struct RenderingContextDriverVulkan
     Error _initialize_devices();
 
     Error initialize();
+    void shutdown();
 
     struct Surface {
         VkSurfaceKHR surface = VK_NULL_HANDLE;
@@ -69,14 +70,11 @@ struct RenderingContextDriverVulkan
     Error physical_device_select(int p_override_index = -1);
 
     VkInstance instance_get() const;
-
     const DriverDevice& device_get(uint32_t p_device_index) const;
     uint32_t device_get_count();
 	VkPhysicalDevice physical_device_get(uint32_t p_device_index) const;
     VkQueueFamilyProperties queue_family_get(uint32_t p_device_index, uint32_t p_queue_family_index) const;
     uint32_t queue_family_get_count(uint32_t p_device_index) const;
-    // 	bool queue_family_supports_present(VkPhysicalDevice p_physical_device, uint32_t p_queue_family_index) const;
-    
     const Functions& functions_get() const;
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL _debug_messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT p_message_severity, VkDebugUtilsMessageTypeFlagsEXT p_message_type, const VkDebugUtilsMessengerCallbackDataEXT *p_callback_data, void *p_user_data);

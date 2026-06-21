@@ -49,12 +49,19 @@ Error Application::create(const ApplicationCreateInfo& p_info)
     err = imgui.create(imgui_ci);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
+    renderer.device_driver = &vulkan_device;
+    err = renderer.create(3);
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+
     return Ok;
 }
 
 void Application::destroy()
 {
+    renderer.destroy();
     imgui.destroy();
+    vulkan_device.shutdown();
+    vulkan_context.shutdown();
     window.destroy();
 }
 
@@ -89,6 +96,11 @@ int Application::run()
         imgui.new_frame();
         on_update((float)delta);
         imgui.render();
+
+        renderer.begin_frame();
+
+        // imgui.record_commands(renderer.cmd);
+        renderer.end_frame();
     }
 
     on_shutdown();

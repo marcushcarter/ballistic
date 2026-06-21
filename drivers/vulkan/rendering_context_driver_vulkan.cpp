@@ -254,6 +254,11 @@ Error RenderingContextDriverVulkan::initialize()
     return Ok;
 }
 
+void RenderingContextDriverVulkan::shutdown()
+{
+
+}
+
 Error RenderingContextDriverVulkan::surface_create(HWND p_hwnd)
 {
     using enum Error;
@@ -434,8 +439,6 @@ VkQueueFamilyProperties RenderingContextDriverVulkan::queue_family_get(uint32_t 
 uint32_t RenderingContextDriverVulkan::queue_family_get_count(uint32_t p_device_index) const {
     return static_cast<uint32_t>(device_queue_families[p_device_index].properties.size());
 }
-
-// 	bool queue_family_supports_present(VkPhysicalDevice p_physical_device, uint32_t p_queue_family_index, SurfaceID p_surface) const;
 
 const RenderingContextDriverVulkan::Functions& RenderingContextDriverVulkan::functions_get() const {
     return functions;

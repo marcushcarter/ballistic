@@ -3,6 +3,7 @@
 #include <drivers/vulkan/rendering_device_driver_vulkan.h>
 #include <drivers/vulkan/rendering_context_driver_vulkan.h>
 #include <drivers/imgui/imgui_driver.h>
+#include <core/rendering/renderer.h>
 #include <core/error/error.h>
 #include <string>
 
@@ -17,12 +18,14 @@ struct ApplicationCreateInfo
 
 struct Application
 {
+    ApplicationCreateInfo create_info;
+
     drivers::WindowDriverWin32 window;
     drivers::RenderingContextDriverVulkan vulkan_context;
     drivers::RenderingDeviceDriverVulkan vulkan_device;
     drivers::ImGuiDriver imgui;
-    
-    ApplicationCreateInfo create_info;
+
+    Renderer renderer;
 
     Error create(const ApplicationCreateInfo& p_info);
     void destroy();

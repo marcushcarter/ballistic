@@ -11,7 +11,11 @@ namespace ballistic::drivers {
 
 struct RenderingDeviceDriverVulkan
 {
-	struct Queue {
+    /***************/
+    /**** SETUP ****/
+    /***************/
+	
+    struct Queue {
 		VkQueue queue = VK_NULL_HANDLE;
 	};
 
@@ -40,7 +44,7 @@ struct RenderingDeviceDriverVulkan
     void _get_device_properties();
     Error _check_device_features();
     Error _check_device_capabilities();
-    Error _add_queue_create_info(std::vector<VkDeviceQueueCreateInfo> &p_queue_create_info);
+    Error _add_queue_create_info(std::vector<VkDeviceQueueCreateInfo> &r_queue_create_info);
     Error _initialize_device(const std::vector<VkDeviceQueueCreateInfo> &p_queue_create_info);
     Error _initialize_allocator();
     Error _initialize_pipeline_cache();
@@ -48,8 +52,46 @@ struct RenderingDeviceDriverVulkan
     void _check_subgroup_capabilities();
 
     Error initialize(uint32_t p_device_index, uint32_t p_frame_count);
+    void shutdown();
+
+    /****************/
+    /**** MEMORY ****/
+    /****************/
 
     VmaAllocator allocator = nullptr;
+
+    // BUFFERS
+    // TEXTURES
+    // SAMPLERS
+    // BARRIERS
+
+    /****************/
+    /**** FENCES ****/
+    /****************/
+
+    VkFence fence_create(bool p_signaled = true);
+    void fence_free(VkFence& r_fence);
+    Error fence_wait(VkFence p_fence, uint64_t p_timeout = UINT64_MAX);
+    Error fence_reset(VkFence p_fence);
+
+    /********************/
+    /**** SEMAPHORES ****/
+    /********************/
+
+    /******************/
+    /**** COMMANDS ****/
+    /******************/
+
+    // ----- QUEUE -----
+    
+    // ----- POOL -----
+    
+    // ----- BUFFER -----
+
+    /*******************/
+    /**** SWAPCHAIN ****/
+    /*******************/
+    
 };
 
 }

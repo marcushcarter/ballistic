@@ -6,6 +6,10 @@
 
 namespace ballistic::drivers {
 
+/***************/
+/**** SETUP ****/
+/***************/
+
 void RenderingDeviceDriverVulkan::_register_requested_device_extension(const std::string& p_extension_name, bool p_required) {
     requested_device_extensions[p_extension_name] = p_required;
 }
@@ -159,7 +163,7 @@ Error RenderingDeviceDriverVulkan::_check_device_capabilities()
     return Ok;
 }
 
-Error RenderingDeviceDriverVulkan::_add_queue_create_info(std::vector<VkDeviceQueueCreateInfo> &p_queue_create_info)
+Error RenderingDeviceDriverVulkan::_add_queue_create_info(std::vector<VkDeviceQueueCreateInfo> &r_queue_create_info)
 {
     using enum Error;
 
@@ -183,7 +187,7 @@ Error RenderingDeviceDriverVulkan::_add_queue_create_info(std::vector<VkDeviceQu
         create_info.queueFamilyIndex = family_index;
         create_info.queueCount = 1;
         create_info.pQueuePriorities = &queue_priority;
-        p_queue_create_info.push_back(create_info);
+        r_queue_create_info.push_back(create_info);
         queue_families[family_index].resize(1);
     }
 
@@ -467,6 +471,51 @@ Error RenderingDeviceDriverVulkan::initialize(uint32_t p_device_index, uint32_t 
     err = _initialize_pipeline_cache();
 	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
+    return Ok;
+}
+
+void RenderingDeviceDriverVulkan::shutdown()
+{
+    
+}
+
+/****************/
+/**** FENCES ****/
+/****************/
+
+VkFence RenderingDeviceDriverVulkan::fence_create(bool p_signaled)
+{
+    VkFence fence;
+    VkFenceCreateInfo fence_ci{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+    fence_ci.flags = p_signaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0;
+
+    VkResult err = vkCreateFence(device, &fence_ci, nullptr, &fence);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan fence.");
+    
+    return fence;
+}
+
+void RenderingDeviceDriverVulkan::fence_free(VkFence& r_fence)
+{
+    if (r_fence) {
+        vkDestroyFence(device, r_fence, nullptr);
+        r_fence = VK_NULL_HANDLE;
+    }
+}
+
+Error RenderingDeviceDriverVulkan::fence_wait(VkFence p_fence, uint64_t p_timeout)
+{
+    using enum Error;
+    VkResult err = vkWaitForFences(device, 1, &p_fence, VK_TRUE, p_timeout);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't wait for Vulkan fence.");
+    return Ok;
+}
+
+Error RenderingDeviceDriverVulkan::fence_reset(VkFence p_fence)
+{
+    using enum Error;
+    VkResult err = vkResetFences(device, 1, &p_fence);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't reset Vulkan fence.");
     return Ok;
 }
 
