@@ -17,11 +17,8 @@ Error RenderingContextDriverVulkan::_initialize_vulkan_version()
 
     if (enumerate_instance_version) {
         uint32_t api_version = 0;
-        VkResult result = enumerate_instance_version(&api_version);
-
-        BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS, Failed,
-            "vkEnumerateInstanceVersion failed unexpectedly.");
-
+        VkResult err = enumerate_instance_version(&api_version);
+        BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "vkEnumerateInstanceVersion failed unexpectedly.");
         instance_api_version = api_version;
     } else {
         instance_api_version = VK_API_VERSION_1_0;
@@ -34,8 +31,7 @@ Error RenderingContextDriverVulkan::_initialize_vulkan_version()
     return Ok;
 }
 
-void RenderingContextDriverVulkan::_register_requested_instance_extension(const std::string& p_extension_name, bool p_required)
-{
+void RenderingContextDriverVulkan::_register_requested_instance_extension(const std::string& p_extension_name, bool p_required) {
     requested_instance_extensions[p_extension_name] = p_required;
 }
 
@@ -53,17 +49,17 @@ Error RenderingContextDriverVulkan::_initialize_instance_extensions()
     _register_requested_instance_extension(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME, false);
 
     uint32_t instance_extension_count = 0;
-    VkResult result = vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, nullptr);
+    VkResult err = vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, nullptr);
 
-    BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS && result != VK_INCOMPLETE, Failed,
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS && err != VK_INCOMPLETE, Failed,
         "vkEnumerateInstanceExtensionProperties (count query) failed.");
     BALLISTIC_ERR_FAIL_COND_V_MSG(instance_extension_count == 0, Failed,
         "No Vulkan instance extensions were found.");
 
     std::vector<VkExtensionProperties> instance_extensions(instance_extension_count);
-    result = vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, instance_extensions.data());
+    err = vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, instance_extensions.data());
 
-    BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS && result != VK_INCOMPLETE, Failed,
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS && err != VK_INCOMPLETE, Failed,
         "vkEnumerateInstanceExtensionProperties (fetch) failed.");
 
     for (const auto& extension : instance_extensions) {
@@ -90,8 +86,8 @@ Error RenderingContextDriverVulkan::_find_validation_layers()
     enabled_validation_layer_names.clear();
 
     uint32_t instance_layer_count = 0;
-    VkResult result = vkEnumerateInstanceLayerProperties(&instance_layer_count, nullptr);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS, Failed,
+    VkResult err = vkEnumerateInstanceLayerProperties(&instance_layer_count, nullptr);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed,
         "vkEnumerateInstanceLayerProperties (count query) failed.");
 
     if (instance_layer_count == 0) {
@@ -99,8 +95,8 @@ Error RenderingContextDriverVulkan::_find_validation_layers()
     }
 
     std::vector<VkLayerProperties> layer_properties(instance_layer_count);
-    result = vkEnumerateInstanceLayerProperties(&instance_layer_count, layer_properties.data());
-    BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS, Failed,
+    err = vkEnumerateInstanceLayerProperties(&instance_layer_count, layer_properties.data());
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed,
         "vkEnumerateInstanceLayerProperties (fetch) failed.");
 
     for (const auto& properties : layer_properties) {
@@ -242,6 +238,7 @@ Error RenderingContextDriverVulkan::initialize()
 {
     using enum Error;
     Error err;
+    
     err = _initialize_vulkan_version();
 	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
@@ -265,8 +262,8 @@ Error RenderingContextDriverVulkan::surface_create(HWND p_hwnd)
     surface_ci.hinstance = GetModuleHandleW(nullptr);
     surface_ci.hwnd = p_hwnd;
 
-    VkResult result = vkCreateWin32SurfaceKHR(instance, &surface_ci, nullptr, &surface.surface);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS, Failed,
+    VkResult err = vkCreateWin32SurfaceKHR(instance, &surface_ci, nullptr, &surface.surface);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed,
         "vkCreateWin32SurfaceKHR failed.");
 
     return Ok;

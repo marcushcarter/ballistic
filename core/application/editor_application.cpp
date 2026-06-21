@@ -1,6 +1,7 @@
 #include <core/application/editor_application.h>
 #include <core/io/embedded_resource.h>
 #include <core/error/error_macros.h>
+#include <imgui.h>
 
 namespace ballistic {
 
@@ -21,6 +22,7 @@ Error EditorApplication::on_init()
 void EditorApplication::on_update(float p_dt)
 {
     (void)p_dt;
+    ImGui::ShowDemoWindow();
 }
 
 void EditorApplication::on_shutdown()

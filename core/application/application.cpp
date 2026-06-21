@@ -39,16 +39,22 @@ Error Application::create(const ApplicationCreateInfo& p_info)
     drivers::ImGuiDriverCreateInfo imgui_ci{};
     imgui_ci.hwnd = window.hwnd;
     imgui_ci.instance = vulkan_context.instance;
+    imgui_ci.physical_device = vulkan_device.physical_device;
+    imgui_ci.device = vulkan_device.device;
+    imgui_ci.queue_family = vulkan_context.graphics_queue_family;
+    imgui_ci.queue = vulkan_device.queue_families[vulkan_context.graphics_queue_family][0].queue;
+    imgui_ci.color_format = VK_FORMAT_B8G8R8A8_SRGB;
+    imgui_ci.image_count = 3;
 
-    // err = imgui.create(imgui_ci);
-    // BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+    err = imgui.create(imgui_ci);
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     return Ok;
 }
 
 void Application::destroy()
 {
-    // imgui.destroy();
+    imgui.destroy();
     window.destroy();
 }
 
@@ -80,9 +86,9 @@ int Application::run()
         // err = vulkan_device.check_resize();
         // BALLISTIC_ERR_FAIL_COND_V(err != Ok, static_cast<int>(err));
         
-        // imgui.new_frame();
+        imgui.new_frame();
         on_update((float)delta);
-        // imgui.render();
+        imgui.render();
     }
 
     on_shutdown();

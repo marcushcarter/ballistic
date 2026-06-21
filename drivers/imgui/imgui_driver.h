@@ -13,14 +13,14 @@ struct ImGuiDriverCreateInfo
     VkDevice device = VK_NULL_HANDLE;
     uint32_t queue_family = 0;
     VkQueue queue = VK_NULL_HANDLE;
-    VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
     VkFormat color_format = VK_FORMAT_B8G8R8A8_UNORM;
     uint32_t image_count = 2;
 };
 
 struct ImGuiDriver
 {
-    VkDescriptorPool descriptor_pool;
+    VkDevice device = VK_NULL_HANDLE;
+    VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
 
     Error create(const ImGuiDriverCreateInfo& p_info);
     void destroy();

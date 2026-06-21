@@ -11,6 +11,8 @@ Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_info)
 {
     using enum Error;
 
+    device = p_info.device;
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -19,10 +21,37 @@ Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_info)
     io.IniFilename = nullptr;
     ImGui::StyleColorsDark();
 
-    // create descriptor pool
+    VkDescriptorPoolSize pool_sizes[] = {
+        { VK_DESCRIPTOR_TYPE_SAMPLER, 100 },
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 100 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 },
+    };
+
+    VkDescriptorPoolCreateInfo pool_ci{ VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO };
+    pool_ci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_ci.maxSets = 100;
+    pool_ci.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
+    pool_ci.pPoolSizes = pool_sizes;
+
+    VkResult err = vkCreateDescriptorPool(device, &pool_ci, nullptr, &descriptor_pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed,
+        "Failed to create ImGui descriptor pool.");
 
     BALLISTIC_ERR_FAIL_COND_V_MSG(!ImGui_ImplWin32_Init(p_info.hwnd), Failed,
         "Failed to initialize ImGui Win32 backend.");
+
+    ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+    platform_io.Platform_CreateVkSurface = [](ImGuiViewport* vp, ImU64 vk_instance, const void* vk_allocator, ImU64* out_vk_surface) -> int {
+        VkWin32SurfaceCreateInfoKHR surface_ci{ VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
+        surface_ci.hinstance = GetModuleHandleW(nullptr);
+        surface_ci.hwnd = static_cast<HWND>(vp->PlatformHandle);
+
+        return vkCreateWin32SurfaceKHR(
+            reinterpret_cast<VkInstance>(vk_instance), &surface_ci,
+            reinterpret_cast<const VkAllocationCallbacks*>(vk_allocator),
+            reinterpret_cast<VkSurfaceKHR*>(out_vk_surface)
+        );
+    };
 
     VkPipelineRenderingCreateInfo pipeline_rendering_info{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
     pipeline_rendering_info.colorAttachmentCount = 1;
@@ -34,12 +63,14 @@ Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_info)
     init_info.Device = p_info.device;
     init_info.QueueFamily = p_info.queue_family;
     init_info.Queue = p_info.queue;
-    init_info.DescriptorPool = p_info.descriptor_pool;
+    init_info.DescriptorPool = descriptor_pool;
     init_info.MinImageCount = p_info.image_count;
     init_info.ImageCount = p_info.image_count;
     init_info.UseDynamicRendering = true;
     init_info.PipelineInfoMain.PipelineRenderingCreateInfo = pipeline_rendering_info;
-    init_info.CheckVkResultFn = [](VkResult err){ if(err) std::cerr << " "; };
+    init_info.CheckVkResultFn = [](VkResult err){
+        if(err) fprintf(stderr, "[Ballistic] Vulkan error in ImGui backend: %d\n", err);
+    };
 
     BALLISTIC_ERR_FAIL_COND_V_MSG(!ImGui_ImplVulkan_Init(&init_info), Failed,
         "Failed to initialize ImGui Vulkan backend.");
@@ -52,7 +83,11 @@ void ImGuiDriver::destroy()
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
-    // descriptorPool.Destroy();
+
+    if (descriptor_pool != VK_NULL_HANDLE) {
+        vkDestroyDescriptorPool(device, descriptor_pool, nullptr);
+        descriptor_pool = VK_NULL_HANDLE;
+    }
 }
 
 void ImGuiDriver::new_frame()
