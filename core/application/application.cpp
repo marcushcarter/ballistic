@@ -34,7 +34,9 @@ Error Application::create(const ApplicationCreateInfo& p_info)
     err = vulkan_device.initialize(vulkan_context.optimal_device_index, 1);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
-    // device.swapcain_create
+    renderer.device_driver = &vulkan_device;
+    err = renderer.create(3);
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     drivers::ImGuiDriverCreateInfo imgui_ci{};
     imgui_ci.hwnd = window.hwnd;
@@ -43,14 +45,10 @@ Error Application::create(const ApplicationCreateInfo& p_info)
     imgui_ci.device = vulkan_device.device;
     imgui_ci.queue_family = vulkan_context.graphics_queue_family;
     imgui_ci.queue = vulkan_device.queue_families[vulkan_context.graphics_queue_family][0].queue;
-    imgui_ci.color_format = VK_FORMAT_B8G8R8A8_SRGB;
+    imgui_ci.color_format = renderer.swapchain.format;
     imgui_ci.image_count = 3;
 
     err = imgui.create(imgui_ci);
-    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
-
-    renderer.device_driver = &vulkan_device;
-    err = renderer.create(3);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     return Ok;
@@ -58,8 +56,8 @@ Error Application::create(const ApplicationCreateInfo& p_info)
 
 void Application::destroy()
 {
-    renderer.destroy();
     imgui.destroy();
+    renderer.destroy();
     vulkan_device.shutdown();
     vulkan_context.shutdown();
     window.destroy();

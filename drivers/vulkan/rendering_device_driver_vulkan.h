@@ -60,11 +60,6 @@ struct RenderingDeviceDriverVulkan
 
     VmaAllocator allocator = nullptr;
 
-    // BUFFERS
-    // TEXTURES
-    // SAMPLERS
-    // BARRIERS
-
     /****************/
     /**** FENCES ****/
     /****************/
@@ -105,7 +100,24 @@ struct RenderingDeviceDriverVulkan
     /*******************/
     /**** SWAPCHAIN ****/
     /*******************/
+
+    struct Swapchain {
+        VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+        RenderingContextDriverVulkan::Surface* surface = nullptr;
+        VkFormat format = VK_FORMAT_UNDEFINED;
+        VkColorSpaceKHR color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        std::vector<VkImage> images;
+        std::vector<VkImageView> image_views;
+        std::vector<VkSemaphore> present_semaphores;
+        uint32_t image_index = 0;
+    };
+
+    bool _determine_swapchain_format(RenderingContextDriverVulkan::Surface* r_surface, VkSurfaceFormatKHR &r_surface_format);
+    void _swapchain_release(Swapchain& r_swapchain);
     
+    Swapchain swapchain_create(RenderingContextDriverVulkan::Surface* r_surface);
+    Error swapchain_resize(Swapchain& r_swapchain, uint32_t p_desired_framebuffer_count);
+    void swapchain_free(Swapchain& r_swapchain);
 };
 
 }
