@@ -485,10 +485,10 @@ void RenderingDeviceDriverVulkan::shutdown()
 
 VkFence RenderingDeviceDriverVulkan::fence_create(bool p_signaled)
 {
-    VkFence fence;
     VkFenceCreateInfo fence_ci{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
     fence_ci.flags = p_signaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0;
-
+    
+    VkFence fence;
     VkResult err = vkCreateFence(device, &fence_ci, nullptr, &fence);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan fence.");
     
@@ -525,17 +525,15 @@ Error RenderingDeviceDriverVulkan::fence_reset(VkFence p_fence)
 
 VkSemaphore RenderingDeviceDriverVulkan::semaphore_create()
 {
-    VkSemaphore semaphore;
     VkSemaphoreCreateInfo semaphore_ci{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
     semaphore_ci.pNext = nullptr;
     semaphore_ci.flags = 0;
-
+    
+    VkSemaphore semaphore;
     VkResult err = vkCreateSemaphore(device, &semaphore_ci, nullptr, &semaphore);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan semaphore.");
     
     return semaphore;
-;
-
 }
 
 void RenderingDeviceDriverVulkan::semaphore_free(VkSemaphore& r_semaphore)
@@ -544,7 +542,76 @@ void RenderingDeviceDriverVulkan::semaphore_free(VkSemaphore& r_semaphore)
         vkDestroySemaphore(device, r_semaphore, nullptr);
         r_semaphore = VK_NULL_HANDLE;
     }
+}
 
+/******************/
+/**** COMMANDS ****/
+/******************/
+
+// ----- POOL -----
+
+RenderingDeviceDriverVulkan::CommandPool RenderingDeviceDriverVulkan::command_pool_create(uint32_t p_queue_family_index, VkCommandBufferLevel p_buffer_level)
+{
+    VkCommandPoolCreateInfo cmd_pool_ci{ VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
+    cmd_pool_ci.queueFamilyIndex = p_queue_family_index;
+    cmd_pool_ci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    
+    CommandPool cmd_pool;
+    cmd_pool.buffer_level = p_buffer_level;
+    VkResult err = vkCreateCommandPool(device, &cmd_pool_ci, nullptr, &cmd_pool.command_pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan command pool.");
+
+    return cmd_pool;
+}
+
+void RenderingDeviceDriverVulkan::command_pool_free(CommandPool& r_cmd_pool)
+{
+    if (r_cmd_pool.command_pool) {
+        vkDestroyCommandPool(device, r_cmd_pool.command_pool, nullptr);
+        r_cmd_pool.command_pool = VK_NULL_HANDLE;
+    }
+}
+
+Error RenderingDeviceDriverVulkan::command_pool_reset(CommandPool& r_cmd_pool)
+{
+    using enum Error;
+    VkResult err = vkResetCommandPool(device, r_cmd_pool.command_pool, 0);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't reset Vulkan command pool.");
+    return Ok;
+}
+
+// ----- BUFFER -----
+
+VkCommandBuffer RenderingDeviceDriverVulkan::command_buffer_create(CommandPool& p_cmd_pool)
+{
+    VkCommandBufferAllocateInfo cmd_buffer_ci{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+    cmd_buffer_ci.commandPool = p_cmd_pool.command_pool;
+    cmd_buffer_ci.level = p_cmd_pool.buffer_level;
+    cmd_buffer_ci.commandBufferCount = 1;
+
+    VkCommandBuffer cmd_buffer;
+    VkResult err = vkAllocateCommandBuffers(device, &cmd_buffer_ci, &cmd_buffer);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan command buffer.");
+    
+    return cmd_buffer;
+}
+
+Error RenderingDeviceDriverVulkan::command_buffer_begin(VkCommandBuffer p_cmd_buffer, VkCommandBufferUsageFlags p_flags)
+{
+    using enum Error;
+    VkCommandBufferBeginInfo begin_info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+    begin_info.flags = p_flags;
+    VkResult err = vkBeginCommandBuffer(p_cmd_buffer, &begin_info);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't begin Vulkan command buffer.");
+    return Ok;
+}
+
+Error RenderingDeviceDriverVulkan::command_buffer_end(VkCommandBuffer p_cmd_buffer)
+{
+    using enum Error;
+    VkResult err = vkEndCommandBuffer(p_cmd_buffer);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't end Vulkan command buffer.");
+    return Ok;
 }
 
 }

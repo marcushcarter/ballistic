@@ -84,12 +84,23 @@ struct RenderingDeviceDriverVulkan
     /******************/
     /**** COMMANDS ****/
     /******************/
-
-    // ----- QUEUE -----
     
     // ----- POOL -----
+
+    struct CommandPool {
+        VkCommandPool command_pool = VK_NULL_HANDLE;
+        VkCommandBufferLevel buffer_level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    };
+
+    CommandPool command_pool_create(uint32_t p_queue_family_index, VkCommandBufferLevel p_buffer_level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    void command_pool_free(CommandPool& r_cmd_pool);
+    Error command_pool_reset(CommandPool& r_cmd_pool);
     
     // ----- BUFFER -----
+
+    VkCommandBuffer command_buffer_create(CommandPool& p_cmd_pool);
+    Error command_buffer_begin(VkCommandBuffer p_cmd_buffer, VkCommandBufferUsageFlags p_flags = 0);
+    Error command_buffer_end(VkCommandBuffer p_cmd_buffer);
 
     /*******************/
     /**** SWAPCHAIN ****/
