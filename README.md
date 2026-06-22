@@ -1,6 +1,6 @@
 <div align="center">
 
-![Hero Section](./assets/logo/logo.svg)
+![Hero Section](./assets/editor/logos/logo.svg)
     <a href="https://www.youtube.com/@playballisticgames" target="_blank" rel="noopener">
     <img src="https://img.shields.io/badge/youtube-d95652.svg?style=flat-square&logo=youtube&logoColor=white" alt="YouTube" style="height:20px;">
     </a>
@@ -18,7 +18,7 @@
 
 ### Clone Repository
 ```bash
-git clone --recursive https://github.com/marcushcarter/Ballistic.git Ballistic
+git clone --recursive https://github.com/marcushcarter/ballistic.git Ballistic
 cd Ballistic
 git submodule update --init --recursive
 ```
