@@ -31,7 +31,7 @@ Error Application::create(const ApplicationCreateInfo& p_info)
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     device_driver.context_driver = &context_driver;
-    err = device_driver.initialize(context_driver.optimal_device_index, 1);
+    err = device_driver.initialize(context_driver.optimal_device_index, 3);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     renderer.device_driver = &device_driver;

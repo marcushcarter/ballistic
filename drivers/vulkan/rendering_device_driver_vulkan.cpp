@@ -484,6 +484,8 @@ void RenderingDeviceDriverVulkan::shutdown()
 {
     device_wait_idle();
 
+    swapchain_free();
+
     // while (small_allocs_pools.size()) {
     //     HashMap<uint32_t, VmaPool>::Iterator E = small_allocs_pools.begin();
     //     vmaDestroyPool(allocator, E->value);
