@@ -82,7 +82,11 @@ int Application::run()
 
         window.poll_events();
         context_driver.surface_set_size(window.width, window.height);
-        device_driver.update_swapchain();
+
+        err = device_driver.update_swapchain();
+        if (err != Ok) {
+            continue;
+        }
         
         err = renderer.set_size(window.width, window.height);
         BALLISTIC_ERR_FAIL_COND_V(err != Ok, static_cast<int>(err));
