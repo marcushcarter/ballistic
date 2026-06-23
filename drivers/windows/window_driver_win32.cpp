@@ -10,7 +10,7 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, ImGuiIO& io);
 
-namespace ballistic::drivers {    
+namespace ballistic::drivers {
 
 Error WindowDriverWin32::create(const std::wstring& p_title, int p_width, int p_height)
 {
@@ -69,12 +69,8 @@ Error WindowDriverWin32::set_icon(HICON p_icon)
 Error WindowDriverWin32::set_titlebar_color(COLORREF p_color)
 {    
     using enum Error;
-
     HRESULT result = DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, &p_color, sizeof(p_color));
-
-    BALLISTIC_ERR_FAIL_COND_V_MSG(FAILED(result), Failed,
-        "DwmSetWindowAttribute failed — DWMWA_CAPTION_COLOR requires Windows 11 (build 22000+).");
-
+    BALLISTIC_ERR_FAIL_COND_V_MSG(FAILED(result), Failed, "DwmSetWindowAttribute failed — DWMWA_CAPTION_COLOR requires Windows 11 (build 22000+).");
     return Ok;
 }
 
@@ -94,14 +90,8 @@ LRESULT CALLBACK WindowDriverWin32::wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_w
             return 0;
         case WM_SIZE:
             if (self) {
-                uint32_t new_width = LOWORD(p_lparam);
-                uint32_t new_height = HIWORD(p_lparam);
-
-                if (new_width > 0 && new_height > 0) {
-                    self->pending_width = new_width;
-                    self->pending_height = new_height;
-                    self->resize_requested = true;
-                }
+                self->width = LOWORD(p_lparam);
+                self->height = HIWORD(p_lparam);
             }
             return 0;
     }

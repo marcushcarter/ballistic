@@ -443,7 +443,7 @@ Error RenderingDeviceDriverVulkan::initialize(uint32_t p_device_index, uint32_t 
     Error err;
 
     device_index = p_device_index;
-    context_device = context_driver->device_get(device_index);
+    driver_device = context_driver->device_get(device_index);
     physical_device = context_driver->physical_device_get(device_index);
 	frame_count = p_frame_count;
     
@@ -469,6 +469,12 @@ Error RenderingDeviceDriverVulkan::initialize(uint32_t p_device_index, uint32_t 
 	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     
     err = _initialize_pipeline_cache();
+	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+    
+    err = swapchain_create(&context_driver->surface);
+	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+
+    err = swapchain_resize(frame_count);
 	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     return Ok;
@@ -670,47 +676,48 @@ bool RenderingDeviceDriverVulkan::_determine_swapchain_format(RenderingContextDr
     return true;
 }
 
-void RenderingDeviceDriverVulkan::_swapchain_release(Swapchain& r_swapchain)
+void RenderingDeviceDriverVulkan::_swapchain_release()
 {
-    for (VkImageView view : r_swapchain.image_views) {
+    for (VkImageView view : swapchain.image_views) {
         vkDestroyImageView(device, view, nullptr);
     }
 
-    r_swapchain.image_index = UINT_MAX;
-    r_swapchain.images.clear();
-    r_swapchain.image_views.clear();
+    swapchain.image_index = UINT_MAX;
+    swapchain.images.clear();
+    swapchain.image_views.clear();
 
-    if (r_swapchain.swapchain) {
-        vkDestroySwapchainKHR(device, r_swapchain.swapchain, nullptr);
-        r_swapchain.swapchain = VK_NULL_HANDLE;
+    if (swapchain.swapchain) {
+        vkDestroySwapchainKHR(device, swapchain.swapchain, nullptr);
+        swapchain.swapchain = VK_NULL_HANDLE;
     }
 
-    for (VkSemaphore semaphore : r_swapchain.present_semaphores) {
+    for (VkSemaphore semaphore : swapchain.present_semaphores) {
         semaphore_free(semaphore);
     }
 
-    r_swapchain.present_semaphores.clear();
+    swapchain.present_semaphores.clear();
 }
 
-RenderingDeviceDriverVulkan::Swapchain RenderingDeviceDriverVulkan::swapchain_create(RenderingContextDriverVulkan::Surface* r_surface)
+Error RenderingDeviceDriverVulkan::swapchain_create(RenderingContextDriverVulkan::Surface* r_surface)
 {
-    Swapchain swapchain;
+    using enum Error;
+    BALLISTIC_ERR_FAIL_COND_V(!r_surface, Failed);
     swapchain.surface = r_surface;
-    return swapchain;
+    return Ok;
 }
 
-Error RenderingDeviceDriverVulkan::swapchain_resize(Swapchain& r_swapchain, uint32_t p_desired_framebuffer_count)
+Error RenderingDeviceDriverVulkan::swapchain_resize(uint32_t p_desired_framebuffer_count)
 {
     using enum Error;
     
-    _swapchain_release(r_swapchain);
+    _swapchain_release();
 
-    RenderingContextDriverVulkan::Surface* surface = (RenderingContextDriverVulkan::Surface*)(r_swapchain.surface);
+    RenderingContextDriverVulkan::Surface* surface = (RenderingContextDriverVulkan::Surface*)(swapchain.surface);
     VkSurfaceCapabilitiesKHR surface_capabilities = {};
     VkResult err = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface->surface, &surface_capabilities);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan surface capabilities.");
 
-    if (!r_swapchain.swapchain) {
+    if (!swapchain.swapchain) {
         if (surface_capabilities.currentExtent.width == 0xFFFFFFFF) {
 			surface_capabilities.currentExtent.width = std::clamp(surface->width, surface_capabilities.minImageExtent.width, surface_capabilities.maxImageExtent.width);
 			surface_capabilities.currentExtent.height = std::clamp(surface->height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height);
@@ -769,15 +776,15 @@ Error RenderingDeviceDriverVulkan::swapchain_resize(Swapchain& r_swapchain, uint
     if (!_determine_swapchain_format(surface, surface_format)) {
         BALLISTIC_ERR_FAIL_COND_V_MSG(true, Failed, "Vulkan surface did not return any valid formats.");
     } else {
-        r_swapchain.format = surface_format.format;
-        r_swapchain.color_space = surface_format.colorSpace;
+        swapchain.format = surface_format.format;
+        swapchain.color_space = surface_format.colorSpace;
     }
 
     VkSwapchainCreateInfoKHR swap_ci{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
     swap_ci.surface = surface->surface;
     swap_ci.minImageCount = desired_swapchain_images;
-    swap_ci.imageFormat = r_swapchain.format;
-    swap_ci.imageColorSpace = r_swapchain.color_space;
+    swap_ci.imageFormat = swapchain.format;
+    swap_ci.imageColorSpace = swapchain.color_space;
     swap_ci.imageExtent = extent;
     swap_ci.imageArrayLayers = 1;
     swap_ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -787,20 +794,20 @@ Error RenderingDeviceDriverVulkan::swapchain_resize(Swapchain& r_swapchain, uint
     swap_ci.presentMode = present_mode;
     swap_ci.clipped = VK_TRUE;
 
-    err = vkCreateSwapchainKHR(device, &swap_ci, nullptr, &r_swapchain.swapchain);
+    err = vkCreateSwapchainKHR(device, &swap_ci, nullptr, &swapchain.swapchain);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan swapchain.");
     
     uint32_t image_count = 0;
-    err = vkGetSwapchainImagesKHR(device, r_swapchain.swapchain, &image_count, nullptr);
+    err = vkGetSwapchainImagesKHR(device, swapchain.swapchain, &image_count, nullptr);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan swapchain images.");
     
-	r_swapchain.images.resize(image_count);
-	err = vkGetSwapchainImagesKHR(device, r_swapchain.swapchain, &image_count, r_swapchain.images.data());
+	swapchain.images.resize(image_count);
+	err = vkGetSwapchainImagesKHR(device, swapchain.swapchain, &image_count, swapchain.images.data());
 	BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan swapchain images.");
 
     VkImageViewCreateInfo view_ci{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
     view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    view_ci.format = r_swapchain.format;
+    view_ci.format = swapchain.format;
     view_ci.components.r = VK_COMPONENT_SWIZZLE_R;
     view_ci.components.g = VK_COMPONENT_SWIZZLE_G;
     view_ci.components.b = VK_COMPONENT_SWIZZLE_B;
@@ -809,45 +816,53 @@ Error RenderingDeviceDriverVulkan::swapchain_resize(Swapchain& r_swapchain, uint
     view_ci.subresourceRange.levelCount = 1;
     view_ci.subresourceRange.layerCount = 1;
 
-    r_swapchain.image_views.reserve(image_count);
+    swapchain.image_views.reserve(image_count);
 
 	VkImageView image_view = VK_NULL_HANDLE;
 	for (uint32_t i = 0; i < image_count; i++) {
-		view_ci.image = r_swapchain.images[i];
+		view_ci.image = swapchain.images[i];
 		err = vkCreateImageView(device, &view_ci, nullptr, &image_view);
 		BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan image view for swapchain image.");
-		r_swapchain.image_views.push_back(image_view);
+		swapchain.image_views.push_back(image_view);
     }
 
 	VkSemaphore semaphore = VK_NULL_HANDLE;
 	for (uint32_t i = 0; i < image_count; i++) {
         semaphore = semaphore_create();
-		r_swapchain.present_semaphores.push_back(semaphore);
+		swapchain.present_semaphores.push_back(semaphore);
 	}
 
-    r_swapchain.surface->needs_resize = false;
+    swapchain.surface->needs_resize = false;
 
     return Ok;
 }
 
-void RenderingDeviceDriverVulkan::swapchain_free(Swapchain& r_swapchain)
+void RenderingDeviceDriverVulkan::swapchain_free()
 {
-    _swapchain_release(r_swapchain);
+    _swapchain_release();
 }
 
-Error RenderingDeviceDriverVulkan::swapchain_acquire_next_image(Swapchain& r_swapchain, VkSemaphore p_signal_semaphore)
+Error RenderingDeviceDriverVulkan::swapchain_acquire_next_image(VkSemaphore p_signal_semaphore)
 {
     using enum Error;
 
-    VkResult err = vkAcquireNextImageKHR(device, r_swapchain.swapchain, UINT64_MAX, p_signal_semaphore, VK_NULL_HANDLE, &r_swapchain.image_index);
+    VkResult err = vkAcquireNextImageKHR(device, swapchain.swapchain, UINT64_MAX, p_signal_semaphore, VK_NULL_HANDLE, &swapchain.image_index);
     if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR) {
-        r_swapchain.surface->needs_resize = true;
+        swapchain.surface->needs_resize = true;
         return Ok;
     }
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get next Vulkan swapchain image.");\
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get next Vulkan swapchain image.");
     
     return Ok;
     
+}
+
+Error RenderingDeviceDriverVulkan::update_swapchain()
+{
+    using enum Error;
+    if (!swapchain.surface->needs_resize) return Ok;
+    device_wait_idle();
+    return swapchain_resize(frame_count);
 }
 
 }

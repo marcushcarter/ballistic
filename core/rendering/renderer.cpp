@@ -6,14 +6,9 @@ namespace ballistic {
 Error Renderer::create(uint32_t p_frame_count)
 {
     using enum Error;
-    Error err;
 
     frame_count = p_frame_count;
     current_frame = 0;
-
-    swapchain = device_driver->swapchain_create(&device_driver->context_driver->surface);
-    err = device_driver->swapchain_resize(swapchain, frame_count);
-    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     in_flight_fences.resize(frame_count);
     image_available_semaphores.resize(frame_count);
@@ -39,20 +34,19 @@ void Renderer::destroy()
         device_driver->semaphore_free(image_available_semaphores[i]);
         device_driver->command_pool_free(command_pools[i]);
     }
-
-    device_driver->swapchain_free(swapchain);
 }
 
-Error Renderer::check_resize()
+Error Renderer::set_size(uint32_t p_width, uint32_t p_height)
 {
     using enum Error;
 
-    if (!device_driver->context_driver->surface.needs_resize) return Ok;
+    if (p_width == 0 || p_height == 0) return Ok;
+    if (p_width == width && p_height == height) return Ok;
     
     device_driver->device_wait_idle();
 
-    Error err = device_driver->swapchain_resize(swapchain, frame_count);
-    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+    // Error err = device_driver->swapchain_resize(swapchain, frame_count);
+    // BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     return Ok;
 }
@@ -81,6 +75,8 @@ static void command_image_barrier(VkCommandBuffer p_cmd, VkImage p_image, VkImag
 Error Renderer::begin_frame()
 {
     using enum Error;
+    
+    auto& swapchain = device_driver->swapchain;
 
     Error err = device_driver->fence_wait(in_flight_fences[current_frame]);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
@@ -88,7 +84,7 @@ Error Renderer::begin_frame()
     err = device_driver->fence_reset(in_flight_fences[current_frame]);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
-    err = device_driver->swapchain_acquire_next_image(swapchain, image_available_semaphores[current_frame]);
+    err = device_driver->swapchain_acquire_next_image(image_available_semaphores[current_frame]);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     err = device_driver->command_pool_reset(command_pools[current_frame]);
@@ -107,6 +103,8 @@ Error Renderer::begin_frame()
 Error Renderer::end_frame()
 {
     using enum Error;
+
+    auto& swapchain = device_driver->swapchain;
 
     command_image_barrier(cmd, swapchain.images[swapchain.image_index], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, 0);
 

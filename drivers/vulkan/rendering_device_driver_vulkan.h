@@ -28,7 +28,7 @@ struct RenderingDeviceDriverVulkan
     VkDevice device = VK_NULL_HANDLE;
     RenderingContextDriverVulkan* context_driver = nullptr;
     uint32_t device_index = 0;
-    DriverDevice context_device;
+    DriverDevice driver_device;
     VkPhysicalDevice physical_device = VK_NULL_HANDLE;
     uint32_t frame_count = 1;
 	VkPhysicalDeviceProperties physical_device_properties = {};
@@ -114,13 +114,17 @@ struct RenderingDeviceDriverVulkan
         uint32_t image_index = 0;
     };
 
+    Swapchain swapchain;
+
     bool _determine_swapchain_format(RenderingContextDriverVulkan::Surface* r_surface, VkSurfaceFormatKHR &r_surface_format);
-    void _swapchain_release(Swapchain& r_swapchain);
+    void _swapchain_release();
     
-    Swapchain swapchain_create(RenderingContextDriverVulkan::Surface* r_surface);
-    Error swapchain_resize(Swapchain& r_swapchain, uint32_t p_desired_framebuffer_count);
-    void swapchain_free(Swapchain& r_swapchain);
-    Error swapchain_acquire_next_image(Swapchain& r_swapchain, VkSemaphore p_signal_semaphore);
+    Error swapchain_create(RenderingContextDriverVulkan::Surface* r_surface);
+    Error swapchain_resize(uint32_t p_desired_framebuffer_count);
+    void swapchain_free();
+    Error swapchain_acquire_next_image(VkSemaphore p_signal_semaphore);
+
+    Error update_swapchain();
 
 	/*******************/
 	/**** RENDERING ****/

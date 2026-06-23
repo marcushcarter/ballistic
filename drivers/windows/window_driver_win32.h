@@ -9,9 +9,8 @@ struct WindowDriverWin32
 {
     HWND hwnd = nullptr;
     bool close_requested = false;
-    uint32_t pending_width = 0;
-    uint32_t pending_height = 0;
-    bool resize_requested = false;
+    uint32_t width = 0;
+    uint32_t height = 0;
 
     Error create(const std::wstring& p_title, int p_width, int p_height);
     void destroy();

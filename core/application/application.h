@@ -21,8 +21,8 @@ struct Application
     ApplicationCreateInfo create_info;
 
     drivers::WindowDriverWin32 window;
-    drivers::RenderingContextDriverVulkan vulkan_context;
-    drivers::RenderingDeviceDriverVulkan vulkan_device;
+    drivers::RenderingContextDriverVulkan context_driver;
+    drivers::RenderingDeviceDriverVulkan device_driver;
     drivers::ImGuiDriver imgui;
 
     Renderer renderer;

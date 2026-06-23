@@ -281,12 +281,17 @@ Error RenderingContextDriverVulkan::surface_create(HWND p_hwnd)
     VkResult err = vkCreateWin32SurfaceKHR(instance, &surface_ci, nullptr, &surface.surface);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed,
         "vkCreateWin32SurfaceKHR failed.");
+        
+    surface.needs_resize = true;
 
     return Ok;
 }
 
 void RenderingContextDriverVulkan::surface_set_size(uint32_t p_width, uint32_t p_height)
 {
+    if (p_width == 0 || p_height == 0) return;
+    if (p_width == surface.width && p_height == surface.height) return;
+
 	surface.width = p_width;
 	surface.height = p_height;
 	surface.needs_resize = true;

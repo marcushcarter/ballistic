@@ -9,7 +9,8 @@ struct Renderer
 {
     drivers::RenderingDeviceDriverVulkan* device_driver = nullptr;
 
-    drivers::RenderingDeviceDriverVulkan::Swapchain swapchain;
+    uint32_t width = 0;
+    uint32_t height = 0;
 
     uint32_t frame_count = 1;
     uint32_t current_frame = 0;
@@ -23,7 +24,7 @@ struct Renderer
     Error create(uint32_t p_frame_count);
     void destroy();
 
-    Error check_resize();
+    Error set_size(uint32_t p_width, uint32_t p_height);
 
     Error begin_frame();
     Error end_frame();
