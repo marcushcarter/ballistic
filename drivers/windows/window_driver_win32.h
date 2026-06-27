@@ -12,7 +12,7 @@ struct WindowDriverWin32
     uint32_t width = 0;
     uint32_t height = 0;
 
-    Error create(const std::wstring& p_title, int p_width, int p_height);
+    Error create(const std::string& p_title, int p_width, int p_height);
     void destroy();
 
     void poll_events();

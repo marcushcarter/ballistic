@@ -5,6 +5,8 @@
 
 namespace ballistic {
 
+    using namespace
+
 struct Renderer
 {
     drivers::RenderingDeviceDriverVulkan* device_driver = nullptr;

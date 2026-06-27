@@ -12,7 +12,16 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hWnd, UINT m
 
 namespace ballistic::drivers {
 
-Error WindowDriverWin32::create(const std::wstring& p_title, int p_width, int p_height)
+static std::wstring utf8_to_wstring(const std::string& str)
+{
+    if (str.empty()) return {};
+    int size = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
+    std::wstring result(size - 1, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, result.data(), size);
+    return result;
+}
+
+Error WindowDriverWin32::create(const std::string& p_title, int p_width, int p_height)
 {
     using enum Error;
     
@@ -22,8 +31,10 @@ Error WindowDriverWin32::create(const std::wstring& p_title, int p_width, int p_
     wc.lpszClassName = L"BallisticWindowClass";
     RegisterClassW(&wc);
 
+    std::wstring title = utf8_to_wstring(p_title);
+
     hwnd = CreateWindowExW(
-        0, L"BallisticWindowClass", p_title.c_str(),
+        0, L"BallisticWindowClass", title.c_str(),
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT, p_width, p_height,
         nullptr, nullptr, wc.hInstance, this

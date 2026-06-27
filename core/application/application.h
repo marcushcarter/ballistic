@@ -11,7 +11,7 @@ namespace ballistic {
 
 struct ApplicationCreateInfo
 {
-    std::wstring window_title;
+    std::string window_title;
     int width = 1280;
     int height = 720;
 };
