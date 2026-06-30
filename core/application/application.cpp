@@ -1,4 +1,5 @@
 #include <core/application/application.h>
+#include <core/rendering/render_path.h>
 #include <core/log/error_macros.h>
 #include <core/version.h>
 #include <windows.h>
@@ -51,6 +52,12 @@ Error Application::create(const ApplicationCreateInfo& p_info)
     imgui_ci.enable_docking = wants_docking();
     err = imgui.create(imgui_ci);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+    
+    render_path = create_render_path();
+    render_path->device_driver = &device_driver;
+    render_path->imgui = &imgui;
+    err = render_path->create_resources();
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     // dev_systems.create(&renderer, &device_driver);
 
@@ -60,7 +67,11 @@ Error Application::create(const ApplicationCreateInfo& p_info)
 void Application::destroy()
 {
     device_driver.device_wait_idle();
-
+    if (render_path) {
+        render_path->destroy_resources();
+        delete render_path;
+        render_path = nullptr;
+    }
     imgui.destroy();
     renderer.destroy();
     device_driver.shutdown();
@@ -126,9 +137,9 @@ int Application::run()
             imgui.record_commands(cmd);
             vkCmdEndRendering(cmd);
         };
-
         renderer.graph.add(&present_pass);
 
+        render_path->build(renderer.graph);
         renderer.end_frame();
     }
 

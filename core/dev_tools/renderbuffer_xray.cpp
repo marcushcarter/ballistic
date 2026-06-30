@@ -7,6 +7,7 @@ namespace ballistic {
 void RenderBufferXray::draw()
 {
     if (!open) return;
+
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::SetNextWindowSize(ImVec2(750, 400), ImGuiCond_FirstUseEver);
     bool visible = ImGui::Begin("RenderBuffer XRay - Press 2 for a screenshot of the selected buffer", &open);
@@ -43,6 +44,18 @@ void RenderBufferXray::draw()
             } else {
                 ImDrawList* dl = ImGui::GetWindowDrawList();
                 dl->AddRectFilled(img_pos, ImVec2(img_pos.x + img_size.x, img_pos.y + img_size.y), IM_COL32(255, 255, 255, 255));
+
+                ImVec2 mouse = ImGui::GetMousePos();
+                bool hovered = mouse.x >= img_pos.x && mouse.x < img_pos.x + img_size.x && mouse.y >= img_pos.y && mouse.y < img_pos.y + img_size.y;
+
+                if (hovered && !ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+                    ImGui::BeginTooltip();
+                    ImGui::Text("Mouse: (%.0f, %.0f)", mouse.x - img_pos.x, mouse.y - img_pos.y);
+                    ImGui::Separator();
+                    ImGui::Text("RGBA: 255 255 255 255");
+                    ImGui::Text("Depth: 1.000");
+                    ImGui::EndTooltip();
+                }
             }
         }
         ImGui::EndChild();

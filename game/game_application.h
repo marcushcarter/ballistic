@@ -1,6 +1,7 @@
 
 #pragma once
 #include <core/application/application.h>
+#include <core/rendering/game_render_path.h>
 
 namespace ballistic {
 
@@ -13,6 +14,8 @@ struct GameApplication : Application
     void on_shutdown() override;
     
     void draw_menu_bar();
+
+    RenderPath* GameApplication::create_render_path() { return new GameRenderPath(); }
 };
 
 }

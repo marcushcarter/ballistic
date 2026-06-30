@@ -10,6 +10,8 @@
 
 namespace ballistic {
 
+struct RenderPath;
+
 struct ApplicationCreateInfo
 {
     std::string window_title;
@@ -23,9 +25,11 @@ struct Application
     ApplicationCreateInfo create_info;
 
     drivers::WindowDriverWin32 window;
+
     drivers::RenderingContextDriverVulkan context_driver;
     drivers::RenderingDeviceDriverVulkan device_driver;
     Renderer renderer;
+    RenderPath* render_path = nullptr;
 
     drivers::ImGuiDriver imgui;
     DevSystems dev_systems;
@@ -37,7 +41,10 @@ struct Application
     virtual Error on_init() = 0;
     virtual void on_update(float p_dt) = 0;
     virtual void on_shutdown() = 0;
+    
     virtual bool wants_docking() const { return false; }
+    virtual RenderPath* create_render_path() = 0;
+
     virtual ~Application() = default;
 };
 
