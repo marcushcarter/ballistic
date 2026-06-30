@@ -125,6 +125,53 @@ struct RenderingDeviceDriverVulkan
     Error swapchain_acquire_next_image(VkSemaphore p_signal_semaphore);
 
     Error update_swapchain();
+    
+	/****************/
+	/**** IMAGES ****/
+	/****************/
+
+    struct BarrierState {
+        VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+        VkPipelineStageFlags2 stage = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+        VkAccessFlags2 access = 0;
+    };
+
+    struct ImageDesc {
+        VkFormat format = VK_FORMAT_UNDEFINED;
+        VkImageUsageFlags usage = 0;
+        VkImageAspectFlagBits aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+        VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+        uint32_t mip_levels = 1, layers = 1;
+
+        enum class Sizing { ViewportRelative, Fixed };
+        Sizing sizing = Sizing::ViewportRelative;
+        float width_scale = 1.0f, height_scale = 1.0f;
+        uint32_t fixed_width = 0, fixed_height = 0;
+        
+        const char* name = nullptr;
+    };
+
+    struct Image {
+        VkImage image = VK_NULL_HANDLE;
+        VkImageView image_view = VK_NULL_HANDLE;
+        VmaAllocation allocation = nullptr;
+        BarrierState state;
+
+        VkExtent3D extent = {};
+        VkFormat format = VK_FORMAT_UNDEFINED;
+        VkImageAspectFlagBits aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+        uint32_t mip_levels = 1, layers = 1;
+        VkMemoryRequirements mem_req = {};
+    };
+
+    Image image_create(const ImageDesc& p_desc, VkExtent3D p_extent);
+    Error image_bind(Image& r_image, VmaAllocation p_allocation);
+    Error image_create_view(Image& r_image);
+    void image_free(Image& r_image);
+
+    // ----- BINDLESS HEAP -----
+
+    // ----- BINDLESS HEAP -----
 
 	/*********************/
 	/**** DESCRIPTORS ****/
@@ -187,6 +234,11 @@ struct RenderingDeviceDriverVulkan
     // bid render/compute pipeline
     // bind render/comput uniform sets
 
+	/***************/
+	/**** UTILS ****/
+	/***************/
+
+    void set_object_name(VkObjectType p_type, uint64_t p_handle, const char* p_name);
 
 };
 
