@@ -70,13 +70,13 @@ Error Renderer::begin_frame()
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     cmd = command_buffers[current_frame];
 
-    auto& backbuffer = sc.images[sc.image_index];
-    backbuffer.state.layout = VK_IMAGE_LAYOUT_UNDEFINED;
-    backbuffer.state.stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    backbuffer.state.access = 0;
+    auto& bb = sc.images[sc.image_index];
+    bb.state.layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    bb.state.stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    bb.state.access = 0;
 
     graph.begin();
-    graph.import_image("backbuffer", &backbuffer, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    graph.import_image("backbuffer", &bb, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     return Ok;
 }
