@@ -98,22 +98,36 @@ int Application::run()
 
         renderer.begin_frame();
 
-        VkRenderingAttachmentInfo color_attachment{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-        color_attachment.imageView = device_driver.swapchain.image_views[device_driver.swapchain.image_index];
-        color_attachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        color_attachment.clearValue.color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
+        GraphPass present_pass;
+        present_pass.name = "present";
+        present_pass.setup = [](RenderGraphBuilder& b) {
+            b.write_image("backbuffer",
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+        };
+        present_pass.execute = [this](VkCommandBuffer cmd, RenderGraph& g) {
+            auto* bb = g.image("backbuffer");
 
-        VkRenderingInfo rendering_info{ VK_STRUCTURE_TYPE_RENDERING_INFO };
-        rendering_info.renderArea = { { 0, 0 }, { context_driver.surface.width, context_driver.surface.height } };
-        rendering_info.layerCount = 1;
-        rendering_info.colorAttachmentCount = 1;
-        rendering_info.pColorAttachments = &color_attachment;
+            VkRenderingAttachmentInfo color{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
+            color.imageView = bb->image_view;
+            color.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            color.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            color.clearValue.color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
 
-        vkCmdBeginRendering(renderer.cmd, &rendering_info);
-        imgui.record_commands(renderer.cmd);
-        vkCmdEndRendering(renderer.cmd);
+            VkRenderingInfo ri{ VK_STRUCTURE_TYPE_RENDERING_INFO };
+            ri.renderArea = { { 0, 0 }, { bb->extent.width, bb->extent.height } };
+            ri.layerCount = 1;
+            ri.colorAttachmentCount = 1;
+            ri.pColorAttachments = &color;
+
+            vkCmdBeginRendering(cmd, &ri);
+            imgui.record_commands(cmd);
+            vkCmdEndRendering(cmd);
+        };
+
+        renderer.graph.add(&present_pass);
 
         renderer.end_frame();
     }

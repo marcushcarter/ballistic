@@ -1,13 +1,15 @@
 #pragma once
 #include <drivers/vulkan/rendering_device_driver_vulkan.h>
+#include <core/rendering/render_graph.h>
 #include <core/log/error.h>
-// #include <vector>
 
 namespace ballistic {
 
 struct Renderer
 {
     drivers::RenderingDeviceDriverVulkan* device_driver = nullptr;
+
+    RenderGraph graph;
 
     uint32_t width = 0;
     uint32_t height = 0;

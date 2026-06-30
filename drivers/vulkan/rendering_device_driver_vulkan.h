@@ -98,32 +98,6 @@ struct RenderingDeviceDriverVulkan
     VkCommandBuffer command_buffer_create(CommandPool& p_cmd_pool);
     Error command_buffer_begin(VkCommandBuffer p_cmd_buffer, VkCommandBufferUsageFlags p_flags = 0);
     Error command_buffer_end(VkCommandBuffer p_cmd_buffer);
-
-    /*******************/
-    /**** SWAPCHAIN ****/
-    /*******************/
-
-    struct Swapchain {
-        VkSwapchainKHR swapchain = VK_NULL_HANDLE;
-        RenderingContextDriverVulkan::Surface* surface = nullptr;
-        VkFormat format = VK_FORMAT_UNDEFINED;
-        VkColorSpaceKHR color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-        std::vector<VkImage> images;
-        std::vector<VkImageView> image_views;
-        std::vector<VkSemaphore> present_semaphores;
-        uint32_t image_index = 0;
-    };
-
-    Swapchain swapchain;
-
-    bool _determine_swapchain_format(RenderingContextDriverVulkan::Surface* r_surface, VkSurfaceFormatKHR &r_surface_format);
-    void _swapchain_release();
-    
-    Error swapchain_create(RenderingContextDriverVulkan::Surface* r_surface);
-    Error swapchain_resize(uint32_t p_desired_framebuffer_count);
-    void swapchain_free();
-    Error swapchain_acquire_next_image(VkSemaphore p_signal_semaphore);
-
     Error update_swapchain();
     
 	/****************/
@@ -169,9 +143,29 @@ struct RenderingDeviceDriverVulkan
     Error image_create_view(Image& r_image);
     void image_free(Image& r_image);
 
-    // ----- BINDLESS HEAP -----
+    /*******************/
+    /**** SWAPCHAIN ****/
+    /*******************/
 
-    // ----- BINDLESS HEAP -----
+    struct Swapchain {
+        VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+        RenderingContextDriverVulkan::Surface* surface = nullptr;
+        VkFormat format = VK_FORMAT_UNDEFINED;
+        VkColorSpaceKHR color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        std::vector<Image> images;
+        std::vector<VkSemaphore> present_semaphores;
+        uint32_t image_index = 0;
+    };
+
+    Swapchain swapchain;
+
+    bool _determine_swapchain_format(RenderingContextDriverVulkan::Surface* r_surface, VkSurfaceFormatKHR &r_surface_format);
+    void _swapchain_release();
+    
+    Error swapchain_create(RenderingContextDriverVulkan::Surface* r_surface);
+    Error swapchain_resize(uint32_t p_desired_framebuffer_count);
+    void swapchain_free();
+    Error swapchain_acquire_next_image(VkSemaphore p_signal_semaphore);
 
 	/*********************/
 	/**** DESCRIPTORS ****/

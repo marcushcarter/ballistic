@@ -34,9 +34,9 @@ struct Application
     void destroy();
     int run();
 
-    virtual Error on_init() { return Error::Ok; }
-    virtual void on_update(float p_dt) { (void)p_dt; }
-    virtual void on_shutdown() {}
+    virtual Error on_init() = 0;
+    virtual void on_update(float p_dt) = 0;
+    virtual void on_shutdown() = 0;
     virtual bool wants_docking() const { return false; }
     virtual ~Application() = default;
 };

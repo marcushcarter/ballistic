@@ -665,6 +665,86 @@ Error RenderingDeviceDriverVulkan::command_buffer_end(VkCommandBuffer p_cmd_buff
     return Ok;
 }
 
+/****************/
+/**** IMAGES ****/
+/****************/
+
+RenderingDeviceDriverVulkan::Image RenderingDeviceDriverVulkan::image_create(const ImageDesc& p_desc, VkExtent3D p_extent)
+{
+    using enum Error;
+    Image image;
+
+    image.extent = p_extent;
+    image.format = p_desc.format;
+    image.aspect= p_desc.aspect;
+    image.mip_levels = p_desc.mip_levels;
+    image.layers = p_desc.layers;
+
+    VkImageCreateInfo image_ci{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+    image_ci.flags = VK_IMAGE_CREATE_ALIAS_BIT;
+    image_ci.imageType = VK_IMAGE_TYPE_3D;
+    image_ci.format = p_desc.format;
+    image_ci.extent = p_extent;
+    image_ci.arrayLayers = p_desc.layers;
+    image_ci.samples = p_desc.samples;
+    image_ci.tiling = VK_IMAGE_TILING_OPTIMAL;
+    image_ci.usage = p_desc.usage;
+    image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    VkResult err = vkCreateImage(device, &image_ci, nullptr, &image.image);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan image.");
+
+    vkGetImageMemoryRequirements(device, image.image, &image.mem_req);
+    set_object_name(VK_OBJECT_TYPE_IMAGE, (uint64_t)image.image, p_desc.name);
+    return image;
+}
+
+Error RenderingDeviceDriverVulkan::image_bind(Image& r_image, VmaAllocation p_allocation)
+{
+    using enum Error;
+
+    VkResult err = vmaBindImageMemory(allocator, p_allocation, r_image.image);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't bind VMA image memory.");
+
+    r_image.allocation = p_allocation;
+    return Ok;
+}
+
+Error RenderingDeviceDriverVulkan::image_create_view(Image& r_image)
+{
+    using enum Error;
+
+    VkImageViewCreateInfo view_ci{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+    view_ci.image = r_image.image;
+    view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    view_ci.format = r_image.format;
+    view_ci.subresourceRange.aspectMask = r_image.aspect;
+    view_ci.subresourceRange.baseMipLevel = 0;
+    view_ci.subresourceRange.levelCount = r_image.mip_levels;
+    view_ci.subresourceRange.baseArrayLayer = 0;
+    view_ci.subresourceRange.layerCount = r_image.layers;
+
+    VkResult err = vkCreateImageView(device, &view_ci, nullptr, &r_image.image_view);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan image view.");
+
+    return Ok;
+}
+
+void RenderingDeviceDriverVulkan::image_free(Image& r_image)
+{
+    if (r_image.image_view) {
+        vkDestroyImageView(device, r_image.image_view, nullptr);
+        r_image.image_view = VK_NULL_HANDLE;
+    }
+    if (r_image.allocation) {
+        vmaDestroyImage(allocator, r_image.image, r_image.allocation);
+        r_image.image= VK_NULL_HANDLE;
+        r_image.allocation = nullptr;
+    }
+    r_image.state = {};
+}
+
 /*******************/
 /**** SWAPCHAIN ****/
 /*******************/
@@ -694,13 +774,13 @@ bool RenderingDeviceDriverVulkan::_determine_swapchain_format(RenderingContextDr
 
 void RenderingDeviceDriverVulkan::_swapchain_release()
 {
-    for (VkImageView view : swapchain.image_views) {
-        vkDestroyImageView(device, view, nullptr);
+    for (Image& img : swapchain.images) {
+        if (img.image_view) vkDestroyImageView(device, img.image_view, nullptr);
+        img.image_view = VK_NULL_HANDLE;
     }
+    swapchain.images.clear();
 
     swapchain.image_index = UINT_MAX;
-    swapchain.images.clear();
-    swapchain.image_views.clear();
 
     if (swapchain.swapchain) {
         vkDestroySwapchainKHR(device, swapchain.swapchain, nullptr);
@@ -710,7 +790,6 @@ void RenderingDeviceDriverVulkan::_swapchain_release()
     for (VkSemaphore semaphore : swapchain.present_semaphores) {
         semaphore_free(semaphore);
     }
-
     swapchain.present_semaphores.clear();
 }
 
@@ -817,9 +896,9 @@ Error RenderingDeviceDriverVulkan::swapchain_resize(uint32_t p_desired_framebuff
     err = vkGetSwapchainImagesKHR(device, swapchain.swapchain, &image_count, nullptr);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan swapchain images.");
     
-	swapchain.images.resize(image_count);
-	err = vkGetSwapchainImagesKHR(device, swapchain.swapchain, &image_count, swapchain.images.data());
-	BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan swapchain images.");
+    std::vector<VkImage> raw_images(image_count);
+    err = vkGetSwapchainImagesKHR(device, swapchain.swapchain, &image_count, raw_images.data());
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan swapchain images.");
 
     VkImageViewCreateInfo view_ci{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
     view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
@@ -832,14 +911,22 @@ Error RenderingDeviceDriverVulkan::swapchain_resize(uint32_t p_desired_framebuff
     view_ci.subresourceRange.levelCount = 1;
     view_ci.subresourceRange.layerCount = 1;
 
-    swapchain.image_views.reserve(image_count);
-
-	VkImageView image_view = VK_NULL_HANDLE;
+    swapchain.images.resize(image_count);
 	for (uint32_t i = 0; i < image_count; i++) {
-		view_ci.image = swapchain.images[i];
-		err = vkCreateImageView(device, &view_ci, nullptr, &image_view);
-		BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan image view for swapchain image.");
-		swapchain.image_views.push_back(image_view);
+        Image& img = swapchain.images[i];
+        img = {};
+        img.image = raw_images[i];
+        img.format = swapchain.format;
+        img.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+        img.extent = { extent.width, extent.height, 1 };
+        img.allocation = nullptr;
+        img.state.layout = VK_IMAGE_LAYOUT_UNDEFINED;
+        img.state.stage  = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+        img.state.access = 0;
+
+        view_ci.image = img.image;
+        err = vkCreateImageView(device, &view_ci, nullptr, &img.image_view);
+        BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan image view for swapchain image.");
     }
 
 	VkSemaphore semaphore = VK_NULL_HANDLE;
@@ -849,7 +936,6 @@ Error RenderingDeviceDriverVulkan::swapchain_resize(uint32_t p_desired_framebuff
 	}
 
     swapchain.surface->needs_resize = false;
-
     return Ok;
 }
 
@@ -879,86 +965,6 @@ Error RenderingDeviceDriverVulkan::update_swapchain()
     if (!swapchain.surface->needs_resize) return Ok;
     device_wait_idle();
     return swapchain_resize(frame_count);
-}
-
-/****************/
-/**** IMAGES ****/
-/****************/
-
-RenderingDeviceDriverVulkan::Image RenderingDeviceDriverVulkan::image_create(const ImageDesc& p_desc, VkExtent3D p_extent)
-{
-    using enum Error;
-    Image image;
-
-    image.extent = p_extent;
-    image.format = p_desc.format;
-    image.aspect= p_desc.aspect;
-    image.mip_levels = p_desc.mip_levels;
-    image.layers = p_desc.layers;
-
-    VkImageCreateInfo image_ci{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-    image_ci.flags = VK_IMAGE_CREATE_ALIAS_BIT;
-    image_ci.imageType = VK_IMAGE_TYPE_3D;
-    image_ci.format = p_desc.format;
-    image_ci.extent = p_extent;
-    image_ci.arrayLayers = p_desc.layers;
-    image_ci.samples = p_desc.samples;
-    image_ci.tiling = VK_IMAGE_TILING_OPTIMAL;
-    image_ci.usage = p_desc.usage;
-    image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-    VkResult err = vkCreateImage(device, &image_ci, nullptr, &image.image);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan image.");
-
-    vkGetImageMemoryRequirements(device, image.image, &image.mem_req);
-    set_object_name(VK_OBJECT_TYPE_IMAGE, (uint64_t)image.image, p_desc.name);
-    return image;
-}
-
-Error RenderingDeviceDriverVulkan::image_bind(Image& r_image, VmaAllocation p_allocation)
-{
-    using enum Error;
-
-    VkResult err = vmaBindImageMemory(allocator, p_allocation, r_image.image);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't bind VMA image memory.");
-
-    r_image.allocation = p_allocation;
-    return Ok;
-}
-
-Error RenderingDeviceDriverVulkan::image_create_view(Image& r_image)
-{
-    using enum Error;
-
-    VkImageViewCreateInfo view_ci{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-    view_ci.image = r_image.image;
-    view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    view_ci.format = r_image.format;
-    view_ci.subresourceRange.aspectMask = r_image.aspect;
-    view_ci.subresourceRange.baseMipLevel = 0;
-    view_ci.subresourceRange.levelCount = r_image.mip_levels;
-    view_ci.subresourceRange.baseArrayLayer = 0;
-    view_ci.subresourceRange.layerCount = r_image.layers;
-
-    VkResult err = vkCreateImageView(device, &view_ci, nullptr, &r_image.image_view);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan image view.");
-
-    return Ok;
-}
-
-void RenderingDeviceDriverVulkan::image_free(Image& r_image)
-{
-    if (r_image.image_view) {
-        vkDestroyImageView(device, r_image.image_view, nullptr);
-        r_image.image_view = VK_NULL_HANDLE;
-    }
-    if (r_image.image_view) {
-        vmaDestroyImage(allocator, r_image.image, r_image.allocation);
-        r_image.image= VK_NULL_HANDLE;
-        r_image.allocation = nullptr;
-    }
-    r_image.state = {};
 }
 
 /*********************/
