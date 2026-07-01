@@ -24,7 +24,6 @@ struct ImageResource {
     VkImageLayout final_layout = VK_IMAGE_LAYOUT_UNDEFINED;
     uint32_t bindless_sampled = UINT32_MAX;
     uint32_t bindless_storage = UINT32_MAX;
-    VkDescriptorSet imgui_set = VK_NULL_HANDLE;
 
     int producer = -1;
     bool read = false;
@@ -86,7 +85,8 @@ struct RenderGraph
     uint64_t intern_named(std::string_view p_name);
 
     drivers::RenderingDeviceDriverVulkan::Image* image(std::string_view p_name);
-    ImageResource* resource(std::string_view p_name); 
+    ImageResource* resource(std::string_view p_name);
+    ImageResource* resource_by_id(uint64_t p_name_id);
 
     void begin();
     void import_image(std::string_view p_name, drivers::RenderingDeviceDriverVulkan::Image* p_image, VkImageLayout p_final_layout);

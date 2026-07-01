@@ -30,6 +30,8 @@ Error Renderer::create(uint32_t p_frame_count)
 
 void Renderer::destroy()
 {
+    device_driver->image_free(final_image);
+
     for (uint32_t i = 0; i < frame_count; i++) {
         device_driver->fence_free(in_flight_fences[i]);
         device_driver->semaphore_free(image_available_semaphores[i]);
@@ -48,6 +50,21 @@ Error Renderer::set_size(uint32_t p_width, uint32_t p_height)
     height = p_height;
     
     device_driver->device_wait_idle();
+
+    device_driver->image_free(final_image);
+
+    drivers::RenderingDeviceDriverVulkan::ImageDesc desc{};
+    desc.name = "final_image";
+    desc.format = VK_FORMAT_R8G8B8A8_UNORM;
+    desc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    desc.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    desc.layers = 1;
+
+    final_image = device_driver->image_create_dedicated(desc, { width, height, 1 });
+
+    final_image.state.layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    final_image.state.stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    final_image.state.access = 0;
 
     return Ok;
 }
@@ -76,6 +93,7 @@ Error Renderer::begin_frame()
     bb.state.access = 0;
 
     graph.begin();
+    graph.import_image("final_image", &final_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     graph.import_image("backbuffer", &bb, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     return Ok;
@@ -104,6 +122,7 @@ Error Renderer::end_frame()
 
     VkQueue graphics_queue = device_driver->queue_families[device_driver->context_driver->graphics_queue_family][0].queue;
     VkResult result = vkQueueSubmit(graphics_queue, 1, &submit_info, in_flight_fences[current_frame]);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS, err, "Failed to submit Vulkan queue");
 
     VkPresentInfoKHR present_info{ VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
     present_info.waitSemaphoreCount = 1;
@@ -114,9 +133,10 @@ Error Renderer::end_frame()
 
     VkQueue present_queue = device_driver->queue_families[device_driver->context_driver->present_queue_family][0].queue;
     result = vkQueuePresentKHR(present_queue, &present_info);
-    (void)result;
+    BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS, err, "Failed to present Vulkan queue");
 
     current_frame = (current_frame + 1) % frame_count;
+    frame_number++;
 
     return Ok;
 }

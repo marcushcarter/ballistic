@@ -681,10 +681,11 @@ RenderingDeviceDriverVulkan::Image RenderingDeviceDriverVulkan::image_create(con
     image.layers = p_desc.layers;
 
     VkImageCreateInfo image_ci{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
-    image_ci.flags = VK_IMAGE_CREATE_ALIAS_BIT;
-    image_ci.imageType = VK_IMAGE_TYPE_3D;
+    image_ci.flags = 0;
+    image_ci.imageType = VK_IMAGE_TYPE_2D;
     image_ci.format = p_desc.format;
     image_ci.extent = p_extent;
+    image_ci.mipLevels = p_desc.mip_levels;
     image_ci.arrayLayers = p_desc.layers;
     image_ci.samples = p_desc.samples;
     image_ci.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -697,6 +698,31 @@ RenderingDeviceDriverVulkan::Image RenderingDeviceDriverVulkan::image_create(con
 
     vkGetImageMemoryRequirements(device, image.image, &image.mem_req);
     set_object_name(VK_OBJECT_TYPE_IMAGE, (uint64_t)image.image, p_desc.name);
+    return image;
+}
+
+RenderingDeviceDriverVulkan::Image RenderingDeviceDriverVulkan::image_create_dedicated(const ImageDesc& p_desc, VkExtent3D p_extent)
+{
+    using enum Error;
+
+    Image image = image_create(p_desc, p_extent);
+    BALLISTIC_ERR_FAIL_COND_V(image.image == VK_NULL_HANDLE, {});
+
+    VmaAllocationCreateInfo alloc_ci{};
+    alloc_ci.usage = VMA_MEMORY_USAGE_UNKNOWN;
+    alloc_ci.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    alloc_ci.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+
+    VmaAllocation allocation = nullptr;
+    VkResult err = vmaAllocateMemoryForImage(allocator, image.image, &alloc_ci, &allocation, nullptr);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't allocate image memory.");
+
+    Error e = image_bind(image, allocation);
+    BALLISTIC_ERR_FAIL_COND_V(e != Ok, {});
+
+    e = image_create_view(image);
+    BALLISTIC_ERR_FAIL_COND_V(e != Ok, {});
+
     return image;
 }
 

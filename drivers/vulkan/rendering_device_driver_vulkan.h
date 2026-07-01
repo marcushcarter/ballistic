@@ -139,6 +139,7 @@ struct RenderingDeviceDriverVulkan
     };
 
     Image image_create(const ImageDesc& p_desc, VkExtent3D p_extent);
+    Image image_create_dedicated(const ImageDesc& p_desc, VkExtent3D p_extent);
     Error image_bind(Image& r_image, VmaAllocation p_allocation);
     Error image_create_view(Image& r_image);
     void image_free(Image& r_image);

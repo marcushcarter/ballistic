@@ -14,10 +14,16 @@ Error GameRenderPath::create_resources()
     present_pass.name = "present";
     present_pass.setup = [](RenderGraphBuilder& b) {
         b.write_image("backbuffer", VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+        b.write_image("final_image", VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_2_CLEAR_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
     };
 
     drivers::ImGuiDriver* ui = imgui;
     present_pass.execute = [ui](VkCommandBuffer cmd, RenderGraph& g) {
+        auto* fi = g.image("final_image");
+        VkClearColorValue color1{ { 0.0f, 0.0f, 1.0f, 1.0f } };
+        VkImageSubresourceRange range{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+        vkCmdClearColorImage(cmd, fi->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &color1, 1, &range);
+
         auto* bb = g.image("backbuffer");
 
         VkRenderingAttachmentInfo color{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
@@ -25,7 +31,7 @@ Error GameRenderPath::create_resources()
         color.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         color.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        color.clearValue.color = { { 1.0f, 0.0f, 0.0f, 1.0f } };
+        color.clearValue.color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
 
         VkRenderingInfo ri{ VK_STRUCTURE_TYPE_RENDERING_INFO };
         ri.renderArea = { { 0, 0 }, { bb->extent.width, bb->extent.height } };

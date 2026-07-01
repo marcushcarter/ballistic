@@ -56,6 +56,13 @@ ImageResource* RenderGraph::resource(std::string_view p_name)
     return &image_resources[it->second];
 }
 
+ImageResource* RenderGraph::resource_by_id(uint64_t p_name_id)
+{
+    auto it = image_resource_map.find(p_name_id);
+    if (it == image_resource_map.end()) return nullptr;
+    return &image_resources[it->second];
+}
+
 void RenderGraph::begin()
 {
     image_resources.clear();
