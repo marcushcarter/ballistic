@@ -14,19 +14,12 @@ Error RenderBufferXray::init(drivers::RenderingDeviceDriverVulkan& p_device_driv
     using enum Error;
     device_driver = &p_device_driver;
 
-    VkSamplerCreateInfo sampler_ci{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-    sampler_ci.magFilter = VK_FILTER_LINEAR;
-    sampler_ci.minFilter = VK_FILTER_LINEAR;
-    sampler_ci.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-    sampler_ci.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    sampler_ci.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    sampler_ci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    sampler_ci.maxLod = 0.0f;
+    drivers::RenderingDeviceDriverVulkan::SamplerDesc sampler_desc{};
+    sampler_desc.mipmap_mode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    sampler_desc.address_mode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampler = device_driver->sampler_create(sampler_desc);
 
-    VkResult err = vkCreateSampler(p_device_driver.device, &sampler_ci, nullptr, &sampler);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Xray: couldn't create sampler.");
-
-    // selected_name_id = RenderGraph::intern("final_image");
+    // selected_name_id = RenderGraph::intern("final_image")
 
     return Ok;
 }
@@ -42,10 +35,8 @@ void RenderBufferXray::shutdown()
         set = VK_NULL_HANDLE;
     }
     built_for_view = VK_NULL_HANDLE;
-    if (sampler && device_driver) {
-        vkDestroySampler(device_driver->device, sampler, nullptr);
-        sampler = VK_NULL_HANDLE;
-    }
+
+    device_driver->sampler_free(sampler);
 }
 
 void RenderBufferXray::draw(RenderGraph& graph, uint64_t frame, uint32_t frame_count)

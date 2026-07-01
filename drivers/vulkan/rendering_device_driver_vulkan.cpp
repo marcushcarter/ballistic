@@ -672,14 +672,14 @@ Error RenderingDeviceDriverVulkan::command_buffer_end(VkCommandBuffer p_cmd_buff
 RenderingDeviceDriverVulkan::Image RenderingDeviceDriverVulkan::image_create(const ImageDesc& p_desc, VkExtent3D p_extent)
 {
     using enum Error;
+    
     Image image;
-
     image.extent = p_extent;
     image.format = p_desc.format;
     image.aspect= p_desc.aspect;
     image.mip_levels = p_desc.mip_levels;
     image.layers = p_desc.layers;
-
+    
     VkImageCreateInfo image_ci{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
     image_ci.flags = 0;
     image_ci.imageType = VK_IMAGE_TYPE_2D;
@@ -692,7 +692,7 @@ RenderingDeviceDriverVulkan::Image RenderingDeviceDriverVulkan::image_create(con
     image_ci.usage = p_desc.usage;
     image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
+    
     VkResult err = vkCreateImage(device, &image_ci, nullptr, &image.image);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan image.");
 
@@ -769,6 +769,47 @@ void RenderingDeviceDriverVulkan::image_free(Image& r_image)
         r_image.allocation = nullptr;
     }
     r_image.state = {};
+}
+
+/*****************/
+/**** SAMPLER ****/
+/*****************/
+
+VkSampler RenderingDeviceDriverVulkan::sampler_create(const SamplerDesc& p_desc)
+{
+    using enum Error;
+
+    VkSamplerCreateInfo sampler_ci{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+    sampler_ci.magFilter = p_desc.filter;
+    sampler_ci.minFilter = p_desc.filter;
+    sampler_ci.addressModeU = p_desc.address_mode;
+    sampler_ci.addressModeV = p_desc.address_mode;
+    sampler_ci.addressModeW = p_desc.address_mode;
+    sampler_ci.anisotropyEnable = p_desc.anisotropy > 1.0f;
+    sampler_ci.maxAnisotropy = p_desc.anisotropy;
+    sampler_ci.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    sampler_ci.unnormalizedCoordinates = false;
+    sampler_ci.compareEnable = p_desc.compare;
+    sampler_ci.compareOp = p_desc.compare_op;
+    sampler_ci.mipmapMode = p_desc.mipmap_mode;
+    sampler_ci.mipLodBias = 0.0f;
+    sampler_ci.minLod = 0.0f;
+    sampler_ci.maxLod = VK_LOD_CLAMP_NONE;
+
+    VkSampler sampler;
+    VkResult err = vkCreateSampler(device, &sampler_ci, nullptr, &sampler);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan sampler.");
+
+    set_object_name(VK_OBJECT_TYPE_SAMPLER, (uint64_t)sampler, p_desc.name);
+    return sampler;
+}
+
+void RenderingDeviceDriverVulkan::sampler_free(VkSampler& r_sampler)
+{
+    if (r_sampler) {
+        vkDestroySampler(device, r_sampler, nullptr);
+        r_sampler = VK_NULL_HANDLE;
+    }
 }
 
 /*******************/

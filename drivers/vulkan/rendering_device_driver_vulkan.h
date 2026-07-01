@@ -144,6 +144,25 @@ struct RenderingDeviceDriverVulkan
     Error image_create_view(Image& r_image);
     void image_free(Image& r_image);
 
+    /*****************/
+    /**** SAMPLER ****/
+    /*****************/
+
+    struct SamplerDesc {
+        VkFilter filter = VK_FILTER_LINEAR;
+        VkSamplerMipmapMode mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        VkSamplerAddressMode address_mode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        float anisotropy = 1.0f;
+
+        bool compare = false;
+        VkCompareOp compare_op = VK_COMPARE_OP_LESS;
+
+        const char* name = nullptr;
+    };
+
+    VkSampler sampler_create(const SamplerDesc& p_desc);
+    void sampler_free(VkSampler& r_sampler);
+
     /*******************/
     /**** SWAPCHAIN ****/
     /*******************/
