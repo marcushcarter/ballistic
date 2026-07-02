@@ -1,4 +1,4 @@
-#include <core/rendering/render_path.h>
+#include <core/rendering/render_path/render_path.h>
 
 namespace ballistic {
 

@@ -1,10 +1,10 @@
-#include <core/rendering/game_render_path.h>
+#include <core/rendering/render_path/editor_render_path.h>
 #include <drivers/imgui/imgui_driver.h>
 #include <core/log/log.h>
 
 namespace ballistic {
 
-Error GameRenderPath::create_resources()
+Error EditorRenderPath::create_resources()
 {
     using enum Error;
 
@@ -14,16 +14,11 @@ Error GameRenderPath::create_resources()
     present_pass.name = "present";
     present_pass.setup = [](RenderGraphBuilder& b) {
         b.write_image("backbuffer", VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
-        b.write_image("final_image", VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_2_CLEAR_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+        b.read_image("final_image", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
     };
 
     drivers::ImGuiDriver* ui = imgui;
     present_pass.execute = [ui](VkCommandBuffer cmd, RenderGraph& g) {
-        auto* fi = g.image("final_image");
-        VkClearColorValue color1{ { 0.0f, 0.0f, 1.0f, 1.0f } };
-        VkImageSubresourceRange range{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-        vkCmdClearColorImage(cmd, fi->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &color1, 1, &range);
-
         auto* bb = g.image("backbuffer");
 
         VkRenderingAttachmentInfo color{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
@@ -44,14 +39,9 @@ Error GameRenderPath::create_resources()
         vkCmdEndRendering(cmd);
     };
 
-    return Ok;
+    return Ok; 
 }
 
-void GameRenderPath::destroy_resources()
-{
-    RenderPath::destroy_resources();
-}
-
-void GameRenderPath::build_present(RenderGraph& g) { g.add(&present_pass); }
+void EditorRenderPath::build_present(RenderGraph& g) { g.add(&present_pass); }
 
 }

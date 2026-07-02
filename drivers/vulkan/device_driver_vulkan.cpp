@@ -1,4 +1,4 @@
-#include <drivers/vulkan/rendering_device_driver_vulkan.h>
+#include <drivers/vulkan/device_driver_vulkan.h>
 #include <core/log/error_macros.h>
 #include <vulkan/vulkan.hpp>
 #include <iostream>
@@ -11,11 +11,11 @@ namespace ballistic::drivers {
 /**** SETUP ****/
 /***************/
 
-void RenderingDeviceDriverVulkan::_register_requested_device_extension(const std::string& p_extension_name, bool p_required) {
+void DeviceDriverVulkan::_register_requested_device_extension(const std::string& p_extension_name, bool p_required) {
     requested_device_extensions[p_extension_name] = p_required;
 }
 
-Error RenderingDeviceDriverVulkan::_initialize_device_extensions()
+Error DeviceDriverVulkan::_initialize_device_extensions()
 {
     using enum Error;
 
@@ -79,7 +79,7 @@ Error RenderingDeviceDriverVulkan::_initialize_device_extensions()
     return Ok;
 }
 
-void RenderingDeviceDriverVulkan::_get_device_properties()
+void DeviceDriverVulkan::_get_device_properties()
 {
     vkGetPhysicalDeviceProperties(physical_device, &physical_device_properties);
 
@@ -96,7 +96,7 @@ void RenderingDeviceDriverVulkan::_get_device_properties()
         device_type.c_str());
 }
 
-Error RenderingDeviceDriverVulkan::_check_device_features()
+Error DeviceDriverVulkan::_check_device_features()
 {
     using enum Error;
 
@@ -147,7 +147,7 @@ Error RenderingDeviceDriverVulkan::_check_device_features()
     return Ok;
 }
 
-void RenderingDeviceDriverVulkan::_check_subgroup_capabilities()
+void DeviceDriverVulkan::_check_subgroup_capabilities()
 {
     VkPhysicalDeviceSubgroupProperties subgroup_properties{};
     subgroup_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
@@ -163,7 +163,7 @@ void RenderingDeviceDriverVulkan::_check_subgroup_capabilities()
     subgroup_capabilities.supported_operations = subgroup_properties.supportedOperations;
 }
 
-Error RenderingDeviceDriverVulkan::_check_device_capabilities()
+Error DeviceDriverVulkan::_check_device_capabilities()
 {
     using enum Error;
 
@@ -172,7 +172,7 @@ Error RenderingDeviceDriverVulkan::_check_device_capabilities()
     return Ok;
 }
 
-Error RenderingDeviceDriverVulkan::_add_queue_create_info(std::vector<VkDeviceQueueCreateInfo> &r_queue_create_info)
+Error DeviceDriverVulkan::_add_queue_create_info(std::vector<VkDeviceQueueCreateInfo> &r_queue_create_info)
 {
     using enum Error;
 
@@ -203,7 +203,7 @@ Error RenderingDeviceDriverVulkan::_add_queue_create_info(std::vector<VkDeviceQu
     return Ok;
 }
 
-Error RenderingDeviceDriverVulkan::_initialize_device(const std::vector<VkDeviceQueueCreateInfo> &p_queue_create_info)
+Error DeviceDriverVulkan::_initialize_device(const std::vector<VkDeviceQueueCreateInfo> &p_queue_create_info)
 {
     using enum Error;
 
@@ -318,7 +318,7 @@ Error RenderingDeviceDriverVulkan::_initialize_device(const std::vector<VkDevice
 // 	VkDeviceDeviceMemoryReportCreateInfoEXT memory_report_info = {};
 // 	if (device_memory_report_support) {
 // 		memory_report_info.sType = VK_STRUCTURE_TYPE_DEVICE_DEVICE_MEMORY_REPORT_CREATE_INFO_EXT;
-// 		memory_report_info.pfnUserCallback = RenderingContextDriverVulkan::memory_report_callback;
+// 		memory_report_info.pfnUserCallback = ContextDriverVulkan::memory_report_callback;
 // 		memory_report_info.pNext = create_info_next;
 // 		memory_report_info.flags = 0;
 // 		memory_report_info.pUserData = this;
@@ -416,7 +416,7 @@ Error RenderingDeviceDriverVulkan::_initialize_device(const std::vector<VkDevice
     return Ok;
 }
 
-Error RenderingDeviceDriverVulkan::_initialize_allocator()
+Error DeviceDriverVulkan::_initialize_allocator()
 {
     using enum Error;
 
@@ -439,17 +439,19 @@ Error RenderingDeviceDriverVulkan::_initialize_allocator()
     return Ok;
 }
 
-Error RenderingDeviceDriverVulkan::_initialize_pipeline_cache()
+Error DeviceDriverVulkan::_initialize_pipeline_cache()
 {
     using enum Error;
 
     return Ok;
 }
 
-Error RenderingDeviceDriverVulkan::initialize(uint32_t p_device_index, uint32_t p_frame_count)
+Error DeviceDriverVulkan::initialize(ContextDriverVulkan& r_context_driver, uint32_t p_device_index, uint32_t p_frame_count)
 {
     using enum Error;
     Error err;
+
+    context_driver = &r_context_driver;
 
     device_index = p_device_index;
     driver_device = context_driver->device_get(device_index);
@@ -492,7 +494,7 @@ Error RenderingDeviceDriverVulkan::initialize(uint32_t p_device_index, uint32_t 
     return Ok;
 }
 
-void RenderingDeviceDriverVulkan::shutdown()
+void DeviceDriverVulkan::shutdown()
 {
     device_wait_idle();
 
@@ -522,7 +524,7 @@ void RenderingDeviceDriverVulkan::shutdown()
     }
 }
 
-Error RenderingDeviceDriverVulkan::device_wait_idle()
+Error DeviceDriverVulkan::device_wait_idle()
 {    
     using enum Error;
     VkResult err = vkDeviceWaitIdle(device);
@@ -534,7 +536,7 @@ Error RenderingDeviceDriverVulkan::device_wait_idle()
 /**** FENCES ****/
 /****************/
 
-VkFence RenderingDeviceDriverVulkan::fence_create(bool p_signaled)
+VkFence DeviceDriverVulkan::fence_create(bool p_signaled)
 {
     VkFenceCreateInfo fence_ci{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
     fence_ci.flags = p_signaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0;
@@ -546,7 +548,7 @@ VkFence RenderingDeviceDriverVulkan::fence_create(bool p_signaled)
     return fence;
 }
 
-void RenderingDeviceDriverVulkan::fence_free(VkFence& r_fence)
+void DeviceDriverVulkan::fence_free(VkFence& r_fence)
 {
     if (r_fence) {
         vkDestroyFence(device, r_fence, nullptr);
@@ -554,7 +556,7 @@ void RenderingDeviceDriverVulkan::fence_free(VkFence& r_fence)
     }
 }
 
-Error RenderingDeviceDriverVulkan::fence_wait(VkFence p_fence, uint64_t p_timeout)
+Error DeviceDriverVulkan::fence_wait(VkFence p_fence, uint64_t p_timeout)
 {
     using enum Error;
     VkResult err = vkWaitForFences(device, 1, &p_fence, VK_TRUE, p_timeout);
@@ -562,7 +564,7 @@ Error RenderingDeviceDriverVulkan::fence_wait(VkFence p_fence, uint64_t p_timeou
     return Ok;
 }
 
-Error RenderingDeviceDriverVulkan::fence_reset(VkFence p_fence)
+Error DeviceDriverVulkan::fence_reset(VkFence p_fence)
 {
     using enum Error;
     VkResult err = vkResetFences(device, 1, &p_fence);
@@ -574,7 +576,7 @@ Error RenderingDeviceDriverVulkan::fence_reset(VkFence p_fence)
 /**** SEMAPHORES ****/
 /********************/
 
-VkSemaphore RenderingDeviceDriverVulkan::semaphore_create()
+VkSemaphore DeviceDriverVulkan::semaphore_create()
 {
     VkSemaphoreCreateInfo semaphore_ci{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
     semaphore_ci.pNext = nullptr;
@@ -587,7 +589,7 @@ VkSemaphore RenderingDeviceDriverVulkan::semaphore_create()
     return semaphore;
 }
 
-void RenderingDeviceDriverVulkan::semaphore_free(VkSemaphore& r_semaphore)
+void DeviceDriverVulkan::semaphore_free(VkSemaphore& r_semaphore)
 {
     if (r_semaphore) {
         vkDestroySemaphore(device, r_semaphore, nullptr);
@@ -601,7 +603,7 @@ void RenderingDeviceDriverVulkan::semaphore_free(VkSemaphore& r_semaphore)
 
 // ----- POOL -----
 
-RenderingDeviceDriverVulkan::CommandPool RenderingDeviceDriverVulkan::command_pool_create(uint32_t p_queue_family_index, VkCommandBufferLevel p_buffer_level)
+DeviceDriverVulkan::CommandPool DeviceDriverVulkan::command_pool_create(uint32_t p_queue_family_index, VkCommandBufferLevel p_buffer_level)
 {
     VkCommandPoolCreateInfo cmd_pool_ci{ VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
     cmd_pool_ci.queueFamilyIndex = p_queue_family_index;
@@ -615,7 +617,7 @@ RenderingDeviceDriverVulkan::CommandPool RenderingDeviceDriverVulkan::command_po
     return cmd_pool;
 }
 
-void RenderingDeviceDriverVulkan::command_pool_free(CommandPool& r_cmd_pool)
+void DeviceDriverVulkan::command_pool_free(CommandPool& r_cmd_pool)
 {
     if (r_cmd_pool.command_pool) {
         vkDestroyCommandPool(device, r_cmd_pool.command_pool, nullptr);
@@ -623,7 +625,7 @@ void RenderingDeviceDriverVulkan::command_pool_free(CommandPool& r_cmd_pool)
     }
 }
 
-Error RenderingDeviceDriverVulkan::command_pool_reset(CommandPool& r_cmd_pool)
+Error DeviceDriverVulkan::command_pool_reset(CommandPool& r_cmd_pool)
 {
     using enum Error;
     VkResult err = vkResetCommandPool(device, r_cmd_pool.command_pool, 0);
@@ -633,7 +635,7 @@ Error RenderingDeviceDriverVulkan::command_pool_reset(CommandPool& r_cmd_pool)
 
 // ----- BUFFER -----
 
-VkCommandBuffer RenderingDeviceDriverVulkan::command_buffer_create(CommandPool& p_cmd_pool)
+VkCommandBuffer DeviceDriverVulkan::command_buffer_create(CommandPool& p_cmd_pool)
 {
     VkCommandBufferAllocateInfo cmd_buffer_ci{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
     cmd_buffer_ci.commandPool = p_cmd_pool.command_pool;
@@ -647,7 +649,7 @@ VkCommandBuffer RenderingDeviceDriverVulkan::command_buffer_create(CommandPool& 
     return cmd_buffer;
 }
 
-Error RenderingDeviceDriverVulkan::command_buffer_begin(VkCommandBuffer p_cmd_buffer, VkCommandBufferUsageFlags p_flags)
+Error DeviceDriverVulkan::command_buffer_begin(VkCommandBuffer p_cmd_buffer, VkCommandBufferUsageFlags p_flags)
 {
     using enum Error;
     VkCommandBufferBeginInfo begin_info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
@@ -657,7 +659,7 @@ Error RenderingDeviceDriverVulkan::command_buffer_begin(VkCommandBuffer p_cmd_bu
     return Ok;
 }
 
-Error RenderingDeviceDriverVulkan::command_buffer_end(VkCommandBuffer p_cmd_buffer)
+Error DeviceDriverVulkan::command_buffer_end(VkCommandBuffer p_cmd_buffer)
 {
     using enum Error;
     VkResult err = vkEndCommandBuffer(p_cmd_buffer);
@@ -669,27 +671,27 @@ Error RenderingDeviceDriverVulkan::command_buffer_end(VkCommandBuffer p_cmd_buff
 /**** IMAGES ****/
 /****************/
 
-RenderingDeviceDriverVulkan::Image RenderingDeviceDriverVulkan::image_create(const ImageDesc& p_desc, VkExtent3D p_extent)
+DeviceDriverVulkan::Image DeviceDriverVulkan::image_create(const ImageCreateInfo& p_create_info, VkExtent3D p_extent)
 {
     using enum Error;
     
     Image image;
     image.extent = p_extent;
-    image.format = p_desc.format;
-    image.aspect= p_desc.aspect;
-    image.mip_levels = p_desc.mip_levels;
-    image.layers = p_desc.layers;
+    image.format = p_create_info.format;
+    image.aspect= p_create_info.aspect;
+    image.mip_levels = p_create_info.mip_levels;
+    image.layers = p_create_info.layers;
     
     VkImageCreateInfo image_ci{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
     image_ci.flags = 0;
     image_ci.imageType = VK_IMAGE_TYPE_2D;
-    image_ci.format = p_desc.format;
+    image_ci.format = p_create_info.format;
     image_ci.extent = p_extent;
-    image_ci.mipLevels = p_desc.mip_levels;
-    image_ci.arrayLayers = p_desc.layers;
-    image_ci.samples = p_desc.samples;
+    image_ci.mipLevels = p_create_info.mip_levels;
+    image_ci.arrayLayers = p_create_info.layers;
+    image_ci.samples = p_create_info.samples;
     image_ci.tiling = VK_IMAGE_TILING_OPTIMAL;
-    image_ci.usage = p_desc.usage;
+    image_ci.usage = p_create_info.usage;
     image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     
@@ -697,15 +699,15 @@ RenderingDeviceDriverVulkan::Image RenderingDeviceDriverVulkan::image_create(con
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan image.");
 
     vkGetImageMemoryRequirements(device, image.image, &image.mem_req);
-    set_object_name(VK_OBJECT_TYPE_IMAGE, (uint64_t)image.image, p_desc.name);
+    set_object_name(VK_OBJECT_TYPE_IMAGE, (uint64_t)image.image, p_create_info.name);
     return image;
 }
 
-RenderingDeviceDriverVulkan::Image RenderingDeviceDriverVulkan::image_create_dedicated(const ImageDesc& p_desc, VkExtent3D p_extent)
+DeviceDriverVulkan::Image DeviceDriverVulkan::image_create_dedicated(const ImageCreateInfo& p_create_info, VkExtent3D p_extent)
 {
     using enum Error;
 
-    Image image = image_create(p_desc, p_extent);
+    Image image = image_create(p_create_info, p_extent);
     BALLISTIC_ERR_FAIL_COND_V(image.image == VK_NULL_HANDLE, {});
 
     VmaAllocationCreateInfo alloc_ci{};
@@ -726,7 +728,7 @@ RenderingDeviceDriverVulkan::Image RenderingDeviceDriverVulkan::image_create_ded
     return image;
 }
 
-Error RenderingDeviceDriverVulkan::image_bind(Image& r_image, VmaAllocation p_allocation)
+Error DeviceDriverVulkan::image_bind(Image& r_image, VmaAllocation p_allocation)
 {
     using enum Error;
 
@@ -737,7 +739,7 @@ Error RenderingDeviceDriverVulkan::image_bind(Image& r_image, VmaAllocation p_al
     return Ok;
 }
 
-Error RenderingDeviceDriverVulkan::image_create_view(Image& r_image)
+Error DeviceDriverVulkan::image_create_view(Image& r_image)
 {
     using enum Error;
 
@@ -757,7 +759,7 @@ Error RenderingDeviceDriverVulkan::image_create_view(Image& r_image)
     return Ok;
 }
 
-void RenderingDeviceDriverVulkan::image_free(Image& r_image)
+void DeviceDriverVulkan::image_free(Image& r_image)
 {
     if (r_image.image_view) {
         vkDestroyImageView(device, r_image.image_view, nullptr);
@@ -775,23 +777,23 @@ void RenderingDeviceDriverVulkan::image_free(Image& r_image)
 /**** SAMPLER ****/
 /*****************/
 
-VkSampler RenderingDeviceDriverVulkan::sampler_create(const SamplerDesc& p_desc)
+VkSampler DeviceDriverVulkan::sampler_create(const SamplerCreateInfo& p_create_info)
 {
     using enum Error;
 
     VkSamplerCreateInfo sampler_ci{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-    sampler_ci.magFilter = p_desc.filter;
-    sampler_ci.minFilter = p_desc.filter;
-    sampler_ci.addressModeU = p_desc.address_mode;
-    sampler_ci.addressModeV = p_desc.address_mode;
-    sampler_ci.addressModeW = p_desc.address_mode;
-    sampler_ci.anisotropyEnable = p_desc.anisotropy > 1.0f;
-    sampler_ci.maxAnisotropy = p_desc.anisotropy;
+    sampler_ci.magFilter = p_create_info.filter;
+    sampler_ci.minFilter = p_create_info.filter;
+    sampler_ci.addressModeU = p_create_info.address_mode;
+    sampler_ci.addressModeV = p_create_info.address_mode;
+    sampler_ci.addressModeW = p_create_info.address_mode;
+    sampler_ci.anisotropyEnable = p_create_info.anisotropy > 1.0f;
+    sampler_ci.maxAnisotropy = p_create_info.anisotropy;
     sampler_ci.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
     sampler_ci.unnormalizedCoordinates = false;
-    sampler_ci.compareEnable = p_desc.compare;
-    sampler_ci.compareOp = p_desc.compare_op;
-    sampler_ci.mipmapMode = p_desc.mipmap_mode;
+    sampler_ci.compareEnable = p_create_info.compare;
+    sampler_ci.compareOp = p_create_info.compare_op;
+    sampler_ci.mipmapMode = p_create_info.mipmap_mode;
     sampler_ci.mipLodBias = 0.0f;
     sampler_ci.minLod = 0.0f;
     sampler_ci.maxLod = VK_LOD_CLAMP_NONE;
@@ -800,11 +802,11 @@ VkSampler RenderingDeviceDriverVulkan::sampler_create(const SamplerDesc& p_desc)
     VkResult err = vkCreateSampler(device, &sampler_ci, nullptr, &sampler);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan sampler.");
 
-    set_object_name(VK_OBJECT_TYPE_SAMPLER, (uint64_t)sampler, p_desc.name);
+    set_object_name(VK_OBJECT_TYPE_SAMPLER, (uint64_t)sampler, p_create_info.name);
     return sampler;
 }
 
-void RenderingDeviceDriverVulkan::sampler_free(VkSampler& r_sampler)
+void DeviceDriverVulkan::sampler_free(VkSampler& r_sampler)
 {
     if (r_sampler) {
         vkDestroySampler(device, r_sampler, nullptr);
@@ -816,7 +818,7 @@ void RenderingDeviceDriverVulkan::sampler_free(VkSampler& r_sampler)
 /**** SWAPCHAIN ****/
 /*******************/
 
-bool RenderingDeviceDriverVulkan::_determine_swapchain_format(RenderingContextDriverVulkan::Surface* surface, VkSurfaceFormatKHR &r_surface_format)
+bool DeviceDriverVulkan::_determine_swapchain_format(ContextDriverVulkan::Surface* surface, VkSurfaceFormatKHR &r_surface_format)
 {    
     std::vector<VkSurfaceFormatKHR> surface_formats;
     uint32_t format_count = 0;
@@ -839,7 +841,7 @@ bool RenderingDeviceDriverVulkan::_determine_swapchain_format(RenderingContextDr
     return true;
 }
 
-void RenderingDeviceDriverVulkan::_swapchain_release()
+void DeviceDriverVulkan::_swapchain_release()
 {
     for (Image& img : swapchain.images) {
         if (img.image_view) vkDestroyImageView(device, img.image_view, nullptr);
@@ -860,7 +862,7 @@ void RenderingDeviceDriverVulkan::_swapchain_release()
     swapchain.present_semaphores.clear();
 }
 
-Error RenderingDeviceDriverVulkan::swapchain_create(RenderingContextDriverVulkan::Surface* r_surface)
+Error DeviceDriverVulkan::swapchain_create(ContextDriverVulkan::Surface* r_surface)
 {
     using enum Error;
     BALLISTIC_ERR_FAIL_COND_V(!r_surface, Failed);
@@ -868,13 +870,13 @@ Error RenderingDeviceDriverVulkan::swapchain_create(RenderingContextDriverVulkan
     return Ok;
 }
 
-Error RenderingDeviceDriverVulkan::swapchain_resize(uint32_t p_desired_framebuffer_count)
+Error DeviceDriverVulkan::swapchain_resize(uint32_t p_desired_framebuffer_count)
 {
     using enum Error;
     
     _swapchain_release();
 
-    RenderingContextDriverVulkan::Surface* surface = (RenderingContextDriverVulkan::Surface*)(swapchain.surface);
+    ContextDriverVulkan::Surface* surface = (ContextDriverVulkan::Surface*)(swapchain.surface);
     VkSurfaceCapabilitiesKHR surface_capabilities = {};
     VkResult err = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface->surface, &surface_capabilities);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan surface capabilities.");
@@ -1006,17 +1008,18 @@ Error RenderingDeviceDriverVulkan::swapchain_resize(uint32_t p_desired_framebuff
     return Ok;
 }
 
-void RenderingDeviceDriverVulkan::swapchain_free()
+void DeviceDriverVulkan::swapchain_free()
 {
     _swapchain_release();
 }
 
-Error RenderingDeviceDriverVulkan::swapchain_acquire_next_image(VkSemaphore p_signal_semaphore)
+Error DeviceDriverVulkan::swapchain_acquire_next_image(VkSemaphore p_signal_semaphore)
 {
     using enum Error;
 
     VkResult err = vkAcquireNextImageKHR(device, swapchain.swapchain, UINT64_MAX, p_signal_semaphore, VK_NULL_HANDLE, &swapchain.image_index);
     if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR) {
+        log_write("NEEDS_RESIZE from acquire OUT_OF_DATE or SUBOPTIMAL_KHR");
         swapchain.surface->needs_resize = true;
         return Ok;
     }
@@ -1026,7 +1029,7 @@ Error RenderingDeviceDriverVulkan::swapchain_acquire_next_image(VkSemaphore p_si
     
 }
 
-Error RenderingDeviceDriverVulkan::update_swapchain()
+Error DeviceDriverVulkan::swapchain_update()
 {
     using enum Error;
     if (!swapchain.surface->needs_resize) return Ok;
@@ -1040,7 +1043,7 @@ Error RenderingDeviceDriverVulkan::update_swapchain()
 
 // ----- BINDLESS HEAP -----
 
-Error RenderingDeviceDriverVulkan::bindless_heap_create(uint32_t p_sampled_count, uint32_t p_storage_count, uint32_t p_samplers_count)
+Error DeviceDriverVulkan::bindless_heap_create(uint32_t p_sampled_count, uint32_t p_storage_count, uint32_t p_samplers_count)
 {
     using enum Error;
     
@@ -1127,7 +1130,7 @@ Error RenderingDeviceDriverVulkan::bindless_heap_create(uint32_t p_sampled_count
     return Ok;
 }
 
-void RenderingDeviceDriverVulkan::bindless_heap_free()
+void DeviceDriverVulkan::bindless_heap_free()
 {
     if (bindless_heap.pipeline_layout) {
         vkDestroyPipelineLayout(device, bindless_heap.pipeline_layout, nullptr);
@@ -1144,7 +1147,7 @@ void RenderingDeviceDriverVulkan::bindless_heap_free()
     bindless_heap.set = VK_NULL_HANDLE;
 }
 
-uint32_t RenderingDeviceDriverVulkan::bindless_heap_alloc_sampled(VkImageView p_image_view)
+uint32_t DeviceDriverVulkan::bindless_heap_alloc_sampled(VkImageView p_image_view)
 {
     uint32_t index = bindless_heap.sampled_alloc.acquire();
     if (index == UINT32_MAX) {
@@ -1169,7 +1172,7 @@ uint32_t RenderingDeviceDriverVulkan::bindless_heap_alloc_sampled(VkImageView p_
     return index;
 }
 
-uint32_t RenderingDeviceDriverVulkan::bindless_heap_alloc_storage(VkImageView p_image_view)
+uint32_t DeviceDriverVulkan::bindless_heap_alloc_storage(VkImageView p_image_view)
 {
     uint32_t index = bindless_heap.storage_alloc.acquire();
     if (index == UINT32_MAX) {
@@ -1193,19 +1196,19 @@ uint32_t RenderingDeviceDriverVulkan::bindless_heap_alloc_storage(VkImageView p_
     return index;
 }
 
-void RenderingDeviceDriverVulkan::bindless_heap_free_sampled(uint32_t p_index)
+void DeviceDriverVulkan::bindless_heap_free_sampled(uint32_t p_index)
 {
     if (p_index == UINT32_MAX) return;
     bindless_heap.sampled_alloc.release(p_index);
 }
 
-void RenderingDeviceDriverVulkan::bindless_heap_free_storage(uint32_t p_index)
+void DeviceDriverVulkan::bindless_heap_free_storage(uint32_t p_index)
 {
     if (p_index == UINT32_MAX) return;
     bindless_heap.storage_alloc.release(p_index);
 }
 
-void RenderingDeviceDriverVulkan::bindless_heap_register_sampler(uint32_t p_index, VkSampler p_sampler)
+void DeviceDriverVulkan::bindless_heap_register_sampler(uint32_t p_index, VkSampler p_sampler)
 {
     VkDescriptorImageInfo info{};
     info.sampler = p_sampler;
@@ -1225,7 +1228,7 @@ void RenderingDeviceDriverVulkan::bindless_heap_register_sampler(uint32_t p_inde
 /**** UTILS ****/
 /***************/
 
-void RenderingDeviceDriverVulkan::set_object_name(VkObjectType p_type, uint64_t p_handle, const char* p_name)
+void DeviceDriverVulkan::set_object_name(VkObjectType p_type, uint64_t p_handle, const char* p_name)
 {
     if (!p_name) return;
     auto fn = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(device, "vkSetDebugUtilsObjectNameEXT");

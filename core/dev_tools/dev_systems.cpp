@@ -2,7 +2,7 @@
 
 namespace ballistic {
 
-Error DevSystems::create(Renderer& r_renderer, drivers::RenderingDeviceDriverVulkan& r_device_driver)
+Error DevSystems::create(Renderer& r_renderer, drivers::DeviceDriverVulkan& r_device_driver)
 {
     renderer = &r_renderer;
     device_driver = &r_device_driver;
@@ -13,11 +13,6 @@ Error DevSystems::create(Renderer& r_renderer, drivers::RenderingDeviceDriverVul
 void DevSystems::destroy()
 {
     texture_cache.destroy();
-}
-
-void DevSystems::new_frame(float p_dt)
-{
-    (void)p_dt;
 }
 
 }

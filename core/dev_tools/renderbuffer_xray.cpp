@@ -1,7 +1,7 @@
 #include <core/dev_tools/renderbuffer_xray.h>
 #include <core/rendering/render_graph.h>
 #include <core/dev_tools/imgui_texture_cache.h>
-#include <drivers/vulkan/rendering_device_driver_vulkan.h>
+#include <drivers/vulkan/device_driver_vulkan.h>
 #include <imgui.h>
 
 namespace ballistic {
@@ -24,7 +24,7 @@ void RenderBufferXray::draw(RenderGraph& graph, ImGuiTextureCache& cache)
         
         ImageResource* sel = graph.resource_by_id(selected_name_id);
         VkImageView sel_view = (sel && sel->image) ? sel->image->image_view : VK_NULL_HANDLE;
-        VkDescriptorSet set = cache.get(sel_view);      // one line — cache handles lifetime
+        VkDescriptorSet set = cache.get(sel_view);
 
         ImGui::BeginChild("##xray_image", ImVec2(left_w, avail.y), false, ImGuiWindowFlags_NoScrollbar);
         {

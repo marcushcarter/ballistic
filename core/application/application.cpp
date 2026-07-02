@@ -1,5 +1,5 @@
 #include <core/application/application.h>
-#include <core/rendering/render_path.h>
+#include <core/rendering/render_path/render_path.h>
 #include <core/log/error_macros.h>
 #include <core/version.h>
 #include <windows.h>
@@ -8,35 +8,27 @@
 
 namespace ballistic {
 
-Error Application::create(const ApplicationCreateInfo& p_info)
+Error Application::create(const ApplicationCreateInfo& p_create_info)
 {
     using enum Error;
     Error err;
 
     ballistic::log_write("%s v%s.stable.official - https://ballisticgames.ca", BALLISTIC_VERSION_NAME, BALLISTIC_VERSION_NUMBER);
 
-    create_info = p_info;
-
-    err = window.create(p_info.window_title, p_info.width, p_info.height);
+    err = window_driver.initialize();
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
-    err = context_driver.initialize();
+    window = window_driver.window_create(p_create_info.window_title, p_create_info.width, p_create_info.height);
+    BALLISTIC_ERR_FAIL_COND_V(window.hwnd == nullptr, Failed);
+    window_driver.window_bind(window);
+
+    err = context_driver.full_initialize_windows(window.hwnd);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
-    // can be called for other backends
-    err = context_driver.surface_create(window.hwnd);
+    err = device_driver.initialize(context_driver, context_driver.optimal_device_index, 3);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
-    // can be manually selected
-    err = context_driver.physical_device_select();
-    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
-
-    device_driver.context_driver = &context_driver;
-    err = device_driver.initialize(context_driver.optimal_device_index, 3);
-    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
-
-    renderer.device_driver = &device_driver;
-    err = renderer.create(3);
+    err = renderer.create(device_driver);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     drivers::ImGuiDriverCreateInfo imgui_ci{};
@@ -48,7 +40,7 @@ Error Application::create(const ApplicationCreateInfo& p_info)
     imgui_ci.queue = device_driver.queue_families[context_driver.graphics_queue_family][0].queue;
     imgui_ci.color_format = device_driver.swapchain.format;
     imgui_ci.image_count = 3;
-    imgui_ci.ini_path = p_info.ini_path;
+    imgui_ci.ini_path = p_create_info.ini_path;
     imgui_ci.enable_docking = wants_docking();
     err = imgui.create(imgui_ci);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
@@ -68,7 +60,6 @@ Error Application::create(const ApplicationCreateInfo& p_info)
 void Application::destroy()
 {
     device_driver.device_wait_idle();
-    
     dev_systems.destroy();
     
     if (render_path) {
@@ -81,7 +72,9 @@ void Application::destroy()
     renderer.destroy();
     device_driver.shutdown();
     context_driver.shutdown();
-    window.destroy();
+    
+    window_driver.window_free(window);
+    window_driver.shutdown();
 }
 
 int Application::run()
@@ -94,21 +87,21 @@ int Application::run()
 
     auto lastTime = std::chrono::steady_clock::now();
 
-    while (!window.should_close()) {
+    while (!window_driver.window_should_close(window)) {
         auto now = std::chrono::steady_clock::now();
         double delta = std::chrono::duration<double>(now - lastTime).count();
         lastTime = now;
 
-        window.poll_events();
+        drivers::WindowDriverWin32::poll_events();
+
         context_driver.surface_set_size(window.width, window.height);
 
-        err = device_driver.update_swapchain();
+        err = device_driver.swapchain_update();
         if (err != Ok) {
             continue;
         }
 
         imgui.new_frame();
-        dev_systems.new_frame((float)delta);
         on_update((float)delta);
         imgui.render();
 
@@ -116,7 +109,7 @@ int Application::run()
         render_path->build(renderer.graph);
         renderer.end_frame();
 
-        dev_systems.texture_cache.collect(renderer.frame_number, renderer.frame_count);
+        dev_systems.texture_cache.collect(renderer.frame_number);
     }
 
     on_shutdown();

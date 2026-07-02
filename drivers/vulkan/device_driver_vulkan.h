@@ -1,6 +1,6 @@
 #pragma once
 
-#include <drivers/vulkan/rendering_context_driver_vulkan.h>
+#include <drivers/vulkan/context_driver_vulkan.h>
 
 #include <shaderc/shaderc.hpp>
 #include <vk_mem_alloc.h>
@@ -9,7 +9,7 @@
 
 namespace ballistic::drivers {
 
-struct RenderingDeviceDriverVulkan
+struct DeviceDriverVulkan
 {
     /***************/
     /**** SETUP ****/
@@ -26,7 +26,7 @@ struct RenderingDeviceDriverVulkan
     };
 
     VkDevice device = VK_NULL_HANDLE;
-    RenderingContextDriverVulkan* context_driver = nullptr;
+    ContextDriverVulkan* context_driver = nullptr;
     uint32_t device_index = 0;
     DriverDevice driver_device;
     VkPhysicalDevice physical_device = VK_NULL_HANDLE;
@@ -51,7 +51,7 @@ struct RenderingDeviceDriverVulkan
 
     void _check_subgroup_capabilities();
 
-    Error initialize(uint32_t p_device_index, uint32_t p_frame_count);
+    Error initialize(ContextDriverVulkan& r_context_driver, uint32_t p_device_index, uint32_t p_frame_count);
     void shutdown();
 
     Error device_wait_idle();
@@ -98,7 +98,7 @@ struct RenderingDeviceDriverVulkan
     VkCommandBuffer command_buffer_create(CommandPool& p_cmd_pool);
     Error command_buffer_begin(VkCommandBuffer p_cmd_buffer, VkCommandBufferUsageFlags p_flags = 0);
     Error command_buffer_end(VkCommandBuffer p_cmd_buffer);
-    Error update_swapchain();
+    Error swapchain_update();
     
 	/****************/
 	/**** IMAGES ****/
@@ -110,7 +110,7 @@ struct RenderingDeviceDriverVulkan
         VkAccessFlags2 access = 0;
     };
 
-    struct ImageDesc {
+    struct ImageCreateInfo {
         VkFormat format = VK_FORMAT_UNDEFINED;
         VkImageUsageFlags usage = 0;
         VkImageAspectFlagBits aspect = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -138,8 +138,8 @@ struct RenderingDeviceDriverVulkan
         VkMemoryRequirements mem_req = {};
     };
 
-    Image image_create(const ImageDesc& p_desc, VkExtent3D p_extent);
-    Image image_create_dedicated(const ImageDesc& p_desc, VkExtent3D p_extent);
+    Image image_create(const ImageCreateInfo& p_create_info, VkExtent3D p_extent);
+    Image image_create_dedicated(const ImageCreateInfo& p_create_info, VkExtent3D p_extent);
     Error image_bind(Image& r_image, VmaAllocation p_allocation);
     Error image_create_view(Image& r_image);
     void image_free(Image& r_image);
@@ -148,7 +148,7 @@ struct RenderingDeviceDriverVulkan
     /**** SAMPLER ****/
     /*****************/
 
-    struct SamplerDesc {
+    struct SamplerCreateInfo {
         VkFilter filter = VK_FILTER_LINEAR;
         VkSamplerMipmapMode mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
         VkSamplerAddressMode address_mode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
@@ -160,7 +160,7 @@ struct RenderingDeviceDriverVulkan
         const char* name = nullptr;
     };
 
-    VkSampler sampler_create(const SamplerDesc& p_desc);
+    VkSampler sampler_create(const SamplerCreateInfo& p_create_info);
     void sampler_free(VkSampler& r_sampler);
 
     /*******************/
@@ -169,7 +169,7 @@ struct RenderingDeviceDriverVulkan
 
     struct Swapchain {
         VkSwapchainKHR swapchain = VK_NULL_HANDLE;
-        RenderingContextDriverVulkan::Surface* surface = nullptr;
+        ContextDriverVulkan::Surface* surface = nullptr;
         VkFormat format = VK_FORMAT_UNDEFINED;
         VkColorSpaceKHR color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
         std::vector<Image> images;
@@ -179,10 +179,10 @@ struct RenderingDeviceDriverVulkan
 
     Swapchain swapchain;
 
-    bool _determine_swapchain_format(RenderingContextDriverVulkan::Surface* r_surface, VkSurfaceFormatKHR &r_surface_format);
+    bool _determine_swapchain_format(ContextDriverVulkan::Surface* r_surface, VkSurfaceFormatKHR &r_surface_format);
     void _swapchain_release();
     
-    Error swapchain_create(RenderingContextDriverVulkan::Surface* r_surface);
+    Error swapchain_create(ContextDriverVulkan::Surface* r_surface);
     Error swapchain_resize(uint32_t p_desired_framebuffer_count);
     void swapchain_free();
     Error swapchain_acquire_next_image(VkSemaphore p_signal_semaphore);

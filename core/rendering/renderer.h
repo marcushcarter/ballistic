@@ -1,5 +1,5 @@
 #pragma once
-#include <drivers/vulkan/rendering_device_driver_vulkan.h>
+#include <drivers/vulkan/device_driver_vulkan.h>
 #include <core/rendering/render_graph.h>
 #include <core/log/error.h>
 
@@ -7,7 +7,7 @@ namespace ballistic {
 
 struct Renderer
 {
-    drivers::RenderingDeviceDriverVulkan* device_driver = nullptr;
+    drivers::DeviceDriverVulkan* device_driver = nullptr;
 
     RenderGraph graph;
 
@@ -20,13 +20,13 @@ struct Renderer
 
     std::vector<VkSemaphore> image_available_semaphores;
     std::vector<VkFence> in_flight_fences;
-    std::vector<drivers::RenderingDeviceDriverVulkan::CommandPool> command_pools;
+    std::vector<drivers::DeviceDriverVulkan::CommandPool> command_pools;
     std::vector<VkCommandBuffer> command_buffers;
     VkCommandBuffer cmd = VK_NULL_HANDLE;
 
-    drivers::RenderingDeviceDriverVulkan::Image final_image;
+    drivers::DeviceDriverVulkan::Image final_image;
 
-    Error create(uint32_t p_frame_count);
+    Error create(drivers::DeviceDriverVulkan& r_device_driver);
     void destroy();
 
     Error set_size(uint32_t p_width, uint32_t p_height);

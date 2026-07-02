@@ -7,22 +7,22 @@
 
 namespace ballistic::drivers {
     
-Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_info)
+Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_create_info)
 {
     using enum Error;
 
-    device = p_info.device;
+    device = p_create_info.device;
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    if (p_info.enable_docking) {
+    if (p_create_info.enable_docking) {
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     }
 
-    if (p_info.ini_path) {
-        ini_path_storage = p_info.ini_path;
+    if (p_create_info.ini_path) {
+        ini_path_storage = p_create_info.ini_path;
         io.IniFilename = ini_path_storage.c_str();
     } else {
         io.IniFilename = nullptr;
@@ -46,7 +46,7 @@ Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_info)
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed,
         "Failed to create ImGui descriptor pool.");
 
-    BALLISTIC_ERR_FAIL_COND_V_MSG(!ImGui_ImplWin32_Init(p_info.hwnd), Failed,
+    BALLISTIC_ERR_FAIL_COND_V_MSG(!ImGui_ImplWin32_Init(p_create_info.hwnd), Failed,
         "Failed to initialize ImGui Win32 backend.");
 
     ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
@@ -64,17 +64,17 @@ Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_info)
 
     VkPipelineRenderingCreateInfo pipeline_rendering_info{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
     pipeline_rendering_info.colorAttachmentCount = 1;
-    pipeline_rendering_info.pColorAttachmentFormats = &p_info.color_format;
+    pipeline_rendering_info.pColorAttachmentFormats = &p_create_info.color_format;
     
     ImGui_ImplVulkan_InitInfo init_info{};
-    init_info.Instance = p_info.instance;
-    init_info.PhysicalDevice = p_info.physical_device;
-    init_info.Device = p_info.device;
-    init_info.QueueFamily = p_info.queue_family;
-    init_info.Queue = p_info.queue;
+    init_info.Instance = p_create_info.instance;
+    init_info.PhysicalDevice = p_create_info.physical_device;
+    init_info.Device = p_create_info.device;
+    init_info.QueueFamily = p_create_info.queue_family;
+    init_info.Queue = p_create_info.queue;
     init_info.DescriptorPool = descriptor_pool;
-    init_info.MinImageCount = p_info.image_count;
-    init_info.ImageCount = p_info.image_count;
+    init_info.MinImageCount = p_create_info.image_count;
+    init_info.ImageCount = p_create_info.image_count;
     init_info.UseDynamicRendering = true;
     init_info.PipelineInfoMain.PipelineRenderingCreateInfo = pipeline_rendering_info;
     init_info.CheckVkResultFn = [](VkResult err){

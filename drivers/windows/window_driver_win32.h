@@ -7,20 +7,36 @@ namespace ballistic::drivers {
 
 struct WindowDriverWin32
 {
-    HWND hwnd = nullptr;
-    bool close_requested = false;
-    uint32_t width = 0;
-    uint32_t height = 0;
+    /***************/
+    /**** SETUP ****/
+    /***************/
 
-    Error create(const std::string& p_title, int p_width, int p_height);
-    void destroy();
+    Error initialize();
+    void shutdown();
 
-    void poll_events();
-    bool should_close() const { return close_requested; }
-    void request_close() { close_requested = true; }
+    /****************/
+    /**** WINDOW ****/
+    /****************/
 
-    Error set_icon(HICON p_icon);
-    Error set_titlebar_color(COLORREF p_color);
+    struct Window {
+        HWND hwnd = nullptr;
+        bool close_requested = false;
+        uint32_t width = 0;
+        uint32_t height = 0;
+        bool resize_requested = false;
+    };
+
+    static void poll_events();
+
+    Window window_create(const std::string& p_title, int p_width, int p_height);
+    void window_bind(Window& r_window);
+    void window_free(Window& r_window);
+
+    bool window_should_close(const Window& r_window);
+    void window_request_close(Window& r_window);
+
+    Error window_set_icon(Window& r_window, HICON p_icon);
+    Error window_set_titlebar_color(Window& r_window, COLORREF p_color);
 
     static LRESULT CALLBACK wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_wparam, LPARAM p_lparam);
 };

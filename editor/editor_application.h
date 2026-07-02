@@ -2,7 +2,7 @@
 #pragma once
 #include <core/application/application.h>
 #include <editor/editor.h>
-#include <core/rendering/editor_render_path.h>
+#include <core/rendering/render_path/editor_render_path.h>
 
 namespace ballistic {
 

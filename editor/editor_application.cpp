@@ -18,9 +18,9 @@ Error EditorApplication::on_init()
     err = editor.create(ctx);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
-    err = window.set_icon(EmbeddedResource::load_icon(L"BALLISTIC_ICON"));
+    err = window_driver.window_set_icon(window, EmbeddedResource::load_icon(L"BALLISTIC_ICON"));
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
-    err = window.set_titlebar_color(RGB(20, 20, 25));
+    err = window_driver.window_set_titlebar_color(window, RGB(20, 20, 25));
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     

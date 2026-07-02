@@ -1,7 +1,7 @@
 #pragma once
 #include <drivers/windows/window_driver_win32.h>
-#include <drivers/vulkan/rendering_device_driver_vulkan.h>
-#include <drivers/vulkan/rendering_context_driver_vulkan.h>
+#include <drivers/vulkan/device_driver_vulkan.h>
+#include <drivers/vulkan/context_driver_vulkan.h>
 #include <drivers/imgui/imgui_driver.h>
 #include <core/dev_tools/dev_systems.h>
 #include <core/rendering/renderer.h>
@@ -22,19 +22,18 @@ struct ApplicationCreateInfo
 
 struct Application
 {
-    ApplicationCreateInfo create_info;
+    drivers::WindowDriverWin32 window_driver;
+    drivers::WindowDriverWin32::Window window;
 
-    drivers::WindowDriverWin32 window;
-
-    drivers::RenderingContextDriverVulkan context_driver;
-    drivers::RenderingDeviceDriverVulkan device_driver;
+    drivers::ContextDriverVulkan context_driver;
+    drivers::DeviceDriverVulkan device_driver;
     Renderer renderer;
     RenderPath* render_path = nullptr;
 
     drivers::ImGuiDriver imgui;
     DevSystems dev_systems;
 
-    Error create(const ApplicationCreateInfo& p_info);
+    Error create(const ApplicationCreateInfo& p_create_info);
     void destroy();
     int run();
 

@@ -7,7 +7,7 @@
 namespace ballistic {
 
 struct Renderer;
-namespace drivers { struct RenderingDeviceDriverVulkan; }
+namespace drivers { struct DeviceDriverVulkan; }
 
 struct DevSystems
 {
@@ -17,12 +17,10 @@ struct DevSystems
     DebugConsole debug_console;
 
     Renderer* renderer = nullptr;
-    drivers::RenderingDeviceDriverVulkan* device_driver = nullptr;
+    drivers::DeviceDriverVulkan* device_driver = nullptr;
 
-    Error create(Renderer& r_renderer, drivers::RenderingDeviceDriverVulkan& r_device_driver);
+    Error create(Renderer& r_renderer, drivers::DeviceDriverVulkan& r_device_driver);
     void destroy();
-    
-    void new_frame(float p_dt);
 };
 
 }

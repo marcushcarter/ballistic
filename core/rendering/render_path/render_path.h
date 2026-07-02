@@ -4,11 +4,11 @@
 
 namespace ballistic {
 
-namespace drivers { struct RenderingDeviceDriverVulkan; struct ImGuiDriver; }
+namespace drivers { struct DeviceDriverVulkan; struct ImGuiDriver; }
 
 struct RenderPath
 {
-    drivers::RenderingDeviceDriverVulkan* device_driver = nullptr;
+    drivers::DeviceDriverVulkan* device_driver = nullptr;
     drivers::ImGuiDriver* imgui = nullptr;
 
     virtual Error create_resources();

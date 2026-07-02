@@ -6,7 +6,7 @@
 
 namespace ballistic {
 
-namespace drivers { struct RenderingDeviceDriverVulkan; }
+namespace drivers { struct DeviceDriverVulkan; }
 
 struct ImGuiTextureCache
 {
@@ -20,18 +20,18 @@ struct ImGuiTextureCache
         uint64_t retire_frame = 0;
     };
 
-    drivers::RenderingDeviceDriverVulkan* device_driver = nullptr;
+    drivers::DeviceDriverVulkan* device_driver = nullptr;
     VkSampler sampler = VK_NULL_HANDLE;
 
     std::unordered_map<VkImageView, Entry> entries;
     std::vector<Retired> retired;
 
-    Error create(drivers::RenderingDeviceDriverVulkan& r_device_driver);
+    Error create(drivers::DeviceDriverVulkan& r_device_driver);
     void destroy();
 
     VkDescriptorSet get(VkImageView p_view);
-    void retire(VkImageView p_view, uint64_t frame_number, uint32_t frame_count);
-    void collect(uint64_t frame_number, uint32_t frame_count);
+    void retire(VkImageView p_view, uint64_t p_frame_number, uint32_t p_frame_count);
+    void collect(uint64_t frame_number);
 };
 
 }

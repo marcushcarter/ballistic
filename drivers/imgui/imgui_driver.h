@@ -26,7 +26,7 @@ struct ImGuiDriver
     VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
     std::string ini_path_storage;
 
-    Error create(const ImGuiDriverCreateInfo& p_info);
+    Error create(const ImGuiDriverCreateInfo& p_create_info);
     void destroy();
 
     void new_frame();

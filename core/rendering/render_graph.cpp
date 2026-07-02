@@ -42,7 +42,7 @@ void RenderGraphBuilder::write_image(std::string_view p_name, VkImageLayout p_la
     graph->nodes[node_index].image_accesses.push_back(a);
 }
 
-drivers::RenderingDeviceDriverVulkan::Image* RenderGraph::image(std::string_view p_name)
+drivers::DeviceDriverVulkan::Image* RenderGraph::image(std::string_view p_name)
 {
     auto it = image_resource_map.find(intern(p_name));
     if (it == image_resource_map.end()) return nullptr;
@@ -71,7 +71,7 @@ void RenderGraph::begin()
     final_barriers.clear();
 }
 
-void RenderGraph::import_image(std::string_view p_name, drivers::RenderingDeviceDriverVulkan::Image* p_image, VkImageLayout p_final_layout)
+void RenderGraph::import_image(std::string_view p_name, drivers::DeviceDriverVulkan::Image* p_image, VkImageLayout p_final_layout)
 {
     uint64_t id = intern_named(p_name);
 

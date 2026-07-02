@@ -1,12 +1,13 @@
-#include <drivers/vulkan/rendering_context_driver_vulkan.h>
+#include <drivers/vulkan/context_driver_vulkan.h>
 #include <core/log/error_macros.h>
+#include <core/log/log.h>
 #include <core/version.h>
 #include <windows.h>
 #include <iostream>
 
 namespace ballistic::drivers {
 
-Error RenderingContextDriverVulkan::_initialize_vulkan_version()
+Error ContextDriverVulkan::_initialize_vulkan_version()
 {
     using enum Error;
 
@@ -31,11 +32,11 @@ Error RenderingContextDriverVulkan::_initialize_vulkan_version()
     return Ok;
 }
 
-void RenderingContextDriverVulkan::_register_requested_instance_extension(const std::string& p_extension_name, bool p_required) {
+void ContextDriverVulkan::_register_requested_instance_extension(const std::string& p_extension_name, bool p_required) {
     requested_instance_extensions[p_extension_name] = p_required;
 }
 
-Error RenderingContextDriverVulkan::_initialize_instance_extensions()
+Error ContextDriverVulkan::_initialize_instance_extensions()
 {
     using enum Error;
 
@@ -79,7 +80,7 @@ Error RenderingContextDriverVulkan::_initialize_instance_extensions()
     return Ok;
 }
 
-Error RenderingContextDriverVulkan::_find_validation_layers()
+Error ContextDriverVulkan::_find_validation_layers()
 {
     using enum Error;
 
@@ -113,21 +114,17 @@ Error RenderingContextDriverVulkan::_find_validation_layers()
     return Ok;
 }
 
-VKAPI_ATTR VkBool32 VKAPI_CALL RenderingContextDriverVulkan::_debug_messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT p_message_severity, VkDebugUtilsMessageTypeFlagsEXT p_message_type, const VkDebugUtilsMessengerCallbackDataEXT *p_callback_data, void *p_user_data)
+VKAPI_ATTR VkBool32 VKAPI_CALL ContextDriverVulkan::_debug_messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT p_message_severity, VkDebugUtilsMessageTypeFlagsEXT p_message_type, const VkDebugUtilsMessengerCallbackDataEXT *p_callback_data, void *p_user_data)
 {
     (void)p_message_type;
-
-    auto* self = reinterpret_cast<RenderingContextDriverVulkan*>(p_user_data);
+    auto* self = reinterpret_cast<ContextDriverVulkan*>(p_user_data);
     (void)self;
-
-    const char* level = (p_message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) ? "ERROR"
-        : (p_message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) ? "WARN" : "INFO";
-    std::cerr << "\n[VULKAN][" << level << "] " << p_callback_data->pMessage << "\n";
-    
+    const char* level = (p_message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) ? "ERROR" : (p_message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) ? "WARN" : "INFO";
+    log_write("\n[VULKAN][%s] %s\n", level, p_callback_data->pMessage);
     return VK_FALSE;
 }
 
-Error RenderingContextDriverVulkan::_initialize_instance()
+Error ContextDriverVulkan::_initialize_instance()
 {
     using enum Error;
 
@@ -199,7 +196,7 @@ Error RenderingContextDriverVulkan::_initialize_instance()
     return Ok;
 }
 
-Error RenderingContextDriverVulkan::_initialize_devices()
+Error ContextDriverVulkan::_initialize_devices()
 {
     using enum Error;
 
@@ -237,7 +234,7 @@ Error RenderingContextDriverVulkan::_initialize_devices()
     return Ok;
 }
 
-Error RenderingContextDriverVulkan::initialize()
+Error ContextDriverVulkan::initialize()
 {
     using enum Error;
     Error err;
@@ -257,7 +254,25 @@ Error RenderingContextDriverVulkan::initialize()
     return Ok;
 }
 
-void RenderingContextDriverVulkan::shutdown()
+Error ContextDriverVulkan::full_initialize_windows(HWND p_hwnd)
+{
+    using enum Error;
+
+    Error err = initialize();
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+
+    // can be called for other backends
+    err = surface_create(p_hwnd);
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+
+    // can be manually selected
+    err = physical_device_select();
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+
+    return Ok;
+}
+
+void ContextDriverVulkan::shutdown()
 {
     if (debug_messenger) {
         functions.DestroyDebugUtilsMessengerEXT(instance, debug_messenger, nullptr);
@@ -270,7 +285,7 @@ void RenderingContextDriverVulkan::shutdown()
     }
 }
 
-Error RenderingContextDriverVulkan::surface_create(HWND p_hwnd)
+Error ContextDriverVulkan::surface_create(HWND p_hwnd)
 {
     using enum Error;
 
@@ -287,7 +302,7 @@ Error RenderingContextDriverVulkan::surface_create(HWND p_hwnd)
     return Ok;
 }
 
-void RenderingContextDriverVulkan::surface_set_size(uint32_t p_width, uint32_t p_height)
+void ContextDriverVulkan::surface_set_size(uint32_t p_width, uint32_t p_height)
 {
     if (p_width == 0 || p_height == 0) return;
     if (p_width == surface.width && p_height == surface.height) return;
@@ -297,7 +312,7 @@ void RenderingContextDriverVulkan::surface_set_size(uint32_t p_width, uint32_t p
 	surface.needs_resize = true;
 }
 
-void RenderingContextDriverVulkan::surface_set_vsync(bool p_vsync_enabled)
+void ContextDriverVulkan::surface_set_vsync(bool p_vsync_enabled)
 {
 	surface.vsync_enabled = p_vsync_enabled;
 	surface.needs_resize = true;
@@ -355,7 +370,7 @@ static bool device_has_required_extensions(VkPhysicalDevice p_device, const std:
     return true;
 }
 
-Error RenderingContextDriverVulkan::physical_device_select(int p_override_index)
+Error ContextDriverVulkan::physical_device_select(int p_override_index)
 {
     using enum Error;
 
@@ -432,31 +447,31 @@ Error RenderingContextDriverVulkan::physical_device_select(int p_override_index)
     return Ok;
 }
 
-VkInstance RenderingContextDriverVulkan::instance_get() const {
+VkInstance ContextDriverVulkan::instance_get() const {
     return instance;
 }
 
-const DriverDevice& RenderingContextDriverVulkan::device_get(uint32_t p_device_index) const {
+const DriverDevice& ContextDriverVulkan::device_get(uint32_t p_device_index) const {
     return driver_devices[p_device_index];
 }
 
-uint32_t RenderingContextDriverVulkan::device_get_count() {
+uint32_t ContextDriverVulkan::device_get_count() {
     return static_cast<uint32_t>(driver_devices.size());
 }
 
-VkPhysicalDevice RenderingContextDriverVulkan::physical_device_get(uint32_t p_device_index) const {
+VkPhysicalDevice ContextDriverVulkan::physical_device_get(uint32_t p_device_index) const {
     return physical_devices[p_device_index];
 }
 
-VkQueueFamilyProperties RenderingContextDriverVulkan::queue_family_get(uint32_t p_device_index, uint32_t p_queue_family_index) const {
+VkQueueFamilyProperties ContextDriverVulkan::queue_family_get(uint32_t p_device_index, uint32_t p_queue_family_index) const {
     return device_queue_families[p_device_index].properties[p_queue_family_index];
 }
 
-uint32_t RenderingContextDriverVulkan::queue_family_get_count(uint32_t p_device_index) const {
+uint32_t ContextDriverVulkan::queue_family_get_count(uint32_t p_device_index) const {
     return static_cast<uint32_t>(device_queue_families[p_device_index].properties.size());
 }
 
-const RenderingContextDriverVulkan::Functions& RenderingContextDriverVulkan::functions_get() const {
+const ContextDriverVulkan::Functions& ContextDriverVulkan::functions_get() const {
     return functions;
 }
 

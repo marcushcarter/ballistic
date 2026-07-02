@@ -11,6 +11,8 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, ImGuiIO& io);
 
 namespace ballistic::drivers {
+    
+static const wchar_t* BALLISTIC_WINDOW_CLASS = L"BallisticWindowClass";
 
 static std::wstring utf8_to_wstring(const std::string& str)
 {
@@ -21,39 +23,22 @@ static std::wstring utf8_to_wstring(const std::string& str)
     return result;
 }
 
-Error WindowDriverWin32::create(const std::string& p_title, int p_width, int p_height)
+Error WindowDriverWin32::initialize()
 {
     using enum Error;
-    
+
     WNDCLASSW wc{};
     wc.lpfnWndProc = wnd_proc;
     wc.hInstance = GetModuleHandleW(nullptr);
-    wc.lpszClassName = L"BallisticWindowClass";
+    wc.lpszClassName = BALLISTIC_WINDOW_CLASS;
     RegisterClassW(&wc);
-
-    std::wstring title = utf8_to_wstring(p_title);
-
-    hwnd = CreateWindowExW(
-        0, L"BallisticWindowClass", title.c_str(),
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, p_width, p_height,
-        nullptr, nullptr, wc.hInstance, this
-    );
-
-    BALLISTIC_ERR_FAIL_COND_V(!hwnd, Failed);
-
-    SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
-    ShowWindow(hwnd, SW_SHOW);
 
     return Ok;
 }
 
-void WindowDriverWin32::destroy()
+void WindowDriverWin32::shutdown()
 {
-    if (hwnd) {
-        DestroyWindow(hwnd);
-        hwnd = nullptr;
-    }
+    UnregisterClassW(BALLISTIC_WINDOW_CLASS, GetModuleHandleW(nullptr));
 }
 
 void WindowDriverWin32::poll_events()
@@ -65,23 +50,69 @@ void WindowDriverWin32::poll_events()
     }
 }
 
-Error WindowDriverWin32::set_icon(HICON p_icon)
+WindowDriverWin32::Window WindowDriverWin32::window_create(const std::string& p_title, int p_width, int p_height)
+{
+    Window window;
+    
+    std::wstring title = utf8_to_wstring(p_title);
+
+    window.hwnd = CreateWindowExW(
+        0, BALLISTIC_WINDOW_CLASS, title.c_str(),
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, CW_USEDEFAULT, p_width, p_height,
+        nullptr, nullptr, GetModuleHandleW(nullptr), this
+    );
+
+    BALLISTIC_ERR_FAIL_COND_V_MSG(!window.hwnd, {}, "Couldn't create Win32 window.");
+
+    window.width = static_cast<uint32_t>(p_width);
+    window.height = static_cast<uint32_t>(p_height);
+
+    return window;
+
+}
+
+void WindowDriverWin32::window_bind(Window& r_window)
+{
+    if (!r_window.hwnd) return;
+    SetWindowLongPtrW(r_window.hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&r_window));
+    ShowWindow(r_window.hwnd, SW_SHOW);
+}
+
+void WindowDriverWin32::window_free(Window& r_window)
+{
+    if (r_window.hwnd) {
+        DestroyWindow(r_window.hwnd);
+        r_window.hwnd = nullptr;
+    }
+}
+
+bool WindowDriverWin32::window_should_close(const Window& r_window)
+{
+    return r_window.close_requested;
+}
+
+void WindowDriverWin32::window_request_close(Window& r_window)
+{
+    r_window.close_requested = true;
+}
+
+Error WindowDriverWin32::window_set_icon(Window& r_window, HICON p_icon)
 {
     using enum Error;
-
     BALLISTIC_ERR_FAIL_COND_V(!p_icon, Failed);
-
-    SendMessageW(hwnd, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(p_icon));
-    SendMessageW(hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(p_icon));
-
+    BALLISTIC_ERR_FAIL_COND_V(!r_window.hwnd, Failed);
+    SendMessageW(r_window.hwnd, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(p_icon));
+    SendMessageW(r_window.hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(p_icon));
     return Ok;
 }
 
-Error WindowDriverWin32::set_titlebar_color(COLORREF p_color)
-{    
+Error WindowDriverWin32::window_set_titlebar_color(Window& r_window, COLORREF p_color)
+{
     using enum Error;
-    HRESULT result = DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, &p_color, sizeof(p_color));
-    BALLISTIC_ERR_FAIL_COND_V_MSG(FAILED(result), Failed, "DwmSetWindowAttribute failed — DWMWA_CAPTION_COLOR requires Windows 11 (build 22000+).");
+    BALLISTIC_ERR_FAIL_COND_V(!r_window.hwnd, Failed);
+    HRESULT result = DwmSetWindowAttribute(r_window.hwnd, DWMWA_CAPTION_COLOR, &p_color, sizeof(p_color));
+    BALLISTIC_ERR_FAIL_COND_V_MSG(FAILED(result), Failed, "Failed to set Win32 window titlebar color - DWMWA_CAPTION_COLOR requires Windows 11 (build 22000+).");
     return Ok;
 }
 
@@ -90,19 +121,20 @@ LRESULT CALLBACK WindowDriverWin32::wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_w
     if (ImGui_ImplWin32_WndProcHandler(p_hwnd, p_msg, p_wparam, p_lparam))
         return true;
 
-    auto* self = reinterpret_cast<WindowDriverWin32*>(GetWindowLongPtrW(p_hwnd, GWLP_USERDATA));
+    auto* window = reinterpret_cast<Window*>(GetWindowLongPtrW(p_hwnd, GWLP_USERDATA));
 
     switch (p_msg) {
         case WM_CLOSE:
-            if (self) self->close_requested = true;
+            if (window) window->close_requested = true;
             return 0;
         case WM_DESTROY:
             PostQuitMessage(0);
             return 0;
         case WM_SIZE:
-            if (self) {
-                self->width = LOWORD(p_lparam);
-                self->height = HIWORD(p_lparam);
+            if (window) {
+                window->width = LOWORD(p_lparam);
+                window->height = HIWORD(p_lparam);
+                window->resize_requested = true;
             }
             return 0;
     }

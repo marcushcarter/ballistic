@@ -15,7 +15,7 @@ struct DriverDevice {
     VkPhysicalDeviceType device_type = VK_PHYSICAL_DEVICE_TYPE_OTHER;
 };
 
-struct RenderingContextDriverVulkan
+struct ContextDriverVulkan
 {
     struct Functions {
         // Debug Messenger
@@ -46,6 +46,7 @@ struct RenderingContextDriverVulkan
     Error _initialize_devices();
 
     Error initialize();
+    Error full_initialize_windows(HWND p_hwnd);
     void shutdown();
 
     struct Surface {

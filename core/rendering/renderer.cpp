@@ -4,11 +4,12 @@
 
 namespace ballistic {
 
-Error Renderer::create(uint32_t p_frame_count)
+Error Renderer::create(drivers::DeviceDriverVulkan& r_device_driver)
 {
     using enum Error;
 
-    frame_count = p_frame_count;
+    device_driver = &r_device_driver;
+    frame_count = device_driver->frame_count;
     current_frame = 0;
 
     in_flight_fences.resize(frame_count);
@@ -53,14 +54,14 @@ Error Renderer::set_size(uint32_t p_width, uint32_t p_height)
 
     device_driver->image_free(final_image);
 
-    drivers::RenderingDeviceDriverVulkan::ImageDesc desc{};
-    desc.name = "final_image";
-    desc.format = VK_FORMAT_R8G8B8A8_UNORM;
-    desc.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    desc.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    desc.layers = 1;
+    drivers::DeviceDriverVulkan::ImageCreateInfo image_ci{};
+    image_ci.name = "final_image";
+    image_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
+    image_ci.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    image_ci.layers = 1;
 
-    final_image = device_driver->image_create_dedicated(desc, { width, height, 1 });
+    final_image = device_driver->image_create_dedicated(image_ci, { width, height, 1 });
 
     final_image.state.layout = VK_IMAGE_LAYOUT_UNDEFINED;
     final_image.state.stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;

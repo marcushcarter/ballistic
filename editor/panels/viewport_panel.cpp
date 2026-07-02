@@ -32,8 +32,10 @@ void ViewportPanel::draw(EditorContext& ctx)
             ctx.dev->texture_cache.retire(old_view, ctx.renderer->frame_number, ctx.renderer->frame_count);
         }
 
-        if (true) {
-            ImGui::Image((ImTextureID)ctx.dev->texture_cache.get(ctx.renderer->final_image.image_view), size);
+        VkDescriptorSet set = ctx.dev->texture_cache.get(ctx.renderer->final_image.image_view);
+
+        if (set) {
+            ImGui::Image((ImTextureID)set, size);
         } else {
             ImDrawList* dl = ImGui::GetWindowDrawList();
             dl->AddRectFilled(pos, ImVec2(pos.x + size.x, pos.y + size.y), IM_COL32(25, 25, 25, 255));

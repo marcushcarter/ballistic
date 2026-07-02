@@ -1,5 +1,5 @@
 #pragma once
-#include <drivers/vulkan/rendering_device_driver_vulkan.h>
+#include <drivers/vulkan/device_driver_vulkan.h>
 #include <core/log/error.h>
 #include <functional>
 #include <string>
@@ -18,8 +18,8 @@ struct ImageResource {
     ResourceKind kind = ResourceKind::Imported;
     uint64_t name_id = 0;
 
-    drivers::RenderingDeviceDriverVulkan::Image* image = nullptr;
-    drivers::RenderingDeviceDriverVulkan::ImageDesc image_desc;
+    drivers::DeviceDriverVulkan::Image* image = nullptr;
+    drivers::DeviceDriverVulkan::ImageCreateInfo image_create_info;
 
     VkImageLayout final_layout = VK_IMAGE_LAYOUT_UNDEFINED;
     uint32_t bindless_sampled = UINT32_MAX;
@@ -72,7 +72,7 @@ struct PassNode {
 
 struct RenderGraph
 {
-    drivers::RenderingDeviceDriverVulkan* device_driver = nullptr;
+    drivers::DeviceDriverVulkan* device_driver = nullptr;
 
     std::unordered_map<uint64_t, std::string> debug_names;
 
@@ -84,12 +84,12 @@ struct RenderGraph
     static uint64_t intern(std::string_view p_name);
     uint64_t intern_named(std::string_view p_name);
 
-    drivers::RenderingDeviceDriverVulkan::Image* image(std::string_view p_name);
+    drivers::DeviceDriverVulkan::Image* image(std::string_view p_name);
     ImageResource* resource(std::string_view p_name);
     ImageResource* resource_by_id(uint64_t p_name_id);
 
     void begin();
-    void import_image(std::string_view p_name, drivers::RenderingDeviceDriverVulkan::Image* p_image, VkImageLayout p_final_layout);
+    void import_image(std::string_view p_name, drivers::DeviceDriverVulkan::Image* p_image, VkImageLayout p_final_layout);
 
     void add(GraphPass* p_pass);
     Error compile();
