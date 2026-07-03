@@ -231,9 +231,61 @@ struct DeviceDriverVulkan
     void bindless_heap_free_storage(uint32_t p_index);
     void bindless_heap_register_sampler(uint32_t p_index, VkSampler p_sampler);
 
-	/*******************/
-	/**** RENDERING ****/
-	/*******************/
+	/******************/
+	/**** PIPELINE ****/
+	/******************/
+
+    // ----- CACHE -----
+
+    // ----- PIPELINE -----
+
+    enum class BlendMode : uint8_t {
+        None = 0, Alpha, Additive, PremultipliedAlpha,
+    };
+
+    struct GraphicsPipelineCreateInfo {
+        VkShaderModule vertex_shader = VK_NULL_HANDLE;
+        VkShaderModule fragment_shader = VK_NULL_HANDLE;
+
+        VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+        VkPolygonMode polygon_mode = VK_POLYGON_MODE_FILL;
+        VkCullModeFlags cull_mode = VK_CULL_MODE_BACK_BIT;
+        VkFrontFace front_face = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+
+        bool depth_test = false;
+        bool depth_write = false;
+        VkCompareOp depth_compare = VK_COMPARE_OP_GREATER_OR_EQUAL;
+
+        VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+
+        VkFormat depth_format = VK_FORMAT_UNDEFINED;
+
+        uint32_t  color_attachment_count = 0;
+        VkFormat  color_formats[8] = {};
+        BlendMode blend[8] = {};
+
+        const char* name = nullptr;
+    };
+
+    struct ComputePipelineCreateInfo {
+        VkShaderModule compute_shader = VK_NULL_HANDLE;
+
+        const char* name = nullptr;
+    };
+
+    struct Pipeline {
+        VkPipeline pipeline = VK_NULL_HANDLE;
+        VkPipelineBindPoint bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    };
+
+    Pipeline graphics_pipeline_create(const GraphicsPipelineCreateInfo& p_create_info);
+    Pipeline compute_pipeline_create(const ComputePipelineCreateInfo& p_create_info);
+    void pipeline_destroy(Pipeline& r_pipeline);
+
+	/******************/
+	/**** COMMANDS ****/
+	/******************/
 
     // void command_render_set_viewport(VkCommandBuffer p_cmd_buffer, VectorView<Rect2i> p_viewports);
 	// void command_render_set_scissor(VkCommandBuffer p_cmd_buffer, VectorView<Rect2i> p_scissors);

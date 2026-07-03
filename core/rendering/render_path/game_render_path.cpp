@@ -10,6 +10,10 @@ Error GameRenderPath::create_resources()
 
     Error err = RenderPath::create_resources();
     if (err != Ok) return err;
+
+    // DeviceDriverVulkan::GraphicsPipelineCreateInfo blit_pipe_ci;
+
+    // blit_pipeline = device_driver->graphics_pipeline_create(blit_pipe_ci);
     
     present_pass.name = "present";
     present_pass.setup = [](RenderGraphBuilder& b) {
@@ -45,6 +49,7 @@ Error GameRenderPath::create_resources()
 void GameRenderPath::destroy_resources()
 {
     RenderPath::destroy_resources();
+    // device_driver->pipeline_destroy(blit_pipeline);
 }
 
 void GameRenderPath::build_present(RenderGraph& g) { g.add(&present_pass); }

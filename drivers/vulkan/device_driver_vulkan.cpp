@@ -1224,6 +1224,138 @@ void DeviceDriverVulkan::bindless_heap_register_sampler(uint32_t p_index, VkSamp
     vkUpdateDescriptorSets(device, 1, &w, 0, nullptr);
 }
 
+/******************/
+/**** PIPELINE ****/
+/******************/
+
+// ----- CACHE -----
+
+// ----- PIPELINE -----
+
+DeviceDriverVulkan::Pipeline DeviceDriverVulkan::graphics_pipeline_create(const GraphicsPipelineCreateInfo& p_create_info)
+{
+    using enum Error;
+
+    Pipeline pipeline;
+    pipeline.bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+    VkPipelineShaderStageCreateInfo stages[2]{};
+    uint32_t stage_count = 0;
+    if (p_create_info.vertex_shader) {
+        VkPipelineShaderStageCreateInfo& s = stages[stage_count++];
+        s.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        s.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        s.module = p_create_info.vertex_shader;
+        s.pName = "main";
+    }
+    if (p_create_info.fragment_shader) {
+        VkPipelineShaderStageCreateInfo& s = stages[stage_count++];
+        s.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        s.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        s.module = p_create_info.fragment_shader;
+        s.pName = "main";
+    }
+
+    VkPipelineVertexInputStateCreateInfo vertex_input{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+
+    VkPipelineInputAssemblyStateCreateInfo input_assembly{ VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+    input_assembly.topology = p_create_info.topology;
+
+    VkPipelineViewportStateCreateInfo viewport_state{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+    viewport_state.viewportCount = 1;
+    viewport_state.scissorCount = 1;
+
+    VkPipelineRasterizationStateCreateInfo raster{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+    raster.polygonMode = p_create_info.polygon_mode;
+    raster.cullMode = p_create_info.cull_mode;
+    raster.frontFace = p_create_info.front_face;
+    raster.lineWidth = 1.0f;
+
+    VkPipelineMultisampleStateCreateInfo multisample{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+    multisample.rasterizationSamples = p_create_info.samples;
+
+    VkPipelineDepthStencilStateCreateInfo depth_stencil{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+    depth_stencil.depthTestEnable = p_create_info.depth_test ? VK_TRUE : VK_FALSE;
+    depth_stencil.depthWriteEnable = p_create_info.depth_write ? VK_TRUE : VK_FALSE;
+    depth_stencil.depthCompareOp = p_create_info.depth_compare;
+    depth_stencil.maxDepthBounds = 1.0f;
+
+    VkPipelineColorBlendAttachmentState blend_attachments[8]{};
+    for (uint32_t i = 0; i < p_create_info.color_attachment_count; i++) {
+        // const ColorBlendState& b = p_create_info.blend[i];
+        // VkPipelineColorBlendAttachmentState& a = blend_attachments[i];
+        // a.blendEnable = b.blend_enable ? VK_TRUE : VK_FALSE;
+        // a.srcColorBlendFactor = b.src_color;
+        // a.dstColorBlendFactor = b.dst_color;
+        // a.colorBlendOp = b.color_op;
+        // a.srcAlphaBlendFactor = b.src_alpha;
+        // a.dstAlphaBlendFactor = b.dst_alpha;
+        // a.alphaBlendOp = b.alpha_op;
+        // a.colorWriteMask = b.write_mask;
+    }
+
+    VkPipelineColorBlendStateCreateInfo color_blend{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+    color_blend.attachmentCount = p_create_info.color_attachment_count;
+    color_blend.pAttachments = blend_attachments;
+
+    VkDynamicState dyn[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+    VkPipelineDynamicStateCreateInfo dynamic{ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
+    dynamic.dynamicStateCount = 2;
+    dynamic.pDynamicStates = dyn;
+
+    VkPipelineRenderingCreateInfo rendering{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+    rendering.colorAttachmentCount = p_create_info.color_attachment_count;
+    rendering.pColorAttachmentFormats = p_create_info.color_formats;
+    rendering.depthAttachmentFormat = p_create_info.depth_format;
+    rendering.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
+
+    VkGraphicsPipelineCreateInfo pipeline_ci{ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+    pipeline_ci.pNext = &rendering;
+    pipeline_ci.stageCount = stage_count;
+    pipeline_ci.pStages = stages;
+    pipeline_ci.pVertexInputState = &vertex_input;
+    pipeline_ci.pInputAssemblyState = &input_assembly;
+    pipeline_ci.pViewportState = &viewport_state;
+    pipeline_ci.pRasterizationState = &raster;
+    pipeline_ci.pMultisampleState = &multisample;
+    pipeline_ci.pDepthStencilState = &depth_stencil;
+    pipeline_ci.pColorBlendState = &color_blend;
+    pipeline_ci.pDynamicState = &dynamic;
+    pipeline_ci.layout = bindless_heap.pipeline_layout;
+    pipeline_ci.renderPass = VK_NULL_HANDLE;
+
+    VkResult err = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipeline_ci, nullptr, &pipeline.pipeline);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan graphics pipeline.");
+
+    set_object_name(VK_OBJECT_TYPE_PIPELINE, (uint64_t)pipeline.pipeline, p_create_info.name);
+    return pipeline;
+}
+
+DeviceDriverVulkan::Pipeline DeviceDriverVulkan::compute_pipeline_create(const ComputePipelineCreateInfo& p_create_info)
+{
+    using enum Error;
+
+    Pipeline pipeline;
+    pipeline.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
+
+    (void)p_create_info;
+
+    // VkResult err = vkCreatePipeline(device, &pipeline_ci, nullptr, &pipeline.pipeline);
+    // BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan compute pipeline.");
+
+    // set_object_name(VK_OBJECT_TYPE_PIPELINE, (uint64_t)pipeline.pipeline, p_create_info.name);
+    return pipeline;
+}
+
+void DeviceDriverVulkan::pipeline_destroy(Pipeline& r_pipeline)
+{
+    if (r_pipeline.pipeline) {
+        vkDestroyPipeline(device, r_pipeline.pipeline, nullptr);
+        r_pipeline.pipeline = VK_NULL_HANDLE;
+    }
+
+}
+
 /***************/
 /**** UTILS ****/
 /***************/
