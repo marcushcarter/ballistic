@@ -67,7 +67,8 @@ Error Renderer::set_size(uint32_t p_width, uint32_t p_height)
     // final_image.state.stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
     // final_image.state.access = 0;
 
-    graph.set_size(p_width, p_height);
+    Error err = graph.set_size(p_width, p_height);
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     return Ok;
 }

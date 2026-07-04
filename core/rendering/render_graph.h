@@ -17,10 +17,13 @@ struct RenderGraph
     /***************/
     
     drivers::DeviceDriverVulkan* device_driver = nullptr;
+
+    uint32_t frame_count = 1;
+    uint32_t frame_index = 0;
+    uint32_t width = 0, height = 0;
     
     Error create(drivers::DeviceDriverVulkan& r_device_driver, uint32_t frame_count);
     void destroy();
-    
     Error set_size(uint32_t p_width, uint32_t p_height);
     
     static uint64_t intern(std::string_view p_name);
@@ -33,6 +36,8 @@ struct RenderGraph
     std::unordered_map<uint64_t, std::string> debug_names;
     
     enum class ResourceKind { Imported, Transient };
+
+    void release_transients();
     
     // ----- IMAGE -----
 
@@ -41,7 +46,7 @@ struct RenderGraph
         uint64_t name_id = 0;
 
         drivers::DeviceDriverVulkan::Image* image = nullptr;
-        // drivers::DeviceDriverVulkan::Image transient_storage;
+        drivers::DeviceDriverVulkan::Image transient_storage;
         drivers::DeviceDriverVulkan::ImageCreateInfo image_create_info;
 
         VkImageLayout final_layout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -72,37 +77,47 @@ struct RenderGraph
         VkAccessFlags2 src_access = 0, dst_access = 0;
     };
 
+    struct ImageTransientPool {
+        std::unordered_map<uint64_t, std::vector<drivers::DeviceDriverVulkan::Image>> free;
+    };
+
     std::vector<ImageResource> image_resources;
     std::unordered_map<uint64_t, uint32_t> image_resource_map;
     std::vector<ImageBarrier> final_image_barriers;
+    std::vector<ImageTransientPool> image_transient_pools;
 
     drivers::DeviceDriverVulkan::Image* image(std::string_view p_name);
     ImageResource* image_resource(std::string_view p_name);
     ImageResource* image_resource_by_id(uint64_t p_name_id);
     void import_image(std::string_view p_name, drivers::DeviceDriverVulkan::Image* p_image, VkImageLayout p_final_layout);
+    void create_image(std::string_view p_name, const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info);
+    
+    uint64_t _image_transient_key(const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info, VkExtent3D p_extent);
+    void _image_resolve_extent(const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info, uint32_t& r_width, uint32_t& r_height);
+    void _image_materialize_transient(ImageResource& r);
+    void _image_release_transients();
 
     // ----- BUFFER -----
 
-    // struct BufferResource {
-
-    // };
-
-    // struct BufferAccess {
-
-    // };
-
-    // struct BufferBarrier {
-
-    // };
+    // struct BufferResource {};
+    // struct BufferAccess {};
+    // struct BufferBarrier {};
+    // struct BufferTransientPool {};
     
     // std::vector<BufferResource> buffer_resources;
     // std::unordered_map<uint64_t, uint32_t> buffer_resource_map;
     // std::vector<BufferBarrier> final_buffer_barriers;
+    // std::vector<BufferTransientPool> buffer_transient_pools;
     
     // drivers::DeviceDriverVulkan::Buffer* buffer(std::string_view p_name);
     // BufferResource* buffer_resource(std::string_view p_name);
     // BufferResource* buffer_resource_by_id(uint64_t p_name_id);
     // void import_buffer();
+    
+    // uint64_t _buffer_transient_key(const drivers::DeviceDriverVulkan::BufferCreateInfo& p_create_info, VkExtent3D p_extent);
+    // void _buffer_resolve_extent(const drivers::DeviceDriverVulkan::BufferCreateInfo& p_create_info, uint32_t& r_width, uint32_t& r_height);
+    // void _buffer_materialize_transient(BufferResource& r);
+    // void _buffer_release_transients();
     
     /**************/
     /**** PASS ****/

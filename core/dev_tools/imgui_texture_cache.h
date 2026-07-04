@@ -32,6 +32,8 @@ struct ImGuiTextureCache
     VkDescriptorSet get(VkImageView p_view);
     void retire(VkImageView p_view, uint64_t p_frame_number, uint32_t p_frame_count);
     void collect(uint64_t frame_number);
+
+    void invalidate_all();
 };
 
 }

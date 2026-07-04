@@ -12,22 +12,42 @@ Error RenderGraph::create(drivers::DeviceDriverVulkan& r_device_driver, uint32_t
     using enum Error;
 
     device_driver = &r_device_driver;
-    (void)p_frame_count;
+    frame_count = p_frame_count;
+    frame_index = 0;
+    image_transient_pools.clear();
+    image_transient_pools.resize(frame_count);
+    // buffer_transient_pools.clear();
+    // buffer_transient_pools.resize(frame_count);
 
     return Ok;
 }
 
 void RenderGraph::destroy()
 {
+    device_driver->device_wait_idle();
 
+    for (ImageTransientPool& pool : image_transient_pools) {
+        for (auto& [key, imgs] : pool.free)
+            for (drivers::DeviceDriverVulkan::Image& img : imgs) device_driver->image_free(img);
+        pool.free.clear();
+    }
+    image_transient_pools.clear();
 }
 
 Error RenderGraph::set_size(uint32_t p_width, uint32_t p_height)
 {
     using enum Error;
 
-    (void)p_width;
-    (void)p_height;
+    if (p_width == 0 || p_height == 0) return Ok;
+    if (p_width == width && p_height == height) return Ok;
+    width = p_width;
+    height = p_height;
+
+    for (ImageTransientPool& pool : image_transient_pools) {
+        for (auto& [key, imgs] : pool.free)
+            for (drivers::DeviceDriverVulkan::Image& img : imgs) device_driver->image_free(img);
+        pool.free.clear();
+    }
 
     return Ok;
 }
@@ -52,6 +72,12 @@ uint64_t RenderGraph::intern_named(std::string_view p_name)
 /*******************/
 /**** RESOURCES ****/
 /*******************/
+
+void RenderGraph::release_transients()
+{
+    _image_release_transients();
+    // _buffer_release_transients();
+}
 
 // ----- IMAGE -----
 
@@ -91,11 +117,103 @@ void RenderGraph::import_image(std::string_view p_name, drivers::DeviceDriverVul
     image_resource_map[id] = res_idx;
 }
 
+void RenderGraph::create_image(std::string_view p_name, const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info)
+{
+    uint64_t id = intern_named(p_name);
+    if (image_resource_map.contains(id)) return;
+
+    ImageResource r{};
+    r.kind = ResourceKind::Transient;
+    r.name_id = id;
+    r.image = nullptr;
+    r.image_create_info = p_create_info;
+    r.final_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    uint32_t idx = static_cast<uint32_t>(image_resources.size());
+    image_resources.push_back(r);
+    image_resource_map[id] = idx;    
+}
+
+uint64_t RenderGraph::_image_transient_key(const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info, VkExtent3D p_extent)
+{
+    uint64_t h = 1469598103934665603ull;
+    auto mix = [&](uint64_t v) { h ^= v; h *= 1099511628211ull; };
+    mix(p_create_info.format);
+    mix(p_create_info.usage);
+    mix(p_create_info.aspect);
+    mix(p_create_info.samples);
+    mix(p_create_info.mip_levels);
+    mix(p_create_info.layers);
+    mix(p_extent.width);
+    mix(p_extent.height);
+    mix(p_extent.depth);
+    return h;
+}
+
+void RenderGraph::_image_resolve_extent(const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info, uint32_t& r_width, uint32_t& r_height)
+{
+    using Sizing = drivers::DeviceDriverVulkan::ImageCreateInfo::Sizing;
+    if (p_create_info.sizing == Sizing::Fixed) {
+        r_width = p_create_info.fixed_width;
+        r_height = p_create_info.fixed_height;
+    } else {
+        r_width = std::max(1u, static_cast<uint32_t>(std::lround(width * p_create_info.width_scale)));
+        r_height = std::max(1u, static_cast<uint32_t>(std::lround(height * p_create_info.height_scale)));
+    }
+}
+
+void RenderGraph::_image_materialize_transient(ImageResource& r)
+{
+    if (r.image) return;
+    
+    drivers::DeviceDriverVulkan::ImageCreateInfo image_ci = r.image_create_info;
+    image_ci.name = debug_names[r.name_id].c_str();
+
+    uint32_t w, h;
+    _image_resolve_extent(image_ci, w, h);
+    VkExtent3D extent{ w, h, 1 };
+
+    uint64_t key = _image_transient_key(image_ci, extent);
+    ImageTransientPool& pool = image_transient_pools[frame_index];
+
+    drivers::DeviceDriverVulkan::Image img;
+    auto it = pool.free.find(key);
+    if (it != pool.free.end() && !it->second.empty()) {
+        img = it->second.back();
+        it->second.pop_back();
+    } else {
+        img = device_driver->image_create_dedicated(image_ci, extent);
+    }
+
+    img.state = {};
+
+    r.transient_storage = img;
+    r.image = &r.transient_storage;
+}
+
+void RenderGraph::_image_release_transients()
+{
+    if (image_transient_pools.empty()) return;
+    ImageTransientPool& pool = image_transient_pools[frame_index];
+    for (ImageResource& r : image_resources) {
+        if (r.kind != ResourceKind::Transient) continue;
+        if (!r.image) continue;
+
+        uint64_t key = _image_transient_key(r.image_create_info, r.transient_storage.extent);
+        pool.free[key].push_back(r.transient_storage);
+
+        r.image = nullptr;
+        r.transient_storage = {};
+    }
+}
+
 // ----- BUFFER -----
 
 /**************/
 /**** PASS ****/
 /**************/
+
+// ----- BUILDER -----
 
 void RenderGraph::Builder::read_image(std::string_view p_name, VkImageLayout p_layout, VkPipelineStageFlags2 p_stage, VkAccessFlags2 p_access)
 {
@@ -118,6 +236,10 @@ void RenderGraph::Builder::write_image(std::string_view p_name, VkImageLayout p_
     a.is_write = true;
     graph->nodes[node_index].image_accesses.push_back(a);
 }
+
+void RenderGraph::Builder::create_image(std::string_view p_name, const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info) { graph->create_image(p_name, p_create_info); }
+
+// ----- GRAPH -----
 
 void RenderGraph::begin()
 {
@@ -207,6 +329,7 @@ Error RenderGraph::compile()
         for (ImageAccess& a : node.image_accesses) {
             if (a.resource_index < 0) continue;
             ImageResource& r = image_resources[a.resource_index];
+            if (r.kind == ResourceKind::Transient && !r.image) _image_materialize_transient(r);
             auto& img = *r.image;
 
             if (img.state.layout != a.layout) {
@@ -286,6 +409,8 @@ void RenderGraph::execute(VkCommandBuffer p_cmd)
     }
 
     emit_barriers(p_cmd, final_image_barriers);
+
+    release_transients();
 }
 
 }

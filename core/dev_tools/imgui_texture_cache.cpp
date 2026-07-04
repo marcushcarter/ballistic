@@ -24,11 +24,7 @@ Error ImGuiTextureCache::create(drivers::DeviceDriverVulkan& r_device_driver)
 
 void ImGuiTextureCache::destroy()
 {
-    for (Retired& r : retired) ImGui_ImplVulkan_RemoveTexture(r.set);
-    for (auto& [view, e] : entries) ImGui_ImplVulkan_RemoveTexture(e.set);
-    retired.clear();
-    entries.clear();
-
+    invalidate_all();
     if (sampler && device_driver) device_driver->sampler_free(sampler);
 }
 
@@ -65,6 +61,15 @@ void ImGuiTextureCache::collect(uint64_t p_frame_number)
             ++i;
         }
     }
+}
+
+void ImGuiTextureCache::invalidate_all()
+{
+    // caller must have device_wait_idle'd
+    for (Retired& r : retired) ImGui_ImplVulkan_RemoveTexture(r.set);
+    for (auto& [view, e] : entries) ImGui_ImplVulkan_RemoveTexture(e.set);
+    retired.clear();
+    entries.clear();
 }
 
 }
