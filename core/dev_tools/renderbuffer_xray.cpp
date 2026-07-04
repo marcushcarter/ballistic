@@ -22,7 +22,7 @@ void RenderBufferXray::draw(RenderGraph& graph, ImGuiTextureCache& cache)
         float right_w = avail.x * 0.25f;
         float left_w = avail.x - right_w;
         
-        ImageResource* sel = graph.resource_by_id(selected_name_id);
+        RenderGraph::ImageResource* sel = graph.image_resource_by_id(selected_name_id);
         VkImageView sel_view = (sel && sel->image) ? sel->image->image_view : VK_NULL_HANDLE;
         VkDescriptorSet set = cache.get(sel_view);
 
@@ -73,7 +73,7 @@ void RenderBufferXray::draw(RenderGraph& graph, ImGuiTextureCache& cache)
         ImGui::BeginChild("##xray_list", ImVec2(right_w, avail.y), true);
         {
             bool any = false;
-            for (const ImageResource& r : graph.image_resources) {
+            for (const RenderGraph::ImageResource& r : graph.image_resources) {
                 if (r.name_id == BACKBUFFER_ID) continue;
                 any = true;
                 const std::string& name = graph.debug_names[r.name_id];

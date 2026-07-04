@@ -26,11 +26,15 @@ Error Renderer::create(drivers::DeviceDriverVulkan& r_device_driver)
         command_buffers[i] = device_driver->command_buffer_create(command_pools[i]);
     }
 
+    graph.create(r_device_driver, frame_count);
+
     return Ok;
 }
 
 void Renderer::destroy()
 {
+    graph.destroy();
+
     device_driver->image_free(final_image);
 
     for (uint32_t i = 0; i < frame_count; i++) {
@@ -46,26 +50,24 @@ Error Renderer::set_size(uint32_t p_width, uint32_t p_height)
 
     if (p_width == 0 || p_height == 0) return Ok;
     if (p_width == width && p_height == height) return Ok;
-
     width = p_width;
     height = p_height;
     
     device_driver->device_wait_idle();
 
     device_driver->image_free(final_image);
-
     drivers::DeviceDriverVulkan::ImageCreateInfo image_ci{};
     image_ci.name = "final_image";
     image_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
     image_ci.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     image_ci.layers = 1;
-
     final_image = device_driver->image_create_dedicated(image_ci, { width, height, 1 });
+    // final_image.state.layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    // final_image.state.stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    // final_image.state.access = 0;
 
-    final_image.state.layout = VK_IMAGE_LAYOUT_UNDEFINED;
-    final_image.state.stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    final_image.state.access = 0;
+    graph.set_size(p_width, p_height);
 
     return Ok;
 }

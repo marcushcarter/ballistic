@@ -11,6 +11,8 @@ struct RenderPath
     drivers::DeviceDriverVulkan* device_driver = nullptr;
     drivers::ImGuiDriver* imgui = nullptr;
 
+    RenderGraph::Pass temp_pass;
+
     virtual Error create_resources();
     virtual void destroy_resources();
     void build(RenderGraph& g);
