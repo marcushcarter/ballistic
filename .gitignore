@@ -14,6 +14,11 @@
 !.vscode/launch.json
 !.vscode/tasks.json
 
+.vs/
+*.VC.db
+*.opendb
+*.ipch
+
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles

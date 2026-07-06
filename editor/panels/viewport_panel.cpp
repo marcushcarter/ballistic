@@ -18,22 +18,13 @@ void ViewportPanel::draw(EditorContext& ctx)
         
         ImVec2 size = ImGui::GetContentRegionAvail();
         ImVec2 pos = ImGui::GetCursorScreenPos();
-        if (size.x < 1.0f) size.x = 1.0f;
-        if (size.y < 1.0f) size.y = 1.0f;
-        uint32_t w = (uint32_t)size.x;
-        uint32_t h = (uint32_t)size.y;
 
-        if ((w != last_viewport_w || h != last_viewport_h) && !ImGui::IsAnyItemActive()) {
-            last_viewport_w = w;
-            last_viewport_h = h;
-
-            VkImageView old_view = ctx.renderer->final_image.image_view;
-            ctx.renderer->set_size(w, h);
-            ctx.dev->texture_cache.retire(old_view, ctx.renderer->frame_number, ctx.renderer->frame_count);
+        if (!ImGui::IsAnyItemActive()) {
+            ctx.renderer->set_size((uint32_t)size.x, (uint32_t)size.y);
         }
 
         VkDescriptorSet set = ctx.dev->texture_cache.get(ctx.renderer->final_image.image_view);
-
+        set = VK_NULL_HANDLE;
         if (set) {
             ImGui::Image((ImTextureID)set, size);
         } else {

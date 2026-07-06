@@ -10,6 +10,9 @@ static const uint64_t BACKBUFFER_ID = RenderGraph::intern("backbuffer");
 
 void RenderBufferXray::draw(RenderGraph& graph, ImGuiTextureCache& cache)
 {
+    (void)graph;
+    (void)cache;
+
     if (!open) return;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));

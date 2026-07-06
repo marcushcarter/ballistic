@@ -13,7 +13,7 @@ Error RenderGraph::create(drivers::DeviceDriverVulkan& r_device_driver, uint32_t
 
     device_driver = &r_device_driver;
     frame_count = p_frame_count;
-    frame_index = 0;
+    current_frame = 0;
     image_transient_pools.clear();
     image_transient_pools.resize(frame_count);
     // buffer_transient_pools.clear();
@@ -102,7 +102,7 @@ RenderGraph::ImageResource* RenderGraph::image_resource_by_id(uint64_t p_name_id
     return &image_resources[it->second];
 }
 
-void RenderGraph::import_image(std::string_view p_name, drivers::DeviceDriverVulkan::Image* p_image, VkImageLayout p_final_layout)
+void RenderGraph::import_image(std::string_view p_name, drivers::DeviceDriverVulkan::Image* p_image, VkImageLayout p_final_layout, VkPipelineStageFlags2 p_final_stage, VkAccessFlags2 p_final_access)
 {
     uint64_t id = intern_named(p_name);
 
@@ -111,6 +111,8 @@ void RenderGraph::import_image(std::string_view p_name, drivers::DeviceDriverVul
     r.name_id = id;
     r.image = p_image; 
     r.final_layout = p_final_layout;
+    r.final_stage = p_final_stage;
+    r.final_access = p_final_access;
 
     uint32_t res_idx = static_cast<uint32_t>(image_resources.size());
     image_resources.push_back(r);
@@ -174,7 +176,7 @@ void RenderGraph::_image_materialize_transient(ImageResource& r)
     VkExtent3D extent{ w, h, 1 };
 
     uint64_t key = _image_transient_key(image_ci, extent);
-    ImageTransientPool& pool = image_transient_pools[frame_index];
+    ImageTransientPool& pool = image_transient_pools[current_frame];
 
     drivers::DeviceDriverVulkan::Image img;
     auto it = pool.free.find(key);
@@ -194,7 +196,7 @@ void RenderGraph::_image_materialize_transient(ImageResource& r)
 void RenderGraph::_image_release_transients()
 {
     if (image_transient_pools.empty()) return;
-    ImageTransientPool& pool = image_transient_pools[frame_index];
+    ImageTransientPool& pool = image_transient_pools[current_frame];
     for (ImageResource& r : image_resources) {
         if (r.kind != ResourceKind::Transient) continue;
         if (!r.image) continue;
@@ -241,11 +243,14 @@ void RenderGraph::Builder::create_image(std::string_view p_name, const drivers::
 
 // ----- GRAPH -----
 
-void RenderGraph::begin()
+void RenderGraph::begin(uint32_t p_current_frame)
 {
-    // recycle heap
-
+    current_frame = p_current_frame;
+    
     image_resources.clear();
+    image_resources.reserve(64);
+
+    // image_resources.clear();
     image_resource_map.clear();
     final_image_barriers.clear();
     // buffer_resources.clear();
@@ -332,7 +337,19 @@ Error RenderGraph::compile()
             if (r.kind == ResourceKind::Transient && !r.image) _image_materialize_transient(r);
             auto& img = *r.image;
 
-            if (img.state.layout != a.layout) {
+            constexpr VkAccessFlags2 WRITE_MASK =
+                VK_ACCESS_2_SHADER_WRITE_BIT |
+                VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT |
+                VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT |
+                VK_ACCESS_2_TRANSFER_WRITE_BIT |
+                VK_ACCESS_2_HOST_WRITE_BIT |
+                VK_ACCESS_2_MEMORY_WRITE_BIT;
+
+            const bool layout_change = img.state.layout != a.layout;
+            const bool prev_write = (img.state.access & WRITE_MASK) != 0;
+            const bool curr_write = a.is_write || (a.access & WRITE_MASK) != 0;
+
+            if (layout_change || prev_write || curr_write) {
                 ImageBarrier b{};
                 b.image = img.image;
                 b.aspect = img.aspect;
@@ -362,12 +379,14 @@ Error RenderGraph::compile()
         b.old_layout = img.state.layout;
         b.new_layout = r.final_layout;
         b.src_stage = img.state.stage;
-        b.dst_stage = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
+        b.dst_stage = r.final_stage;
         b.src_access = img.state.access;
-        b.dst_access = 0;
+        b.dst_access = r.final_access;
         final_image_barriers.push_back(b);
 
         img.state.layout = r.final_layout;
+        img.state.stage = r.final_stage;
+        img.state.access = r.final_access;
     }
 
     return Ok;

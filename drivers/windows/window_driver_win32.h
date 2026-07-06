@@ -23,7 +23,6 @@ struct WindowDriverWin32
         bool close_requested = false;
         uint32_t width = 0;
         uint32_t height = 0;
-        bool resize_requested = false;
     };
 
     static void poll_events();

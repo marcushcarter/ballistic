@@ -21,6 +21,9 @@ struct DevSystems
 
     Error create(Renderer& r_renderer, drivers::DeviceDriverVulkan& r_device_driver);
     void destroy();
+
+    void begin_frame();
+    void end_frame();
 };
 
 }

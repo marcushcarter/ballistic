@@ -19,7 +19,7 @@ struct RenderGraph
     drivers::DeviceDriverVulkan* device_driver = nullptr;
 
     uint32_t frame_count = 1;
-    uint32_t frame_index = 0;
+    uint32_t current_frame = 0;
     uint32_t width = 0, height = 0;
     
     Error create(drivers::DeviceDriverVulkan& r_device_driver, uint32_t frame_count);
@@ -50,6 +50,9 @@ struct RenderGraph
         drivers::DeviceDriverVulkan::ImageCreateInfo image_create_info;
 
         VkImageLayout final_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+        VkPipelineStageFlags2 final_stage = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
+        VkAccessFlags2 final_access = 0;
+
         uint32_t bindless_sampled = UINT32_MAX;
         uint32_t bindless_storage = UINT32_MAX;
 
@@ -89,7 +92,7 @@ struct RenderGraph
     drivers::DeviceDriverVulkan::Image* image(std::string_view p_name);
     ImageResource* image_resource(std::string_view p_name);
     ImageResource* image_resource_by_id(uint64_t p_name_id);
-    void import_image(std::string_view p_name, drivers::DeviceDriverVulkan::Image* p_image, VkImageLayout p_final_layout);
+    void import_image(std::string_view p_name, drivers::DeviceDriverVulkan::Image* p_image, VkImageLayout p_final_layout, VkPipelineStageFlags2 p_final_stage, VkAccessFlags2 p_final_access);
     void create_image(std::string_view p_name, const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info);
     
     uint64_t _image_transient_key(const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info, VkExtent3D p_extent);
@@ -155,7 +158,7 @@ struct RenderGraph
 
     std::vector<Node> nodes;
 
-    void begin();
+    void begin(uint32_t p_current_frame);
     void add(Pass* p_pass);
     Error compile();
     void execute(VkCommandBuffer p_cmd);

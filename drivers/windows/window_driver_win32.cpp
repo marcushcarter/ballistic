@@ -134,7 +134,6 @@ LRESULT CALLBACK WindowDriverWin32::wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_w
             if (window) {
                 window->width = LOWORD(p_lparam);
                 window->height = HIWORD(p_lparam);
-                window->resize_requested = true;
             }
             return 0;
     }

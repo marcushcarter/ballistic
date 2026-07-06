@@ -13,6 +13,7 @@ struct Renderer
 
     uint32_t width = 0;
     uint32_t height = 0;
+    uint64_t resize_epoch = 0;
 
     uint32_t frame_count = 1;
     uint32_t current_frame = 0;
@@ -25,6 +26,8 @@ struct Renderer
     VkCommandBuffer cmd = VK_NULL_HANDLE;
 
     drivers::DeviceDriverVulkan::Image final_image;
+    drivers::DeviceDriverVulkan::Image depth_image;
+    drivers::DeviceDriverVulkan::Image image_2;
 
     Error create(drivers::DeviceDriverVulkan& r_device_driver);
     void destroy();

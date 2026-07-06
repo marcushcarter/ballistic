@@ -120,7 +120,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL ContextDriverVulkan::_debug_messenger_callback(Vk
     auto* self = reinterpret_cast<ContextDriverVulkan*>(p_user_data);
     (void)self;
     const char* level = (p_message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) ? "ERROR" : (p_message_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) ? "WARN" : "INFO";
-    log_write("\n[VULKAN][%s] %s\n", level, p_callback_data->pMessage);
+    log_write("\n[VULKAN][%s]\nID: %s\n%s\n", level, p_callback_data->pMessageIdName ? p_callback_data->pMessageIdName : "unknown", p_callback_data->pMessage);
     return VK_FALSE;
 }
 
@@ -176,7 +176,13 @@ Error ContextDriverVulkan::_initialize_instance()
         functions.DebugUtilsMessengerCallbackEXT = _debug_messenger_callback;
 
         VkDebugUtilsMessengerCreateInfoEXT debug_messenger_ci{ VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT };
-        debug_messenger_ci.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+
+        debug_messenger_ci.messageSeverity =
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+
         debug_messenger_ci.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         debug_messenger_ci.pfnUserCallback = functions.DebugUtilsMessengerCallbackEXT;
         debug_messenger_ci.pUserData = this;

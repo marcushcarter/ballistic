@@ -101,6 +101,8 @@ int Application::run()
             continue;
         }
 
+        dev_systems.begin_frame();
+
         imgui.new_frame();
         on_update((float)delta);
         imgui.render();
@@ -109,7 +111,7 @@ int Application::run()
         render_path->build(renderer.graph);
         renderer.end_frame();
 
-        dev_systems.texture_cache.collect(renderer.frame_number);
+        dev_systems.end_frame();
     }
 
     on_shutdown();

@@ -10,10 +10,6 @@ Error GameRenderPath::create_resources()
 
     Error err = RenderPath::create_resources();
     if (err != Ok) return err;
-
-    // DeviceDriverVulkan::GraphicsPipelineCreateInfo blit_pipe_ci;
-
-    // blit_pipeline = device_driver->graphics_pipeline_create(blit_pipe_ci);
     
     present_pass.name = "present";
     present_pass.setup = [](RenderGraph::Builder& b) {
