@@ -29,7 +29,7 @@ if(BALLISTIC_BUILD_GAME)
     ballistic_common_target(ballistic_game)
     target_compile_definitions(ballistic_game PRIVATE BALLISTIC_GAME)
 
-    add_executable(ballistic_game_dev_tools WIN32
+    add_executable(ballistic_game_dev_tools # WIN32
         resources/game_dev_tools.rc
         ${CMAKE_BINARY_DIR}/generated/embedded_assets_shared.rc
         main_game_dev_tools.cpp

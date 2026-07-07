@@ -114,9 +114,30 @@ void RenderGraph::import_image(std::string_view p_name, drivers::DeviceDriverVul
     r.final_stage = p_final_stage;
     r.final_access = p_final_access;
 
+    p_image->state.layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    p_image->state.stage  = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+    p_image->state.access = 0;
+
+    // uint32_t res_idx = static_cast<uint32_t>(image_resources.size());
+    // image_resources.push_back(r);
+    // image_resource_map[id] = res_idx;
+
     uint32_t res_idx = static_cast<uint32_t>(image_resources.size());
     image_resources.push_back(r);
-    image_resource_map[id] = res_idx;
+    auto [it, inserted] = image_resource_map.insert({ id, res_idx });
+
+    
+
+    if (!inserted) {
+        // log_write("IMPORT COLLISION: '%s' id=%llu maps to existing slot %u (kept), new slot %u ignored",
+            // debug_names[id].c_str(), (unsigned long long)id, it->second, res_idx);
+    } else {
+        // log_write("IMPORT '%s' id=%llu -> slot %u img=%p final_layout=%u",
+        //     debug_names[id].c_str(), (unsigned long long)id, res_idx, (void*)p_image, (unsigned)p_final_layout);
+        // log_write("IMPORT '%s' slot %u img=%p final_layout=%u final_stage=%llu final_access=%llu",
+        //     debug_names[id].c_str(), res_idx, (void*)p_image, (unsigned)p_final_layout,
+        //     (unsigned long long)p_final_stage, (unsigned long long)p_final_access);
+    }
 }
 
 void RenderGraph::create_image(std::string_view p_name, const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info)
@@ -411,6 +432,17 @@ static void emit_barriers(VkCommandBuffer p_cmd, const std::vector<RenderGraph::
         mb.image = b.image;
         mb.subresourceRange = { b.aspect, 0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS };
         vk_barriers.push_back(mb);
+
+        if ((b.dst_stage == VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT ||
+             b.dst_stage == VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT) && b.dst_access != 0) {
+            log_write("BARRIER SCOPE BUG img=%p dst_stage=%llu paired with dst_access=%llu",
+                (void*)b.image, (unsigned long long)b.dst_stage, (unsigned long long)b.dst_access);
+        }
+
+        // log_write("BARRIER img=%p aspect=%u %u->%u srcS=%llu srcA=%llu dstS=%llu dstA=%llu",
+        //     (void*)b.image, (unsigned)b.aspect, (unsigned)b.old_layout, (unsigned)b.new_layout,
+        //     (unsigned long long)b.src_stage, (unsigned long long)b.src_access,
+        //     (unsigned long long)b.dst_stage, (unsigned long long)b.dst_access);
     }
 
     VkDependencyInfo dep{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
@@ -427,7 +459,11 @@ void RenderGraph::execute(VkCommandBuffer p_cmd)
         if (node.pass->execute) node.pass->execute(p_cmd, *this);
     }
 
+    // emit_barriers(p_cmd, final_image_barriers);
+
+    // log_write("---- SINK BATCH ----");
     emit_barriers(p_cmd, final_image_barriers);
+    // log_write("---- FRAME END ----");
 
     release_transients();
 }

@@ -112,31 +112,11 @@ Error Renderer::begin_frame()
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     cmd = command_buffers[current_frame];
 
-    auto& bb = sc.images[sc.image_index];
-    bb.state.layout = VK_IMAGE_LAYOUT_UNDEFINED;
-    bb.state.stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-    bb.state.access = 0;
-
-    // VkRenderingAttachmentInfo depth_att{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-    // depth_att.imageView = depth_image.image_view;
-    // depth_att.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-    // depth_att.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    // depth_att.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    // depth_att.clearValue.depthStencil = { 0.0f, 0 };
-
-    // VkRenderingInfo ri{ VK_STRUCTURE_TYPE_RENDERING_INFO };
-    // ri.renderArea = { { 0, 0 }, { depth_image.extent.width, depth_image.extent.height } };
-    // ri.layerCount = 1;
-    // ri.pDepthAttachment = &depth_att;
-
-    // vkCmdBeginRendering(cmd, &ri);
-    // vkCmdEndRendering(cmd);
-
     graph.begin(current_frame);
     graph.import_image("final_image", &final_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
     graph.import_image("imp_depth", &depth_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
-    // graph.import_image("imp_color", &image_2, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
-    graph.import_image("backbuffer", &bb, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, 0);
+    graph.import_image("imp_color", &image_2, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+    graph.import_image("backbuffer", &sc.images[sc.image_index], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, 0);
 
     return Ok;
 }
