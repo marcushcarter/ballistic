@@ -31,6 +31,19 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
     err = renderer.create(device_driver);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
+    drivers::DeviceDriverVulkan::RenderPassCreateInfo imgui_render_pass_ci{};
+    imgui_render_pass_ci.attachments.push_back({
+        .format = device_driver.swapchain.format,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
+        .initial_layout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .final_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        .is_depth = false,
+    });
+    imgui_render_pass_ci.name = "imgui_present_render_pass";
+    VkRenderPass present_rp = device_driver.render_pass_create(imgui_render_pass_ci);
+
     drivers::ImGuiDriverCreateInfo imgui_ci{};
     imgui_ci.hwnd = window.hwnd;
     imgui_ci.instance = context_driver.instance;
@@ -38,8 +51,9 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
     imgui_ci.device = device_driver.device;
     imgui_ci.queue_family = context_driver.graphics_queue_family;
     imgui_ci.queue = device_driver.queue_families[context_driver.graphics_queue_family][0].queue;
-    imgui_ci.color_format = device_driver.swapchain.format;
-    imgui_ci.image_count = 3;
+    imgui_ci.image_count = renderer.frame_count;
+    imgui_ci.render_pass = present_rp;
+    imgui_ci.subpass = 0;
     imgui_ci.ini_path = p_create_info.ini_path;
     imgui_ci.enable_docking = wants_docking();
     err = imgui.create(imgui_ci);

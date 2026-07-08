@@ -61,10 +61,6 @@ Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_create_info)
             reinterpret_cast<VkSurfaceKHR*>(out_vk_surface)
         );
     };
-
-    VkPipelineRenderingCreateInfo pipeline_rendering_info{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
-    pipeline_rendering_info.colorAttachmentCount = 1;
-    pipeline_rendering_info.pColorAttachmentFormats = &p_create_info.color_format;
     
     ImGui_ImplVulkan_InitInfo init_info{};
     init_info.Instance = p_create_info.instance;
@@ -75,8 +71,8 @@ Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_create_info)
     init_info.DescriptorPool = descriptor_pool;
     init_info.MinImageCount = p_create_info.image_count;
     init_info.ImageCount = p_create_info.image_count;
-    init_info.UseDynamicRendering = true;
-    init_info.PipelineInfoMain.PipelineRenderingCreateInfo = pipeline_rendering_info;
+    init_info.PipelineInfoMain.RenderPass = p_create_info.render_pass;
+    init_info.PipelineInfoMain.Subpass = p_create_info.subpass;
     init_info.CheckVkResultFn = [](VkResult err){
         if(err) fprintf(stderr, "[Ballistic] Vulkan error in ImGui backend: %d\n", err);
     };

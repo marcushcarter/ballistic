@@ -136,18 +136,17 @@ struct RenderGraph
         RenderGraph* graph = nullptr;
         uint32_t node_index = 0;
 
+        void create_image(std::string_view p_name, const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info);
         void read_image(std::string_view p_name, VkImageLayout p_layout, VkPipelineStageFlags2 p_stage, VkAccessFlags2 p_access);
+        void read_all_images(VkPipelineStageFlags2 p_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT);
         void write_image(std::string_view p_name, VkImageLayout p_layout, VkPipelineStageFlags2 p_stage, VkAccessFlags2 p_access);
-        
         void color_attachment(std::string_view p_name, VkAttachmentLoadOp p_load, VkClearValue p_clear);
         void depth_attachment(std::string_view p_name, VkAttachmentLoadOp p_load, VkClearValue p_clear);
-        
-        void create_image(std::string_view p_name, const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info);
 
+        // void create_buffer();
         // void read_buffer();
         // void write_buffer();
-        // void read_write_buffer();
-        // void create_buffer();
+        // void 
     };
     
     struct Pass {
@@ -165,7 +164,7 @@ struct RenderGraph
         bool culled = false;
 
         bool has_render_pass = false;
-        VkRenderPass  render_pass = VK_NULL_HANDLE;
+        VkRenderPass render_pass = VK_NULL_HANDLE;
         VkFramebuffer framebuffer = VK_NULL_HANDLE;
         VkExtent2D area{};
         std::vector<VkClearValue> clear_values;

@@ -245,6 +245,7 @@ Error DeviceDriverVulkan::_initialize_device(const std::vector<VkDeviceQueueCrea
     features_1_2.descriptorBindingVariableDescriptorCount = VK_TRUE;
     features_1_2.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
     features_1_2.shaderStorageImageArrayNonUniformIndexing = VK_TRUE;
+    features_1_2.separateDepthStencilLayouts = VK_TRUE;
     features_1_2.pNext = create_info_next;
     create_info_next = &features_1_2;
 
@@ -485,8 +486,8 @@ Error DeviceDriverVulkan::initialize(ContextDriverVulkan& r_context_driver, uint
     err = swapchain_create(&context_driver->surface);
 	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
-    // err = swapchain_resize(frame_count);
-	// BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+    err = swapchain_resize(frame_count);
+	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     err = bindless_heap_create(16384, 4096, 256);
 	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
@@ -1034,9 +1035,7 @@ Error DeviceDriverVulkan::swapchain_update()
     using enum Error;
     if (!swapchain.surface->needs_resize) return Ok;
     device_wait_idle();
-    Error err = swapchain_resize(frame_count);
-    // log_write("SWAPCHAIN RESIZE: extent=%ux%u image_count=%u", swapchain.surface->width, swapchain.surface->height, swapchain.images.size());
-    return err;
+    return swapchain_resize(frame_count);
 }
 
 /*********************/

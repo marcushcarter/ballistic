@@ -13,15 +13,19 @@ Error EditorRenderPath::create_resources()
     
     present_pass.name = "present";
     present_pass.setup = [](RenderGraph::Builder& b) {
-        b.write_image("backbuffer", VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
-        b.read_image("final_image", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+        b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.2f, 0.8f, 1.0f } });
+        b.read_all_images();
     };
 
     drivers::ImGuiDriver* ui = imgui;
     present_pass.execute = [ui](VkCommandBuffer cmd, RenderGraph& g) {
-        (void)ui;
-        (void)cmd;
-        (void)g;
+        auto* bb = g.image("backbuffer");
+        VkViewport vp{ 0, 0, (float)bb->extent.width, (float)bb->extent.height, 0.0f, 1.0f };
+        VkRect2D sc{ {0,0}, { bb->extent.width, bb->extent.height } };
+        vkCmdSetViewport(cmd, 0, 1, &vp);
+        vkCmdSetScissor(cmd, 0, 1, &sc);
+
+        ui->record_commands(cmd);
     };
 
     return Ok; 

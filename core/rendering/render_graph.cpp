@@ -6,7 +6,7 @@ namespace ballistic {
 /***************/
 /**** SETUP ****/
 /***************/
-    
+
 Error RenderGraph::create(drivers::DeviceDriverVulkan& r_device_driver, uint32_t p_frame_count)
 {
     using enum Error;
@@ -26,6 +26,11 @@ void RenderGraph::destroy()
 {
     device_driver->device_wait_idle();
 
+    for (auto& [k, fb] : framebuffer_cache) device_driver->framebuffer_free(fb);
+    framebuffer_cache.clear();
+    for (auto& [k, rp] : render_pass_cache) device_driver->render_pass_free(rp);
+    render_pass_cache.clear();
+
     for (ImageTransientPool& pool : image_transient_pools) {
         for (auto& [key, imgs] : pool.free)
             for (drivers::DeviceDriverVulkan::Image& img : imgs) device_driver->image_free(img);
@@ -42,6 +47,9 @@ Error RenderGraph::set_size(uint32_t p_width, uint32_t p_height)
     if (p_width == width && p_height == height) return Ok;
     width = p_width;
     height = p_height;
+
+    for (auto& [k, fb] : framebuffer_cache) device_driver->framebuffer_free(fb);
+    framebuffer_cache.clear();
 
     for (ImageTransientPool& pool : image_transient_pools) {
         for (auto& [key, imgs] : pool.free)
@@ -219,6 +227,50 @@ void RenderGraph::_image_release_transients()
 /**** PASS ****/
 /**************/
 
+void RenderGraph::Builder::create_image(std::string_view p_name, const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info) { graph->create_image(p_name, p_create_info); }
+
+void RenderGraph::Builder::read_image(std::string_view p_name, VkImageLayout p_layout, VkPipelineStageFlags2 p_stage, VkAccessFlags2 p_access)
+{
+    ImageAccess a;
+    a.name_id = graph->intern_named(p_name);
+    a.layout = p_layout;
+    a.stage = p_stage;
+    a.access = p_access;
+    a.is_write = false;
+    graph->nodes[node_index].image_accesses.push_back(a);
+}
+
+void RenderGraph::Builder::read_all_images(VkPipelineStageFlags2 p_stage)
+{
+    Node& node = graph->nodes[node_index];
+    for (RenderGraph::ImageResource& r : graph->image_resources) {
+        if (r.final_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) continue;
+
+        bool already = false;
+        for (ImageAccess& existing : node.image_accesses) if (existing.name_id == r.name_id) { already = true; break; }
+        if (already) continue;
+
+        ImageAccess a;
+        a.name_id  = r.name_id;
+        a.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        a.stage = p_stage;
+        a.access = VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;
+        a.is_write = false;
+        node.image_accesses.push_back(a);
+    }
+}
+
+void RenderGraph::Builder::write_image(std::string_view p_name, VkImageLayout p_layout, VkPipelineStageFlags2 p_stage, VkAccessFlags2 p_access)
+{
+    ImageAccess a;
+    a.name_id = graph->intern_named(p_name);
+    a.layout = p_layout;
+    a.stage = p_stage;
+    a.access = p_access;
+    a.is_write = true;
+    graph->nodes[node_index].image_accesses.push_back(a);
+}
+
 void RenderGraph::Builder::color_attachment(std::string_view p_name, VkAttachmentLoadOp p_load, VkClearValue p_clear)
 {
     ImageAccess a;
@@ -248,44 +300,68 @@ void RenderGraph::Builder::depth_attachment(std::string_view p_name, VkAttachmen
     graph->nodes[node_index].image_accesses.push_back(a);
 }
 
-void RenderGraph::Builder::read_image(std::string_view p_name, VkImageLayout p_layout, VkPipelineStageFlags2 p_stage, VkAccessFlags2 p_access)
-{
-    ImageAccess a;
-    a.name_id = graph->intern_named(p_name);
-    a.layout = p_layout;
-    a.stage = p_stage;
-    a.access = p_access;
-    a.is_write = false;
-    graph->nodes[node_index].image_accesses.push_back(a);
-}
-
-void RenderGraph::Builder::write_image(std::string_view p_name, VkImageLayout p_layout, VkPipelineStageFlags2 p_stage, VkAccessFlags2 p_access)
-{
-    ImageAccess a;
-    a.name_id = graph->intern_named(p_name);
-    a.layout = p_layout;
-    a.stage = p_stage;
-    a.access = p_access;
-    a.is_write = true;
-    graph->nodes[node_index].image_accesses.push_back(a);
-}
-
-void RenderGraph::Builder::create_image(std::string_view p_name, const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info) { graph->create_image(p_name, p_create_info); }
-
 /***************/
 /**** CACHE ****/
 /***************/
 
 VkRenderPass RenderGraph::_get_or_create_render_pass(Node& node)
 {
-    (void)node;
-    return VK_NULL_HANDLE;
+    drivers::DeviceDriverVulkan::RenderPassCreateInfo ci{};
+    ci.attachments.reserve(node.attachment_access_idx.size());
+
+    uint64_t key = 1469598103934665603ull;
+    auto mix = [&](uint64_t v){ key ^= v; key *= 1099511628211ull; };
+
+    for (int ai : node.attachment_access_idx) {
+        ImageAccess& a = node.image_accesses[ai];
+        auto& img = *image_resources[a.resource_index].image;
+
+        drivers::DeviceDriverVulkan::RenderPassCreateInfo::Attachment att{};
+        att.format = img.format;
+        att.samples = VK_SAMPLE_COUNT_1_BIT;
+        att.load_op = a.load_op;
+        att.store_op = a.store_op;
+        att.initial_layout = (a.load_op == VK_ATTACHMENT_LOAD_OP_LOAD) ? img.state.layout : VK_IMAGE_LAYOUT_UNDEFINED;
+        att.final_layout = a.layout;
+        att.is_depth = a.is_depth;
+        ci.attachments.push_back(att);
+
+        mix((uint64_t)att.format);
+        mix((uint64_t)att.load_op);
+        mix((uint64_t)att.store_op);
+        mix((uint64_t)att.initial_layout);
+        mix((uint64_t)att.final_layout);
+        mix((uint64_t)att.is_depth);
+    }
+
+    if (auto it = render_pass_cache.find(key); it != render_pass_cache.end()) return it->second;
+
+    ci.name = "graph_render_pass";
+    VkRenderPass rp = device_driver->render_pass_create(ci);
+    render_pass_cache[key] = rp;
+    return rp;
 }
 
 VkFramebuffer RenderGraph::_get_or_create_framebuffer(Node& node)
 {
-    (void)node;
-    return VK_NULL_HANDLE;
+    std::vector<VkImageView> views;
+    views.reserve(node.attachment_access_idx.size());
+
+    uint64_t key = 1469598103934665603ull;
+    auto mix = [&](uint64_t v) { key ^= v; key *= 1099511628211ull; };
+    mix((uint64_t)(uintptr_t)node.render_pass);
+
+    for (int ai : node.attachment_access_idx) {
+        auto& img = *image_resources[node.image_accesses[ai].resource_index].image;
+        views.push_back(img.image_view);
+        mix((uint64_t)(uintptr_t)img.image_view);
+    }
+
+    if (auto it = framebuffer_cache.find(key); it != framebuffer_cache.end()) return it->second;
+
+    VkFramebuffer fb = device_driver->framebuffer_create(node.render_pass, views, node.area);
+    framebuffer_cache[key] = fb;
+    return fb;
 }
 
 /***************/
@@ -380,11 +456,20 @@ Error RenderGraph::compile()
 
     for (Node& node : nodes) {
         if (node.culled) continue;
-        for (ImageAccess& a : node.image_accesses) {
+        node.attachment_access_idx.clear();
+
+        for (int i = 0; i < (int)node.image_accesses.size(); ++i) {
+            ImageAccess& a = node.image_accesses[i];
             if (a.resource_index < 0) continue;
             ImageResource& r = image_resources[a.resource_index];
             if (r.kind == ResourceKind::Transient && !r.image) _image_materialize_transient(r);
             auto& img = *r.image;
+
+            if (a.is_attachment) {
+                node.attachment_access_idx.push_back(i);
+                if (node.area.width == 0) node.area = { img.extent.width, img.extent.height };
+                continue;
+            }
 
             constexpr VkAccessFlags2 WRITE_MASK =
                 VK_ACCESS_2_SHADER_WRITE_BIT |
@@ -414,7 +499,24 @@ Error RenderGraph::compile()
             img.state.stage = a.stage;
             img.state.access = a.access;
         }
-        
+
+        if (!node.attachment_access_idx.empty()) {
+            node.has_render_pass = true;
+            node.render_pass = _get_or_create_render_pass(node);
+            node.framebuffer = _get_or_create_framebuffer(node);
+
+            node.clear_values.clear();
+            node.clear_values.reserve(node.attachment_access_idx.size());
+            for (int ai : node.attachment_access_idx) node.clear_values.push_back(node.image_accesses[ai].clear);
+
+            for (int ai : node.attachment_access_idx) {
+                ImageAccess& a = node.image_accesses[ai];
+                auto& img = *image_resources[a.resource_index].image;
+                img.state.layout = a.layout;
+                img.state.stage  = a.stage;
+                img.state.access = a.access;
+            }
+        }
     }
 
     for (ImageResource& r : image_resources) {
@@ -473,11 +575,22 @@ void RenderGraph::execute(VkCommandBuffer p_cmd)
     for (Node& node : nodes) {
         if (node.culled) continue;
         emit_barriers(p_cmd, node.pre_image_barriers);
+
+        if (node.has_render_pass) {
+            VkRenderPassBeginInfo bi{ VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+            bi.renderPass      = node.render_pass;
+            bi.framebuffer     = node.framebuffer;
+            bi.renderArea      = { {0,0}, node.area };
+            bi.clearValueCount = (uint32_t)node.clear_values.size();
+            bi.pClearValues    = node.clear_values.data();
+            vkCmdBeginRenderPass(p_cmd, &bi, VK_SUBPASS_CONTENTS_INLINE);
+        }
+
         if (node.pass->execute) node.pass->execute(p_cmd, *this);
+        if (node.has_render_pass) vkCmdEndRenderPass(p_cmd);
     }
 
     emit_barriers(p_cmd, final_image_barriers);
-
     release_transients();
 }
 

@@ -9,14 +9,12 @@ Error RenderPath::create_resources()
     
     temp_pass.name = "temp";
     temp_pass.setup = [](RenderGraph::Builder& b) {
-        b.write_image("final_image", VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
-        // b.write_image("imp_depth", VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT, VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
-        // b.write_image("imp_color", VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+        b.color_attachment("final_image", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.0f, 0.0f, 1.0f, 1.0f } });
+        b.color_attachment("imp_color", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.0f, 1.0f, 0.0f, 1.0f } });
+        b.depth_attachment("imp_depth", VK_ATTACHMENT_LOAD_OP_CLEAR, [] { VkClearValue v{}; v.depthStencil = { 1.0f, 0 }; return v; }());
     };
 
-    drivers::ImGuiDriver* ui = imgui;
-    temp_pass.execute = [ui](VkCommandBuffer cmd, RenderGraph& g) {
-        (void)ui;
+    temp_pass.execute = [](VkCommandBuffer cmd, RenderGraph& g) {
         (void)cmd;
         (void)g;
     };

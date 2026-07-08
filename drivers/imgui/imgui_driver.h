@@ -14,8 +14,9 @@ struct ImGuiDriverCreateInfo
     VkDevice device = VK_NULL_HANDLE;
     uint32_t queue_family = 0;
     VkQueue queue = VK_NULL_HANDLE;
-    VkFormat color_format = VK_FORMAT_B8G8R8A8_UNORM;
     uint32_t image_count = 2;
+    VkRenderPass render_pass = VK_NULL_HANDLE;
+    uint32_t subpass = 0;
     const char* ini_path = nullptr;
     bool enable_docking = false;
 };

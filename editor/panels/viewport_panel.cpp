@@ -24,7 +24,6 @@ void ViewportPanel::draw(EditorContext& ctx)
         }
 
         VkDescriptorSet set = ctx.dev->texture_cache.get(ctx.renderer->final_image.image_view);
-        set = VK_NULL_HANDLE;
         if (set) {
             ImGui::Image((ImTextureID)set, size);
         } else {
