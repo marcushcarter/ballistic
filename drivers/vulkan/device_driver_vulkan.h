@@ -231,6 +231,35 @@ struct DeviceDriverVulkan
     void bindless_heap_free_storage(uint32_t p_index);
     void bindless_heap_register_sampler(uint32_t p_index, VkSampler p_sampler);
 
+	/*********************/
+	/**** RENDER PASS ****/
+	/*********************/
+
+    struct RenderPassCreateInfo {
+        struct Attachment {
+            VkFormat format = VK_FORMAT_UNDEFINED;
+            VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+            VkAttachmentLoadOp load_op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            VkAttachmentStoreOp store_op = VK_ATTACHMENT_STORE_OP_STORE;
+            VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+            VkImageLayout final_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+            bool is_depth = false;
+        };
+        std::vector<Attachment> attachments;
+        const VkSubpassDependency* dependency = nullptr;
+        const char* name = nullptr;
+    };
+
+    VkRenderPass render_pass_create(const RenderPassCreateInfo& p_create_info);
+    void render_pass_free(VkRenderPass& r_render_pass);
+
+	/*********************/
+	/**** FRAMEBUFFER ****/
+	/*********************/
+
+    VkFramebuffer framebuffer_create(VkRenderPass p_render_pass, std::vector<VkImageView>& p_image_views, VkExtent2D extent);
+    void framebuffer_free(VkFramebuffer& r_framebuffer);
+
 	/******************/
 	/**** PIPELINE ****/
 	/******************/

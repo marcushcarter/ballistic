@@ -1226,6 +1226,111 @@ void DeviceDriverVulkan::bindless_heap_register_sampler(uint32_t p_index, VkSamp
     vkUpdateDescriptorSets(device, 1, &w, 0, nullptr);
 }
 
+/*********************/
+/**** RENDER PASS ****/
+/*********************/
+
+VkRenderPass DeviceDriverVulkan::render_pass_create(const RenderPassCreateInfo& p_create_info)
+{
+    using enum Error;
+
+    std::vector<VkAttachmentDescription> descs(p_create_info.attachments.size());
+    std::vector<VkAttachmentReference> color_refs;
+    VkAttachmentReference depth_ref{};
+    bool has_depth = false;
+
+    for (uint32_t i = 0; i < p_create_info.attachments.size(); i++) {
+        const RenderPassCreateInfo::Attachment& a = p_create_info.attachments[i];
+        VkAttachmentDescription& d = descs[i];
+        d.format = a.format;
+        d.samples = a.samples;
+        d.loadOp = a.load_op;
+        d.storeOp = a.store_op;
+        d.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        d.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        d.initialLayout = a.initial_layout;
+        d.finalLayout = a.final_layout;
+
+        if (a.is_depth) {
+            depth_ref = { i, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL };
+            has_depth = true;
+        } else {
+            color_refs.push_back({ i, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
+        }
+    }
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = (uint32_t)color_refs.size();
+    subpass.pColorAttachments = color_refs.data();
+    if (has_depth) subpass.pDepthStencilAttachment = &depth_ref;
+
+    VkSubpassDependency default_dep{};
+    default_dep.srcSubpass = VK_SUBPASS_EXTERNAL;
+    default_dep.dstSubpass = 0;
+    default_dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
+    default_dep.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    default_dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    default_dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+    const VkSubpassDependency* dep = p_create_info.dependency ? p_create_info.dependency : &default_dep;
+
+    VkRenderPassCreateInfo render_pass_ci{ VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+    render_pass_ci.attachmentCount = (uint32_t)descs.size();
+    render_pass_ci.pAttachments = descs.data();
+    render_pass_ci.subpassCount = 1;
+    render_pass_ci.pSubpasses = &subpass;
+    render_pass_ci.dependencyCount = 1;
+    render_pass_ci.pDependencies = dep;
+
+    VkRenderPass render_pass;
+    VkResult err = vkCreateRenderPass(device, &render_pass_ci, nullptr, &render_pass);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan render pass.");
+
+    set_object_name(VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)render_pass, p_create_info.name);
+    return render_pass;
+}
+
+void DeviceDriverVulkan::render_pass_free(VkRenderPass& r_render_pass)
+{
+    if (r_render_pass) {
+        vkDestroyRenderPass(device, r_render_pass, nullptr);
+        r_render_pass = VK_NULL_HANDLE;
+    }
+}
+
+/*********************/
+/**** FRAMEBUFFER ****/
+/*********************/
+
+VkFramebuffer DeviceDriverVulkan::framebuffer_create(VkRenderPass p_render_pass, std::vector<VkImageView>& p_image_views, VkExtent2D p_extent)
+{
+    using enum Error;
+
+    VkFramebufferCreateInfo framebuffer_ci{ VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+    framebuffer_ci.renderPass = p_render_pass;
+    framebuffer_ci.attachmentCount = (uint32_t)p_image_views.size();
+    framebuffer_ci.pAttachments = p_image_views.data();
+    framebuffer_ci.width = p_extent.width;
+    framebuffer_ci.height = p_extent.height;
+    framebuffer_ci.layers = 1;
+
+    VkFramebuffer framebuffer;
+    VkResult err = vkCreateFramebuffer(device, &framebuffer_ci, nullptr, &framebuffer);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan framebuffer.");
+
+    // set_object_name(VK_OBJECT_TYPE_FRAMEBUFFER, (uint64_t)framebuffer, p_create_info.name);
+    return framebuffer;
+}
+
+void DeviceDriverVulkan::framebuffer_free(VkFramebuffer& r_framebuffer)
+{
+    if (r_framebuffer) {
+        vkDestroyFramebuffer(device, r_framebuffer, nullptr);
+        r_framebuffer = VK_NULL_HANDLE;
+    }
+}
+
 /******************/
 /**** PIPELINE ****/
 /******************/
