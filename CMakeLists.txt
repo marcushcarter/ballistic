@@ -53,5 +53,3 @@ ballistic_generate_asset_rc(
 )
 
 add_subdirectory(app/windows)
-
-add_subdirectory(test)

@@ -70,6 +70,12 @@ struct RenderGraph
         VkAccessFlags2 access = 0;
         bool is_write = false;
         int resource_index = -1;
+
+        bool is_attachment = false;
+        bool is_depth = false;
+        VkAttachmentLoadOp load_op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        VkAttachmentStoreOp store_op = VK_ATTACHMENT_STORE_OP_STORE;
+        VkClearValue clear{};
     };
 
     struct ImageBarrier {
@@ -132,7 +138,10 @@ struct RenderGraph
 
         void read_image(std::string_view p_name, VkImageLayout p_layout, VkPipelineStageFlags2 p_stage, VkAccessFlags2 p_access);
         void write_image(std::string_view p_name, VkImageLayout p_layout, VkPipelineStageFlags2 p_stage, VkAccessFlags2 p_access);
-        // void read_write_image()
+        
+        void color_attachment(std::string_view p_name, VkAttachmentLoadOp p_load, VkClearValue p_clear);
+        void depth_attachment(std::string_view p_name, VkAttachmentLoadOp p_load, VkClearValue p_clear);
+        
         void create_image(std::string_view p_name, const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info);
 
         // void read_buffer();
@@ -154,9 +163,32 @@ struct RenderGraph
         // std::vector<BufferAccess> image_accesses;
         // std::vector<BufferBarrier> pre_image_barriers;
         bool culled = false;
+
+        bool has_render_pass = false;
+        VkRenderPass  render_pass = VK_NULL_HANDLE;
+        VkFramebuffer framebuffer = VK_NULL_HANDLE;
+        VkExtent2D area{};
+        std::vector<VkClearValue> clear_values;
+        std::vector<int> attachment_access_idx;
     };
 
     std::vector<Node> nodes;
+    
+    /***************/
+    /**** CACHE ****/
+    /***************/
+
+    std::unordered_map<uint64_t, VkRenderPass> render_pass_cache;
+
+    VkRenderPass _get_or_create_render_pass(Node& node);
+
+    std::unordered_map<uint64_t, VkFramebuffer> framebuffer_cache;
+
+    VkFramebuffer _get_or_create_framebuffer(Node& node);
+    
+    /***************/
+    /**** GRAPH ****/
+    /***************/
 
     void begin(uint32_t p_current_frame);
     void add(Pass* p_pass);

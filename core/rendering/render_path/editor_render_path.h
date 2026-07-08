@@ -8,6 +8,7 @@ struct EditorRenderPath : RenderPath
     RenderGraph::Pass present_pass;
     
     Error create_resources() override;
+    void destroy_resources() override;
     void build_present(RenderGraph& g) override;
 };
 

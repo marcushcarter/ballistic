@@ -7,7 +7,6 @@ namespace ballistic {
 struct GameRenderPath : RenderPath
 {
     RenderGraph::Pass present_pass;
-    // DeviceDriverVulkan::Pipeline blit_pipeline;
     
     Error create_resources() override;
     void destroy_resources() override;

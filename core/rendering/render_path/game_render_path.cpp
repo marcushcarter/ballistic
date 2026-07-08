@@ -19,34 +19,9 @@ Error GameRenderPath::create_resources()
 
     drivers::ImGuiDriver* ui = imgui;
     present_pass.execute = [ui](VkCommandBuffer cmd, RenderGraph& g) {
-        auto* bb = g.image("backbuffer");
-        // log_write("PRESENT exec: bb=%p ui=%p bb->view=%p", (void*)bb, (void*)ui,
-        //     (void*)(bb ? bb->image_view : nullptr));
-
-        VkRenderingAttachmentInfo color{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-        color.imageView = bb->image_view;
-        color.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        color.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        color.clearValue.color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
-
-        VkRenderingInfo ri{ VK_STRUCTURE_TYPE_RENDERING_INFO };
-        ri.renderArea = { { 0, 0 }, { bb->extent.width, bb->extent.height } };
-        ri.layerCount = 1;
-        ri.colorAttachmentCount = 1;
-        ri.pColorAttachments = &color;
-
-        // log_write("PRESENT ri: renderArea=%ux%u view=%p layout=%u cmd=%p loadOp=%u",
-        //     ri.renderArea.extent.width, ri.renderArea.extent.height,
-        //     (void*)color.imageView, (unsigned)color.imageLayout,
-        //     (void*)cmd, (unsigned)color.loadOp); fflush(stdout);
-
-        // log_write("PRESENT: before beginrendering"); fflush(stdout);
-        vkCmdBeginRendering(cmd, &ri);
-        // log_write("PRESENT: before record_commands"); fflush(stdout);
-        ui->record_commands(cmd);
-        // log_write("PRESENT: after record_commands"); fflush(stdout);
-        vkCmdEndRendering(cmd);
+        (void)ui;
+        (void)cmd;
+        (void)g;
     };
 
     return Ok;
@@ -55,7 +30,6 @@ Error GameRenderPath::create_resources()
 void GameRenderPath::destroy_resources()
 {
     RenderPath::destroy_resources();
-    // device_driver->pipeline_destroy(blit_pipeline);
 }
 
 void GameRenderPath::build_present(RenderGraph& g) { g.add(&present_pass); }
