@@ -285,6 +285,11 @@ void ContextDriverVulkan::shutdown()
         debug_messenger = VK_NULL_HANDLE;
     }
 
+    if (surface.surface) {
+        vkDestroySurfaceKHR(instance, surface.surface, nullptr);
+        surface.surface = VK_NULL_HANDLE;
+    }
+
     if (instance) {
         vkDestroyInstance(instance, nullptr);
         instance = VK_NULL_HANDLE;

@@ -19,6 +19,19 @@ Error Renderer::create(drivers::DeviceDriverVulkan& r_device_driver)
 
     uint32_t graphics_family = device_driver->context_driver->graphics_queue_family;
 
+    drivers::DeviceDriverVulkan::RenderPassCreateInfo swapchain_render_pass_ci{};
+    swapchain_render_pass_ci.attachments.push_back({
+        .format = device_driver->swapchain.format,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
+        .initial_layout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .final_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        .is_depth = false,
+    });
+    swapchain_render_pass_ci.name = "imgui_present_render_pass";
+    swapchain_render_pass = device_driver->render_pass_create(swapchain_render_pass_ci);
+
     for (uint32_t i = 0; i < frame_count; i++) {
         in_flight_fences[i] = device_driver->fence_create(true);
         image_available_semaphores[i] = device_driver->semaphore_create();
@@ -44,6 +57,8 @@ void Renderer::destroy()
         device_driver->semaphore_free(image_available_semaphores[i]);
         device_driver->command_pool_free(command_pools[i]);
     }
+
+    device_driver->render_pass_free(swapchain_render_pass);
 }
 
 Error Renderer::set_size(uint32_t p_width, uint32_t p_height)

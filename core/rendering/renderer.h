@@ -25,6 +25,8 @@ struct Renderer
     std::vector<VkCommandBuffer> command_buffers;
     VkCommandBuffer cmd = VK_NULL_HANDLE;
 
+    VkRenderPass swapchain_render_pass;
+
     drivers::DeviceDriverVulkan::Image final_image;
     drivers::DeviceDriverVulkan::Image depth_image;
     drivers::DeviceDriverVulkan::Image image_2;
