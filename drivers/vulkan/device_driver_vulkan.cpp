@@ -503,21 +503,7 @@ void DeviceDriverVulkan::shutdown()
 
     swapchain_free();
 
-    // while (small_allocs_pools.size()) {
-    //     HashMap<uint32_t, VmaPool>::Iterator E = small_allocs_pools.begin();
-    //     vmaDestroyPool(allocator, E->value);
-    //     small_allocs_pools.remove(E);
-    // }
-
     vmaDestroyAllocator(allocator);
-
-    // for (KeyValue<int, DescriptorSetPools> &pool_map : linear_descriptor_set_pools) {
-    //     for (KeyValue<DescriptorSetPoolKey, HashMap<VkDescriptorPool, uint32_t>> pools : pool_map.value) {
-    //         for (KeyValue<VkDescriptorPool, uint32_t> descriptor_pool : pools.value) {
-    //             vkDestroyDescriptorPool(vk_device, descriptor_pool.key, VKC::get_allocation_callbacks(VK_OBJECT_TYPE_DESCRIPTOR_POOL));
-    //         }
-    //     }
-    // }
 
     if (device) {
         vkDestroyDevice(device, nullptr);
