@@ -35,11 +35,13 @@ Error GameRenderPath::create_resources()
     present_pass.setup = [](RenderGraph::Builder& b) {
         b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.1f, 0.1f, 1.0f } });
         b.read_image("final_image", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+        b.read_buffer("test_buffer", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
     };
 
     present_pass.execute = [this](VkCommandBuffer cmd, RenderGraph& g) {
         auto* bb = g.image("backbuffer");
         auto* final_image = g.image("final_image");
+        auto* test_buffer = g.buffer("test_buffer");
 
         VkViewport vp{ 0, 0, (float)bb->extent.width, (float)bb->extent.height, 0.0f, 1.0f };
         VkRect2D sc{ {0,0}, { bb->extent.width, bb->extent.height } };
@@ -47,9 +49,10 @@ Error GameRenderPath::create_resources()
         vkCmdSetScissor(cmd, 0, 1, &sc);
 
         vkCmdBindPipeline(cmd, gamma_blit_pipeline.bind_point, gamma_blit_pipeline.pipeline);
-        struct { uint32_t srcIndex, samplerIndex; } pc;
+        struct { uint32_t srcIndex, samplerIndex; VkDeviceAddress test_buffer; } pc;
         pc.srcIndex = final_image->bindless_sampled;
         pc.samplerIndex = device_driver->default_sampler.bindless_sampler;
+        pc.test_buffer = test_buffer->device_address;
         vkCmdPushConstants(cmd, device_driver->bindless_heap.pipeline_layout, VK_SHADER_STAGE_ALL, 0, sizeof(pc), &pc);
         vkCmdDraw(cmd, 3, 1, 0, 0);
 

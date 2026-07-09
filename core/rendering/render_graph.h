@@ -105,20 +105,51 @@ struct RenderGraph
 
     // ----- BUFFER -----
 
-    // struct BufferResource {};
-    // struct BufferAccess {};
-    // struct BufferBarrier {};
+    struct BufferResource {
+        ResourceKind kind = ResourceKind::Imported;
+        uint64_t name_id = 0;
+
+        drivers::DeviceDriverVulkan::Buffer* buffer = nullptr;
+        drivers::DeviceDriverVulkan::Buffer transient_storage;
+        drivers::DeviceDriverVulkan::BufferCreateInfo buffer_create_info;
+
+        VkPipelineStageFlags2 final_stage = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
+        VkAccessFlags2 final_access = 0;
+
+        int producer = -1;
+        bool read = false;
+        bool written = false;
+        // int first_use = -1;
+        // int last_use = -1;
+    };
+
+    struct BufferAccess {
+        uint64_t name_id = 0;
+        VkPipelineStageFlags2 stage = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+        VkAccessFlags2 access = 0;
+        bool is_write = false;
+        int resource_index = -1;
+    };
+
+    struct BufferBarrier {
+        VkBuffer buffer = VK_NULL_HANDLE;
+        VkDeviceSize offset = 0;
+        VkDeviceSize size = VK_WHOLE_SIZE;
+        VkPipelineStageFlags2 src_stage = 0, dst_stage = 0;
+        VkAccessFlags2 src_access = 0, dst_access = 0;
+    };
+
     // struct BufferTransientPool {};
     
-    // std::vector<BufferResource> buffer_resources;
-    // std::unordered_map<uint64_t, uint32_t> buffer_resource_map;
-    // std::vector<BufferBarrier> final_buffer_barriers;
+    std::vector<BufferResource> buffer_resources;
+    std::unordered_map<uint64_t, uint32_t> buffer_resource_map;
+    std::vector<BufferBarrier> final_buffer_barriers;
     // std::vector<BufferTransientPool> buffer_transient_pools;
     
-    // drivers::DeviceDriverVulkan::Buffer* buffer(std::string_view p_name);
-    // BufferResource* buffer_resource(std::string_view p_name);
-    // BufferResource* buffer_resource_by_id(uint64_t p_name_id);
-    // void import_buffer();
+    drivers::DeviceDriverVulkan::Buffer* buffer(std::string_view p_name);
+    BufferResource* buffer_resource(std::string_view p_name);
+    BufferResource* buffer_resource_by_id(uint64_t p_name_id);
+    void import_buffer(std::string_view p_name, drivers::DeviceDriverVulkan::Buffer* p_buffer, VkPipelineStageFlags2 p_final_stage, VkAccessFlags2 p_final_access);
     
     // uint64_t _buffer_transient_key(const drivers::DeviceDriverVulkan::BufferCreateInfo& p_create_info, VkExtent3D p_extent);
     // void _buffer_resolve_extent(const drivers::DeviceDriverVulkan::BufferCreateInfo& p_create_info, uint32_t& r_width, uint32_t& r_height);
@@ -143,9 +174,9 @@ struct RenderGraph
         void color_attachment(std::string_view p_name, VkAttachmentLoadOp p_load, VkClearValue p_clear);
         void depth_attachment(std::string_view p_name, VkAttachmentLoadOp p_load, VkClearValue p_clear);
 
-        // void create_buffer();
-        // void read_buffer();
-        // void write_buffer();
+        void create_buffer(std::string_view p_name, const drivers::DeviceDriverVulkan::BufferCreateInfo& p_create_info);
+        void read_buffer(std::string_view p_name, VkPipelineStageFlags2 p_stage, VkAccessFlags2 p_access);
+        void write_buffer(std::string_view p_name, VkPipelineStageFlags2 p_stage, VkAccessFlags2 p_access);
     };
     
     struct Pass {
@@ -162,8 +193,8 @@ struct RenderGraph
         Pass* pass = nullptr;
         std::vector<ImageAccess> image_accesses;
         std::vector<ImageBarrier> pre_image_barriers;
-        // std::vector<BufferAccess> image_accesses;
-        // std::vector<BufferBarrier> pre_image_barriers;
+        std::vector<BufferAccess> buffer_accesses;
+        std::vector<BufferBarrier> pre_buffer_barriers;
         bool culled = false;
 
         bool has_render_pass = false;

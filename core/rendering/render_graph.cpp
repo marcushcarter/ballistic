@@ -223,6 +223,46 @@ void RenderGraph::_image_release_transients()
 
 // ----- BUFFER -----
 
+drivers::DeviceDriverVulkan::Buffer* RenderGraph::buffer(std::string_view p_name)
+{
+    auto it = buffer_resource_map.find(intern(p_name));
+    if (it == buffer_resource_map.end()) return nullptr;
+    return buffer_resources[it->second].buffer;
+}
+
+RenderGraph::BufferResource* RenderGraph::buffer_resource(std::string_view p_name)
+{
+    auto it = buffer_resource_map.find(intern(p_name));
+    if (it == buffer_resource_map.end()) return nullptr;
+    return &buffer_resources[it->second];
+}
+
+RenderGraph::BufferResource* RenderGraph::buffer_resource_by_id(uint64_t p_name_id)
+{
+    auto it = buffer_resource_map.find(p_name_id);
+    if (it == buffer_resource_map.end()) return nullptr;
+    return &buffer_resources[it->second];
+}
+
+void RenderGraph::import_buffer(std::string_view p_name, drivers::DeviceDriverVulkan::Buffer* p_buffer, VkPipelineStageFlags2 p_final_stage, VkAccessFlags2 p_final_access)
+{
+    uint64_t id = intern_named(p_name);
+
+    BufferResource r{};
+    r.kind = ResourceKind::Imported;
+    r.name_id = id;
+    r.buffer = p_buffer;
+    r.final_stage = p_final_stage;
+    r.final_access = p_final_access;
+
+    p_buffer->state.stage = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+    p_buffer->state.access = 0;
+
+    uint32_t res_idx = static_cast<uint32_t>(buffer_resources.size());
+    buffer_resources.push_back(r);
+    buffer_resource_map.insert({ id, res_idx });
+}
+
 /**************/
 /**** PASS ****/
 /**************/
@@ -298,6 +338,32 @@ void RenderGraph::Builder::depth_attachment(std::string_view p_name, VkAttachmen
     a.load_op = p_load;
     a.clear = p_clear;
     graph->nodes[node_index].image_accesses.push_back(a);
+}
+
+void RenderGraph::Builder::create_buffer(std::string_view p_name, const drivers::DeviceDriverVulkan::BufferCreateInfo& p_create_info)
+{
+    (void)p_name;
+    (void)p_create_info;
+}
+
+void RenderGraph::Builder::read_buffer(std::string_view p_name, VkPipelineStageFlags2 p_stage, VkAccessFlags2 p_access)
+{
+    BufferAccess a;
+    a.name_id = graph->intern_named(p_name);
+    a.stage = p_stage;
+    a.access = p_access;
+    a.is_write = false;
+    graph->nodes[node_index].buffer_accesses.push_back(a);
+}
+
+void RenderGraph::Builder::write_buffer(std::string_view p_name, VkPipelineStageFlags2 p_stage, VkAccessFlags2 p_access)
+{
+    BufferAccess a;
+    a.name_id = graph->intern_named(p_name);
+    a.stage = p_stage;
+    a.access = p_access;
+    a.is_write = true;
+    graph->nodes[node_index].buffer_accesses.push_back(a);
 }
 
 /***************/
@@ -412,10 +478,10 @@ void RenderGraph::begin(uint32_t p_current_frame)
     image_resource_map.clear();
     final_image_barriers.clear();
     
-    // buffer_resources.clear();
-    // buffer_resources.reserve(64);
-    // buffer_resource_map.clear();
-    // final_buffer_barriers.clear();
+    buffer_resources.clear();
+    buffer_resources.reserve(64);
+    buffer_resource_map.clear();
+    final_buffer_barriers.clear();
     
     nodes.clear();
 }
@@ -444,9 +510,24 @@ Error RenderGraph::compile()
                 log_write("RenderGraph: pass '%s' accesses unimported image '%s'.", nodes[n].pass->name.c_str(), debug_names[a.name_id].c_str());
                 continue;
             }
-
             a.resource_index = static_cast<int>(it->second);
             ImageResource& r = image_resources[a.resource_index];
+            if (a.is_write) {
+                r.written = true;
+                r.producer = static_cast<int>(n);
+            } else {
+                r.read = true;
+            }
+        }
+
+        for (BufferAccess& a : nodes[n].buffer_accesses) {
+            auto it = buffer_resource_map.find(a.name_id);
+            if (it == buffer_resource_map.end()) {
+                log_write("RenderGraph: pass '%s' accesses unimported buffer '%s'.", nodes[n].pass->name.c_str(), debug_names[a.name_id].c_str());
+                continue;
+            }
+            a.resource_index = static_cast<int>(it->second);
+            BufferResource& r = buffer_resources[a.resource_index];
             if (a.is_write) {
                 r.written = true;
                 r.producer = static_cast<int>(n);
@@ -475,13 +556,36 @@ Error RenderGraph::compile()
                 }
             }
         }
+
+        for (BufferAccess& a : nodes[n].buffer_accesses) {
+            if (a.is_write && a.resource_index >= 0) {
+                BufferResource& r = buffer_resources[a.resource_index];
+                bool is_sink = (r.kind == ResourceKind::Imported) && r.final_access != 0;
+                if (is_sink && nodes[n].culled) {
+                    nodes[n].culled = false;
+                    worklist.push_back(n);
+                }
+            }
+        }
     }
+
     while (!worklist.empty()) {
         uint32_t n = worklist.back();
         worklist.pop_back();
+
         for (ImageAccess& a : nodes[n].image_accesses) {
             if (!a.is_write && a.resource_index >= 0) {
                 int prod = image_resources[a.resource_index].producer;
+                if (prod >= 0 && nodes[prod].culled) {
+                    nodes[prod].culled = false;
+                    worklist.push_back((uint32_t)prod);
+                }
+            }
+        }
+
+        for (BufferAccess& a : nodes[n].buffer_accesses) {
+            if (!a.is_write && a.resource_index >= 0) {
+                int prod = buffer_resources[a.resource_index].producer;
                 if (prod >= 0 && nodes[prod].culled) {
                     nodes[prod].culled = false;
                     worklist.push_back((uint32_t)prod);
@@ -536,6 +640,37 @@ Error RenderGraph::compile()
             img.state.access = a.access;
         }
 
+        for (BufferAccess& a : node.buffer_accesses) {
+            if (a.resource_index < 0) continue;
+            BufferResource& r = buffer_resources[a.resource_index];
+            if (!r.buffer) continue;
+            auto& buf = *r.buffer;
+
+            constexpr VkAccessFlags2 BUF_WRITE_MASK =
+                VK_ACCESS_2_SHADER_WRITE_BIT |
+                VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT |
+                VK_ACCESS_2_TRANSFER_WRITE_BIT |
+                VK_ACCESS_2_HOST_WRITE_BIT |
+                VK_ACCESS_2_MEMORY_WRITE_BIT;
+
+            const bool prev_write = (buf.state.access & BUF_WRITE_MASK) != 0;
+            const bool curr_write = a.is_write || (a.access & BUF_WRITE_MASK) != 0;
+
+            if (prev_write || curr_write) {
+                BufferBarrier b{};
+                b.buffer = buf.buffer;
+                b.offset = 0;
+                b.size = VK_WHOLE_SIZE;
+                b.src_stage = buf.state.stage;
+                b.dst_stage = a.stage;
+                b.src_access = buf.state.access;
+                b.dst_access = a.access;
+                node.pre_buffer_barriers.push_back(b);
+            }
+            buf.state.stage = a.stage;
+            buf.state.access = a.access;
+        }
+
         if (!node.attachment_access_idx.empty()) {
             node.has_render_pass = true;
             node.render_pass = _get_or_create_render_pass(node);
@@ -579,7 +714,7 @@ Error RenderGraph::compile()
     return Ok;
 }
 
-static void emit_barriers(VkCommandBuffer p_cmd, const std::vector<RenderGraph::ImageBarrier>& p_barriers)
+static void emit_barriers_images(VkCommandBuffer p_cmd, const std::vector<RenderGraph::ImageBarrier>& p_barriers)
 {
     if (p_barriers.empty()) return;
 
@@ -606,19 +741,46 @@ static void emit_barriers(VkCommandBuffer p_cmd, const std::vector<RenderGraph::
     vkCmdPipelineBarrier2(p_cmd, &dep);
 }
 
+static void emit_buffer_barriers(VkCommandBuffer p_cmd, const std::vector<RenderGraph::BufferBarrier>& p_barriers)
+{
+    if (p_barriers.empty()) return;
+
+    std::vector<VkBufferMemoryBarrier2> vk_barriers;
+    vk_barriers.reserve(p_barriers.size());
+    for (const RenderGraph::BufferBarrier& b : p_barriers) {
+        VkBufferMemoryBarrier2 mb{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 };
+        mb.srcStageMask = b.src_stage;
+        mb.srcAccessMask = b.src_access;
+        mb.dstStageMask = b.dst_stage;
+        mb.dstAccessMask = b.dst_access;
+        mb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        mb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        mb.buffer = b.buffer;
+        mb.offset = b.offset;
+        mb.size = b.size;
+        vk_barriers.push_back(mb);
+    }
+
+    VkDependencyInfo dep{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+    dep.bufferMemoryBarrierCount = static_cast<uint32_t>(vk_barriers.size());
+    dep.pBufferMemoryBarriers = vk_barriers.data();
+    vkCmdPipelineBarrier2(p_cmd, &dep);
+}
+
 void RenderGraph::execute(VkCommandBuffer p_cmd)
 {
     for (Node& node : nodes) {
         if (node.culled) continue;
-        emit_barriers(p_cmd, node.pre_image_barriers);
+        emit_barriers_images(p_cmd, node.pre_image_barriers);
+        emit_buffer_barriers(p_cmd, node.pre_buffer_barriers);
 
         if (node.has_render_pass) {
             VkRenderPassBeginInfo bi{ VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-            bi.renderPass      = node.render_pass;
-            bi.framebuffer     = node.framebuffer;
-            bi.renderArea      = { {0,0}, node.area };
+            bi.renderPass = node.render_pass;
+            bi.framebuffer = node.framebuffer;
+            bi.renderArea = { {0,0}, node.area };
             bi.clearValueCount = (uint32_t)node.clear_values.size();
-            bi.pClearValues    = node.clear_values.data();
+            bi.pClearValues = node.clear_values.data();
             vkCmdBeginRenderPass(p_cmd, &bi, VK_SUBPASS_CONTENTS_INLINE);
         }
 
@@ -626,7 +788,8 @@ void RenderGraph::execute(VkCommandBuffer p_cmd)
         if (node.has_render_pass) vkCmdEndRenderPass(p_cmd);
     }
 
-    emit_barriers(p_cmd, final_image_barriers);
+    emit_barriers_images(p_cmd, final_image_barriers);
+    emit_buffer_barriers(p_cmd, final_buffer_barriers);
     release_transients();
 }
 
