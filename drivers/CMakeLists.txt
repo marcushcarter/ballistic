@@ -9,16 +9,15 @@ target_include_directories(ballistic_drivers
 PUBLIC
     ${CMAKE_SOURCE_DIR}
     ${CMAKE_BINARY_DIR}/generated
-    "$ENV{VULKAN_SDK}/Include"
-    "$ENV{VULKAN_SDK}/Include/vma"
 )
+
+target_link_options(ballistic_drivers PUBLIC $<$<CXX_COMPILER_ID:MSVC>:/ignore:4099>)
 
 target_link_libraries(ballistic_drivers
 PUBLIC
     ballistic_compiler_options
     Vulkan::Vulkan
-    # Vulkan::shaderc_combined
-    # vma
+    Vulkan::shaderc_combined
     imgui
     dwmapi
 )

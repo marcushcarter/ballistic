@@ -55,6 +55,15 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
     dev_systems.create(renderer, device_driver);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
+    VkShaderModule vs = device_driver.shader_create({
+        .stage = drivers::DeviceDriverVulkan::ShaderStage::Vertex,
+        .glsl_source = R"(#version 450
+            void main() { gl_Position = vec4(0); })",
+        .name = "gbuffer_vs",
+    });
+    // ... build pipeline ...
+    device_driver.shader_free(vs);
+
     return Ok;
 }
 

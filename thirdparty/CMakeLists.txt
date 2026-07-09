@@ -9,9 +9,6 @@ set(IMGUI_SRC ${IMGUI_CORE} imgui/backends/imgui_impl_win32.cpp imgui/backends/i
 add_library(imgui STATIC ${IMGUI_SRC})
 target_include_directories(imgui PUBLIC imgui ${Vulkan_INCLUDE_DIRS})
 
-add_library(vma INTERFACE)
-target_include_directories(vma INTERFACE vma/include ${Vulkan_INCLUDE_DIRS})
-
 add_library(IconFontCppHeaders INTERFACE)
 target_include_directories(IconFontCppHeaders INTERFACE IconFontCppHeaders)
 

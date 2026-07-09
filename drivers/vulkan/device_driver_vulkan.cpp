@@ -1,9 +1,12 @@
 #include <drivers/vulkan/device_driver_vulkan.h>
 #include <core/log/error_macros.h>
+#include <core/io/path.h>
 #include <vulkan/vulkan.hpp>
 #include <iostream>
 #include <algorithm>
 #include <mutex>
+#include <fstream>
+#include <filesystem>
 
 namespace ballistic::drivers {
 
@@ -450,7 +453,6 @@ Error DeviceDriverVulkan::_initialize_pipeline_cache()
 Error DeviceDriverVulkan::initialize(ContextDriverVulkan& r_context_driver, uint32_t p_device_index, uint32_t p_frame_count)
 {
     using enum Error;
-    Error err;
 
     context_driver = &r_context_driver;
 
@@ -458,8 +460,10 @@ Error DeviceDriverVulkan::initialize(ContextDriverVulkan& r_context_driver, uint
     driver_device = context_driver->device_get(device_index);
     physical_device = context_driver->physical_device_get(device_index);
 	frame_count = p_frame_count;
+
+    shader_cache_dir = Paths::shader_cache().string();
     
-    err = _initialize_device_extensions();
+    Error err = _initialize_device_extensions();
 	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     
     _get_device_properties();
@@ -1316,137 +1320,139 @@ void DeviceDriverVulkan::framebuffer_free(VkFramebuffer& r_framebuffer)
     }
 }
 
+/****************/
+/**** SHADER ****/
+/****************/
+
+static shaderc_shader_kind _to_shaderc_kind(DeviceDriverVulkan::ShaderStage p_stage)
+{
+    switch (p_stage) {
+        case DeviceDriverVulkan::ShaderStage::Vertex: return shaderc_vertex_shader;
+        case DeviceDriverVulkan::ShaderStage::Fragment: return shaderc_fragment_shader;
+        case DeviceDriverVulkan::ShaderStage::Compute: return shaderc_compute_shader;
+    }
+    return shaderc_vertex_shader;
+}
+
+static uint64_t _shader_cache_key(const DeviceDriverVulkan::ShaderCreateInfo& p_create_info, size_t p_source_len)
+{
+    constexpr uint32_t CACHE_FORMAT = 1;
+
+    uint64_t h = 1469598103934665603ull;
+    auto mix = [&](const void* p, size_t n) {
+        const uint8_t* b = static_cast<const uint8_t*>(p);
+        for (size_t i = 0; i < n; ++i) { h ^= b[i]; h *= 1099511628211ull; }
+    };
+    auto mix_u32 = [&](uint32_t v) { mix(&v, sizeof(v)); };
+
+    mix(p_create_info.glsl_source, p_source_len);
+    mix_u32(static_cast<uint32_t>(p_create_info.stage));
+    mix_u32(CACHE_FORMAT);
+    mix_u32(static_cast<uint32_t>(shaderc_env_version_vulkan_1_3));
+    mix_u32(static_cast<uint32_t>(shaderc_optimization_level_performance));
+    return h;
+}
+
+VkShaderModule DeviceDriverVulkan::shader_create(const ShaderCreateInfo& p_create_info)
+{
+    using enum Error;
+
+    std::vector<uint32_t> spirv_storage;
+    const uint32_t* code = p_create_info.spirv;
+    size_t code_size = p_create_info.spirv_size;   // bytes
+
+    // Precompiled SPIR-V path: use directly, no compile, no cache.
+    if (!code && p_create_info.glsl_source) {
+        const size_t source_len = std::strlen(p_create_info.glsl_source);
+        const uint64_t key = _shader_cache_key(p_create_info, source_len);
+
+        std::filesystem::path cache_file;
+        if (!shader_cache_dir.empty()) {
+            char name[32];
+            std::snprintf(name, sizeof(name), "%016llx.spv", static_cast<unsigned long long>(key));
+            cache_file = std::filesystem::path(shader_cache_dir) / name;
+        }
+
+        // Cache hit: read words off disk, skip shaderc.
+        bool loaded = false;
+        if (!cache_file.empty()) {
+            std::ifstream f(cache_file, std::ios::binary | std::ios::ate);
+            if (f) {
+                const std::streamsize bytes = f.tellg();
+                if (bytes > 0 && (bytes % sizeof(uint32_t)) == 0) {
+                    f.seekg(0);
+                    spirv_storage.resize(static_cast<size_t>(bytes) / sizeof(uint32_t));
+                    if (f.read(reinterpret_cast<char*>(spirv_storage.data()), bytes)) {
+                        code = spirv_storage.data();
+                        code_size = static_cast<size_t>(bytes);
+                        loaded = true;
+                    }
+                }
+            }
+        }
+
+        // Cache miss: compile, then write through.
+        if (!loaded) {
+            shaderc::Compiler compiler;
+            shaderc::CompileOptions options;
+            options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
+            options.SetOptimizationLevel(shaderc_optimization_level_performance);
+
+            shaderc::SpvCompilationResult res = compiler.CompileGlslToSpv(
+                p_create_info.glsl_source, source_len,
+                _to_shaderc_kind(p_create_info.stage),
+                p_create_info.name ? p_create_info.name : "embedded_shader",
+                options);
+
+            BALLISTIC_ERR_FAIL_COND_V_MSG(
+                res.GetCompilationStatus() != shaderc_compilation_status_success,
+                VK_NULL_HANDLE, res.GetErrorMessage().c_str());
+
+            spirv_storage.assign(res.cbegin(), res.cend());
+            code = spirv_storage.data();
+            code_size = spirv_storage.size() * sizeof(uint32_t);
+
+            if (!cache_file.empty()) {
+                std::error_code ec;
+                std::filesystem::create_directories(shader_cache_dir, ec);
+                std::ofstream out(cache_file, std::ios::binary | std::ios::trunc);
+                if (out) out.write(reinterpret_cast<const char*>(spirv_storage.data()),
+                                   static_cast<std::streamsize>(code_size));
+            }
+        }
+    }
+
+    BALLISTIC_ERR_FAIL_COND_V_MSG(!code || code_size == 0, VK_NULL_HANDLE, "No shader code provided.");
+
+    VkShaderModuleCreateInfo ci{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+    ci.codeSize = code_size;
+    ci.pCode = code;
+
+    VkShaderModule module;
+    VkResult err = vkCreateShaderModule(device, &ci, nullptr, &module);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan shader module.");
+
+    set_object_name(VK_OBJECT_TYPE_SHADER_MODULE, (uint64_t)module, p_create_info.name);
+    return module;
+}
+
+void DeviceDriverVulkan::shader_free(VkShaderModule& r_shader)
+{
+    if (r_shader) {
+        vkDestroyShaderModule(device, r_shader, nullptr);
+        r_shader = VK_NULL_HANDLE;
+    }
+}
+
 /******************/
 /**** PIPELINE ****/
 /******************/
 
 // ----- CACHE -----
 
+// ----- SHADER -----
+
 // ----- PIPELINE -----
-
-DeviceDriverVulkan::Pipeline DeviceDriverVulkan::graphics_pipeline_create(const GraphicsPipelineCreateInfo& p_create_info)
-{
-    using enum Error;
-
-    Pipeline pipeline;
-    pipeline.bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;
-
-    VkPipelineShaderStageCreateInfo stages[2]{};
-    uint32_t stage_count = 0;
-    if (p_create_info.vertex_shader) {
-        VkPipelineShaderStageCreateInfo& s = stages[stage_count++];
-        s.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        s.stage = VK_SHADER_STAGE_VERTEX_BIT;
-        s.module = p_create_info.vertex_shader;
-        s.pName = "main";
-    }
-    if (p_create_info.fragment_shader) {
-        VkPipelineShaderStageCreateInfo& s = stages[stage_count++];
-        s.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        s.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        s.module = p_create_info.fragment_shader;
-        s.pName = "main";
-    }
-
-    VkPipelineVertexInputStateCreateInfo vertex_input{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
-
-    VkPipelineInputAssemblyStateCreateInfo input_assembly{ VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
-    input_assembly.topology = p_create_info.topology;
-
-    VkPipelineViewportStateCreateInfo viewport_state{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
-    viewport_state.viewportCount = 1;
-    viewport_state.scissorCount = 1;
-
-    VkPipelineRasterizationStateCreateInfo raster{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
-    raster.polygonMode = p_create_info.polygon_mode;
-    raster.cullMode = p_create_info.cull_mode;
-    raster.frontFace = p_create_info.front_face;
-    raster.lineWidth = 1.0f;
-
-    VkPipelineMultisampleStateCreateInfo multisample{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
-    multisample.rasterizationSamples = p_create_info.samples;
-
-    VkPipelineDepthStencilStateCreateInfo depth_stencil{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
-    depth_stencil.depthTestEnable = p_create_info.depth_test ? VK_TRUE : VK_FALSE;
-    depth_stencil.depthWriteEnable = p_create_info.depth_write ? VK_TRUE : VK_FALSE;
-    depth_stencil.depthCompareOp = p_create_info.depth_compare;
-    depth_stencil.maxDepthBounds = 1.0f;
-
-    VkPipelineColorBlendAttachmentState blend_attachments[8]{};
-    for (uint32_t i = 0; i < p_create_info.color_attachment_count; i++) {
-        // const ColorBlendState& b = p_create_info.blend[i];
-        // VkPipelineColorBlendAttachmentState& a = blend_attachments[i];
-        // a.blendEnable = b.blend_enable ? VK_TRUE : VK_FALSE;
-        // a.srcColorBlendFactor = b.src_color;
-        // a.dstColorBlendFactor = b.dst_color;
-        // a.colorBlendOp = b.color_op;
-        // a.srcAlphaBlendFactor = b.src_alpha;
-        // a.dstAlphaBlendFactor = b.dst_alpha;
-        // a.alphaBlendOp = b.alpha_op;
-        // a.colorWriteMask = b.write_mask;
-    }
-
-    VkPipelineColorBlendStateCreateInfo color_blend{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
-    color_blend.attachmentCount = p_create_info.color_attachment_count;
-    color_blend.pAttachments = blend_attachments;
-
-    VkDynamicState dyn[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-    VkPipelineDynamicStateCreateInfo dynamic{ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
-    dynamic.dynamicStateCount = 2;
-    dynamic.pDynamicStates = dyn;
-
-    VkPipelineRenderingCreateInfo rendering{ VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
-    rendering.colorAttachmentCount = p_create_info.color_attachment_count;
-    rendering.pColorAttachmentFormats = p_create_info.color_formats;
-    rendering.depthAttachmentFormat = p_create_info.depth_format;
-    rendering.stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
-
-    VkGraphicsPipelineCreateInfo pipeline_ci{ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
-    pipeline_ci.pNext = &rendering;
-    pipeline_ci.stageCount = stage_count;
-    pipeline_ci.pStages = stages;
-    pipeline_ci.pVertexInputState = &vertex_input;
-    pipeline_ci.pInputAssemblyState = &input_assembly;
-    pipeline_ci.pViewportState = &viewport_state;
-    pipeline_ci.pRasterizationState = &raster;
-    pipeline_ci.pMultisampleState = &multisample;
-    pipeline_ci.pDepthStencilState = &depth_stencil;
-    pipeline_ci.pColorBlendState = &color_blend;
-    pipeline_ci.pDynamicState = &dynamic;
-    pipeline_ci.layout = bindless_heap.pipeline_layout;
-    pipeline_ci.renderPass = VK_NULL_HANDLE;
-
-    VkResult err = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipeline_ci, nullptr, &pipeline.pipeline);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan graphics pipeline.");
-
-    set_object_name(VK_OBJECT_TYPE_PIPELINE, (uint64_t)pipeline.pipeline, p_create_info.name);
-    return pipeline;
-}
-
-DeviceDriverVulkan::Pipeline DeviceDriverVulkan::compute_pipeline_create(const ComputePipelineCreateInfo& p_create_info)
-{
-    using enum Error;
-
-    Pipeline pipeline;
-    pipeline.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
-
-    (void)p_create_info;
-
-    // VkResult err = vkCreatePipeline(device, &pipeline_ci, nullptr, &pipeline.pipeline);
-    // BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan compute pipeline.");
-
-    // set_object_name(VK_OBJECT_TYPE_PIPELINE, (uint64_t)pipeline.pipeline, p_create_info.name);
-    return pipeline;
-}
-
-void DeviceDriverVulkan::pipeline_destroy(Pipeline& r_pipeline)
-{
-    if (r_pipeline.pipeline) {
-        vkDestroyPipeline(device, r_pipeline.pipeline, nullptr);
-        r_pipeline.pipeline = VK_NULL_HANDLE;
-    }
-
-}
 
 /***************/
 /**** UTILS ****/

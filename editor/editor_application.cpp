@@ -22,7 +22,6 @@ Error EditorApplication::on_init()
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     err = window_driver.window_set_titlebar_color(window, RGB(20, 20, 25));
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
-
     
     ImGuiIO& io = ImGui::GetIO();
     {

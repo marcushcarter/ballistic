@@ -41,6 +41,8 @@ Error Renderer::create(drivers::DeviceDriverVulkan& r_device_driver)
 
     graph.create(r_device_driver, frame_count);
 
+    set_size(1, 1);
+
     return Ok;
 }
 

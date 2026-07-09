@@ -1,9 +1,11 @@
 #include <editor/editor.h>
 #include <core/dev_tools/dev_systems.h>
+#include <core/io/path.h>
+#include <core/log/log.h>
 #include <imgui.h>
 #include <fstream>
-#include <shlobj.h>
 #include <string>
+#include <iostream>
 
 namespace ballistic {
 
@@ -80,24 +82,8 @@ void Editor::draw_menu_bar()
     }
 }
 
-std::filesystem::path Editor::get_layout_path()
-{
-    PWSTR roaming = nullptr;
-    if (FAILED(SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &roaming)) || !roaming) {
-        if (roaming) CoTaskMemFree(roaming);
-        return {};
-    }
-    std::filesystem::path dir = roaming;
-    CoTaskMemFree(roaming);
-    dir /= L"Ballistic";
-    dir /= L"Ballistic Engine";
-    std::error_code ec;
-    std::filesystem::create_directories(dir, ec);
-    return dir / L"editor_panels.cfg";
-}
-
 void Editor::load_layout() {
-    std::filesystem::path path = get_layout_path();
+    std::filesystem::path path = Paths::roaming_data() / "editor_panels.cfg";
     if (path.empty()) return;
     std::ifstream f(path);
     if (!f) return;
@@ -110,7 +96,7 @@ void Editor::load_layout() {
 }
 
 void Editor::save_layout() {
-    std::filesystem::path path = get_layout_path();
+    std::filesystem::path path = Paths::roaming_data() / "editor_panels.cfg";
     if (path.empty()) return;
     std::ofstream f(path);
     if (!f) return;
