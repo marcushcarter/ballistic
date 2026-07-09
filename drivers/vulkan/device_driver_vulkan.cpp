@@ -496,12 +496,20 @@ Error DeviceDriverVulkan::initialize(ContextDriverVulkan& r_context_driver, uint
     err = bindless_heap_create(16384, 4096, 256);
 	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
+    SamplerCreateInfo sampler_ci{};
+    sampler_ci.mipmap_mode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    sampler_ci.address_mode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sampler_ci.name = "default_sampler";
+    default_sampler = sampler_create(sampler_ci);
+
     return Ok;
 }
 
 void DeviceDriverVulkan::shutdown()
 {
     device_wait_idle();
+
+    sampler_free(default_sampler);
 
     bindless_heap_free();
 
@@ -662,7 +670,7 @@ Error DeviceDriverVulkan::command_buffer_end(VkCommandBuffer p_cmd_buffer)
 /**** IMAGES ****/
 /****************/
 
-DeviceDriverVulkan::Image DeviceDriverVulkan::image_create(const ImageCreateInfo& p_create_info, VkExtent3D p_extent)
+DeviceDriverVulkan::Image DeviceDriverVulkan::_image_create(const ImageCreateInfo& p_create_info, VkExtent3D p_extent)
 {
     using enum Error;
     
@@ -694,32 +702,7 @@ DeviceDriverVulkan::Image DeviceDriverVulkan::image_create(const ImageCreateInfo
     return image;
 }
 
-DeviceDriverVulkan::Image DeviceDriverVulkan::image_create_dedicated(const ImageCreateInfo& p_create_info, VkExtent3D p_extent)
-{
-    using enum Error;
-
-    Image image = image_create(p_create_info, p_extent);
-    BALLISTIC_ERR_FAIL_COND_V(image.image == VK_NULL_HANDLE, {});
-
-    VmaAllocationCreateInfo alloc_ci{};
-    alloc_ci.usage = VMA_MEMORY_USAGE_UNKNOWN;
-    alloc_ci.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    alloc_ci.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-
-    VmaAllocation allocation = nullptr;
-    VkResult err = vmaAllocateMemoryForImage(allocator, image.image, &alloc_ci, &allocation, nullptr);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't allocate image memory.");
-
-    Error e = image_bind(image, allocation);
-    BALLISTIC_ERR_FAIL_COND_V(e != Ok, {});
-
-    e = image_create_view(image);
-    BALLISTIC_ERR_FAIL_COND_V(e != Ok, {});
-
-    return image;
-}
-
-Error DeviceDriverVulkan::image_bind(Image& r_image, VmaAllocation p_allocation)
+Error DeviceDriverVulkan::_image_bind(Image& r_image, VmaAllocation p_allocation)
 {
     using enum Error;
 
@@ -730,7 +713,7 @@ Error DeviceDriverVulkan::image_bind(Image& r_image, VmaAllocation p_allocation)
     return Ok;
 }
 
-Error DeviceDriverVulkan::image_create_view(Image& r_image)
+Error DeviceDriverVulkan::_image_create_view(Image& r_image)
 {
     using enum Error;
 
@@ -750,6 +733,34 @@ Error DeviceDriverVulkan::image_create_view(Image& r_image)
     return Ok;
 }
 
+DeviceDriverVulkan::Image DeviceDriverVulkan::image_create_dedicated(const ImageCreateInfo& p_create_info, VkExtent3D p_extent)
+{
+    using enum Error;
+
+    Image image = _image_create(p_create_info, p_extent);
+    BALLISTIC_ERR_FAIL_COND_V(image.image == VK_NULL_HANDLE, {});
+
+    VmaAllocationCreateInfo alloc_ci{};
+    alloc_ci.usage = VMA_MEMORY_USAGE_UNKNOWN;
+    alloc_ci.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    alloc_ci.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+
+    VmaAllocation allocation = nullptr;
+    VkResult err = vmaAllocateMemoryForImage(allocator, image.image, &alloc_ci, &allocation, nullptr);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't allocate image memory.");
+
+    Error e = _image_bind(image, allocation);
+    BALLISTIC_ERR_FAIL_COND_V(e != Ok, {});
+
+    e = _image_create_view(image);
+    BALLISTIC_ERR_FAIL_COND_V(e != Ok, {});
+
+    if (p_create_info.usage & VK_IMAGE_USAGE_SAMPLED_BIT) image.bindless_sampled = bindless_heap_alloc_sampled(image.image_view);
+    if (p_create_info.usage & VK_IMAGE_USAGE_STORAGE_BIT) image.bindless_storage = bindless_heap_alloc_storage(image.image_view);
+
+    return image;
+}
+
 void DeviceDriverVulkan::image_free(Image& r_image)
 {
     if (r_image.image_view) {
@@ -761,6 +772,14 @@ void DeviceDriverVulkan::image_free(Image& r_image)
         r_image.image= VK_NULL_HANDLE;
         r_image.allocation = nullptr;
     }
+    if (r_image.bindless_sampled) {
+        bindless_heap_free_sampled(r_image.bindless_sampled);
+        r_image.bindless_sampled = UINT32_MAX;
+    }
+    if (r_image.bindless_storage) {
+        bindless_heap_free_storage(r_image.bindless_storage);
+        r_image.bindless_storage = UINT32_MAX;
+    }
     r_image.state = {};
 }
 
@@ -768,7 +787,7 @@ void DeviceDriverVulkan::image_free(Image& r_image)
 /**** SAMPLER ****/
 /*****************/
 
-VkSampler DeviceDriverVulkan::sampler_create(const SamplerCreateInfo& p_create_info)
+DeviceDriverVulkan::Sampler DeviceDriverVulkan::sampler_create(const SamplerCreateInfo& p_create_info)
 {
     using enum Error;
 
@@ -789,19 +808,25 @@ VkSampler DeviceDriverVulkan::sampler_create(const SamplerCreateInfo& p_create_i
     sampler_ci.minLod = 0.0f;
     sampler_ci.maxLod = VK_LOD_CLAMP_NONE;
 
-    VkSampler sampler;
-    VkResult err = vkCreateSampler(device, &sampler_ci, nullptr, &sampler);
+    Sampler sampler;
+    VkResult err = vkCreateSampler(device, &sampler_ci, nullptr, &sampler.sampler);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan sampler.");
 
-    set_object_name(VK_OBJECT_TYPE_SAMPLER, (uint64_t)sampler, p_create_info.name);
+    sampler.bindless_sampler = bindless_heap_alloc_sampler(sampler.sampler);
+
+    set_object_name(VK_OBJECT_TYPE_SAMPLER, (uint64_t)sampler.sampler, p_create_info.name);
     return sampler;
 }
 
-void DeviceDriverVulkan::sampler_free(VkSampler& r_sampler)
+void DeviceDriverVulkan::sampler_free(Sampler& r_sampler)
 {
-    if (r_sampler) {
-        vkDestroySampler(device, r_sampler, nullptr);
-        r_sampler = VK_NULL_HANDLE;
+    if (r_sampler.sampler) {
+        vkDestroySampler(device, r_sampler.sampler, nullptr);
+        r_sampler.sampler = VK_NULL_HANDLE;
+    }
+    if (r_sampler.bindless_sampler) {
+        bindless_heap_free_sampler(r_sampler.bindless_sampler);
+        r_sampler.bindless_sampler = UINT32_MAX;
     }
 }
 
@@ -1057,6 +1082,7 @@ Error DeviceDriverVulkan::bindless_heap_create(uint32_t p_sampled_count, uint32_
 
     bindless_heap.sampled_alloc.cap = sampled;
     bindless_heap.storage_alloc.cap = storage;
+    bindless_heap.sampler_alloc.cap = samplers;
 
     VkDescriptorSetLayoutBinding bindings[3]{};
     bindings[BindlessHeap::BINDING_SAMPLED] = { BindlessHeap::BINDING_SAMPLED, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, sampled, VK_SHADER_STAGE_ALL, nullptr };
@@ -1187,6 +1213,30 @@ uint32_t DeviceDriverVulkan::bindless_heap_alloc_storage(VkImageView p_image_vie
     return index;
 }
 
+uint32_t DeviceDriverVulkan::bindless_heap_alloc_sampler(VkSampler p_sampler)
+{
+    uint32_t index = bindless_heap.sampler_alloc.acquire();
+    if (index == UINT32_MAX) {
+        log_write("Bindless heap sampler array exhausted.");
+        return UINT32_MAX;
+    }
+
+    VkDescriptorImageInfo info{};
+    info.sampler = p_sampler;
+
+    VkWriteDescriptorSet w{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+    w.dstSet = bindless_heap.set;
+    w.dstBinding = BindlessHeap::BINDING_SAMPLER;
+    w.dstArrayElement = index;
+    w.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+    w.descriptorCount = 1;
+    w.pImageInfo = &info;
+
+    vkUpdateDescriptorSets(device, 1, &w, 0, nullptr);
+    return index;
+
+}
+
 void DeviceDriverVulkan::bindless_heap_free_sampled(uint32_t p_index)
 {
     if (p_index == UINT32_MAX) return;
@@ -1199,20 +1249,10 @@ void DeviceDriverVulkan::bindless_heap_free_storage(uint32_t p_index)
     bindless_heap.storage_alloc.release(p_index);
 }
 
-void DeviceDriverVulkan::bindless_heap_register_sampler(uint32_t p_index, VkSampler p_sampler)
+void DeviceDriverVulkan::bindless_heap_free_sampler(uint32_t p_index)
 {
-    VkDescriptorImageInfo info{};
-    info.sampler = p_sampler;
-
-    VkWriteDescriptorSet w{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-    w.dstSet = bindless_heap.set;
-    w.dstBinding = BindlessHeap::BINDING_SAMPLER;
-    w.dstArrayElement = p_index;
-    w.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-    w.descriptorCount = 1;
-    w.pImageInfo = &info;
-
-    vkUpdateDescriptorSets(device, 1, &w, 0, nullptr);
+    if (p_index == UINT32_MAX) return;
+    bindless_heap.sampler_alloc.release(p_index);
 }
 
 /*********************/
@@ -1324,7 +1364,7 @@ void DeviceDriverVulkan::framebuffer_free(VkFramebuffer& r_framebuffer)
 /**** SHADER ****/
 /****************/
 
-static shaderc_shader_kind _shaderc_kind(DeviceDriverVulkan::ShaderStage p_stage)
+shaderc_shader_kind DeviceDriverVulkan::_shaderc_kind(DeviceDriverVulkan::ShaderStage p_stage)
 {
     switch (p_stage) {
         case DeviceDriverVulkan::ShaderStage::Vertex: return shaderc_vertex_shader;
@@ -1334,7 +1374,7 @@ static shaderc_shader_kind _shaderc_kind(DeviceDriverVulkan::ShaderStage p_stage
     return shaderc_vertex_shader;
 }
 
-static uint64_t _shader_cache_key(const DeviceDriverVulkan::ShaderCreateInfo& p_create_info, size_t p_source_len)
+uint64_t DeviceDriverVulkan::_shader_cache_key(const DeviceDriverVulkan::ShaderCreateInfo& p_create_info, size_t p_source_len)
 {
     constexpr uint32_t CACHE_FORMAT = 1;
 
@@ -1345,7 +1385,7 @@ static uint64_t _shader_cache_key(const DeviceDriverVulkan::ShaderCreateInfo& p_
     };
     auto mix_u32 = [&](uint32_t v) { mix(&v, sizeof(v)); };
 
-    mix(p_create_info.glsl_source, p_source_len);
+    mix(p_create_info.glsl, p_source_len);
     mix_u32(static_cast<uint32_t>(p_create_info.stage));
     mix_u32(CACHE_FORMAT);
     mix_u32(static_cast<uint32_t>(shaderc_env_version_vulkan_1_3));
@@ -1361,8 +1401,8 @@ VkShaderModule DeviceDriverVulkan::shader_create(const ShaderCreateInfo& p_creat
     const uint32_t* code = p_create_info.spirv;
     size_t code_size = p_create_info.spirv_size;
 
-    if (!code && p_create_info.glsl_source) {
-        const size_t source_len = std::strlen(p_create_info.glsl_source);
+    if (!code && p_create_info.glsl) {
+        const size_t source_len = p_create_info.glsl_size;
         const uint64_t key = _shader_cache_key(p_create_info, source_len);
 
         std::filesystem::path cache_file;
@@ -1395,7 +1435,7 @@ VkShaderModule DeviceDriverVulkan::shader_create(const ShaderCreateInfo& p_creat
             options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
             options.SetOptimizationLevel(shaderc_optimization_level_performance);
 
-            shaderc::SpvCompilationResult res = compiler.CompileGlslToSpv(p_create_info.glsl_source, source_len, _shaderc_kind(p_create_info.stage), p_create_info.name ? p_create_info.name : "embedded_shader", options);
+            shaderc::SpvCompilationResult res = compiler.CompileGlslToSpv(p_create_info.glsl, source_len, _shaderc_kind(p_create_info.stage), p_create_info.name ? p_create_info.name : "embedded_shader", options);
             BALLISTIC_ERR_FAIL_COND_V_MSG(res.GetCompilationStatus() != shaderc_compilation_status_success, VK_NULL_HANDLE, res.GetErrorMessage().c_str());
 
             spirv_storage.assign(res.cbegin(), res.cend());
@@ -1439,9 +1479,180 @@ void DeviceDriverVulkan::shader_free(VkShaderModule& r_shader)
 
 // ----- CACHE -----
 
-// ----- SHADER -----
-
 // ----- PIPELINE -----
+
+VkPipelineColorBlendAttachmentState DeviceDriverVulkan::_blend_state(BlendMode p_mode)
+{
+    VkPipelineColorBlendAttachmentState s{};
+    s.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    s.colorBlendOp = VK_BLEND_OP_ADD;
+    s.alphaBlendOp = VK_BLEND_OP_ADD;
+
+    switch (p_mode) {
+        case DeviceDriverVulkan::BlendMode::None:
+            s.blendEnable = VK_FALSE;
+            break;
+        case DeviceDriverVulkan::BlendMode::Alpha:
+            s.blendEnable = VK_TRUE;
+            s.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+            s.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            s.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+            s.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            break;
+        case DeviceDriverVulkan::BlendMode::Additive:
+            s.blendEnable = VK_TRUE;
+            s.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+            s.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+            s.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+            s.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+            break;
+        case DeviceDriverVulkan::BlendMode::PremultipliedAlpha:
+            s.blendEnable = VK_TRUE;
+            s.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+            s.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            s.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+            s.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            break;
+    }
+    return s;
+}
+
+DeviceDriverVulkan::Pipeline DeviceDriverVulkan::graphics_pipeline_create(const GraphicsPipelineCreateInfo& p_create_info)
+{
+    using enum Error;
+
+    BALLISTIC_ERR_FAIL_COND_V_MSG(!p_create_info.render_pass, {}, "Graphics pipeline needs a render pass.");
+    BALLISTIC_ERR_FAIL_COND_V_MSG(!p_create_info.vertex_shader, {}, "Graphics pipeline needs a vertex shader.");
+
+    // ---- shader stages ----
+    VkPipelineShaderStageCreateInfo stages[2]{};
+    uint32_t stage_count = 0;
+    
+    stages[stage_count] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+    stages[stage_count].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    stages[stage_count].module = p_create_info.vertex_shader;
+    stages[stage_count].pName = "main";
+    stage_count++;
+
+    if (p_create_info.fragment_shader != VK_NULL_HANDLE) {
+        stages[stage_count] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+        stages[stage_count].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        stages[stage_count].module = p_create_info.fragment_shader;
+        stages[stage_count].pName = "main";
+        stage_count++;
+    }
+
+    // ---- vertex input ----
+    VkPipelineVertexInputStateCreateInfo vertex_input{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+    vertex_input.vertexBindingDescriptionCount = 0;
+    vertex_input.vertexAttributeDescriptionCount = 0;
+
+    // ---- input assembly ----
+    VkPipelineInputAssemblyStateCreateInfo input_assembly{ VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+    input_assembly.topology = p_create_info.topology;
+    input_assembly.primitiveRestartEnable = VK_FALSE;
+
+    // ---- viewport/scissor ----
+    VkPipelineViewportStateCreateInfo viewport_state{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+    viewport_state.viewportCount = 1;
+    viewport_state.scissorCount = 1;
+    viewport_state.pViewports = nullptr;
+    viewport_state.pScissors = nullptr;
+
+    VkDynamicState dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+    VkPipelineDynamicStateCreateInfo dynamic_state{ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
+    dynamic_state.dynamicStateCount = 2;
+    dynamic_state.pDynamicStates = dynamic_states;
+
+    // ---- rasterizer ----
+    VkPipelineRasterizationStateCreateInfo rasterizer{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+    rasterizer.depthClampEnable = VK_FALSE;
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    rasterizer.polygonMode = p_create_info.polygon_mode;
+    rasterizer.cullMode = p_create_info.cull_mode;
+    rasterizer.frontFace = p_create_info.front_face;
+    rasterizer.depthBiasEnable = VK_FALSE;
+    rasterizer.lineWidth = 1.0f;
+
+    // ---- multisample ----
+    VkPipelineMultisampleStateCreateInfo multisample{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+    multisample.rasterizationSamples = p_create_info.samples;
+    multisample.sampleShadingEnable = VK_FALSE;
+
+    // ---- depth/stencil ----
+    VkPipelineDepthStencilStateCreateInfo depth_stencil{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+    depth_stencil.depthTestEnable = p_create_info.depth_test ? VK_TRUE : VK_FALSE;
+    depth_stencil.depthWriteEnable = p_create_info.depth_write ? VK_TRUE : VK_FALSE;
+    depth_stencil.depthCompareOp = p_create_info.depth_compare;
+    depth_stencil.depthBoundsTestEnable = VK_FALSE;
+    depth_stencil.stencilTestEnable = VK_FALSE;
+
+    // ---- color blend ----
+    std::vector<VkPipelineColorBlendAttachmentState> blend_attachments;
+    if (!p_create_info.blend_overrides.empty()) {
+        blend_attachments = p_create_info.blend_overrides;
+    } else if (p_create_info.blend_modes.empty()) {
+        blend_attachments.push_back(_blend_state(BlendMode::None));
+    } else {
+        blend_attachments.reserve(p_create_info.blend_modes.size());
+        for (BlendMode m : p_create_info.blend_modes)
+            blend_attachments.push_back(_blend_state(m));
+    }
+
+    VkPipelineColorBlendStateCreateInfo color_blend{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+    color_blend.logicOpEnable = VK_FALSE;
+    color_blend.attachmentCount = (uint32_t)blend_attachments.size();
+    color_blend.pAttachments = blend_attachments.data();
+
+    // ---- assemble ----
+    VkGraphicsPipelineCreateInfo pipeline_ci{ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+    pipeline_ci.stageCount = stage_count;
+    pipeline_ci.pStages = stages;
+    pipeline_ci.pVertexInputState = &vertex_input;
+    pipeline_ci.pInputAssemblyState = &input_assembly;
+    pipeline_ci.pViewportState = &viewport_state;
+    pipeline_ci.pRasterizationState = &rasterizer;
+    pipeline_ci.pMultisampleState = &multisample;
+    pipeline_ci.pDepthStencilState = &depth_stencil;
+    pipeline_ci.pColorBlendState = &color_blend;
+    pipeline_ci.pDynamicState = &dynamic_state;
+    pipeline_ci.layout = bindless_heap.pipeline_layout;
+    pipeline_ci.renderPass = p_create_info.render_pass;
+    pipeline_ci.subpass = p_create_info.subpass;
+
+    Pipeline pipeline;
+    pipeline.bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    VkResult err = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipeline_ci, nullptr, &pipeline.pipeline);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan graphics pipeline.");
+
+    set_object_name(VK_OBJECT_TYPE_PIPELINE, (uint64_t)pipeline.pipeline, p_create_info.name);
+    return pipeline;
+}
+
+DeviceDriverVulkan::Pipeline DeviceDriverVulkan::compute_pipeline_create(const ComputePipelineCreateInfo& p_create_info)
+{
+    using enum Error;
+    
+    BALLISTIC_ERR_FAIL_COND_V_MSG(!p_create_info.compute_shader, {}, "Compute pipeline needs a compute shader.");
+
+    VkComputePipelineCreateInfo pipeline_ci{};
+    
+    Pipeline pipeline;
+    pipeline.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
+    VkResult err = vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &pipeline_ci, nullptr, &pipeline.pipeline);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan graphics pipeline.");
+
+    set_object_name(VK_OBJECT_TYPE_PIPELINE, (uint64_t)pipeline.pipeline, p_create_info.name);
+    return pipeline;
+}
+
+void DeviceDriverVulkan::pipeline_free(Pipeline& r_pipeline)
+{
+    if (r_pipeline.pipeline) {
+        vkDestroyPipeline(device, r_pipeline.pipeline, nullptr);
+        r_pipeline.pipeline = VK_NULL_HANDLE;
+    }    
+}
 
 /***************/
 /**** UTILS ****/

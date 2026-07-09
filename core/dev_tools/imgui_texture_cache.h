@@ -1,12 +1,10 @@
 #pragma once
 #include <core/log/error.h>
-#include <drivers/vulkan/ballistic_vulkan.h>
+#include <drivers/vulkan/device_driver_vulkan.h>
 #include <unordered_map>
 #include <vector>
 
 namespace ballistic {
-
-namespace drivers { struct DeviceDriverVulkan; }
 
 struct ImGuiTextureCache
 {
@@ -21,7 +19,6 @@ struct ImGuiTextureCache
     };
 
     drivers::DeviceDriverVulkan* device_driver = nullptr;
-    VkSampler sampler = VK_NULL_HANDLE;
 
     uint64_t frame_number = 0;
     uint32_t frame_count = 1;

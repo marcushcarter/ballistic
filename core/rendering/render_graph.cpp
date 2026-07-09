@@ -342,6 +342,41 @@ VkRenderPass RenderGraph::_get_or_create_render_pass(Node& node)
     return rp;
 }
 
+VkRenderPass RenderGraph::acquire_render_pass(const Pass& p_pass)
+{
+    // Compatibility keys only on format + is_depth (order matters).
+    // Salt distinguishes these canonical compat passes from node passes,
+    // which also fold in load/store/layout.
+    uint64_t key = 1469598103934665603ull;
+    auto mix = [&](uint64_t v){ key ^= v; key *= 1099511628211ull; };
+    mix(0xC0FFEEull);
+    for (const Pass::Format& f : p_pass.formats) {
+        mix((uint64_t)f.format);
+        mix((uint64_t)f.is_depth);
+    }
+
+    if (auto it = render_pass_cache.find(key); it != render_pass_cache.end()) return it->second;
+
+    drivers::DeviceDriverVulkan::RenderPassCreateInfo ci{};
+    ci.attachments.reserve(p_pass.formats.size());
+    for (const Pass::Format& f : p_pass.formats) {
+        drivers::DeviceDriverVulkan::RenderPassCreateInfo::Attachment att{};
+        att.format = f.format;
+        att.samples = VK_SAMPLE_COUNT_1_BIT;
+        att.load_op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;   // irrelevant to compatibility
+        att.store_op = VK_ATTACHMENT_STORE_OP_STORE;
+        att.initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+        att.final_layout = f.is_depth ? VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+                                      : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        att.is_depth = f.is_depth;
+        ci.attachments.push_back(att);
+    }
+    ci.name = "compat_render_pass";
+    VkRenderPass rp = device_driver->render_pass_create(ci);
+    render_pass_cache[key] = rp;
+    return rp;
+}
+
 VkFramebuffer RenderGraph::_get_or_create_framebuffer(Node& node)
 {
     std::vector<VkImageView> views;
@@ -392,7 +427,7 @@ void RenderGraph::add(Pass* p_pass)
     nodes.push_back(std::move(node));
 
     if (p_pass->setup) {
-        Builder builder{ this, idx };
+        Builder builder{ this, p_pass, idx };
         p_pass->setup(builder);
     }
 }

@@ -133,6 +133,9 @@ struct DeviceDriverVulkan
         VmaAllocation allocation = nullptr;
         BarrierState state;
 
+        uint32_t bindless_sampled = UINT32_MAX;
+        uint32_t bindless_storage = UINT32_MAX;
+
         VkExtent3D extent = {};
         VkFormat format = VK_FORMAT_UNDEFINED;
         VkImageAspectFlagBits aspect = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -140,10 +143,11 @@ struct DeviceDriverVulkan
         VkMemoryRequirements mem_req = {};
     };
 
-    Image image_create(const ImageCreateInfo& p_create_info, VkExtent3D p_extent);
+    Image _image_create(const ImageCreateInfo& p_create_info, VkExtent3D p_extent);
+    Error _image_bind(Image& r_image, VmaAllocation p_allocation);
+    Error _image_create_view(Image& r_image);
+
     Image image_create_dedicated(const ImageCreateInfo& p_create_info, VkExtent3D p_extent);
-    Error image_bind(Image& r_image, VmaAllocation p_allocation);
-    Error image_create_view(Image& r_image);
     void image_free(Image& r_image);
 
     /*****************/
@@ -162,8 +166,15 @@ struct DeviceDriverVulkan
         const char* name = nullptr;
     };
 
-    VkSampler sampler_create(const SamplerCreateInfo& p_create_info);
-    void sampler_free(VkSampler& r_sampler);
+    struct Sampler {
+        VkSampler sampler = VK_NULL_HANDLE;
+        uint32_t bindless_sampler = UINT32_MAX;
+    };
+
+    Sampler default_sampler;
+
+    Sampler sampler_create(const SamplerCreateInfo& p_create_info);
+    void sampler_free(Sampler& r_sampler);
 
     /*******************/
     /**** SWAPCHAIN ****/
@@ -216,6 +227,7 @@ struct DeviceDriverVulkan
         
         IndexAllocator sampled_alloc;
         IndexAllocator storage_alloc;
+        IndexAllocator sampler_alloc;
 
         static constexpr uint32_t BINDING_SAMPLED = 0;
         static constexpr uint32_t BINDING_STORAGE = 1;
@@ -229,9 +241,10 @@ struct DeviceDriverVulkan
     void bindless_heap_free();
     uint32_t bindless_heap_alloc_sampled(VkImageView p_image_view);
     uint32_t bindless_heap_alloc_storage(VkImageView p_image_view);
+    uint32_t bindless_heap_alloc_sampler(VkSampler p_sampler);
     void bindless_heap_free_sampled(uint32_t p_index);
     void bindless_heap_free_storage(uint32_t p_index);
-    void bindless_heap_register_sampler(uint32_t p_index, VkSampler p_sampler);
+    void bindless_heap_free_sampler(uint32_t p_index);
 
 	/*********************/
 	/**** RENDER PASS ****/
@@ -272,11 +285,15 @@ struct DeviceDriverVulkan
     
     struct ShaderCreateInfo {
         ShaderStage stage = ShaderStage::Vertex;
-        const char* glsl_source = nullptr;
+        const char* glsl = nullptr;
+        size_t glsl_size = 0;
         const uint32_t* spirv = nullptr;
         size_t spirv_size = 0;
         const char* name = nullptr;
     };
+
+    shaderc_shader_kind _shaderc_kind(ShaderStage p_stage);
+    uint64_t _shader_cache_key(const ShaderCreateInfo& p_create_info, size_t p_source_len);
 
     VkShaderModule shader_create(const ShaderCreateInfo& p_create_info);
     void shader_free(VkShaderModule& r_shader);
@@ -289,14 +306,47 @@ struct DeviceDriverVulkan
 
     // ----- PIPELINE -----
 
-    // struct Pipeline {
-    //     VkPipeline pipeline = VK_NULL_HANDLE;
-    //     VkPipelineBindPoint bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    // };
+    enum class BlendMode : uint8_t { None, Alpha, Additive, PremultipliedAlpha };
 
-    // Pipeline graphics_pipeline_create(const GraphicsPipelineCreateInfo& p_create_info);
-    // Pipeline compute_pipeline_create(const ComputePipelineCreateInfo& p_create_info);
-    // void pipeline_destroy(Pipeline& r_pipeline);
+    struct GraphicsPipelineCreateInfo {
+        VkShaderModule vertex_shader = VK_NULL_HANDLE;
+        VkShaderModule fragment_shader = VK_NULL_HANDLE;
+
+        VkRenderPass render_pass = VK_NULL_HANDLE;
+        uint32_t subpass = 0;
+
+        VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        VkCullModeFlags cull_mode = VK_CULL_MODE_BACK_BIT;
+        VkFrontFace front_face = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        VkPolygonMode polygon_mode = VK_POLYGON_MODE_FILL;
+
+        bool depth_test = false;
+        bool depth_write = false;
+        VkCompareOp depth_compare = VK_COMPARE_OP_LESS;
+
+        std::vector<BlendMode> blend_modes;
+        std::vector<VkPipelineColorBlendAttachmentState> blend_overrides;
+
+        VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+        const char* name = nullptr;
+    };
+
+    struct ComputePipelineCreateInfo {
+        VkShaderModule compute_shader = VK_NULL_HANDLE;
+        
+        const char* name = nullptr;
+    };
+
+    struct Pipeline {
+        VkPipeline pipeline = VK_NULL_HANDLE;
+        VkPipelineBindPoint bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    };
+
+    VkPipelineColorBlendAttachmentState _blend_state(BlendMode p_mode);
+
+    Pipeline graphics_pipeline_create(const GraphicsPipelineCreateInfo& p_create_info);
+    Pipeline compute_pipeline_create(const ComputePipelineCreateInfo& p_create_info);
+    void pipeline_free(Pipeline& r_pipeline);
 
 	/******************/
 	/**** COMMANDS ****/

@@ -53,9 +53,6 @@ struct RenderGraph
         VkPipelineStageFlags2 final_stage = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
         VkAccessFlags2 final_access = 0;
 
-        uint32_t bindless_sampled = UINT32_MAX;
-        uint32_t bindless_storage = UINT32_MAX;
-
         int producer = -1;
         bool read = false;
         bool written = false;
@@ -132,8 +129,11 @@ struct RenderGraph
     /**** PASS ****/
     /**************/
 
+    struct Pass;
+
     struct Builder {
         RenderGraph* graph = nullptr;
+        Pass* pass = nullptr;
         uint32_t node_index = 0;
 
         void create_image(std::string_view p_name, const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info);
@@ -146,11 +146,14 @@ struct RenderGraph
         // void create_buffer();
         // void read_buffer();
         // void write_buffer();
-        // void 
     };
     
     struct Pass {
         std::string name;
+        
+        struct Format { VkFormat format = VK_FORMAT_UNDEFINED; bool is_depth = false; };
+        std::vector<Format> formats;
+
         std::function<void(Builder&)> setup;
         std::function<void(VkCommandBuffer, RenderGraph&)> execute;
     };
@@ -180,6 +183,7 @@ struct RenderGraph
     std::unordered_map<uint64_t, VkRenderPass> render_pass_cache;
 
     VkRenderPass _get_or_create_render_pass(Node& node);
+    VkRenderPass acquire_render_pass(const Pass& p_pass);
 
     std::unordered_map<uint64_t, VkFramebuffer> framebuffer_cache;
 

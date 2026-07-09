@@ -49,6 +49,7 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
     render_path = create_render_path();
     render_path->device_driver = &device_driver;
     render_path->imgui = &imgui;
+    render_path->graph = &renderer.graph;
     err = render_path->create_resources();
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 

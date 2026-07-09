@@ -10,6 +10,7 @@ struct RenderPath
 {
     drivers::DeviceDriverVulkan* device_driver = nullptr;
     drivers::ImGuiDriver* imgui = nullptr;
+    RenderGraph* graph = nullptr;
 
     RenderGraph::Pass temp_pass;
 

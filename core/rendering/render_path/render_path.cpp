@@ -9,7 +9,7 @@ Error RenderPath::create_resources()
     
     temp_pass.name = "temp";
     temp_pass.setup = [](RenderGraph::Builder& b) {
-        b.color_attachment("final_image", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.0f, 0.0f, 1.0f, 1.0f } });
+        b.color_attachment("final_image", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.2f, 0.8f, 1.0f } });
         b.color_attachment("imp_color", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.0f, 1.0f, 0.0f, 1.0f } });
         b.depth_attachment("imp_depth", VK_ATTACHMENT_LOAD_OP_CLEAR, [] { VkClearValue v{}; v.depthStencil = { 1.0f, 0 }; return v; }());
     };

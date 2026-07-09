@@ -1,5 +1,4 @@
 #include <core/dev_tools/imgui_texture_cache.h>
-#include <drivers/vulkan/device_driver_vulkan.h>
 #include <core/log/error_macros.h>
 #include <backends/imgui_impl_vulkan.h>
 
@@ -11,21 +10,12 @@ Error ImGuiTextureCache::create(drivers::DeviceDriverVulkan& r_device_driver)
 
     device_driver = &r_device_driver;
 
-    drivers::DeviceDriverVulkan::SamplerCreateInfo sampler_ci{};
-    sampler_ci.mipmap_mode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-    sampler_ci.address_mode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-    sampler_ci.name = "imgui_preview_sampler";
-
-    sampler = device_driver->sampler_create(sampler_ci);
-    BALLISTIC_ERR_FAIL_COND_V(sampler == VK_NULL_HANDLE, Failed);
-
     return Ok;
 }
 
 void ImGuiTextureCache::destroy()
 {
     _invalidate_all();
-    if (sampler && device_driver) device_driver->sampler_free(sampler);
 }
 
 void ImGuiTextureCache::begin_frame(uint64_t p_frame_number, uint32_t p_frame_count, uint64_t p_resize_epoch)
@@ -49,7 +39,7 @@ VkDescriptorSet ImGuiTextureCache::get(VkImageView p_view)
         return it->second.set;
     }
 
-    VkDescriptorSet set = ImGui_ImplVulkan_AddTexture(sampler, p_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    VkDescriptorSet set = ImGui_ImplVulkan_AddTexture(device_driver->default_sampler.sampler, p_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     entries.emplace(p_view, Entry{ set, frame_number });
     return set;
