@@ -30,6 +30,8 @@ struct Renderer
     drivers::DeviceDriverVulkan::Image final_image;
     drivers::DeviceDriverVulkan::Image depth_image;
     drivers::DeviceDriverVulkan::Image image_2;
+    
+    drivers::DeviceDriverVulkan::Buffer test_buffer;
 
     Error create(drivers::DeviceDriverVulkan& r_device_driver);
     void destroy();

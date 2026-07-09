@@ -409,13 +409,14 @@ void RenderGraph::begin(uint32_t p_current_frame)
     
     image_resources.clear();
     image_resources.reserve(64);
-
-    // image_resources.clear();
     image_resource_map.clear();
     final_image_barriers.clear();
+    
     // buffer_resources.clear();
+    // buffer_resources.reserve(64);
     // buffer_resource_map.clear();
     // final_buffer_barriers.clear();
+    
     nodes.clear();
 }
 

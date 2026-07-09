@@ -10,7 +10,7 @@ void DebugConsole::draw()
 {
     if (!open) return;
     
-    ImGui::SetNextWindowSize(ImVec2(700, 105), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(700, 200), ImGuiCond_FirstUseEver);
     bool visible = ImGui::Begin("Debug Console", &open);
 
     if (visible) {

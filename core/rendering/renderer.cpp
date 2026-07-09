@@ -33,6 +33,16 @@ Error Renderer::create(drivers::DeviceDriverVulkan& r_device_driver)
     swapchain_render_pass_ci.name = "imgui_present_render_pass";
     swapchain_render_pass = device_driver->render_pass_create(swapchain_render_pass_ci);
 
+    drivers::DeviceDriverVulkan::BufferCreateInfo buffer_ci{};
+    buffer_ci.size = sizeof(float) * 4;
+    buffer_ci.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    buffer_ci.memory = drivers::DeviceDriverVulkan::BufferCreateInfo::Memory::HostVisible;
+    buffer_ci.name = "float4";
+    test_buffer = device_driver->buffer_create(buffer_ci);
+
+    float color[4] = { 1.0, 0.0, 1.0, 1.0 };
+    device_driver->buffer_update(test_buffer, &color, sizeof(float)*4);
+
     for (uint32_t i = 0; i < frame_count; i++) {
         in_flight_fences[i] = device_driver->fence_create(true);
         image_available_semaphores[i] = device_driver->semaphore_create();

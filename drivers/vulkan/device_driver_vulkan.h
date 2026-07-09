@@ -106,7 +106,7 @@ struct DeviceDriverVulkan
 	/**** IMAGES ****/
 	/****************/
 
-    struct BarrierState {
+    struct ImageBarrierState {
         VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
         VkPipelineStageFlags2 stage = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
         VkAccessFlags2 access = 0;
@@ -131,7 +131,7 @@ struct DeviceDriverVulkan
         VkImage image = VK_NULL_HANDLE;
         VkImageView image_view = VK_NULL_HANDLE;
         VmaAllocation allocation = nullptr;
-        BarrierState state;
+        ImageBarrierState state;
 
         uint32_t bindless_sampled = UINT32_MAX;
         uint32_t bindless_storage = UINT32_MAX;
@@ -149,6 +149,58 @@ struct DeviceDriverVulkan
 
     Image image_create_dedicated(const ImageCreateInfo& p_create_info, VkExtent3D p_extent);
     void image_free(Image& r_image);
+    
+	/*****************/
+	/**** BUFFERS ****/
+	/*****************/
+    
+    // ----- BUFFER -----
+
+    struct BufferBarrierState {
+        VkPipelineStageFlags2 stage = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+        VkAccessFlags2 access = 0;
+    };
+
+    struct BufferCreateInfo {
+        VkDeviceSize size = 0;
+        VkBufferUsageFlags usage = 0;
+
+        enum class Memory { DeviceLocal, HostVisible };
+        Memory memory = Memory::DeviceLocal;
+        const char* name = nullptr;
+    };
+
+    struct Buffer {
+        VkBuffer buffer = VK_NULL_HANDLE;
+        VmaAllocation allocation = nullptr;
+        BufferBarrierState state;
+
+        VkDeviceSize capacity = 0;
+        VkDeviceSize size = 0;
+        VkDeviceSize device_address = 0;
+        void* mapped = nullptr;
+
+        VkBufferUsageFlags usage = 0;
+        BufferCreateInfo::Memory memory = BufferCreateInfo::Memory::DeviceLocal;
+        const char* name = nullptr;
+    };
+
+    VkDeviceSize _next_power_of_2(VkDeviceSize v);
+
+    Buffer buffer_create(const BufferCreateInfo& p_create_info);
+    void buffer_free(Buffer& r_buffer);
+    Error buffer_ensure_capacity(Buffer& r_buffer, VkDeviceSize p_size);
+    Error buffer_update(Buffer& r_buffer, const void* p_data, VkDeviceSize p_size, VkDeviceSize p_offset = 0);
+    // void buffer_update_staged(VkCommandBuffer p_cmd, Buffer& r_dst, Buffer& r_staging, const void* p_data, VkDeviceSize p_size, VkDeviceSize p_dst_offset = 0, VkDeviceSize p_staging_offset = 0);
+
+    // ----- RING -----
+
+    struct BufferRing {
+        std::vector<Buffer> buffers;
+    };
+
+    BufferRing buffer_ring_create(const BufferCreateInfo& p_create_info, uint32_t p_frame_count);
+    void buffer_ring_free(BufferRing& r_buffer_ring);
 
     /*****************/
     /**** SAMPLER ****/

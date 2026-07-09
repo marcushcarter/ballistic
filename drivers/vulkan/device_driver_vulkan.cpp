@@ -784,6 +784,133 @@ void DeviceDriverVulkan::image_free(Image& r_image)
 }
 
 /*****************/
+/**** BUFFERS ****/
+/*****************/
+
+// ----- BUFFER -----
+
+VkDeviceSize DeviceDriverVulkan::_next_power_of_2(VkDeviceSize v)
+{
+    if (v <= 1) return 1;
+    --v;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    return ++v;
+}
+
+DeviceDriverVulkan::Buffer DeviceDriverVulkan::buffer_create(const BufferCreateInfo& p_create_info)
+{
+    using enum Error;
+
+    Buffer buffer;
+    buffer.memory = p_create_info.memory;
+    buffer.name = p_create_info.name;
+
+    VkBufferUsageFlags usage = p_create_info.usage | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    buffer.usage = usage;
+
+    VkDeviceSize alloc_size = p_create_info.size ? p_create_info.size : 1;
+
+    VkBufferCreateInfo buffer_ci{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+    buffer_ci.size = alloc_size;
+    buffer_ci.usage = usage;
+    buffer_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VmaAllocationCreateInfo alloc_ci{};
+    alloc_ci.usage = VMA_MEMORY_USAGE_UNKNOWN;
+    if (p_create_info.memory == BufferCreateInfo::Memory::HostVisible) {
+        alloc_ci.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        alloc_ci.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    } else {
+        alloc_ci.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    }
+
+    VmaAllocationInfo alloc_info{};
+    VkResult err = vmaCreateBuffer(allocator, &buffer_ci, &alloc_ci, &buffer.buffer, &buffer.allocation, &alloc_info);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan buffer.");
+
+    buffer.capacity = alloc_size;
+    buffer.size = p_create_info.size;
+    buffer.mapped = alloc_info.pMappedData;
+
+    VkBufferDeviceAddressInfo addr_info{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
+    addr_info.buffer = buffer.buffer;
+    buffer.device_address = vkGetBufferDeviceAddress(device, &addr_info);
+
+    set_object_name(VK_OBJECT_TYPE_BUFFER, (uint64_t)buffer.buffer, p_create_info.name);
+    return buffer;
+}
+
+void DeviceDriverVulkan::buffer_free(Buffer& r_buffer)
+{
+    if (r_buffer.buffer) {
+        vmaDestroyBuffer(allocator, r_buffer.buffer, r_buffer.allocation);
+        r_buffer.buffer = VK_NULL_HANDLE;
+        r_buffer.allocation = nullptr;
+    }
+    r_buffer.mapped = nullptr;
+    r_buffer.device_address = 0;
+    r_buffer.state = {};
+}
+
+Error DeviceDriverVulkan::buffer_ensure_capacity(Buffer& r_buffer, VkDeviceSize p_size)
+{
+    using enum Error;
+
+    if (r_buffer.capacity >= p_size) {
+        r_buffer.size = p_size;
+        return Ok;
+    }
+
+    VkDeviceSize new_cap = _next_power_of_2(p_size);
+
+    BufferCreateInfo buffer_ci{};
+    buffer_ci.size = new_cap;
+    buffer_ci.usage = r_buffer.usage;
+    buffer_ci.memory = r_buffer.memory;
+    buffer_ci.name = r_buffer.name;
+
+    Buffer fresh = buffer_create(buffer_ci);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(!fresh.buffer, Failed, "Buffer ensure capacity reallocation failed.");
+    fresh.size = p_size;
+
+    buffer_free(r_buffer);
+    r_buffer = fresh;
+    return Ok;
+}
+
+Error DeviceDriverVulkan::buffer_update(Buffer& r_buffer, const void* p_data, VkDeviceSize p_size, VkDeviceSize p_offset)
+{
+    using enum Error;
+    BALLISTIC_ERR_FAIL_COND_V_MSG(!r_buffer.mapped, Failed, "Cannot update a non-host-visible buffer.");
+    BALLISTIC_ERR_FAIL_COND_V_MSG(p_offset + p_size > r_buffer.capacity, Failed, "Buffer update of of range.");
+    memcpy(static_cast<uint8_t*>(r_buffer.mapped) + p_offset, p_data, p_size);
+    return Ok;
+}
+
+// ----- RING -----
+
+DeviceDriverVulkan::BufferRing DeviceDriverVulkan::buffer_ring_create(const BufferCreateInfo& p_create_info, uint32_t p_frame_count)
+{
+    using enum Error;
+    BufferRing ring;
+    for (uint32_t i = 0; i < p_frame_count; i++) {
+        buffer_create(p_create_info);
+    }
+    return ring;
+}
+
+void DeviceDriverVulkan::buffer_ring_free(BufferRing& r_buffer_ring)
+{
+    for (Buffer b : r_buffer_ring.buffers) {
+        buffer_free(b);
+    }
+}
+
+/*****************/
 /**** SAMPLER ****/
 /*****************/
 
@@ -1453,12 +1580,12 @@ VkShaderModule DeviceDriverVulkan::shader_create(const ShaderCreateInfo& p_creat
 
     BALLISTIC_ERR_FAIL_COND_V_MSG(!code || code_size == 0, VK_NULL_HANDLE, "No shader code provided.");
 
-    VkShaderModuleCreateInfo ci{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
-    ci.codeSize = code_size;
-    ci.pCode = code;
+    VkShaderModuleCreateInfo shader_ci{ VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO };
+    shader_ci.codeSize = code_size;
+    shader_ci.pCode = code;
 
     VkShaderModule module;
-    VkResult err = vkCreateShaderModule(device, &ci, nullptr, &module);
+    VkResult err = vkCreateShaderModule(device, &shader_ci, nullptr, &module);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan shader module.");
 
     set_object_name(VK_OBJECT_TYPE_SHADER_MODULE, (uint64_t)module, p_create_info.name);
