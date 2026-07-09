@@ -6,8 +6,10 @@
 
 namespace ballistic {
 
-void GpuProfiler::draw()
+void GpuProfiler::draw(RenderGraph& graph)
 {
+    (void)graph;
+    
     if (!open) return;
 
     ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);

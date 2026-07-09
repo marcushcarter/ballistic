@@ -16,3 +16,33 @@ Scene
 ├── Visibility Cell 2
 └── Outside
 ```
+
+## APP DATA
+
+```bash
+Local
+├── shader_cache
+│   ├── 092wanlsmoc97g3js.spv
+│   ├── asubca9neio2nbc92.spv
+│   └── ...
+└── ...
+
+Roaming Root
+├── app_userdata
+│   ├── <project_name>
+│   │   ├── logs
+│   │   │   ├── ballistic2026-02-05.log
+│   │   │   └── ballistic2026-03-04.log
+│   │   └── pipeline_cache
+│   │       └── pipeline_cache.bin
+│   └── ...
+├── themes
+│   ├── <theme_name>.theme
+│   ├── dark.theme
+│   └── ...
+├── editor_layout.cfg
+├── editor_settings.cfg
+├── projects.cfg
+├── recent_dirs.cfg
+└── ...
+```

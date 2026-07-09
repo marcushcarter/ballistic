@@ -20,8 +20,8 @@ struct Editor
     void begin_dockspace();
     void draw_menu_bar();
 
-    void load_layout();
-    void save_layout();
+    void load_settings();
+    void save_settings();
 };
 
 }

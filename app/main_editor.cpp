@@ -20,7 +20,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
         freopen_s(&dummy, "NUL", "r", stdin);
     }
     
-    std::filesystem::path ini_path = ballistic::Paths::roaming_data() / "editor_config.ini";
+    std::filesystem::path ini_path = ballistic::Paths::roaming_data() / "editor_layout.cfg";
     std::string ini_path_str = ini_path.string();
 
     ballistic::ApplicationCreateInfo info;

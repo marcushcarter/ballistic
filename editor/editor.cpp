@@ -12,13 +12,13 @@ namespace ballistic {
 Error Editor::create(const EditorContext& p_context)
 {
     context = p_context;
-    load_layout();
+    load_settings();
     return Error::Ok;
 }
 
 void Editor::destroy()
 {
-    save_layout();
+    save_settings();
 }
 
 void Editor::update(float p_dt)
@@ -82,8 +82,8 @@ void Editor::draw_menu_bar()
     }
 }
 
-void Editor::load_layout() {
-    std::filesystem::path path = Paths::roaming_data() / "editor_panels.cfg";
+void Editor::load_settings() {
+    std::filesystem::path path = Paths::roaming_data() / "editor_settings.cfg";
     if (path.empty()) return;
     std::ifstream f(path);
     if (!f) return;
@@ -95,8 +95,8 @@ void Editor::load_layout() {
     }
 }
 
-void Editor::save_layout() {
-    std::filesystem::path path = Paths::roaming_data() / "editor_panels.cfg";
+void Editor::save_settings() {
+    std::filesystem::path path = Paths::roaming_data() / "editor_settings.cfg";
     if (path.empty()) return;
     std::ofstream f(path);
     if (!f) return;

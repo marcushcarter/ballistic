@@ -3,12 +3,12 @@
 
 namespace ballistic {
 
-// struct RenderGraph;
+struct RenderGraph;
 
 struct GpuProfiler
 {
     bool open = false;
-    void draw();
+    void draw(RenderGraph& graph);
 };
 
 }

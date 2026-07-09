@@ -49,7 +49,7 @@ void DevTools::draw_tools(bool editor)
 {
     if (!editor) renderbuffer_xray.draw(renderer->graph, texture_cache);
     debug_console.draw();
-    gpu_profiler.draw();
+    gpu_profiler.draw(renderer->graph);
 }
 
 }
