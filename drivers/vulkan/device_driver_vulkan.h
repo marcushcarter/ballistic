@@ -228,30 +228,6 @@ struct DeviceDriverVulkan
     Sampler sampler_create(const SamplerCreateInfo& p_create_info);
     void sampler_free(Sampler& r_sampler);
 
-    /*******************/
-    /**** SWAPCHAIN ****/
-    /*******************/
-
-    struct Swapchain {
-        VkSwapchainKHR swapchain = VK_NULL_HANDLE;
-        ContextDriverVulkan::Surface* surface = nullptr;
-        VkFormat format = VK_FORMAT_UNDEFINED;
-        VkColorSpaceKHR color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-        std::vector<Image> images;
-        std::vector<VkSemaphore> present_semaphores;
-        uint32_t image_index = 0;
-    };
-
-    Swapchain swapchain;
-
-    bool _determine_swapchain_format(ContextDriverVulkan::Surface* r_surface, VkSurfaceFormatKHR &r_surface_format);
-    void _swapchain_release();
-    
-    Error swapchain_create(ContextDriverVulkan::Surface* r_surface);
-    Error swapchain_resize(uint32_t p_desired_framebuffer_count);
-    void swapchain_free();
-    Error swapchain_acquire_next_image(VkSemaphore p_signal_semaphore);
-
 	/*********************/
 	/**** DESCRIPTORS ****/
 	/*********************/
@@ -326,6 +302,32 @@ struct DeviceDriverVulkan
 
     VkFramebuffer framebuffer_create(VkRenderPass p_render_pass, std::vector<VkImageView>& p_image_views, VkExtent2D extent);
     void framebuffer_free(VkFramebuffer& r_framebuffer);
+
+    /*******************/
+    /**** SWAPCHAIN ****/
+    /*******************/
+
+    struct Swapchain {
+        VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+        ContextDriverVulkan::Surface* surface = nullptr;
+        VkRenderPass render_pass = VK_NULL_HANDLE;
+        VkFormat format = VK_FORMAT_UNDEFINED;
+        VkColorSpaceKHR color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        std::vector<Image> images;
+        std::vector<VkFramebuffer> framebuffers;
+        std::vector<VkSemaphore> present_semaphores;
+        uint32_t image_index = 0;
+    };
+
+    Swapchain swapchain;
+
+    bool _determine_swapchain_format(ContextDriverVulkan::Surface* r_surface, VkSurfaceFormatKHR &r_surface_format);
+    void _swapchain_release();
+    
+    Error swapchain_create(ContextDriverVulkan::Surface* r_surface);
+    Error swapchain_resize(uint32_t p_desired_framebuffer_count);
+    void swapchain_free();
+    Error swapchain_acquire_next_image(VkSemaphore p_signal_semaphore);
 
 	/****************/
 	/**** SHADER ****/

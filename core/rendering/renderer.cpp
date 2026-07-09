@@ -20,29 +20,6 @@ Error Renderer::create(drivers::DeviceDriverVulkan& r_device_driver)
 
     uint32_t graphics_family = device_driver->context_driver->graphics_queue_family;
 
-    drivers::DeviceDriverVulkan::RenderPassCreateInfo swapchain_render_pass_ci{};
-    swapchain_render_pass_ci.attachments.push_back({
-        .format = device_driver->swapchain.format,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
-        .load_op = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .store_op = VK_ATTACHMENT_STORE_OP_STORE,
-        .initial_layout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .final_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        .is_depth = false,
-    });
-    swapchain_render_pass_ci.name = "imgui_present_render_pass";
-    swapchain_render_pass = device_driver->render_pass_create(swapchain_render_pass_ci);
-
-    drivers::DeviceDriverVulkan::BufferCreateInfo buffer_ci{};
-    buffer_ci.size = sizeof(float) * 4;
-    buffer_ci.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-    buffer_ci.memory = drivers::DeviceDriverVulkan::BufferCreateInfo::Memory::HostVisible;
-    buffer_ci.name = "float4";
-    test_buffer = device_driver->buffer_create(buffer_ci);
-
-    float color[4] = { 1.0, 0.0, 1.0, 1.0 };
-    device_driver->buffer_update(test_buffer, &color, sizeof(float)*4);
-
     for (uint32_t i = 0; i < frame_count; i++) {
         in_flight_fences[i] = device_driver->fence_create(true);
         image_available_semaphores[i] = device_driver->semaphore_create();
@@ -53,6 +30,8 @@ Error Renderer::create(drivers::DeviceDriverVulkan& r_device_driver)
     graph.create(r_device_driver, frame_count);
 
     set_size(1, 1);
+    pending_width = width;
+    pending_height = height;
 
     return Ok;
 }
@@ -62,16 +41,12 @@ void Renderer::destroy()
     graph.destroy();
 
     device_driver->image_free(final_image);
-    device_driver->image_free(depth_image);
-    device_driver->image_free(image_2);
 
     for (uint32_t i = 0; i < frame_count; i++) {
         device_driver->fence_free(in_flight_fences[i]);
         device_driver->semaphore_free(image_available_semaphores[i]);
         device_driver->command_pool_free(command_pools[i]);
     }
-
-    device_driver->render_pass_free(swapchain_render_pass);
 }
 
 Error Renderer::set_size(uint32_t p_width, uint32_t p_height)
@@ -95,31 +70,22 @@ Error Renderer::set_size(uint32_t p_width, uint32_t p_height)
     image_ci.layers = 1;
     final_image = device_driver->image_create_dedicated(image_ci, { width, height, 1 });
 
-    device_driver->image_free(depth_image);
-    drivers::DeviceDriverVulkan::ImageCreateInfo depth_ci{};
-    depth_ci.format = VK_FORMAT_D32_SFLOAT;
-    depth_ci.usage  = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    depth_ci.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
-    depth_ci.sizing = drivers::DeviceDriverVulkan::ImageCreateInfo::Sizing::ViewportRelative;
-    depth_ci.width_scale  = 1.0f;
-    depth_ci.height_scale = 1.0f;
-    depth_image = device_driver->image_create_dedicated(depth_ci, { width, height, 1 });
-
-    device_driver->image_free(image_2);    
-    drivers::DeviceDriverVulkan::ImageCreateInfo image_ci2{};
-    image_ci2.name = "test_color";
-    image_ci2.format = VK_FORMAT_R8G8B8A8_UNORM;
-    image_ci2.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    image_ci2.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    image_ci2.sizing = drivers::DeviceDriverVulkan::ImageCreateInfo::Sizing::ViewportRelative;
-    image_ci2.width_scale  = 1.0f;
-    image_ci2.height_scale = 1.0f;
-    image_2 = device_driver->image_create_dedicated(image_ci2, { width, height, 1 });
-
     Error err = graph.set_size(p_width, p_height);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     return Ok;
+}
+
+void Renderer::request_size(uint32_t p_width, uint32_t p_height)
+{
+    pending_width = p_width;
+    pending_height = p_height;
+}
+
+Error Renderer::apply_pending_size()
+{
+    if (pending_width == 0 || pending_height == 0) return Error::Ok;
+    return set_size(pending_width, pending_height);
 }
 
 Error Renderer::begin_frame()
@@ -145,21 +111,19 @@ Error Renderer::begin_frame()
 
     graph.begin(current_frame);
     graph.import_image("final_image", &final_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
-    graph.import_image("imp_depth", &depth_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
-    graph.import_image("imp_color", &image_2, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
     graph.import_image("backbuffer", &sc.images[sc.image_index], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, 0);
-    graph.import_buffer("test_buffer", &test_buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
 
     return Ok;
 }
+
+void Renderer::compile() { graph.compile(); }
+
+void Renderer::render_frame() { graph.execute(cmd); }
 
 Error Renderer::end_frame()
 {
     using enum Error;
     auto& sc = device_driver->swapchain;
-
-    graph.compile();
-    graph.execute(cmd);
     
     Error err = device_driver->command_buffer_end(command_buffers[current_frame]);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
@@ -186,8 +150,15 @@ Error Renderer::end_frame()
     present_info.pImageIndices = &sc.image_index;
 
     VkQueue present_queue = device_driver->queue_families[device_driver->context_driver->present_queue_family][0].queue;
+    // result = vkQueuePresentKHR(present_queue, &present_info);
+    // BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS, err, "Failed to present Vulkan queue");
+
     result = vkQueuePresentKHR(present_queue, &present_info);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS, err, "Failed to present Vulkan queue");
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        device_driver->swapchain.surface->needs_resize = true;
+    } else {
+        BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS, Failed, "Failed to present Vulkan queue");
+    }
 
     current_frame = (current_frame + 1) % frame_count;
     frame_number++;

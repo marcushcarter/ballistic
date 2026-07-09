@@ -39,7 +39,7 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
     imgui_ci.queue_family = context_driver.graphics_queue_family;
     imgui_ci.queue = device_driver.queue_families[context_driver.graphics_queue_family][0].queue;
     imgui_ci.image_count = renderer.frame_count;
-    imgui_ci.render_pass = renderer.swapchain_render_pass;
+    imgui_ci.render_pass = device_driver.swapchain.render_pass;
     imgui_ci.subpass = 0;
     imgui_ci.ini_path = p_create_info.ini_path;
     imgui_ci.enable_docking = wants_docking();
@@ -97,20 +97,21 @@ int Application::run()
         drivers::WindowDriverWin32::poll_events();
 
         context_driver.surface_set_size(window.width, window.height);
+        if (device_driver.swapchain_update() != Ok) continue;
 
-        err = device_driver.swapchain_update();
-        if (err != Ok) {
-            continue;
-        }
+        renderer.apply_pending_size();
 
         dev_tools.begin_frame();
+        renderer.begin_frame();
+        
+        render_path->build(renderer.graph);
+        renderer.compile();
 
         imgui.new_frame();
         on_update((float)delta);
         imgui.render();
 
-        renderer.begin_frame();
-        render_path->build(renderer.graph);
+        renderer.render_frame();
         renderer.end_frame();
 
         dev_tools.end_frame();

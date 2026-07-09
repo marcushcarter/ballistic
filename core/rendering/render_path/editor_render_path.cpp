@@ -15,9 +15,9 @@ Error EditorRenderPath::create_resources()
     };
 
     present_pass.setup = [](RenderGraph::Builder& b) {
-        // b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.2f, 0.8f, 1.0f } });
         b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.1f, 0.1f, 1.0f } });
         b.read_image("final_image", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+        b.read_all_images();
     };
 
     present_pass.execute = [this](VkCommandBuffer cmd, RenderGraph& g) {

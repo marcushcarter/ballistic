@@ -20,7 +20,7 @@ void ViewportPanel::draw(EditorContext& ctx)
         ImVec2 pos = ImGui::GetCursorScreenPos();
 
         if (!ImGui::IsAnyItemActive()) {
-            ctx.renderer->set_size((uint32_t)size.x, (uint32_t)size.y);
+            ctx.renderer->request_size((uint32_t)size.x, (uint32_t)size.y);
         }
 
         VkDescriptorSet set = ctx.dev_tools->texture_cache.get(ctx.renderer->final_image.image_view);

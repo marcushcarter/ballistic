@@ -35,13 +35,25 @@ Error GameRenderPath::create_resources()
     present_pass.setup = [](RenderGraph::Builder& b) {
         b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.1f, 0.1f, 1.0f } });
         b.read_image("final_image", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
-        b.read_buffer("test_buffer", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
+
+        drivers::DeviceDriverVulkan::BufferCreateInfo buffer_ci{};
+        buffer_ci.size = sizeof(float) * 4;
+        buffer_ci.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        buffer_ci.memory = drivers::DeviceDriverVulkan::BufferCreateInfo::Memory::HostVisible;
+        buffer_ci.name = "test_color_buf";
+        b.create_buffer("test_color_buf", buffer_ci);
+        b.read_buffer("test_color_buf", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
+
+        b.read_all_images();
     };
 
     present_pass.execute = [this](VkCommandBuffer cmd, RenderGraph& g) {
         auto* bb = g.image("backbuffer");
         auto* final_image = g.image("final_image");
-        auto* test_buffer = g.buffer("test_buffer");
+
+        auto* color_buf = g.buffer("test_color_buf");
+        float color[4] = { 1.0f, 0.0f, 0.5f, 1.0f };
+        device_driver->buffer_update(*color_buf, color, sizeof(color));
 
         VkViewport vp{ 0, 0, (float)bb->extent.width, (float)bb->extent.height, 0.0f, 1.0f };
         VkRect2D sc{ {0,0}, { bb->extent.width, bb->extent.height } };
@@ -52,7 +64,7 @@ Error GameRenderPath::create_resources()
         struct { uint32_t srcIndex, samplerIndex; VkDeviceAddress test_buffer; } pc;
         pc.srcIndex = final_image->bindless_sampled;
         pc.samplerIndex = device_driver->default_sampler.bindless_sampler;
-        pc.test_buffer = test_buffer->device_address;
+        pc.test_buffer = color_buf->device_address;
         vkCmdPushConstants(cmd, device_driver->bindless_heap.pipeline_layout, VK_SHADER_STAGE_ALL, 0, sizeof(pc), &pc);
         vkCmdDraw(cmd, 3, 1, 0, 0);
 

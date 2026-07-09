@@ -10,7 +10,7 @@ Error GameApplication::on_init() { return Error::Ok; }
 void GameApplication::on_update(float p_dt)
 {
     (void)p_dt;
-    renderer.set_size(window.width, window.height);
+    renderer.request_size(window.width, window.height);
 
 #if BALLISTIC_DEV_TOOLS
     if (debug_menu_visible) {

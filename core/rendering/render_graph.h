@@ -96,8 +96,8 @@ struct RenderGraph
     ImageResource* image_resource(std::string_view p_name);
     ImageResource* image_resource_by_id(uint64_t p_name_id);
     void import_image(std::string_view p_name, drivers::DeviceDriverVulkan::Image* p_image, VkImageLayout p_final_layout, VkPipelineStageFlags2 p_final_stage, VkAccessFlags2 p_final_access);
-    void create_image(std::string_view p_name, const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info);
     
+    void create_image(std::string_view p_name, const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info);
     uint64_t _image_transient_key(const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info, VkExtent3D p_extent);
     void _image_resolve_extent(const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info, uint32_t& r_width, uint32_t& r_height);
     void _image_materialize_transient(ImageResource& r);
@@ -119,8 +119,8 @@ struct RenderGraph
         int producer = -1;
         bool read = false;
         bool written = false;
-        // int first_use = -1;
-        // int last_use = -1;
+        int first_use = -1;
+        int last_use = -1;
     };
 
     struct BufferAccess {
@@ -139,22 +139,24 @@ struct RenderGraph
         VkAccessFlags2 src_access = 0, dst_access = 0;
     };
 
-    // struct BufferTransientPool {};
+    struct BufferTransientPool {
+        std::unordered_map<uint64_t, std::vector<drivers::DeviceDriverVulkan::Buffer>> free;
+    };
     
     std::vector<BufferResource> buffer_resources;
     std::unordered_map<uint64_t, uint32_t> buffer_resource_map;
     std::vector<BufferBarrier> final_buffer_barriers;
-    // std::vector<BufferTransientPool> buffer_transient_pools;
+    std::vector<BufferTransientPool> buffer_transient_pools;
     
     drivers::DeviceDriverVulkan::Buffer* buffer(std::string_view p_name);
     BufferResource* buffer_resource(std::string_view p_name);
     BufferResource* buffer_resource_by_id(uint64_t p_name_id);
     void import_buffer(std::string_view p_name, drivers::DeviceDriverVulkan::Buffer* p_buffer, VkPipelineStageFlags2 p_final_stage, VkAccessFlags2 p_final_access);
     
-    // uint64_t _buffer_transient_key(const drivers::DeviceDriverVulkan::BufferCreateInfo& p_create_info, VkExtent3D p_extent);
-    // void _buffer_resolve_extent(const drivers::DeviceDriverVulkan::BufferCreateInfo& p_create_info, uint32_t& r_width, uint32_t& r_height);
-    // void _buffer_materialize_transient(BufferResource& r);
-    // void _buffer_release_transients();
+    void create_buffer(std::string_view p_name, const drivers::DeviceDriverVulkan::BufferCreateInfo& p_create_info);
+    uint64_t _buffer_transient_key(VkBufferUsageFlags p_usage, drivers::DeviceDriverVulkan::BufferCreateInfo::Memory p_memory, VkDeviceSize p_capacity);
+    void _buffer_materialize_transient(BufferResource& r);
+    void _buffer_release_transients();
     
     /**************/
     /**** PASS ****/

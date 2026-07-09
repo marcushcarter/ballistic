@@ -30,9 +30,7 @@ layout(location = 0) out vec4 FragColor;
 
 void main()
 {
-    // vec4 color = sample_bindless(pc.srcIndex, pc.samplerIndex, vUV);
-    // color.rgb = linear_to_srgb(color.rgb);
-    // FragColor = color;
-
-    FragColor = pc.colorRef.color;
+    vec4 color = sample_bindless(pc.srcIndex, pc.samplerIndex, vUV);
+    color.rgb = linear_to_srgb(color.rgb);
+    FragColor = color;
 }

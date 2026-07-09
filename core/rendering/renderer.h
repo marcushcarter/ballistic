@@ -14,7 +14,10 @@ struct Renderer
     uint32_t width = 0;
     uint32_t height = 0;
     uint64_t resize_epoch = 0;
-
+    
+    uint32_t pending_width = 0;
+    uint32_t pending_height = 0;
+    
     uint32_t frame_count = 1;
     uint32_t current_frame = 0;
     uint64_t frame_number = 0;
@@ -25,20 +28,18 @@ struct Renderer
     std::vector<VkCommandBuffer> command_buffers;
     VkCommandBuffer cmd = VK_NULL_HANDLE;
 
-    VkRenderPass swapchain_render_pass;
-
     drivers::DeviceDriverVulkan::Image final_image;
-    drivers::DeviceDriverVulkan::Image depth_image;
-    drivers::DeviceDriverVulkan::Image image_2;
-    
-    drivers::DeviceDriverVulkan::Buffer test_buffer;
 
     Error create(drivers::DeviceDriverVulkan& r_device_driver);
     void destroy();
 
+    void request_size(uint32_t p_width, uint32_t p_height);
+    Error apply_pending_size();
     Error set_size(uint32_t p_width, uint32_t p_height);
 
     Error begin_frame();
+    void compile();
+    void render_frame();
     Error end_frame();
 };
 

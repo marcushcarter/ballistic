@@ -772,11 +772,11 @@ void DeviceDriverVulkan::image_free(Image& r_image)
         r_image.image= VK_NULL_HANDLE;
         r_image.allocation = nullptr;
     }
-    if (r_image.bindless_sampled) {
+    if (r_image.bindless_sampled != UINT32_MAX) {
         bindless_heap_free_sampled(r_image.bindless_sampled);
         r_image.bindless_sampled = UINT32_MAX;
     }
-    if (r_image.bindless_storage) {
+    if (r_image.bindless_storage != UINT32_MAX) {
         bindless_heap_free_storage(r_image.bindless_storage);
         r_image.bindless_storage = UINT32_MAX;
     }
@@ -955,229 +955,6 @@ void DeviceDriverVulkan::sampler_free(Sampler& r_sampler)
         bindless_heap_free_sampler(r_sampler.bindless_sampler);
         r_sampler.bindless_sampler = UINT32_MAX;
     }
-}
-
-/*******************/
-/**** SWAPCHAIN ****/
-/*******************/
-
-bool DeviceDriverVulkan::_determine_swapchain_format(ContextDriverVulkan::Surface* surface, VkSurfaceFormatKHR &r_surface_format)
-{    
-    std::vector<VkSurfaceFormatKHR> surface_formats;
-    uint32_t format_count = 0;
-    VkResult err = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface->surface, &format_count, nullptr);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, false, "Couldn't get Vulkan surface present modes.");
-
-	surface_formats.resize(format_count);
-	err = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface->surface, &format_count, surface_formats.data());
-	BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, false, "Couldn't get Vulkan surface present modes.");
-
-    VkSurfaceFormatKHR surface_format = surface_formats[0];
-    for (const auto& f : surface_formats) {
-        if (f.format == VK_FORMAT_B8G8R8A8_SRGB && f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-            surface_format = f;
-            break;
-        }
-    }
-    r_surface_format = surface_format;
-
-    return true;
-}
-
-void DeviceDriverVulkan::_swapchain_release()
-{
-    for (Image& img : swapchain.images) {
-        if (img.image_view) vkDestroyImageView(device, img.image_view, nullptr);
-        img.image_view = VK_NULL_HANDLE;
-    }
-    swapchain.images.clear();
-
-    swapchain.image_index = UINT_MAX;
-
-    if (swapchain.swapchain) {
-        vkDestroySwapchainKHR(device, swapchain.swapchain, nullptr);
-        swapchain.swapchain = VK_NULL_HANDLE;
-    }
-
-    for (VkSemaphore semaphore : swapchain.present_semaphores) {
-        semaphore_free(semaphore);
-    }
-    swapchain.present_semaphores.clear();
-}
-
-Error DeviceDriverVulkan::swapchain_create(ContextDriverVulkan::Surface* r_surface)
-{
-    using enum Error;
-    BALLISTIC_ERR_FAIL_COND_V(!r_surface, Failed);
-    swapchain.surface = r_surface;
-    return Ok;
-}
-
-Error DeviceDriverVulkan::swapchain_resize(uint32_t p_desired_framebuffer_count)
-{
-    using enum Error;
-    
-    _swapchain_release();
-
-    ContextDriverVulkan::Surface* surface = (ContextDriverVulkan::Surface*)(swapchain.surface);
-    VkSurfaceCapabilitiesKHR surface_capabilities = {};
-    VkResult err = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface->surface, &surface_capabilities);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan surface capabilities.");
-
-    if (!swapchain.swapchain) {
-        if (surface_capabilities.currentExtent.width == 0xFFFFFFFF) {
-			surface_capabilities.currentExtent.width = std::clamp(surface->width, surface_capabilities.minImageExtent.width, surface_capabilities.maxImageExtent.width);
-			surface_capabilities.currentExtent.height = std::clamp(surface->height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height);
-		}
-    }
-
-    VkExtent2D extent;
-    if (surface_capabilities.currentExtent.width == 0xFFFFFFFF) {
-        extent.width = std::clamp(surface->width, surface_capabilities.minImageExtent.width, surface_capabilities.maxImageExtent.width);
-		extent.height = std::clamp(surface->height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height);
-    } else {
-        extent = surface_capabilities.currentExtent;
-        surface->width = extent.width;
-        surface->height = extent.height;
-    }
-
-	if (surface->width == 0 || surface->height == 0) {
-		return Failed;
-	}
-
-    std::vector<VkPresentModeKHR> present_modes;
-    uint32_t present_modes_count = 0;
-    err = vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface->surface, &present_modes_count, nullptr);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan surface present modes.");
-
-	present_modes.resize(present_modes_count);
-	err = vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface->surface, &present_modes_count, present_modes.data());
-	BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan surface present modes.");
-
-    VkPresentModeKHR present_mode = VkPresentModeKHR::VK_PRESENT_MODE_FIFO_KHR;
-	std::string present_mode_name = "Enabled";
-    if (surface->vsync_enabled) {
-        present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
-		present_mode_name = "Mailbox";
-    } else {
-        present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-		present_mode_name = "Disabled";
-    }
-
-    bool present_mode_available = false;
-    for (auto mode : present_modes) {
-        if (mode == present_mode) present_mode_available = true;
-    }
-
-	if (!present_mode_available) {
-		surface->vsync_enabled = true;
-		present_mode = VK_PRESENT_MODE_FIFO_KHR;
-	}
-
-	uint32_t desired_swapchain_images = std::max(p_desired_framebuffer_count, surface_capabilities.minImageCount);
-	if (surface_capabilities.maxImageCount > 0) {
-		desired_swapchain_images = std::min(desired_swapchain_images, surface_capabilities.maxImageCount);
-	}
-
-    VkSurfaceFormatKHR surface_format{};
-    if (!_determine_swapchain_format(surface, surface_format)) {
-        BALLISTIC_ERR_FAIL_COND_V_MSG(true, Failed, "Vulkan surface did not return any valid formats.");
-    } else {
-        swapchain.format = surface_format.format;
-        swapchain.color_space = surface_format.colorSpace;
-    }
-
-    VkSwapchainCreateInfoKHR swap_ci{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
-    swap_ci.surface = surface->surface;
-    swap_ci.minImageCount = desired_swapchain_images;
-    swap_ci.imageFormat = swapchain.format;
-    swap_ci.imageColorSpace = swapchain.color_space;
-    swap_ci.imageExtent = extent;
-    swap_ci.imageArrayLayers = 1;
-    swap_ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    swap_ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    swap_ci.preTransform = surface_capabilities.currentTransform;
-    swap_ci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    swap_ci.presentMode = present_mode;
-    swap_ci.clipped = VK_TRUE;
-
-    err = vkCreateSwapchainKHR(device, &swap_ci, nullptr, &swapchain.swapchain);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan swapchain.");
-    
-    uint32_t image_count = 0;
-    err = vkGetSwapchainImagesKHR(device, swapchain.swapchain, &image_count, nullptr);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan swapchain images.");
-    
-    std::vector<VkImage> raw_images(image_count);
-    err = vkGetSwapchainImagesKHR(device, swapchain.swapchain, &image_count, raw_images.data());
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan swapchain images.");
-
-    VkImageViewCreateInfo view_ci{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
-    view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    view_ci.format = swapchain.format;
-    view_ci.components.r = VK_COMPONENT_SWIZZLE_R;
-    view_ci.components.g = VK_COMPONENT_SWIZZLE_G;
-    view_ci.components.b = VK_COMPONENT_SWIZZLE_B;
-    view_ci.components.a = VK_COMPONENT_SWIZZLE_A;
-    view_ci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    view_ci.subresourceRange.levelCount = 1;
-    view_ci.subresourceRange.layerCount = 1;
-
-    swapchain.images.resize(image_count);
-	for (uint32_t i = 0; i < image_count; i++) {
-        Image& img = swapchain.images[i];
-        img = {};
-        img.image = raw_images[i];
-        img.format = swapchain.format;
-        img.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-        img.extent = { extent.width, extent.height, 1 };
-        img.allocation = nullptr;
-        img.state.layout = VK_IMAGE_LAYOUT_UNDEFINED;
-        img.state.stage  = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-        img.state.access = 0;
-
-        view_ci.image = img.image;
-        err = vkCreateImageView(device, &view_ci, nullptr, &img.image_view);
-        BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan image view for swapchain image.");
-    }
-
-	VkSemaphore semaphore = VK_NULL_HANDLE;
-	for (uint32_t i = 0; i < image_count; i++) {
-        semaphore = semaphore_create();
-		swapchain.present_semaphores.push_back(semaphore);
-	}
-
-    swapchain.surface->needs_resize = false;
-    return Ok;
-}
-
-void DeviceDriverVulkan::swapchain_free()
-{
-    _swapchain_release();
-}
-
-Error DeviceDriverVulkan::swapchain_acquire_next_image(VkSemaphore p_signal_semaphore)
-{
-    using enum Error;
-
-    VkResult err = vkAcquireNextImageKHR(device, swapchain.swapchain, UINT64_MAX, p_signal_semaphore, VK_NULL_HANDLE, &swapchain.image_index);
-    if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR) {
-        log_write("NEEDS_RESIZE from acquire OUT_OF_DATE or SUBOPTIMAL_KHR");
-        swapchain.surface->needs_resize = true;
-        return Ok;
-    }
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get next Vulkan swapchain image.");
-    
-    return Ok;
-    
-}
-
-Error DeviceDriverVulkan::swapchain_update()
-{
-    using enum Error;
-    if (!swapchain.surface->needs_resize) return Ok;
-    device_wait_idle();
-    return swapchain_resize(frame_count);
 }
 
 /*********************/
@@ -1485,6 +1262,266 @@ void DeviceDriverVulkan::framebuffer_free(VkFramebuffer& r_framebuffer)
         vkDestroyFramebuffer(device, r_framebuffer, nullptr);
         r_framebuffer = VK_NULL_HANDLE;
     }
+}
+
+/*******************/
+/**** SWAPCHAIN ****/
+/*******************/
+
+bool DeviceDriverVulkan::_determine_swapchain_format(ContextDriverVulkan::Surface* r_surface, VkSurfaceFormatKHR &r_surface_format)
+{    
+    std::vector<VkSurfaceFormatKHR> surface_formats;
+    uint32_t format_count = 0;
+    VkResult err = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, r_surface->surface, &format_count, nullptr);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, false, "Couldn't get Vulkan surface present modes.");
+
+	surface_formats.resize(format_count);
+	err = vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, r_surface->surface, &format_count, surface_formats.data());
+	BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, false, "Couldn't get Vulkan surface present modes.");
+
+    VkSurfaceFormatKHR surface_format = surface_formats[0];
+    for (const auto& f : surface_formats) {
+        if (f.format == VK_FORMAT_B8G8R8A8_SRGB && f.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            surface_format = f;
+            break;
+        }
+    }
+    r_surface_format = surface_format;
+
+    return true;
+}
+
+void DeviceDriverVulkan::_swapchain_release()
+{
+    for (VkFramebuffer& fb : swapchain.framebuffers) {
+        framebuffer_free(fb);
+    }
+
+    for (Image& img : swapchain.images) {
+        if (img.image_view) vkDestroyImageView(device, img.image_view, nullptr);
+        img.image_view = VK_NULL_HANDLE;
+    }
+    swapchain.images.clear();
+
+    swapchain.image_index = UINT_MAX;
+
+    if (swapchain.swapchain) {
+        vkDestroySwapchainKHR(device, swapchain.swapchain, nullptr);
+        swapchain.swapchain = VK_NULL_HANDLE;
+    }
+
+    for (VkSemaphore& sem : swapchain.present_semaphores) {
+        semaphore_free(sem);
+    }
+
+    swapchain.present_semaphores.clear();
+}
+
+Error DeviceDriverVulkan::swapchain_create(ContextDriverVulkan::Surface* r_surface)
+{
+    using enum Error;
+    BALLISTIC_ERR_FAIL_COND_V(!r_surface, Failed);
+    swapchain.surface = r_surface;
+
+    VkSurfaceFormatKHR surface_format{};
+    if (!_determine_swapchain_format(r_surface, surface_format)) {
+        BALLISTIC_ERR_FAIL_COND_V_MSG(true, Failed, "Vulkan surface did not return any valid formats.");
+    } else {
+        swapchain.format = surface_format.format;
+        swapchain.color_space = surface_format.colorSpace;
+    }
+
+    drivers::DeviceDriverVulkan::RenderPassCreateInfo render_pass_ci{};
+    render_pass_ci.name = "swapchain_render_pass";
+    RenderPassCreateInfo::Attachment color_attachment;
+    color_attachment.format = swapchain.format;
+    color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    color_attachment.load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    color_attachment.store_op = VK_ATTACHMENT_STORE_OP_STORE;
+    color_attachment.initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    color_attachment.final_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    color_attachment.is_depth = false;
+    render_pass_ci.attachments.push_back(color_attachment);
+    swapchain.render_pass = render_pass_create(render_pass_ci);
+
+    return Ok;
+}
+
+Error DeviceDriverVulkan::swapchain_resize(uint32_t p_desired_framebuffer_count)
+{
+    using enum Error;
+    
+    _swapchain_release();
+
+    ContextDriverVulkan::Surface* surface = (ContextDriverVulkan::Surface*)(swapchain.surface);
+    VkSurfaceCapabilitiesKHR surface_capabilities = {};
+    VkResult err = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface->surface, &surface_capabilities);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan surface capabilities.");
+
+    if (!swapchain.swapchain) {
+        if (surface_capabilities.currentExtent.width == 0xFFFFFFFF) {
+			surface_capabilities.currentExtent.width = std::clamp(surface->width, surface_capabilities.minImageExtent.width, surface_capabilities.maxImageExtent.width);
+			surface_capabilities.currentExtent.height = std::clamp(surface->height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height);
+		}
+    }
+
+    VkExtent2D extent;
+    if (surface_capabilities.currentExtent.width == 0xFFFFFFFF) {
+        extent.width = std::clamp(surface->width, surface_capabilities.minImageExtent.width, surface_capabilities.maxImageExtent.width);
+		extent.height = std::clamp(surface->height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height);
+    } else {
+        extent = surface_capabilities.currentExtent;
+        surface->width = extent.width;
+        surface->height = extent.height;
+    }
+
+	if (surface->width == 0 || surface->height == 0) {
+		return Failed;
+	}
+
+    std::vector<VkPresentModeKHR> present_modes;
+    uint32_t present_modes_count = 0;
+    err = vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface->surface, &present_modes_count, nullptr);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan surface present modes.");
+
+	present_modes.resize(present_modes_count);
+	err = vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface->surface, &present_modes_count, present_modes.data());
+	BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan surface present modes.");
+
+    VkPresentModeKHR present_mode = VkPresentModeKHR::VK_PRESENT_MODE_FIFO_KHR;
+	std::string present_mode_name = "Enabled";
+    if (surface->vsync_enabled) {
+        present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
+		present_mode_name = "Mailbox";
+    } else {
+        present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+		present_mode_name = "Disabled";
+    }
+
+    bool present_mode_available = false;
+    for (auto mode : present_modes) {
+        if (mode == present_mode) present_mode_available = true;
+    }
+
+	if (!present_mode_available) {
+		surface->vsync_enabled = true;
+		present_mode = VK_PRESENT_MODE_FIFO_KHR;
+	}
+
+	uint32_t desired_swapchain_images = std::max(p_desired_framebuffer_count, surface_capabilities.minImageCount);
+	if (surface_capabilities.maxImageCount > 0) {
+		desired_swapchain_images = std::min(desired_swapchain_images, surface_capabilities.maxImageCount);
+	}
+
+    VkSurfaceFormatKHR surface_format{};
+    if (!_determine_swapchain_format(surface, surface_format)) {
+        BALLISTIC_ERR_FAIL_COND_V_MSG(true, Failed, "Vulkan surface did not return any valid formats.");
+    } else {
+        swapchain.format = surface_format.format;
+        swapchain.color_space = surface_format.colorSpace;
+    }
+
+    VkSwapchainCreateInfoKHR swap_ci{ VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
+    swap_ci.surface = surface->surface;
+    swap_ci.minImageCount = desired_swapchain_images;
+    swap_ci.imageFormat = swapchain.format;
+    swap_ci.imageColorSpace = swapchain.color_space;
+    swap_ci.imageExtent = extent;
+    swap_ci.imageArrayLayers = 1;
+    swap_ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swap_ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    swap_ci.preTransform = surface_capabilities.currentTransform;
+    swap_ci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    swap_ci.presentMode = present_mode;
+    swap_ci.clipped = VK_TRUE;
+
+    err = vkCreateSwapchainKHR(device, &swap_ci, nullptr, &swapchain.swapchain);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan swapchain.");
+    
+    uint32_t image_count = 0;
+    err = vkGetSwapchainImagesKHR(device, swapchain.swapchain, &image_count, nullptr);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan swapchain images.");
+    
+    std::vector<VkImage> raw_images(image_count);
+    err = vkGetSwapchainImagesKHR(device, swapchain.swapchain, &image_count, raw_images.data());
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan swapchain images.");
+
+    VkImageViewCreateInfo view_ci{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+    view_ci.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    view_ci.format = swapchain.format;
+    view_ci.components.r = VK_COMPONENT_SWIZZLE_R;
+    view_ci.components.g = VK_COMPONENT_SWIZZLE_G;
+    view_ci.components.b = VK_COMPONENT_SWIZZLE_B;
+    view_ci.components.a = VK_COMPONENT_SWIZZLE_A;
+    view_ci.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    view_ci.subresourceRange.levelCount = 1;
+    view_ci.subresourceRange.layerCount = 1;
+
+    swapchain.images.resize(image_count);
+	for (uint32_t i = 0; i < image_count; i++) {
+        Image& img = swapchain.images[i];
+        img = {};
+        img.image = raw_images[i];
+        img.format = swapchain.format;
+        img.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+        img.extent = { extent.width, extent.height, 1 };
+        img.allocation = nullptr;
+        img.state.layout = VK_IMAGE_LAYOUT_UNDEFINED;
+        img.state.stage  = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+        img.state.access = 0;
+
+        view_ci.image = img.image;
+        err = vkCreateImageView(device, &view_ci, nullptr, &img.image_view);
+        BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan image view for swapchain image.");
+    }
+
+    swapchain.framebuffers.resize(image_count);
+    for (uint32_t i = 0; i < image_count; i++) {
+        std::vector<VkImageView> attachments;
+        attachments.push_back(swapchain.images[i].image_view);
+
+        swapchain.framebuffers[i] = framebuffer_create(swapchain.render_pass, attachments, extent);
+        BALLISTIC_ERR_FAIL_COND_V_MSG(!swapchain.framebuffers[i], Failed, "Couldn't create swapchain framebuffer.");
+    }
+
+	VkSemaphore semaphore = VK_NULL_HANDLE;
+	for (uint32_t i = 0; i < image_count; i++) {
+        semaphore = semaphore_create();
+		swapchain.present_semaphores.push_back(semaphore);
+	}
+
+    swapchain.surface->needs_resize = false;
+    return Ok;
+}
+
+void DeviceDriverVulkan::swapchain_free()
+{
+    _swapchain_release();
+    render_pass_free(swapchain.render_pass);
+}
+
+Error DeviceDriverVulkan::swapchain_acquire_next_image(VkSemaphore p_signal_semaphore)
+{
+    using enum Error;
+
+    VkResult err = vkAcquireNextImageKHR(device, swapchain.swapchain, UINT64_MAX, p_signal_semaphore, VK_NULL_HANDLE, &swapchain.image_index);
+    if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR) {
+        log_write("NEEDS_RESIZE from acquire OUT_OF_DATE or SUBOPTIMAL_KHR");
+        swapchain.surface->needs_resize = true;
+        return Ok;
+    }
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get next Vulkan swapchain image.");
+    
+    return Ok;
+    
+}
+
+Error DeviceDriverVulkan::swapchain_update()
+{
+    using enum Error;
+    if (!swapchain.surface->needs_resize) return Ok;
+    device_wait_idle();
+    return swapchain_resize(frame_count);
 }
 
 /****************/
