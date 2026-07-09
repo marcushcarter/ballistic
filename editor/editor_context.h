@@ -3,12 +3,12 @@
 namespace ballistic {
 
 struct Renderer;
-struct DevSystems;
+struct DevTools;
 
 struct EditorContext
 {
     Renderer* renderer = nullptr;
-    DevSystems* dev = nullptr;
+    DevTools* dev_tools = nullptr;
 };
 
 }

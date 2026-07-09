@@ -13,7 +13,7 @@ Error EditorApplication::on_init()
 
     EditorContext ctx{};
     ctx.renderer = &renderer;
-    ctx.dev = &dev_systems;
+    ctx.dev_tools = &dev_tools;
 
     err = editor.create(ctx);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);

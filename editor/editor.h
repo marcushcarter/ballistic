@@ -22,8 +22,6 @@ struct Editor
 
     void load_layout();
     void save_layout();
-    
-    static std::filesystem::path get_layout_path();
 };
 
 }

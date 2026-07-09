@@ -1,7 +1,7 @@
 #include <editor/panels/viewport_panel.h>
 #include <editor/editor_context.h>
 #include <core/rendering/renderer.h>
-#include <core/dev_tools/dev_systems.h>
+#include <core/dev_tools/dev_tools.h>
 #include <imgui.h>
 #include <IconsFontAwesome6.h>
 
@@ -23,7 +23,7 @@ void ViewportPanel::draw(EditorContext& ctx)
             ctx.renderer->set_size((uint32_t)size.x, (uint32_t)size.y);
         }
 
-        VkDescriptorSet set = ctx.dev->texture_cache.get(ctx.renderer->final_image.image_view);
+        VkDescriptorSet set = ctx.dev_tools->texture_cache.get(ctx.renderer->final_image.image_view);
         if (set) {
             ImGui::Image((ImTextureID)set, size);
         } else {

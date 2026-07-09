@@ -1,5 +1,5 @@
 #include <editor/editor.h>
-#include <core/dev_tools/dev_systems.h>
+#include <core/dev_tools/dev_tools.h>
 #include <core/io/path.h>
 #include <core/log/log.h>
 #include <imgui.h>
@@ -31,7 +31,8 @@ void Editor::draw()
     begin_dockspace();
     draw_menu_bar();
     viewport.draw(context);
-    context.dev->debug_console.draw();
+    
+    context.dev_tools->draw_tools(true);
 }
 
 void Editor::begin_dockspace()
@@ -66,17 +67,16 @@ void Editor::draw_menu_bar()
 {
     if (ImGui::BeginMainMenuBar()) {
 
-        if (ImGui::BeginMenu("View")) {
+        if (ImGui::BeginMenu("Editor")) {
             ImGui::MenuItem("Viewport", nullptr, &viewport.open);
-            ImGui::Separator();
-            ImGui::MenuItem("Debug Console", nullptr, &context.dev->debug_console.open);
             ImGui::Separator();
             if (ImGui::MenuItem("Close All")) {
                 viewport.open = false;
-                context.dev->debug_console.open = false;
             }
             ImGui::EndMenu();
         }
+
+        context.dev_tools->draw_menu();
         
         ImGui::EndMainMenuBar();
     }
@@ -91,7 +91,7 @@ void Editor::load_layout() {
     int val;
     while (f >> key >> val) {
         if (key == "viewport") viewport.open = (val != 0);
-        else if (key == "debug_console") context.dev->debug_console.open = (val != 0);
+        else if (key == "debug_console") context.dev_tools->debug_console.open = (val != 0);
     }
 }
 
@@ -101,7 +101,7 @@ void Editor::save_layout() {
     std::ofstream f(path);
     if (!f) return;
     f << "viewport " << (viewport.open ? 1 : 0) << "\n";
-    f << "debug_console " << (context.dev->debug_console.open ? 1 : 0) << "\n";
+    f << "debug_console " << (context.dev_tools->debug_console.open ? 1 : 0) << "\n";
 }
 
 }

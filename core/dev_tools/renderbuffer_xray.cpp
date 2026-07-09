@@ -7,8 +7,6 @@
 
 namespace ballistic {
 
-static const uint64_t BACKBUFFER_ID = RenderGraph::intern("backbuffer");
-
 void RenderBufferXray::draw(RenderGraph& graph, ImGuiTextureCache& cache)
 {
     if (!open) return;
@@ -74,57 +72,19 @@ void RenderBufferXray::draw(RenderGraph& graph, ImGuiTextureCache& cache)
         ImGui::BeginChild("##xray_list", ImVec2(right_w, avail.y), true);
         {
             bool any = false;
-            // for (const RenderGraph::ImageResource& r : graph.image_resources) {
-            //     if (r.name_id == BACKBUFFER_ID) continue;
-            //     any = true;
-            //     const std::string& name = graph.debug_names[r.name_id];
-            //     bool is_selected = (r.name_id == selected_name_id);
-            //     if (ImGui::Selectable(name.c_str(), is_selected)) selected_name_id = r.name_id;
-            // }
-            // for (const RenderGraph::ImageResource& r : graph.image_resources) {
-            //     if (r.name_id == BACKBUFFER_ID) continue;
+            for (const RenderGraph::ImageResource& r : graph.image_resources) {
+                if (r.name_id == graph.intern("backbuffer")) continue;
+                if (!r.read) continue;
+                if (!r.image) continue;
 
-            //     // only show images the graph actually made sampleable this frame
-            //     const bool sampleable = r.image && (r.image->usage & VK_IMAGE_USAGE_SAMPLED_BIT);
-            //     if (!sampleable) continue;
+                if (r.kind == RenderGraph::ResourceKind::Transient && r.image_create_info.sizing != drivers::DeviceDriverVulkan::ImageCreateInfo::Sizing::ViewportRelative)
+                    continue;
 
-            //     any = true;
-            //     const std::string& name = graph.debug_names[r.name_id];
-            //     bool is_selected = (r.name_id == selected_name_id);
-            //     if (ImGui::Selectable(name.c_str(), is_selected)) selected_name_id = r.name_id;
-            // }
-            // for (const RenderGraph::ImageResource& r : graph.image_resources) {
-            //     if (r.name_id == BACKBUFFER_ID) continue;
-
-            //     const bool inspectable =
-            //         r.image &&
-            //         r.read &&
-            //         (r.image_create_info.usage & VK_IMAGE_USAGE_SAMPLED_BIT);
-            //     if (!inspectable) continue;
-
-            //     any = true;
-            //     const std::string& name = graph.debug_names[r.name_id];
-            //     bool is_selected = (r.name_id == selected_name_id);
-            //     if (ImGui::Selectable(name.c_str(), is_selected)) selected_name_id = r.name_id;
-            // }
-//             log_write("xray: %zu image resources", graph.image_resources.size());
-// for (const auto& r : graph.image_resources) {
-//     log_write("  name=%s read=%d written=%d image=%p usage=0x%x",
-//         graph.debug_names[r.name_id].c_str(),
-//         (int)r.read, (int)r.written,
-//         (void*)r.image,
-//         r.image_create_info.usage);
-// }
-for (const RenderGraph::ImageResource& r : graph.image_resources) {
-    if (r.name_id == BACKBUFFER_ID) continue;
-    if (!r.read) continue;              // only images consumed as inputs
-    if (!r.image) continue;             // must have a live image to sample
-
-    any = true;
-    const std::string& name = graph.debug_names[r.name_id];
-    bool is_selected = (r.name_id == selected_name_id);
-    if (ImGui::Selectable(name.c_str(), is_selected)) selected_name_id = r.name_id;
-}
+                any = true;
+                const std::string& name = graph.debug_names[r.name_id];
+                bool is_selected = (r.name_id == selected_name_id);
+                if (ImGui::Selectable(name.c_str(), is_selected)) selected_name_id = r.name_id;
+            }
             if (!any) ImGui::TextDisabled("(no inspectable resources)");
         }
         ImGui::EndChild();

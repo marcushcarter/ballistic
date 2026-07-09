@@ -3,7 +3,7 @@
 #include <drivers/vulkan/device_driver_vulkan.h>
 #include <drivers/vulkan/context_driver_vulkan.h>
 #include <drivers/imgui/imgui_driver.h>
-#include <core/dev_tools/dev_systems.h>
+#include <core/dev_tools/dev_tools.h>
 #include <core/rendering/renderer.h>
 #include <core/log/error.h>
 #include <string>
@@ -31,7 +31,7 @@ struct Application
     RenderPath* render_path = nullptr;
 
     drivers::ImGuiDriver imgui;
-    DevSystems dev_systems;
+    DevTools dev_tools;
 
     Error create(const ApplicationCreateInfo& p_create_info);
     void destroy();

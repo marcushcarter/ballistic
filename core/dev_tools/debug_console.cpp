@@ -9,8 +9,11 @@ namespace ballistic {
 void DebugConsole::draw()
 {
     if (!open) return;
+    
     ImGui::SetNextWindowSize(ImVec2(700, 105), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Debug Console", &open)) {
+    bool visible = ImGui::Begin("Debug Console", &open);
+
+    if (visible) {
         
         LogSink& sink = log_sink();
 
