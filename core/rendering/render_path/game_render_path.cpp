@@ -61,10 +61,9 @@ Error GameRenderPath::create_resources()
         vkCmdSetScissor(cmd, 0, 1, &sc);
 
         vkCmdBindPipeline(cmd, gamma_blit_pipeline.bind_point, gamma_blit_pipeline.pipeline);
-        struct { uint32_t srcIndex, samplerIndex; VkDeviceAddress test_buffer; } pc;
+        struct { uint32_t srcIndex, samplerIndex; } pc;
         pc.srcIndex = final_image->bindless_sampled;
         pc.samplerIndex = device_driver->default_sampler.bindless_sampler;
-        pc.test_buffer = color_buf->device_address;
         vkCmdPushConstants(cmd, device_driver->bindless_heap.pipeline_layout, VK_SHADER_STAGE_ALL, 0, sizeof(pc), &pc);
         vkCmdDraw(cmd, 3, 1, 0, 0);
 

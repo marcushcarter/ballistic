@@ -4,12 +4,12 @@
 #define RT_MANIFEST 24
 #endif
 
-BALLISTIC_ICON ICON "ballistic_console.ico"
-1 RT_MANIFEST "ballistic.manifest"
+BALLISTIC_ICON ICON "platform/windows/ballistic_console.ico"
+1 RT_MANIFEST "platform/windows/ballistic.manifest"
 
 1 VERSIONINFO
-FILEVERSION     BALLISTIC_VERSION_MAJOR,BALLISTIC_VERSION_MINOR,BALLISTIC_VERSION_PATCH,0
-PRODUCTVERSION  BALLISTIC_VERSION_MAJOR,BALLISTIC_VERSION_MINOR,BALLISTIC_VERSION_PATCH,0
+FILEVERSION     1,0,0,0
+PRODUCTVERSION  1,0,0,0
 FILEOS          4
 FILETYPE        1
 BEGIN
@@ -20,9 +20,11 @@ BEGIN
             VALUE "CompanyName",     "Ballistic Games"
             VALUE "FileDescription", "Ballistic Engine (Console)"
             VALUE "FileVersion",     "1.0.0"
-            VALUE "InternalName",    "ballistic_console_wrapper"
-            VALUE "ProductName",     BALLISTIC_VERSION_NAME
             VALUE "ProductVersion",  "1.0.0"
+            VALUE "ProductName",     BALLISTIC_VERSION_NAME
+            VALUE "Licence",         "MIT"
+            VALUE "LegalCopyright",  "(c) 2026-present Marcus Carter"
+            VALUE "Info",            "https://ballisticgames.ca"
         END
     END
     BLOCK "VarFileInfo"

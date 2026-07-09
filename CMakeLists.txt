@@ -52,4 +52,4 @@ ballistic_generate_asset_rc(
     ${CMAKE_SOURCE_DIR}/assets/editor/fonts
 )
 
-add_subdirectory(app)
+add_subdirectory(platform)

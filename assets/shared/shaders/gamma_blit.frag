@@ -7,14 +7,9 @@ layout(set = 0, binding = 0) uniform texture2D uTextures[];
 // layout(set = 0, binding = 1) uniform image2D uStorageImages[];
 layout(set = 0, binding = 2) uniform sampler uSamplers[];
 
-layout(buffer_reference, scalar) readonly buffer ColorRef {
-    vec4 color;
-};
-
 layout(push_constant) uniform PC {
     uint srcIndex;
     uint samplerIndex;
-    ColorRef colorRef;
 } pc;
 
 vec4 sample_bindless(uint texIndex, uint sampIndex, vec2 uv) {
