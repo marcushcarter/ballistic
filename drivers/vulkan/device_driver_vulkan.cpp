@@ -1324,7 +1324,7 @@ void DeviceDriverVulkan::framebuffer_free(VkFramebuffer& r_framebuffer)
 /**** SHADER ****/
 /****************/
 
-static shaderc_shader_kind _to_shaderc_kind(DeviceDriverVulkan::ShaderStage p_stage)
+static shaderc_shader_kind _shaderc_kind(DeviceDriverVulkan::ShaderStage p_stage)
 {
     switch (p_stage) {
         case DeviceDriverVulkan::ShaderStage::Vertex: return shaderc_vertex_shader;
@@ -1359,9 +1359,8 @@ VkShaderModule DeviceDriverVulkan::shader_create(const ShaderCreateInfo& p_creat
 
     std::vector<uint32_t> spirv_storage;
     const uint32_t* code = p_create_info.spirv;
-    size_t code_size = p_create_info.spirv_size;   // bytes
+    size_t code_size = p_create_info.spirv_size;
 
-    // Precompiled SPIR-V path: use directly, no compile, no cache.
     if (!code && p_create_info.glsl_source) {
         const size_t source_len = std::strlen(p_create_info.glsl_source);
         const uint64_t key = _shader_cache_key(p_create_info, source_len);
@@ -1373,7 +1372,6 @@ VkShaderModule DeviceDriverVulkan::shader_create(const ShaderCreateInfo& p_creat
             cache_file = std::filesystem::path(shader_cache_dir) / name;
         }
 
-        // Cache hit: read words off disk, skip shaderc.
         bool loaded = false;
         if (!cache_file.empty()) {
             std::ifstream f(cache_file, std::ios::binary | std::ios::ate);
@@ -1391,22 +1389,14 @@ VkShaderModule DeviceDriverVulkan::shader_create(const ShaderCreateInfo& p_creat
             }
         }
 
-        // Cache miss: compile, then write through.
         if (!loaded) {
             shaderc::Compiler compiler;
             shaderc::CompileOptions options;
             options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
             options.SetOptimizationLevel(shaderc_optimization_level_performance);
 
-            shaderc::SpvCompilationResult res = compiler.CompileGlslToSpv(
-                p_create_info.glsl_source, source_len,
-                _to_shaderc_kind(p_create_info.stage),
-                p_create_info.name ? p_create_info.name : "embedded_shader",
-                options);
-
-            BALLISTIC_ERR_FAIL_COND_V_MSG(
-                res.GetCompilationStatus() != shaderc_compilation_status_success,
-                VK_NULL_HANDLE, res.GetErrorMessage().c_str());
+            shaderc::SpvCompilationResult res = compiler.CompileGlslToSpv(p_create_info.glsl_source, source_len, _shaderc_kind(p_create_info.stage), p_create_info.name ? p_create_info.name : "embedded_shader", options);
+            BALLISTIC_ERR_FAIL_COND_V_MSG(res.GetCompilationStatus() != shaderc_compilation_status_success, VK_NULL_HANDLE, res.GetErrorMessage().c_str());
 
             spirv_storage.assign(res.cbegin(), res.cend());
             code = spirv_storage.data();
@@ -1416,8 +1406,7 @@ VkShaderModule DeviceDriverVulkan::shader_create(const ShaderCreateInfo& p_creat
                 std::error_code ec;
                 std::filesystem::create_directories(shader_cache_dir, ec);
                 std::ofstream out(cache_file, std::ios::binary | std::ios::trunc);
-                if (out) out.write(reinterpret_cast<const char*>(spirv_storage.data()),
-                                   static_cast<std::streamsize>(code_size));
+                if (out) out.write(reinterpret_cast<const char*>(spirv_storage.data()), static_cast<std::streamsize>(code_size));
             }
         }
     }
