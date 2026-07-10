@@ -183,6 +183,7 @@ struct RenderGraph
     
     struct Pass {
         std::string name;
+        std::string category;
         
         struct Format { VkFormat format = VK_FORMAT_UNDEFINED; bool is_depth = false; };
         std::vector<Format> formats;
@@ -230,6 +231,7 @@ struct RenderGraph
         uint64_t name_id = 0;
         const char* name = "?";
         double gpu_ms = 0.0;
+        double raw_ms = 0.0;
     };
 
     struct Profiler {
@@ -244,6 +246,9 @@ struct RenderGraph
 
         std::vector<PassTiming> last_results;
         double last_total_ms = 0.0;
+
+        std::unordered_map<uint64_t, double> smoothed_ms;
+        double smoothing = 0.001;
 
         uint32_t query_count = 0;
         static constexpr uint32_t CAPACITY = 128;

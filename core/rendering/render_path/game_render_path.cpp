@@ -11,6 +11,7 @@ Error GameRenderPath::create_resources()
     if (Error e = RenderPath::create_resources(); e != Ok) return e;
 
     present_pass.name = "present";
+    present_pass.category = "Swapchain";
     present_pass.formats = {
         { dd->swapchain.format }
     };

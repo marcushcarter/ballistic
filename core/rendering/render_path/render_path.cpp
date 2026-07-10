@@ -8,6 +8,7 @@ Error RenderPath::create_resources()
     using enum Error;
     
     temp_pass.name = "temp";
+    temp_pass.category = "asnandds";
     temp_pass.setup = [](RenderGraph::Builder& b) {
         b.color_attachment("final_image", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.2f, 0.8f, 1.0f } });
         
@@ -37,6 +38,16 @@ Error RenderPath::create_resources()
         (void)cmd;
         (void)g;
     };
+    
+    temp_pass1 = temp_pass;
+    temp_pass1.name = "1";
+    temp_pass1.category = "asnandds";
+    temp_pass2 = temp_pass;
+    temp_pass2.name = "2";
+    temp_pass2.category = "mioncdon";
+    temp_pass3 = temp_pass;
+    temp_pass3.name = "3";
+    temp_pass3.category = "Lighting";
 
     return Ok;
 }
@@ -46,6 +57,9 @@ void RenderPath::destroy_resources() {}
 void RenderPath::build(RenderGraph& g)
 {
     g.add(&temp_pass);
+    g.add(&temp_pass1);
+    g.add(&temp_pass2);
+    g.add(&temp_pass3);
     build_present(g);
 }
 

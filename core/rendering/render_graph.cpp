@@ -573,13 +573,18 @@ void RenderGraph::_profiler_resolve()
         uint64_t a = raw[i] & profiler.valid_mask;
         uint64_t b = raw[i + 1] & profiler.valid_mask;
         double ms = (b >= a ? double(b - a) : 0.0) * profiler.period_ns * 1e-6;
-        total += ms;
 
+        auto [smit, fresh] = profiler.smoothed_ms.try_emplace(names[i], ms);
+        double& sm = smit->second;
+        if (!fresh) sm += profiler.smoothing * (ms - sm);
+        total += sm;
+        
         PassTiming t;
         t.name_id = names[i];
         auto dit = debug_names.find(names[i]);
         t.name = (dit != debug_names.end()) ? dit->second.c_str() : "?";
-        t.gpu_ms = ms;
+        t.gpu_ms = sm;
+        t.raw_ms = ms;
         profiler.last_results.push_back(t);
     }
     profiler.last_total_ms = total;

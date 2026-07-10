@@ -13,6 +13,10 @@ struct RenderPath
     RenderGraph* graph = nullptr;
 
     RenderGraph::Pass temp_pass;
+    
+    RenderGraph::Pass temp_pass1;
+    RenderGraph::Pass temp_pass2;
+    RenderGraph::Pass temp_pass3;
 
     virtual Error create_resources();
     virtual void destroy_resources();
