@@ -205,11 +205,27 @@ struct DeviceDriverVulkan
     VkSemaphore semaphore_create();
     void semaphore_free(VkSemaphore& r_semaphore);
 
+    /***************/
+    /**** QUERY ****/
+    /***************/
+
+    struct QueryPool {
+        VkQueryPool pool = VK_NULL_HANDLE;
+        uint32_t capacity = 0;
+    };
+
+    uint32_t timestamp_valid_bits(uint32_t p_queue_family_index);
+
+    QueryPool query_pool_create_timestamp(uint32_t p_query_count);
+    void query_pool_free(QueryPool& r_query_pool);
+    Error query_pool_get_results(const QueryPool& p_query_pool, uint32_t p_first, uint32_t p_count, uint64_t* r_results);
+
+    void command_reset_query_pool(VkCommandBuffer p_cmd, const QueryPool& p_query_pool, uint32_t p_first, uint32_t p_count);
+    void command_write_timestamp(VkCommandBuffer p_cmd, const QueryPool& p_query_pool, VkPipelineStageFlags2 p_stage, uint32_t p_index);
+
     /******************/
     /**** COMMANDS ****/
     /******************/
-    
-    // ----- POOL -----
 
     struct CommandPool {
         VkCommandPool command_pool = VK_NULL_HANDLE;
@@ -219,13 +235,23 @@ struct DeviceDriverVulkan
     CommandPool command_pool_create(uint32_t p_queue_family_index, VkCommandBufferLevel p_buffer_level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
     void command_pool_free(CommandPool& r_cmd_pool);
     Error command_pool_reset(CommandPool& r_cmd_pool);
-    
-    // ----- BUFFER -----
 
     VkCommandBuffer command_buffer_create(CommandPool& p_cmd_pool);
     Error command_buffer_begin(VkCommandBuffer p_cmd_buffer, VkCommandBufferUsageFlags p_flags = 0);
     Error command_buffer_end(VkCommandBuffer p_cmd_buffer);
     Error swapchain_update();
+
+    void command_render_set_viewport(VkCommandBuffer p_cmd, const std::vector<VkRect2D>& p_viewports);
+    void command_render_set_scissor(VkCommandBuffer p_cmd, const std::vector<VkRect2D>& p_scissors);
+    void command_bind_push_constants(const VkCommandBuffer& p_cmd, uint32_t p_size, void* r_data, uint32_t p_offset = 0);
+
+    void command_render_draw(VkCommandBuffer p_cmd, uint32_t p_vertex_count, uint32_t p_instance_count = 1, uint32_t p_base_vertex = 0, uint32_t p_first_instance = 0);
+    void command_render_draw_indexed(VkCommandBuffer p_cmd, uint32_t p_index_count, uint32_t p_instance_count = 1, uint32_t p_first_index = 0, int32_t p_vertex_offset = 0, uint32_t p_first_instance = 0);
+	void command_render_draw_indexed_indirect(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, uint32_t p_draw_count, uint32_t p_stride);
+	void command_render_draw_indexed_indirect_count(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, const Buffer& p_count_buffer, uint64_t p_count_buffer_offset, uint32_t p_max_draw_count, uint32_t p_stride);
+	void command_render_draw_indirect(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, uint32_t p_draw_count, uint32_t p_stride);
+	void command_render_draw_indirect_count(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, const Buffer& p_count_buffer, uint64_t p_count_buffer_offset, uint32_t p_max_draw_count, uint32_t p_stride);
+
 
     /*******************/
     /**** SWAPCHAIN ****/
@@ -404,21 +430,6 @@ struct DeviceDriverVulkan
 
     void command_begin_render_pass(VkCommandBuffer p_cmd, VkRenderPass p_render_pass, VkFramebuffer p_framebuffer, VkExtent2D p_extent, const std::vector<VkClearValue>& p_clear_values);
     void command_end_render_pass(VkCommandBuffer p_cmd);
-
-	/******************/
-	/**** COMMANDS ****/
-	/******************/
-
-    void command_render_set_viewport(VkCommandBuffer p_cmd, const std::vector<VkRect2D>& p_viewports);
-    void command_render_set_scissor(VkCommandBuffer p_cmd, const std::vector<VkRect2D>& p_scissors);
-    void command_bind_push_constants(const VkCommandBuffer& p_cmd, uint32_t p_size, void* r_data, uint32_t p_offset = 0);
-
-    void command_render_draw(VkCommandBuffer p_cmd, uint32_t p_vertex_count, uint32_t p_instance_count = 1, uint32_t p_base_vertex = 0, uint32_t p_first_instance = 0);
-    void command_render_draw_indexed(VkCommandBuffer p_cmd, uint32_t p_index_count, uint32_t p_instance_count = 1, uint32_t p_first_index = 0, int32_t p_vertex_offset = 0, uint32_t p_first_instance = 0);
-	void command_render_draw_indexed_indirect(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, uint32_t p_draw_count, uint32_t p_stride);
-	void command_render_draw_indexed_indirect_count(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, const Buffer& p_count_buffer, uint64_t p_count_buffer_offset, uint32_t p_max_draw_count, uint32_t p_stride);
-	void command_render_draw_indirect(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, uint32_t p_draw_count, uint32_t p_stride);
-	void command_render_draw_indirect_count(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, const Buffer& p_count_buffer, uint64_t p_count_buffer_offset, uint32_t p_max_draw_count, uint32_t p_stride);
 
 	/**************/
 	/**** MISC ****/

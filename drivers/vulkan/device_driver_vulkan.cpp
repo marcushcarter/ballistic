@@ -652,8 +652,6 @@ void DeviceDriverVulkan::image_free(Image& r_image)
 /**** BUFFERS ****/
 /*****************/
 
-// ----- BUFFER -----
-
 VkDeviceSize DeviceDriverVulkan::_next_power_of_2(VkDeviceSize v)
 {
     if (v <= 1) return 1;
@@ -755,8 +753,6 @@ Error DeviceDriverVulkan::buffer_update(Buffer& r_buffer, const void* p_data, Vk
     memcpy(static_cast<uint8_t*>(r_buffer.mapped) + p_offset, p_data, p_size);
     return Ok;
 }
-
-// ----- RING -----
 
 DeviceDriverVulkan::BufferRing DeviceDriverVulkan::buffer_ring_create(const BufferCreateInfo& p_create_info, uint32_t p_frame_count)
 {
@@ -887,11 +883,67 @@ void DeviceDriverVulkan::semaphore_free(VkSemaphore& r_semaphore)
     }
 }
 
+/***************/
+/**** QUERY ****/
+/***************/
+
+uint32_t DeviceDriverVulkan::timestamp_valid_bits(uint32_t p_queue_family_index)
+{
+    uint32_t count = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &count, nullptr);
+    if (p_queue_family_index >= count) return 0;
+
+    std::vector<VkQueueFamilyProperties> props(count);
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &count, props.data());
+    return props[p_queue_family_index].timestampValidBits;
+}
+
+DeviceDriverVulkan::QueryPool DeviceDriverVulkan::query_pool_create_timestamp(uint32_t p_query_count)
+{
+    VkQueryPoolCreateInfo query_pool_ci{ VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
+    query_pool_ci.queryType = VK_QUERY_TYPE_TIMESTAMP;
+    query_pool_ci.queryCount = p_query_count;
+    query_pool_ci.pipelineStatistics = 0;
+
+    QueryPool query_pool;
+    query_pool.capacity = p_query_count;
+    VkResult err = vkCreateQueryPool(device, &query_pool_ci, nullptr, &query_pool.pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan timestamp query pool.");
+
+    return query_pool;
+}
+
+void DeviceDriverVulkan::query_pool_free(QueryPool& r_query_pool)
+{
+    if (r_query_pool.pool) {
+        vkDestroyQueryPool(device, r_query_pool.pool, nullptr);
+        r_query_pool.pool = VK_NULL_HANDLE;
+    }
+}
+
+Error DeviceDriverVulkan::query_pool_get_results(const QueryPool& p_query_pool, uint32_t p_first, uint32_t p_count, uint64_t* r_results)
+{
+    using enum Error;
+    if (p_count == 0) return Ok;
+    VkResult err = vkGetQueryPoolResults(device, p_query_pool.pool, p_first, p_count, p_count * sizeof(uint64_t), r_results, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
+    if (err == VK_NOT_READY) return Failed;
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan query pool results.");
+    return Ok;
+}
+
+void DeviceDriverVulkan::command_reset_query_pool(VkCommandBuffer p_cmd, const QueryPool& p_query_pool, uint32_t p_first, uint32_t p_count)
+{
+    vkCmdResetQueryPool(p_cmd, p_query_pool.pool, p_first, p_count);
+}
+
+void DeviceDriverVulkan::command_write_timestamp(VkCommandBuffer p_cmd, const QueryPool& p_query_pool, VkPipelineStageFlags2 p_stage, uint32_t p_index)
+{
+    vkCmdWriteTimestamp2(p_cmd, p_stage, p_query_pool.pool, p_index);
+}
+
 /******************/
 /**** COMMANDS ****/
 /******************/
-
-// ----- POOL -----
 
 DeviceDriverVulkan::CommandPool DeviceDriverVulkan::command_pool_create(uint32_t p_queue_family_index, VkCommandBufferLevel p_buffer_level)
 {
@@ -923,8 +975,6 @@ Error DeviceDriverVulkan::command_pool_reset(CommandPool& r_cmd_pool)
     return Ok;
 }
 
-// ----- BUFFER -----
-
 VkCommandBuffer DeviceDriverVulkan::command_buffer_create(CommandPool& p_cmd_pool)
 {
     VkCommandBufferAllocateInfo cmd_buffer_ci{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
@@ -955,6 +1005,61 @@ Error DeviceDriverVulkan::command_buffer_end(VkCommandBuffer p_cmd_buffer)
     VkResult err = vkEndCommandBuffer(p_cmd_buffer);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't end Vulkan command buffer.");
     return Ok;
+}
+
+void DeviceDriverVulkan::command_render_set_viewport(VkCommandBuffer p_cmd, const std::vector<VkRect2D>& p_viewports)
+{
+    std::vector<VkViewport> viewports(p_viewports.size());
+    for (uint32_t i = 0; i < p_viewports.size(); i++) {
+        viewports[i] = {};
+        viewports[i].x = (float)p_viewports[i].offset.x;
+        viewports[i].y = (float)p_viewports[i].offset.y;
+        viewports[i].width = (float)p_viewports[i].extent.width;
+        viewports[i].height = (float)p_viewports[i].extent.height;
+        viewports[i].minDepth = 0.0f;
+        viewports[i].maxDepth = 1.0f;
+    }
+    vkCmdSetViewport(p_cmd, 0, (uint32_t)viewports.size(), viewports.data());
+}
+
+void DeviceDriverVulkan::command_render_set_scissor(VkCommandBuffer p_cmd, const std::vector<VkRect2D>& p_scissors)
+{
+    vkCmdSetScissor(p_cmd, 0, (uint32_t)p_scissors.size(), p_scissors.data());
+}
+
+void DeviceDriverVulkan::command_bind_push_constants(const VkCommandBuffer& p_cmd, uint32_t p_size, void* r_data, uint32_t p_offset)
+{
+    vkCmdPushConstants(p_cmd, bindless_heap.pipeline_layout, VK_SHADER_STAGE_ALL, p_offset, p_size, r_data);
+}
+
+void DeviceDriverVulkan::command_render_draw(VkCommandBuffer p_cmd, uint32_t p_vertex_count, uint32_t p_instance_count, uint32_t p_base_vertex, uint32_t p_first_instance)
+{
+    vkCmdDraw(p_cmd, p_vertex_count, p_instance_count, p_base_vertex, p_first_instance);
+}
+
+void DeviceDriverVulkan::command_render_draw_indexed(VkCommandBuffer p_cmd, uint32_t p_index_count, uint32_t p_instance_count, uint32_t p_first_index, int32_t p_vertex_offset, uint32_t p_first_instance)
+{
+    vkCmdDrawIndexed(p_cmd, p_index_count, p_instance_count, p_first_index, p_vertex_offset, p_first_instance);
+}
+
+void DeviceDriverVulkan::command_render_draw_indexed_indirect(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, uint32_t p_draw_count, uint32_t p_stride)
+{
+    vkCmdDrawIndexedIndirect(p_cmd, p_indirect_buffer.buffer, p_offset, p_draw_count, p_stride);
+}
+
+void DeviceDriverVulkan::command_render_draw_indexed_indirect_count(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, const Buffer& p_count_buffer, uint64_t p_count_buffer_offset, uint32_t p_max_draw_count, uint32_t p_stride)
+{
+    vkCmdDrawIndexedIndirectCount(p_cmd, p_indirect_buffer.buffer, p_offset, p_count_buffer.buffer, p_count_buffer_offset, p_max_draw_count, p_stride);
+}
+
+void DeviceDriverVulkan::command_render_draw_indirect(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, uint32_t p_draw_count, uint32_t p_stride)
+{
+    vkCmdDrawIndirect(p_cmd, p_indirect_buffer.buffer, p_offset, p_draw_count, p_stride);
+}
+
+void DeviceDriverVulkan::command_render_draw_indirect_count(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, const Buffer& p_count_buffer, uint64_t p_count_buffer_offset, uint32_t p_max_draw_count, uint32_t p_stride)
+{
+    vkCmdDrawIndirectCount(p_cmd, p_indirect_buffer.buffer, p_offset, p_count_buffer.buffer, p_count_buffer_offset, p_max_draw_count, p_stride);
 }
 
 /*******************/
@@ -1865,65 +1970,6 @@ void DeviceDriverVulkan::command_begin_render_pass(VkCommandBuffer p_cmd, VkRend
 void DeviceDriverVulkan::command_end_render_pass(VkCommandBuffer p_cmd)
 {
     vkCmdEndRenderPass(p_cmd);
-}
-
-/******************/
-/**** COMMANDS ****/
-/******************/
-
-void DeviceDriverVulkan::command_render_set_viewport(VkCommandBuffer p_cmd, const std::vector<VkRect2D>& p_viewports)
-{
-    std::vector<VkViewport> viewports(p_viewports.size());
-    for (uint32_t i = 0; i < p_viewports.size(); i++) {
-        viewports[i] = {};
-        viewports[i].x = (float)p_viewports[i].offset.x;
-        viewports[i].y = (float)p_viewports[i].offset.y;
-        viewports[i].width = (float)p_viewports[i].extent.width;
-        viewports[i].height = (float)p_viewports[i].extent.height;
-        viewports[i].minDepth = 0.0f;
-        viewports[i].maxDepth = 1.0f;
-    }
-    vkCmdSetViewport(p_cmd, 0, (uint32_t)viewports.size(), viewports.data());
-}
-
-void DeviceDriverVulkan::command_render_set_scissor(VkCommandBuffer p_cmd, const std::vector<VkRect2D>& p_scissors)
-{
-    vkCmdSetScissor(p_cmd, 0, (uint32_t)p_scissors.size(), p_scissors.data());
-}
-
-void DeviceDriverVulkan::command_bind_push_constants(const VkCommandBuffer& p_cmd, uint32_t p_size, void* r_data, uint32_t p_offset)
-{
-    vkCmdPushConstants(p_cmd, bindless_heap.pipeline_layout, VK_SHADER_STAGE_ALL, p_offset, p_size, r_data);
-}
-
-void DeviceDriverVulkan::command_render_draw(VkCommandBuffer p_cmd, uint32_t p_vertex_count, uint32_t p_instance_count, uint32_t p_base_vertex, uint32_t p_first_instance)
-{
-    vkCmdDraw(p_cmd, p_vertex_count, p_instance_count, p_base_vertex, p_first_instance);
-}
-
-void DeviceDriverVulkan::command_render_draw_indexed(VkCommandBuffer p_cmd, uint32_t p_index_count, uint32_t p_instance_count, uint32_t p_first_index, int32_t p_vertex_offset, uint32_t p_first_instance)
-{
-    vkCmdDrawIndexed(p_cmd, p_index_count, p_instance_count, p_first_index, p_vertex_offset, p_first_instance);
-}
-
-void DeviceDriverVulkan::command_render_draw_indexed_indirect(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, uint32_t p_draw_count, uint32_t p_stride)
-{
-    vkCmdDrawIndexedIndirect(p_cmd, p_indirect_buffer.buffer, p_offset, p_draw_count, p_stride);
-}
-
-void DeviceDriverVulkan::command_render_draw_indexed_indirect_count(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, const Buffer& p_count_buffer, uint64_t p_count_buffer_offset, uint32_t p_max_draw_count, uint32_t p_stride)
-{
-    vkCmdDrawIndexedIndirectCount(p_cmd, p_indirect_buffer.buffer, p_offset, p_count_buffer.buffer, p_count_buffer_offset, p_max_draw_count, p_stride);
-}
-
-void DeviceDriverVulkan::command_render_draw_indirect(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, uint32_t p_draw_count, uint32_t p_stride)
-{
-    vkCmdDrawIndirect(p_cmd, p_indirect_buffer.buffer, p_offset, p_draw_count, p_stride);
-}
-
-void DeviceDriverVulkan::command_render_draw_indirect_count(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, const Buffer& p_count_buffer, uint64_t p_count_buffer_offset, uint32_t p_max_draw_count, uint32_t p_stride)
-{
-    vkCmdDrawIndirectCount(p_cmd, p_indirect_buffer.buffer, p_offset, p_count_buffer.buffer, p_count_buffer_offset, p_max_draw_count, p_stride);
 }
 
 /**************/

@@ -1,5 +1,7 @@
 #include <core/dev_tools/dev_tools.h>
 #include <core/dev_tools/xray/xray.h>
+#include <core/dev_tools/profiler/claude_profiler.h>
+#include <core/dev_tools/profiler/profiler.h>
 #include <imgui.h>
 
 namespace ballistic {
@@ -10,6 +12,8 @@ Error DevTools::create(const DevContext& p_context)
     context = p_context;
     
     panels.push_back(std::make_unique<Xray>());
+    panels.push_back(std::make_unique<ClaudeProfiler>());
+    panels.push_back(std::make_unique<Profiler>());
 
     return Ok;
 }

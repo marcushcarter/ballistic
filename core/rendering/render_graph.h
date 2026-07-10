@@ -221,6 +221,43 @@ struct RenderGraph
     std::unordered_map<uint64_t, VkFramebuffer> framebuffer_cache;
 
     VkFramebuffer _get_or_create_framebuffer(Node& node);
+
+    /******************/
+    /**** PROFILER ****/
+    /******************/
+
+    struct PassTiming {
+        uint64_t name_id = 0;
+        const char* name = "?";
+        double gpu_ms = 0.0;
+    };
+
+    struct Profiler {
+        bool enabled = false;
+        double period_ns = 1.0;
+        uint64_t valid_mask = ~0ull;
+
+        std::vector<drivers::DeviceDriverVulkan::QueryPool> pools;
+        std::vector<std::vector<uint64_t>> slot_names;
+        std::vector<uint32_t> slot_count;
+        std::vector<uint8_t> slot_recorded;
+
+        std::vector<PassTiming> last_results;
+        double last_total_ms = 0.0;
+
+        uint32_t query_count = 0;
+        static constexpr uint32_t CAPACITY = 128;
+    };
+
+    Profiler profiler;
+
+    void _profiler_resolve();
+    void _profiler_frame_begin(VkCommandBuffer p_cmd);
+    void _profiler_mark(VkCommandBuffer p_cmd, const std::string& p_name);
+    void _profiler_frame_end();
+    
+    void profiler_initialize();
+    void profiler_shutdown();
     
     /***************/
     /**** GRAPH ****/
