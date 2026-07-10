@@ -1,15 +1,13 @@
-#include <core/dev_tools/imgui_texture_cache.h>
+#include <drivers/imgui/imgui_texture_cache.h>
 #include <core/log/error_macros.h>
 #include <backends/imgui_impl_vulkan.h>
 
-namespace ballistic {
+namespace ballistic::drivers {
 
-Error ImGuiTextureCache::create(drivers::DeviceDriverVulkan& r_device_driver)
+Error ImGuiTextureCache::create(VkSampler p_sampler)
 {
     using enum Error;
-
-    device_driver = &r_device_driver;
-
+    sampler = p_sampler;
     return Ok;
 }
 
@@ -39,7 +37,7 @@ VkDescriptorSet ImGuiTextureCache::get(VkImageView p_view)
         return it->second.set;
     }
 
-    VkDescriptorSet set = ImGui_ImplVulkan_AddTexture(device_driver->default_sampler.sampler, p_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    VkDescriptorSet set = ImGui_ImplVulkan_AddTexture(sampler, p_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     entries.emplace(p_view, Entry{ set, frame_number });
     return set;

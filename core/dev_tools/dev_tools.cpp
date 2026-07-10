@@ -1,55 +1,44 @@
 #include <core/dev_tools/dev_tools.h>
-#include <core/rendering/renderer.h>
+#include <core/dev_tools/xray/xray.h>
 #include <imgui.h>
 
 namespace ballistic {
 
-Error DevTools::create(Renderer& r_renderer, drivers::DeviceDriverVulkan& r_device_driver)
+Error DevTools::create(const DevContext& p_context)
 {
-    renderer = &r_renderer;
-    device_driver = &r_device_driver;
-    texture_cache.create(r_device_driver);
-    return Error::Ok;
+    using enum Error;
+    context = p_context;
+    
+    panels.push_back(std::make_unique<Xray>());
+
+    return Ok;
 }
 
 void DevTools::destroy()
 {
-    texture_cache.destroy();
+
 }
 
-void DevTools::begin_frame()
-{
-    texture_cache.begin_frame(renderer->frame_number, renderer->frame_count, renderer->resize_epoch);
-}
-
-void DevTools::end_frame()
-{
-    texture_cache.collect(renderer->frame_number);
-}
-
-void DevTools::draw_menu()
-{
-    if (ImGui::BeginMenu("Tools")) {
-        ImGui::MenuItem("RenderBuffer XRay", nullptr, &renderbuffer_xray.open);
-        ImGui::MenuItem("Debug Console", nullptr, &debug_console.open);
-        ImGui::MenuItem("GPU Profiler", nullptr, &gpu_profiler.open);
-        ImGui::Separator();
-
-        if (ImGui::MenuItem("Close All")) {
-            renderbuffer_xray.open = false;
-            debug_console.open = false;
-            gpu_profiler.open = false;
-        }
-
-        ImGui::EndMenu();
+void DevTools::draw_panels(bool p_editor) {
+    for (auto& p : panels) {
+        if (p_editor && !p->show_in_editor()) continue;
+        p->draw(context);
     }
 }
 
-void DevTools::draw_tools(bool editor)
+void DevTools::draw_menu(bool p_editor)
 {
-    if (!editor) renderbuffer_xray.draw(renderer->graph, texture_cache);
-    debug_console.draw();
-    gpu_profiler.draw(renderer->graph);
+    if (panels.empty()) return;
+    
+    if (ImGui::BeginMenu("Tools")) {
+        for (auto& p : panels) {
+            if (p_editor && !p->show_in_editor()) continue;
+            ImGui::MenuItem(p->name(), nullptr, &p->open);
+        }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Close All")) for (auto& p : panels) p->open = false;
+        ImGui::EndMenu();
+    }
 }
 
 }

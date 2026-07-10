@@ -19,5 +19,4 @@ target_link_libraries(ballistic_editor
 PUBLIC
     ballistic_compiler_options
     ballistic_core
-    IconFontCppHeaders
 )

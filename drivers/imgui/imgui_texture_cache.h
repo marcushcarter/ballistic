@@ -1,24 +1,15 @@
 #pragma once
 #include <core/log/error.h>
-#include <drivers/vulkan/device_driver_vulkan.h>
+#include <vulkan/vulkan.h>
 #include <unordered_map>
 #include <vector>
 
-namespace ballistic {
+namespace ballistic::drivers {
 
 struct ImGuiTextureCache
 {
-    struct Entry {
-        VkDescriptorSet set = VK_NULL_HANDLE;
-        uint64_t last_used_frame = 0;
-    };
-
-    struct Retired {
-        VkDescriptorSet set = VK_NULL_HANDLE;
-        uint64_t retire_frame = 0;
-    };
-
-    drivers::DeviceDriverVulkan* device_driver = nullptr;
+    struct Entry { VkDescriptorSet set = VK_NULL_HANDLE; uint64_t last_used_frame = 0; };
+    struct Retired { VkDescriptorSet set = VK_NULL_HANDLE; uint64_t retire_frame = 0; };
 
     uint64_t frame_number = 0;
     uint32_t frame_count = 1;
@@ -27,7 +18,9 @@ struct ImGuiTextureCache
     std::unordered_map<VkImageView, Entry> entries;
     std::vector<Retired> retired;
 
-    Error create(drivers::DeviceDriverVulkan& r_device_driver);
+    VkSampler sampler = VK_NULL_HANDLE;
+
+    Error create(VkSampler p_sampler);
     void _invalidate_all();
     void destroy();
 

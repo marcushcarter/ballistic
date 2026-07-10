@@ -1,17 +1,17 @@
 #pragma once
-#include <editor/editor_context.h>
+#include <core/dev_tools/dev_context.h>
 #include <imgui.h>
 
 namespace ballistic {
 
-struct Panel
+struct DevPanel
 {
     bool open = true;
 
-    virtual ~Panel() = default;
+    virtual ~DevPanel() = default;
     virtual const char* name() const = 0;
 
-    void draw(EditorContext& ctx) {
+    void draw(DevContext& ctx) {
         if (!open) return;
 
         ImGuiWindowFlags flags = window_flags();
@@ -26,10 +26,12 @@ struct Panel
         ImGui::End();
     }
 
-    virtual void draw_contents(EditorContext& ctx) = 0;
+    virtual void draw_contents(DevContext& ctx) = 0;
     virtual ImGuiWindowFlags window_flags() const { return 0; }
     virtual int push_style() { return 0; }
     virtual void before_begin() {}
+
+    virtual bool show_in_editor() const { return true; }
 };
 
 }

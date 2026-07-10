@@ -19,5 +19,6 @@ PUBLIC
     Vulkan::Vulkan
     Vulkan::shaderc_combined
     imgui
+    IconFontCppHeaders
     dwmapi
 )

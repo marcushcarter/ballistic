@@ -40,7 +40,7 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
     imgui_ci.queue = device_driver.queue_families[context_driver.graphics_queue_family][0].queue;
     imgui_ci.image_count = renderer.frame_count;
     imgui_ci.render_pass = device_driver.swapchain.render_pass;
-    imgui_ci.subpass = 0;
+    imgui_ci.sampler = device_driver.default_sampler.sampler;
     imgui_ci.ini_path = p_create_info.ini_path;
     imgui_ci.enable_docking = wants_docking();
     err = imgui.create(imgui_ci);
@@ -52,8 +52,12 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
     render_path->graph = &renderer.graph;
     err = render_path->create_resources();
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+    
+    DevContext ctx{};
+    ctx.renderer = &renderer;
+    ctx.imgui = &imgui;
 
-    dev_tools.create(renderer, device_driver);
+    dev_tools.create(ctx);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     return Ok;
@@ -101,20 +105,19 @@ int Application::run()
 
         renderer.apply_pending_size();
 
-        dev_tools.begin_frame();
+        imgui.begin_frame(renderer.frame_number, renderer.frame_count, renderer.resize_epoch);
         renderer.begin_frame();
         
         render_path->build(renderer.graph);
         renderer.compile();
 
-        imgui.new_frame();
         on_update((float)delta);
         imgui.render();
 
         renderer.render_frame();
+        
         renderer.end_frame();
-
-        dev_tools.end_frame();
+        imgui.end_frame(renderer.frame_number);
     }
 
     on_shutdown();

@@ -1,4 +1,5 @@
 #pragma once
+#include <drivers/imgui/imgui_texture_cache.h>
 #include <core/log/error.h>
 #include <vulkan/vulkan.h>
 #include <windows.h>
@@ -17,6 +18,7 @@ struct ImGuiDriverCreateInfo
     uint32_t image_count = 2;
     VkRenderPass render_pass = VK_NULL_HANDLE;
     uint32_t subpass = 0;
+    VkSampler sampler = VK_NULL_HANDLE;
     const char* ini_path = nullptr;
     bool enable_docking = false;
 };
@@ -25,12 +27,16 @@ struct ImGuiDriver
 {
     VkDevice device = VK_NULL_HANDLE;
     VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
+    
     std::string ini_path_storage;
+
+    ImGuiTextureCache texture_cache;
 
     Error create(const ImGuiDriverCreateInfo& p_create_info);
     void destroy();
 
-    void new_frame();
+    void begin_frame(uint64_t p_frame_number, uint32_t p_frame_count, uint64_t p_resize_epoch);
+    void end_frame(uint64_t p_frame_number);
     void render();
     void record_commands(VkCommandBuffer p_cmd);
 };

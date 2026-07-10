@@ -1,14 +1,12 @@
 #include <editor/editor.h>
-
 #include <editor/viewport/viewport.h>
-
-#include <core/dev_tools/dev_tools.h>
+#include <editor/debugger/debugger.h>
 #include <core/io/path.h>
 #include <core/log/log.h>
 #include <imgui.h>
 #include <fstream>
 #include <string>
-#include <iostream>
+// #include <iostream>
 
 namespace ballistic {
 
@@ -17,6 +15,7 @@ Error Editor::create(const EditorContext& p_context)
     context = p_context;
 
     panels.push_back(std::make_unique<Viewport>());
+    panels.push_back(std::make_unique<Debugger>());
 
     load_settings();
     return Error::Ok;
@@ -25,22 +24,6 @@ Error Editor::create(const EditorContext& p_context)
 void Editor::destroy()
 {
     save_settings();
-}
-
-void Editor::update(float p_dt)
-{
-    (void)p_dt;
-}
-
-void Editor::draw()
-{
-    begin_dockspace();
-    draw_menu_bar();
-
-    for (auto& p : panels)
-        p->draw(context);
-    
-    context.dev_tools->draw_tools(true);
 }
 
 void Editor::begin_dockspace()
@@ -71,19 +54,17 @@ void Editor::begin_dockspace()
     ImGui::End();
 }
 
-void Editor::draw_menu_bar()
+void Editor::draw_panels() { for (auto& p : panels) p->draw(context); }
+
+void Editor::draw_menu()
 {
-    if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("Editor")) {
-            for (auto& p : panels)
-                ImGui::MenuItem(p->name(), nullptr, &p->open);
-            ImGui::Separator();
-            if (ImGui::MenuItem("Close All"))
-                for (auto& p : panels) p->open = false;
-            ImGui::EndMenu();
-        }
-        context.dev_tools->draw_menu();
-        ImGui::EndMainMenuBar();
+    if (panels.empty()) return;
+    
+    if (ImGui::BeginMenu("Editor")) {
+        for (auto& p : panels) ImGui::MenuItem(p->name(), nullptr, &p->open);
+        ImGui::Separator();
+        if (ImGui::MenuItem("Close All")) for (auto& p : panels) p->open = false;
+        ImGui::EndMenu();
     }
 }
 

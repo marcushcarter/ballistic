@@ -4,7 +4,7 @@ namespace ballistic {
 struct Renderer;
 namespace drivers { struct ImGuiDriver; }
 
-struct EditorContext
+struct DevContext
 {
     Renderer* renderer = nullptr;
     drivers::ImGuiDriver* imgui = nullptr;

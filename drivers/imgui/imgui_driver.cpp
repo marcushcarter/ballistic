@@ -77,8 +77,9 @@ Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_create_info)
         if(err) fprintf(stderr, "[Ballistic] Vulkan error in ImGui backend: %d\n", err);
     };
 
-    BALLISTIC_ERR_FAIL_COND_V_MSG(!ImGui_ImplVulkan_Init(&init_info), Failed,
-        "Failed to initialize ImGui Vulkan backend.");
+    BALLISTIC_ERR_FAIL_COND_V_MSG(!ImGui_ImplVulkan_Init(&init_info), Failed, "Failed to initialize ImGui Vulkan backend.");
+
+    texture_cache.create(p_create_info.sampler);
 
     return Ok;
 }
@@ -95,11 +96,18 @@ void ImGuiDriver::destroy()
     }
 }
 
-void ImGuiDriver::new_frame()
+void ImGuiDriver::begin_frame(uint64_t fn, uint32_t fc, uint64_t epoch)
 {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
+
+    texture_cache.begin_frame(fn, fc, epoch);
+}
+
+void ImGuiDriver::end_frame(uint64_t fn)
+{
+    texture_cache.collect(fn);
 }
 
 void ImGuiDriver::render()

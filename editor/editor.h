@@ -14,11 +14,10 @@ struct Editor
 
     Error create(const EditorContext& p_context);
     void destroy();
-    void update(float p_dt);
-    void draw();
 
     void begin_dockspace();
-    void draw_menu_bar();
+    void draw_panels();
+    void draw_menu();
 
     void load_settings();
     void save_settings();
