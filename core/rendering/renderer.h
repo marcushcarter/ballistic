@@ -7,7 +7,7 @@ namespace ballistic {
 
 struct Renderer
 {
-    drivers::DeviceDriverVulkan* device_driver = nullptr;
+    drivers::DeviceDriverVulkan* dd = nullptr;
 
     RenderGraph graph;
 
@@ -30,7 +30,7 @@ struct Renderer
 
     drivers::DeviceDriverVulkan::Image final_image;
 
-    Error create(drivers::DeviceDriverVulkan& r_device_driver);
+    Error create(drivers::DeviceDriverVulkan& r_dd);
     void destroy();
 
     void request_size(uint32_t p_width, uint32_t p_height);

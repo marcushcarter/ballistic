@@ -6,7 +6,7 @@ namespace ballistic {
 
 struct DevPanel
 {
-    bool open = true;
+    bool open = false;
 
     virtual ~DevPanel() = default;
     virtual const char* name() const = 0;

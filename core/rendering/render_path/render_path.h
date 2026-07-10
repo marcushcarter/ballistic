@@ -8,7 +8,7 @@ namespace drivers { struct DeviceDriverVulkan; struct ImGuiDriver; }
 
 struct RenderPath
 {
-    drivers::DeviceDriverVulkan* device_driver = nullptr;
+    drivers::DeviceDriverVulkan* dd = nullptr;
     drivers::ImGuiDriver* imgui = nullptr;
     RenderGraph* graph = nullptr;
 

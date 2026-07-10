@@ -11,7 +11,7 @@ Error EditorRenderPath::create_resources()
 
     present_pass.name = "present";
     present_pass.formats = {
-        { device_driver->swapchain.format }
+        { dd->swapchain.format }
     };
 
     present_pass.setup = [](RenderGraph::Builder& b) {
@@ -22,11 +22,10 @@ Error EditorRenderPath::create_resources()
 
     present_pass.execute = [this](VkCommandBuffer cmd, RenderGraph& g) {
         auto* bb = g.image("backbuffer");
-        VkViewport vp{ 0, 0, (float)bb->extent.width, (float)bb->extent.height, 0.0f, 1.0f };
-        VkRect2D sc{ {0,0}, { bb->extent.width, bb->extent.height } };
-        vkCmdSetViewport(cmd, 0, 1, &vp);
-        vkCmdSetScissor(cmd, 0, 1, &sc);
 
+        dd->command_render_set_viewport(cmd, {{{0,0},bb->extent}});
+        dd->command_render_set_scissor(cmd, {{{0,0},bb->extent}});
+        
         imgui->record_commands(cmd);
     };
 

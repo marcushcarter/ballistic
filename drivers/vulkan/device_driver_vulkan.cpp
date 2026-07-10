@@ -182,16 +182,16 @@ Error DeviceDriverVulkan::_add_queue_create_info(std::vector<VkDeviceQueueCreate
     static const float queue_priority = 1.0f;
 
     std::vector<uint32_t> distinct_families = {
-        context_driver->graphics_queue_family,
-        context_driver->present_queue_family,
-        context_driver->transfer_queue_family,
-        context_driver->compute_queue_family
+        cd->graphics_queue_family,
+        cd->present_queue_family,
+        cd->transfer_queue_family,
+        cd->compute_queue_family
     };
 
     std::sort(distinct_families.begin(), distinct_families.end());
     distinct_families.erase(std::unique(distinct_families.begin(), distinct_families.end()), distinct_families.end());
 
-    queue_families.resize(context_driver->queue_family_get_count(device_index));
+    queue_families.resize(cd->queue_family_get_count(device_index));
 
     for (uint32_t family_index : distinct_families) {
         VkDeviceQueueCreateInfo create_info{};
@@ -427,7 +427,7 @@ Error DeviceDriverVulkan::_initialize_allocator()
     VmaAllocatorCreateInfo allocator_ci{};
     allocator_ci.physicalDevice = physical_device;
     allocator_ci.device = device;
-    allocator_ci.instance = context_driver->instance_get();
+    allocator_ci.instance = cd->instance_get();
     const bool use_1_3_features = physical_device_properties.apiVersion >= VK_API_VERSION_1_3;
     if (use_1_3_features) {
         allocator_ci.flags |= VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE5_BIT;
@@ -450,15 +450,15 @@ Error DeviceDriverVulkan::_initialize_pipeline_cache()
     return Ok;
 }
 
-Error DeviceDriverVulkan::initialize(ContextDriverVulkan& r_context_driver, uint32_t p_device_index, uint32_t p_frame_count)
+Error DeviceDriverVulkan::initialize(ContextDriverVulkan& r_cd, uint32_t p_device_index, uint32_t p_frame_count)
 {
     using enum Error;
 
-    context_driver = &r_context_driver;
+    cd = &r_cd;
 
     device_index = p_device_index;
-    driver_device = context_driver->device_get(device_index);
-    physical_device = context_driver->physical_device_get(device_index);
+    driver_device = cd->device_get(device_index);
+    physical_device = cd->physical_device_get(device_index);
 	frame_count = p_frame_count;
 
     shader_cache_dir = Paths::shader_cache().string();
@@ -487,7 +487,7 @@ Error DeviceDriverVulkan::initialize(ContextDriverVulkan& r_context_driver, uint
     err = _initialize_pipeline_cache();
 	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     
-    err = swapchain_create(&context_driver->surface);
+    err = swapchain_create(&cd->surface);
 	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     err = swapchain_resize(frame_count);
@@ -532,145 +532,10 @@ Error DeviceDriverVulkan::device_wait_idle()
 }
 
 /****************/
-/**** FENCES ****/
-/****************/
-
-VkFence DeviceDriverVulkan::fence_create(bool p_signaled)
-{
-    VkFenceCreateInfo fence_ci{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-    fence_ci.flags = p_signaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0;
-    
-    VkFence fence;
-    VkResult err = vkCreateFence(device, &fence_ci, nullptr, &fence);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan fence.");
-    
-    return fence;
-}
-
-void DeviceDriverVulkan::fence_free(VkFence& r_fence)
-{
-    if (r_fence) {
-        vkDestroyFence(device, r_fence, nullptr);
-        r_fence = VK_NULL_HANDLE;
-    }
-}
-
-Error DeviceDriverVulkan::fence_wait(VkFence p_fence, uint64_t p_timeout)
-{
-    using enum Error;
-    VkResult err = vkWaitForFences(device, 1, &p_fence, VK_TRUE, p_timeout);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't wait for Vulkan fence.");
-    return Ok;
-}
-
-Error DeviceDriverVulkan::fence_reset(VkFence p_fence)
-{
-    using enum Error;
-    VkResult err = vkResetFences(device, 1, &p_fence);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't reset Vulkan fence.");
-    return Ok;
-}
-
-/********************/
-/**** SEMAPHORES ****/
-/********************/
-
-VkSemaphore DeviceDriverVulkan::semaphore_create()
-{
-    VkSemaphoreCreateInfo semaphore_ci{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-    semaphore_ci.pNext = nullptr;
-    semaphore_ci.flags = 0;
-    
-    VkSemaphore semaphore;
-    VkResult err = vkCreateSemaphore(device, &semaphore_ci, nullptr, &semaphore);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan semaphore.");
-    
-    return semaphore;
-}
-
-void DeviceDriverVulkan::semaphore_free(VkSemaphore& r_semaphore)
-{
-    if (r_semaphore) {
-        vkDestroySemaphore(device, r_semaphore, nullptr);
-        r_semaphore = VK_NULL_HANDLE;
-    }
-}
-
-/******************/
-/**** COMMANDS ****/
-/******************/
-
-// ----- POOL -----
-
-DeviceDriverVulkan::CommandPool DeviceDriverVulkan::command_pool_create(uint32_t p_queue_family_index, VkCommandBufferLevel p_buffer_level)
-{
-    VkCommandPoolCreateInfo cmd_pool_ci{ VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
-    cmd_pool_ci.queueFamilyIndex = p_queue_family_index;
-    cmd_pool_ci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-    
-    CommandPool cmd_pool;
-    cmd_pool.buffer_level = p_buffer_level;
-    VkResult err = vkCreateCommandPool(device, &cmd_pool_ci, nullptr, &cmd_pool.command_pool);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan command pool.");
-
-    return cmd_pool;
-}
-
-void DeviceDriverVulkan::command_pool_free(CommandPool& r_cmd_pool)
-{
-    if (r_cmd_pool.command_pool) {
-        vkDestroyCommandPool(device, r_cmd_pool.command_pool, nullptr);
-        r_cmd_pool.command_pool = VK_NULL_HANDLE;
-    }
-}
-
-Error DeviceDriverVulkan::command_pool_reset(CommandPool& r_cmd_pool)
-{
-    using enum Error;
-    VkResult err = vkResetCommandPool(device, r_cmd_pool.command_pool, 0);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't reset Vulkan command pool.");
-    return Ok;
-}
-
-// ----- BUFFER -----
-
-VkCommandBuffer DeviceDriverVulkan::command_buffer_create(CommandPool& p_cmd_pool)
-{
-    VkCommandBufferAllocateInfo cmd_buffer_ci{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-    cmd_buffer_ci.commandPool = p_cmd_pool.command_pool;
-    cmd_buffer_ci.level = p_cmd_pool.buffer_level;
-    cmd_buffer_ci.commandBufferCount = 1;
-
-    VkCommandBuffer cmd_buffer;
-    VkResult err = vkAllocateCommandBuffers(device, &cmd_buffer_ci, &cmd_buffer);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan command buffer.");
-    
-    return cmd_buffer;
-}
-
-Error DeviceDriverVulkan::command_buffer_begin(VkCommandBuffer p_cmd_buffer, VkCommandBufferUsageFlags p_flags)
-{
-    using enum Error;
-    VkCommandBufferBeginInfo begin_info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-    begin_info.flags = p_flags;
-    VkResult err = vkBeginCommandBuffer(p_cmd_buffer, &begin_info);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't begin Vulkan command buffer.");
-    return Ok;
-}
-
-Error DeviceDriverVulkan::command_buffer_end(VkCommandBuffer p_cmd_buffer)
-{
-    using enum Error;
-    VkResult err = vkEndCommandBuffer(p_cmd_buffer);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't end Vulkan command buffer.");
-    return Ok;
-}
-
-/****************/
 /**** IMAGES ****/
 /****************/
 
-DeviceDriverVulkan::Image DeviceDriverVulkan::_image_create(const ImageCreateInfo& p_create_info, VkExtent3D p_extent)
+DeviceDriverVulkan::Image DeviceDriverVulkan::_image_create(const ImageCreateInfo& p_create_info, VkExtent2D p_extent)
 {
     using enum Error;
     
@@ -685,7 +550,7 @@ DeviceDriverVulkan::Image DeviceDriverVulkan::_image_create(const ImageCreateInf
     image_ci.flags = 0;
     image_ci.imageType = VK_IMAGE_TYPE_2D;
     image_ci.format = p_create_info.format;
-    image_ci.extent = p_extent;
+    image_ci.extent = { p_extent.width, p_extent.height, 1 };
     image_ci.mipLevels = p_create_info.mip_levels;
     image_ci.arrayLayers = p_create_info.layers;
     image_ci.samples = p_create_info.samples;
@@ -733,7 +598,7 @@ Error DeviceDriverVulkan::_image_create_view(Image& r_image)
     return Ok;
 }
 
-DeviceDriverVulkan::Image DeviceDriverVulkan::image_create_dedicated(const ImageCreateInfo& p_create_info, VkExtent3D p_extent)
+DeviceDriverVulkan::Image DeviceDriverVulkan::image_create_dedicated(const ImageCreateInfo& p_create_info, VkExtent2D p_extent)
 {
     using enum Error;
 
@@ -957,311 +822,139 @@ void DeviceDriverVulkan::sampler_free(Sampler& r_sampler)
     }
 }
 
-/*********************/
-/**** DESCRIPTORS ****/
-/*********************/
+/****************/
+/**** FENCES ****/
+/****************/
 
-// ----- BINDLESS HEAP -----
+VkFence DeviceDriverVulkan::fence_create(bool p_signaled)
+{
+    VkFenceCreateInfo fence_ci{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+    fence_ci.flags = p_signaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0;
+    
+    VkFence fence;
+    VkResult err = vkCreateFence(device, &fence_ci, nullptr, &fence);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan fence.");
+    
+    return fence;
+}
 
-Error DeviceDriverVulkan::bindless_heap_create(uint32_t p_sampled_count, uint32_t p_storage_count, uint32_t p_samplers_count)
+void DeviceDriverVulkan::fence_free(VkFence& r_fence)
+{
+    if (r_fence) {
+        vkDestroyFence(device, r_fence, nullptr);
+        r_fence = VK_NULL_HANDLE;
+    }
+}
+
+Error DeviceDriverVulkan::fence_wait(VkFence p_fence, uint64_t p_timeout)
 {
     using enum Error;
-    
-    VkPhysicalDeviceVulkan12Properties p12{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES };
-    VkPhysicalDeviceProperties2 p2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
-    p2.pNext = &p12;
-    vkGetPhysicalDeviceProperties2(physical_device, &p2);
-
-    auto clamp = [](uint32_t want, uint32_t per_set, uint32_t per_stage) {
-        uint32_t lim = per_set < per_stage ? per_set : per_stage;
-        return want < lim ? want : lim;
-    };
-    const uint32_t sampled = clamp(p_sampled_count, p12.maxDescriptorSetUpdateAfterBindSampledImages, p12.maxPerStageDescriptorUpdateAfterBindSampledImages);
-    const uint32_t storage = clamp(p_storage_count, p12.maxDescriptorSetUpdateAfterBindStorageImages, p12.maxPerStageDescriptorUpdateAfterBindStorageImages);
-    const uint32_t samplers = clamp(p_samplers_count, p12.maxDescriptorSetUpdateAfterBindSamplers,      p12.maxPerStageDescriptorUpdateAfterBindSamplers);
-
-    if (sampled < p_sampled_count || storage < p_storage_count || samplers < p_samplers_count) {
-        log_write("Bindless heap counts clamped to device limits (sampled %u->%u, storage %u->%u, sampler %u->%u).\n", p_sampled_count, sampled, p_storage_count, storage, p_samplers_count, samplers);
-    }
-
-    bindless_heap.sampled_alloc.cap = sampled;
-    bindless_heap.storage_alloc.cap = storage;
-    bindless_heap.sampler_alloc.cap = samplers;
-
-    VkDescriptorSetLayoutBinding bindings[3]{};
-    bindings[BindlessHeap::BINDING_SAMPLED] = { BindlessHeap::BINDING_SAMPLED, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, sampled, VK_SHADER_STAGE_ALL, nullptr };
-    bindings[BindlessHeap::BINDING_STORAGE] = { BindlessHeap::BINDING_STORAGE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, storage, VK_SHADER_STAGE_ALL, nullptr };
-    bindings[BindlessHeap::BINDING_SAMPLER] = { BindlessHeap::BINDING_SAMPLER, VK_DESCRIPTOR_TYPE_SAMPLER, samplers, VK_SHADER_STAGE_ALL, nullptr };
-
-    const VkDescriptorBindingFlags bf = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
-    VkDescriptorBindingFlags flags[3]{ bf, bf, bf};
-
-    VkDescriptorSetLayoutBindingFlagsCreateInfo flags_ci{};
-    flags_ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
-    flags_ci.bindingCount = 3;
-    flags_ci.pBindingFlags = flags;
-
-    VkDescriptorSetLayoutCreateInfo layout_ci{};
-    layout_ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layout_ci.pNext = &flags_ci;
-    layout_ci.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
-    layout_ci.bindingCount = 3;
-    layout_ci.pBindings = bindings;
-
-    VkResult err = vkCreateDescriptorSetLayout(device, &layout_ci, nullptr, &bindless_heap.layout);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan descriptor set layout.");
-
-    VkDescriptorPoolSize pool_sizes[3] = {
-        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, sampled },
-        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, storage },
-        { VK_DESCRIPTOR_TYPE_SAMPLER, samplers },
-    };
-    VkDescriptorPoolCreateInfo pool_ci{};
-    pool_ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    pool_ci.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
-    pool_ci.maxSets = 1;
-    pool_ci.poolSizeCount = 3;
-    pool_ci.pPoolSizes = pool_sizes;
-
-    err = vkCreateDescriptorPool(device, &pool_ci, nullptr, &bindless_heap.pool);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan descriptor pool.");
-
-    VkDescriptorSetAllocateInfo set_ai{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
-    set_ai.descriptorPool = bindless_heap.pool;
-    set_ai.descriptorSetCount = 1;
-    set_ai.pSetLayouts = &bindless_heap.layout;
-
-    err = vkAllocateDescriptorSets(device, &set_ai, &bindless_heap.set);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan descriptor set.");
-
-    VkPushConstantRange push_range{};
-    push_range.stageFlags = VK_SHADER_STAGE_ALL;
-    push_range.offset = 0;
-    push_range.size = BindlessHeap::PUSH_CONSTANT_SIZE;
-
-    VkPipelineLayoutCreateInfo pl_ci{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-    pl_ci.setLayoutCount = 1;
-    pl_ci.pSetLayouts = &bindless_heap.layout;
-    pl_ci.pushConstantRangeCount = 1;
-    pl_ci.pPushConstantRanges = &push_range;
-
-    err = vkCreatePipelineLayout(device, &pl_ci, nullptr, &bindless_heap.pipeline_layout);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan pipeline layout.");
-
+    VkResult err = vkWaitForFences(device, 1, &p_fence, VK_TRUE, p_timeout);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't wait for Vulkan fence.");
     return Ok;
 }
 
-void DeviceDriverVulkan::bindless_heap_free()
-{
-    if (bindless_heap.pipeline_layout) {
-        vkDestroyPipelineLayout(device, bindless_heap.pipeline_layout, nullptr);
-        bindless_heap.pipeline_layout = VK_NULL_HANDLE;
-    }
-    if (bindless_heap.pool) {
-        vkDestroyDescriptorPool(device, bindless_heap.pool, nullptr);
-        bindless_heap.pool = VK_NULL_HANDLE;
-    }
-    if (bindless_heap.layout) {
-        vkDestroyDescriptorSetLayout(device, bindless_heap.layout, nullptr);
-        bindless_heap.layout = VK_NULL_HANDLE;
-    }
-    bindless_heap.set = VK_NULL_HANDLE;
-}
-
-uint32_t DeviceDriverVulkan::bindless_heap_alloc_sampled(VkImageView p_image_view)
-{
-    uint32_t index = bindless_heap.sampled_alloc.acquire();
-    if (index == UINT32_MAX) {
-        
-        log_write("Bindless heap sampled image array exhausted.");
-        return UINT32_MAX;
-    }
-
-    VkDescriptorImageInfo info{};
-    info.imageView = p_image_view;
-    info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-    VkWriteDescriptorSet w{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-    w.dstSet = bindless_heap.set;
-    w.dstBinding = BindlessHeap::BINDING_SAMPLED;
-    w.dstArrayElement = index;
-    w.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    w.descriptorCount = 1;
-    w.pImageInfo = &info;
-
-    vkUpdateDescriptorSets(device, 1, &w, 0, nullptr);
-    return index;
-}
-
-uint32_t DeviceDriverVulkan::bindless_heap_alloc_storage(VkImageView p_image_view)
-{
-    uint32_t index = bindless_heap.storage_alloc.acquire();
-    if (index == UINT32_MAX) {
-        log_write("Bindless heap storage image array exhausted.");
-        return UINT32_MAX;
-    }
-
-    VkDescriptorImageInfo info{};
-    info.imageView = p_image_view;
-    info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-    VkWriteDescriptorSet w{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-    w.dstSet = bindless_heap.set;
-    w.dstBinding = BindlessHeap::BINDING_STORAGE;
-    w.dstArrayElement = index;
-    w.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    w.descriptorCount = 1;
-    w.pImageInfo = &info;
-
-    vkUpdateDescriptorSets(device, 1, &w, 0, nullptr);
-    return index;
-}
-
-uint32_t DeviceDriverVulkan::bindless_heap_alloc_sampler(VkSampler p_sampler)
-{
-    uint32_t index = bindless_heap.sampler_alloc.acquire();
-    if (index == UINT32_MAX) {
-        log_write("Bindless heap sampler array exhausted.");
-        return UINT32_MAX;
-    }
-
-    VkDescriptorImageInfo info{};
-    info.sampler = p_sampler;
-
-    VkWriteDescriptorSet w{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
-    w.dstSet = bindless_heap.set;
-    w.dstBinding = BindlessHeap::BINDING_SAMPLER;
-    w.dstArrayElement = index;
-    w.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-    w.descriptorCount = 1;
-    w.pImageInfo = &info;
-
-    vkUpdateDescriptorSets(device, 1, &w, 0, nullptr);
-    return index;
-
-}
-
-void DeviceDriverVulkan::bindless_heap_free_sampled(uint32_t p_index)
-{
-    if (p_index == UINT32_MAX) return;
-    bindless_heap.sampled_alloc.release(p_index);
-}
-
-void DeviceDriverVulkan::bindless_heap_free_storage(uint32_t p_index)
-{
-    if (p_index == UINT32_MAX) return;
-    bindless_heap.storage_alloc.release(p_index);
-}
-
-void DeviceDriverVulkan::bindless_heap_free_sampler(uint32_t p_index)
-{
-    if (p_index == UINT32_MAX) return;
-    bindless_heap.sampler_alloc.release(p_index);
-}
-
-/*********************/
-/**** RENDER PASS ****/
-/*********************/
-
-VkRenderPass DeviceDriverVulkan::render_pass_create(const RenderPassCreateInfo& p_create_info)
+Error DeviceDriverVulkan::fence_reset(VkFence p_fence)
 {
     using enum Error;
-
-    std::vector<VkAttachmentDescription> descs(p_create_info.attachments.size());
-    std::vector<VkAttachmentReference> color_refs;
-    VkAttachmentReference depth_ref{};
-    bool has_depth = false;
-
-    for (uint32_t i = 0; i < p_create_info.attachments.size(); i++) {
-        const RenderPassCreateInfo::Attachment& a = p_create_info.attachments[i];
-        VkAttachmentDescription& d = descs[i];
-        d.format = a.format;
-        d.samples = a.samples;
-        d.loadOp = a.load_op;
-        d.storeOp = a.store_op;
-        d.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        d.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        d.initialLayout = a.initial_layout;
-        d.finalLayout = a.final_layout;
-
-        if (a.is_depth) {
-            depth_ref = { i, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL };
-            has_depth = true;
-        } else {
-            color_refs.push_back({ i, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
-        }
-    }
-
-    VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = (uint32_t)color_refs.size();
-    subpass.pColorAttachments = color_refs.data();
-    if (has_depth) subpass.pDepthStencilAttachment = &depth_ref;
-
-    VkSubpassDependency default_dep{};
-    default_dep.srcSubpass = VK_SUBPASS_EXTERNAL;
-    default_dep.dstSubpass = 0;
-    default_dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
-    default_dep.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    default_dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    default_dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-    const VkSubpassDependency* dep = p_create_info.dependency ? p_create_info.dependency : &default_dep;
-
-    VkRenderPassCreateInfo render_pass_ci{ VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
-    render_pass_ci.attachmentCount = (uint32_t)descs.size();
-    render_pass_ci.pAttachments = descs.data();
-    render_pass_ci.subpassCount = 1;
-    render_pass_ci.pSubpasses = &subpass;
-    render_pass_ci.dependencyCount = 1;
-    render_pass_ci.pDependencies = dep;
-
-    VkRenderPass render_pass;
-    VkResult err = vkCreateRenderPass(device, &render_pass_ci, nullptr, &render_pass);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan render pass.");
-
-    set_object_name(VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)render_pass, p_create_info.name);
-    return render_pass;
+    VkResult err = vkResetFences(device, 1, &p_fence);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't reset Vulkan fence.");
+    return Ok;
 }
 
-void DeviceDriverVulkan::render_pass_free(VkRenderPass& r_render_pass)
+/********************/
+/**** SEMAPHORES ****/
+/********************/
+
+VkSemaphore DeviceDriverVulkan::semaphore_create()
 {
-    if (r_render_pass) {
-        vkDestroyRenderPass(device, r_render_pass, nullptr);
-        r_render_pass = VK_NULL_HANDLE;
+    VkSemaphoreCreateInfo semaphore_ci{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+    semaphore_ci.pNext = nullptr;
+    semaphore_ci.flags = 0;
+    
+    VkSemaphore semaphore;
+    VkResult err = vkCreateSemaphore(device, &semaphore_ci, nullptr, &semaphore);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan semaphore.");
+    
+    return semaphore;
+}
+
+void DeviceDriverVulkan::semaphore_free(VkSemaphore& r_semaphore)
+{
+    if (r_semaphore) {
+        vkDestroySemaphore(device, r_semaphore, nullptr);
+        r_semaphore = VK_NULL_HANDLE;
     }
 }
 
-/*********************/
-/**** FRAMEBUFFER ****/
-/*********************/
+/******************/
+/**** COMMANDS ****/
+/******************/
 
-VkFramebuffer DeviceDriverVulkan::framebuffer_create(VkRenderPass p_render_pass, std::vector<VkImageView>& p_image_views, VkExtent2D p_extent)
+// ----- POOL -----
+
+DeviceDriverVulkan::CommandPool DeviceDriverVulkan::command_pool_create(uint32_t p_queue_family_index, VkCommandBufferLevel p_buffer_level)
+{
+    VkCommandPoolCreateInfo cmd_pool_ci{ VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
+    cmd_pool_ci.queueFamilyIndex = p_queue_family_index;
+    cmd_pool_ci.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    
+    CommandPool cmd_pool;
+    cmd_pool.buffer_level = p_buffer_level;
+    VkResult err = vkCreateCommandPool(device, &cmd_pool_ci, nullptr, &cmd_pool.command_pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan command pool.");
+
+    return cmd_pool;
+}
+
+void DeviceDriverVulkan::command_pool_free(CommandPool& r_cmd_pool)
+{
+    if (r_cmd_pool.command_pool) {
+        vkDestroyCommandPool(device, r_cmd_pool.command_pool, nullptr);
+        r_cmd_pool.command_pool = VK_NULL_HANDLE;
+    }
+}
+
+Error DeviceDriverVulkan::command_pool_reset(CommandPool& r_cmd_pool)
 {
     using enum Error;
-
-    VkFramebufferCreateInfo framebuffer_ci{ VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-    framebuffer_ci.renderPass = p_render_pass;
-    framebuffer_ci.attachmentCount = (uint32_t)p_image_views.size();
-    framebuffer_ci.pAttachments = p_image_views.data();
-    framebuffer_ci.width = p_extent.width;
-    framebuffer_ci.height = p_extent.height;
-    framebuffer_ci.layers = 1;
-
-    VkFramebuffer framebuffer;
-    VkResult err = vkCreateFramebuffer(device, &framebuffer_ci, nullptr, &framebuffer);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan framebuffer.");
-
-    // set_object_name(VK_OBJECT_TYPE_FRAMEBUFFER, (uint64_t)framebuffer, p_create_info.name);
-    return framebuffer;
+    VkResult err = vkResetCommandPool(device, r_cmd_pool.command_pool, 0);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't reset Vulkan command pool.");
+    return Ok;
 }
 
-void DeviceDriverVulkan::framebuffer_free(VkFramebuffer& r_framebuffer)
+// ----- BUFFER -----
+
+VkCommandBuffer DeviceDriverVulkan::command_buffer_create(CommandPool& p_cmd_pool)
 {
-    if (r_framebuffer) {
-        vkDestroyFramebuffer(device, r_framebuffer, nullptr);
-        r_framebuffer = VK_NULL_HANDLE;
-    }
+    VkCommandBufferAllocateInfo cmd_buffer_ci{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+    cmd_buffer_ci.commandPool = p_cmd_pool.command_pool;
+    cmd_buffer_ci.level = p_cmd_pool.buffer_level;
+    cmd_buffer_ci.commandBufferCount = 1;
+
+    VkCommandBuffer cmd_buffer;
+    VkResult err = vkAllocateCommandBuffers(device, &cmd_buffer_ci, &cmd_buffer);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan command buffer.");
+    
+    return cmd_buffer;
+}
+
+Error DeviceDriverVulkan::command_buffer_begin(VkCommandBuffer p_cmd_buffer, VkCommandBufferUsageFlags p_flags)
+{
+    using enum Error;
+    VkCommandBufferBeginInfo begin_info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+    begin_info.flags = p_flags;
+    VkResult err = vkBeginCommandBuffer(p_cmd_buffer, &begin_info);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't begin Vulkan command buffer.");
+    return Ok;
+}
+
+Error DeviceDriverVulkan::command_buffer_end(VkCommandBuffer p_cmd_buffer)
+{
+    using enum Error;
+    VkResult err = vkEndCommandBuffer(p_cmd_buffer);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't end Vulkan command buffer.");
+    return Ok;
 }
 
 /*******************/
@@ -1464,7 +1157,7 @@ Error DeviceDriverVulkan::swapchain_resize(uint32_t p_desired_framebuffer_count)
         img.image = raw_images[i];
         img.format = swapchain.format;
         img.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-        img.extent = { extent.width, extent.height, 1 };
+        img.extent = extent;
         img.allocation = nullptr;
         img.state.layout = VK_IMAGE_LAYOUT_UNDEFINED;
         img.state.stage  = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -1524,9 +1217,245 @@ Error DeviceDriverVulkan::swapchain_update()
     return swapchain_resize(frame_count);
 }
 
-/****************/
-/**** SHADER ****/
-/****************/
+/***********************/
+/**** BINDLESS HEAP ****/
+/***********************/
+
+Error DeviceDriverVulkan::bindless_heap_create(uint32_t p_sampled_count, uint32_t p_storage_count, uint32_t p_samplers_count)
+{
+    using enum Error;
+    
+    VkPhysicalDeviceVulkan12Properties p12{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES };
+    VkPhysicalDeviceProperties2 p2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
+    p2.pNext = &p12;
+    vkGetPhysicalDeviceProperties2(physical_device, &p2);
+
+    auto clamp = [](uint32_t want, uint32_t per_set, uint32_t per_stage) {
+        uint32_t lim = per_set < per_stage ? per_set : per_stage;
+        return want < lim ? want : lim;
+    };
+    const uint32_t sampled = clamp(p_sampled_count, p12.maxDescriptorSetUpdateAfterBindSampledImages, p12.maxPerStageDescriptorUpdateAfterBindSampledImages);
+    const uint32_t storage = clamp(p_storage_count, p12.maxDescriptorSetUpdateAfterBindStorageImages, p12.maxPerStageDescriptorUpdateAfterBindStorageImages);
+    const uint32_t samplers = clamp(p_samplers_count, p12.maxDescriptorSetUpdateAfterBindSamplers,      p12.maxPerStageDescriptorUpdateAfterBindSamplers);
+
+    if (sampled < p_sampled_count || storage < p_storage_count || samplers < p_samplers_count) {
+        log_write("Bindless heap counts clamped to device limits (sampled %u->%u, storage %u->%u, sampler %u->%u).\n", p_sampled_count, sampled, p_storage_count, storage, p_samplers_count, samplers);
+    }
+
+    bindless_heap.sampled_alloc.cap = sampled;
+    bindless_heap.storage_alloc.cap = storage;
+    bindless_heap.sampler_alloc.cap = samplers;
+
+    VkDescriptorSetLayoutBinding bindings[3]{};
+    bindings[BindlessHeap::BINDING_SAMPLED] = { BindlessHeap::BINDING_SAMPLED, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, sampled, VK_SHADER_STAGE_ALL, nullptr };
+    bindings[BindlessHeap::BINDING_STORAGE] = { BindlessHeap::BINDING_STORAGE, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, storage, VK_SHADER_STAGE_ALL, nullptr };
+    bindings[BindlessHeap::BINDING_SAMPLER] = { BindlessHeap::BINDING_SAMPLER, VK_DESCRIPTOR_TYPE_SAMPLER, samplers, VK_SHADER_STAGE_ALL, nullptr };
+
+    const VkDescriptorBindingFlags bf = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+    VkDescriptorBindingFlags flags[3]{ bf, bf, bf};
+
+    VkDescriptorSetLayoutBindingFlagsCreateInfo flags_ci{};
+    flags_ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+    flags_ci.bindingCount = 3;
+    flags_ci.pBindingFlags = flags;
+
+    VkDescriptorSetLayoutCreateInfo layout_ci{};
+    layout_ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layout_ci.pNext = &flags_ci;
+    layout_ci.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+    layout_ci.bindingCount = 3;
+    layout_ci.pBindings = bindings;
+
+    VkResult err = vkCreateDescriptorSetLayout(device, &layout_ci, nullptr, &bindless_heap.layout);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan descriptor set layout.");
+
+    VkDescriptorPoolSize pool_sizes[3] = {
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, sampled },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, storage },
+        { VK_DESCRIPTOR_TYPE_SAMPLER, samplers },
+    };
+    VkDescriptorPoolCreateInfo pool_ci{};
+    pool_ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_ci.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+    pool_ci.maxSets = 1;
+    pool_ci.poolSizeCount = 3;
+    pool_ci.pPoolSizes = pool_sizes;
+
+    err = vkCreateDescriptorPool(device, &pool_ci, nullptr, &bindless_heap.pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan descriptor pool.");
+
+    VkDescriptorSetAllocateInfo set_ai{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+    set_ai.descriptorPool = bindless_heap.pool;
+    set_ai.descriptorSetCount = 1;
+    set_ai.pSetLayouts = &bindless_heap.layout;
+
+    err = vkAllocateDescriptorSets(device, &set_ai, &bindless_heap.set);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan descriptor set.");
+
+    VkPushConstantRange push_range{};
+    push_range.stageFlags = VK_SHADER_STAGE_ALL;
+    push_range.offset = 0;
+    push_range.size = BindlessHeap::PUSH_CONSTANT_SIZE;
+
+    VkPipelineLayoutCreateInfo pl_ci{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+    pl_ci.setLayoutCount = 1;
+    pl_ci.pSetLayouts = &bindless_heap.layout;
+    pl_ci.pushConstantRangeCount = 1;
+    pl_ci.pPushConstantRanges = &push_range;
+
+    err = vkCreatePipelineLayout(device, &pl_ci, nullptr, &bindless_heap.pipeline_layout);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan pipeline layout.");
+
+    return Ok;
+}
+
+void DeviceDriverVulkan::bindless_heap_free()
+{
+    if (bindless_heap.pipeline_layout) {
+        vkDestroyPipelineLayout(device, bindless_heap.pipeline_layout, nullptr);
+        bindless_heap.pipeline_layout = VK_NULL_HANDLE;
+    }
+    if (bindless_heap.pool) {
+        vkDestroyDescriptorPool(device, bindless_heap.pool, nullptr);
+        bindless_heap.pool = VK_NULL_HANDLE;
+    }
+    if (bindless_heap.layout) {
+        vkDestroyDescriptorSetLayout(device, bindless_heap.layout, nullptr);
+        bindless_heap.layout = VK_NULL_HANDLE;
+    }
+    bindless_heap.set = VK_NULL_HANDLE;
+}
+
+uint32_t DeviceDriverVulkan::bindless_heap_alloc_sampled(VkImageView p_image_view)
+{
+    uint32_t index = bindless_heap.sampled_alloc.acquire();
+    if (index == UINT32_MAX) {
+        
+        log_write("Bindless heap sampled image array exhausted.");
+        return UINT32_MAX;
+    }
+
+    VkDescriptorImageInfo info{};
+    info.imageView = p_image_view;
+    info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    VkWriteDescriptorSet w{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+    w.dstSet = bindless_heap.set;
+    w.dstBinding = BindlessHeap::BINDING_SAMPLED;
+    w.dstArrayElement = index;
+    w.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    w.descriptorCount = 1;
+    w.pImageInfo = &info;
+
+    vkUpdateDescriptorSets(device, 1, &w, 0, nullptr);
+    return index;
+}
+
+uint32_t DeviceDriverVulkan::bindless_heap_alloc_storage(VkImageView p_image_view)
+{
+    uint32_t index = bindless_heap.storage_alloc.acquire();
+    if (index == UINT32_MAX) {
+        log_write("Bindless heap storage image array exhausted.");
+        return UINT32_MAX;
+    }
+
+    VkDescriptorImageInfo info{};
+    info.imageView = p_image_view;
+    info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+    VkWriteDescriptorSet w{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+    w.dstSet = bindless_heap.set;
+    w.dstBinding = BindlessHeap::BINDING_STORAGE;
+    w.dstArrayElement = index;
+    w.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    w.descriptorCount = 1;
+    w.pImageInfo = &info;
+
+    vkUpdateDescriptorSets(device, 1, &w, 0, nullptr);
+    return index;
+}
+
+uint32_t DeviceDriverVulkan::bindless_heap_alloc_sampler(VkSampler p_sampler)
+{
+    uint32_t index = bindless_heap.sampler_alloc.acquire();
+    if (index == UINT32_MAX) {
+        log_write("Bindless heap sampler array exhausted.");
+        return UINT32_MAX;
+    }
+
+    VkDescriptorImageInfo info{};
+    info.sampler = p_sampler;
+
+    VkWriteDescriptorSet w{ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+    w.dstSet = bindless_heap.set;
+    w.dstBinding = BindlessHeap::BINDING_SAMPLER;
+    w.dstArrayElement = index;
+    w.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+    w.descriptorCount = 1;
+    w.pImageInfo = &info;
+
+    vkUpdateDescriptorSets(device, 1, &w, 0, nullptr);
+    return index;
+
+}
+
+void DeviceDriverVulkan::bindless_heap_free_sampled(uint32_t p_index)
+{
+    if (p_index == UINT32_MAX) return;
+    bindless_heap.sampled_alloc.release(p_index);
+}
+
+void DeviceDriverVulkan::bindless_heap_free_storage(uint32_t p_index)
+{
+    if (p_index == UINT32_MAX) return;
+    bindless_heap.storage_alloc.release(p_index);
+}
+
+void DeviceDriverVulkan::bindless_heap_free_sampler(uint32_t p_index)
+{
+    if (p_index == UINT32_MAX) return;
+    bindless_heap.sampler_alloc.release(p_index);
+}
+
+/*********************/
+/**** FRAMEBUFFER ****/
+/*********************/
+
+VkFramebuffer DeviceDriverVulkan::framebuffer_create(VkRenderPass p_render_pass, std::vector<VkImageView>& p_image_views, VkExtent2D p_extent)
+{
+    using enum Error;
+
+    VkFramebufferCreateInfo framebuffer_ci{ VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+    framebuffer_ci.renderPass = p_render_pass;
+    framebuffer_ci.attachmentCount = (uint32_t)p_image_views.size();
+    framebuffer_ci.pAttachments = p_image_views.data();
+    framebuffer_ci.width = p_extent.width;
+    framebuffer_ci.height = p_extent.height;
+    framebuffer_ci.layers = 1;
+
+    VkFramebuffer framebuffer;
+    VkResult err = vkCreateFramebuffer(device, &framebuffer_ci, nullptr, &framebuffer);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan framebuffer.");
+
+    // set_object_name(VK_OBJECT_TYPE_FRAMEBUFFER, (uint64_t)framebuffer, p_create_info.name);
+    return framebuffer;
+}
+
+void DeviceDriverVulkan::framebuffer_free(VkFramebuffer& r_framebuffer)
+{
+    if (r_framebuffer) {
+        vkDestroyFramebuffer(device, r_framebuffer, nullptr);
+        r_framebuffer = VK_NULL_HANDLE;
+    }
+}
+
+/******************/
+/**** PIPELINE ****/
+/******************/
+
+// ----- CACHE -----
+
+// ----- SHADER -----
 
 shaderc_shader_kind DeviceDriverVulkan::_shaderc_kind(DeviceDriverVulkan::ShaderStage p_stage)
 {
@@ -1636,12 +1565,6 @@ void DeviceDriverVulkan::shader_free(VkShaderModule& r_shader)
         r_shader = VK_NULL_HANDLE;
     }
 }
-
-/******************/
-/**** PIPELINE ****/
-/******************/
-
-// ----- CACHE -----
 
 // ----- PIPELINE -----
 
@@ -1818,9 +1741,194 @@ void DeviceDriverVulkan::pipeline_free(Pipeline& r_pipeline)
     }    
 }
 
-/***************/
-/**** UTILS ****/
-/***************/
+void DeviceDriverVulkan::command_bind_pipeline(VkCommandBuffer p_cmd, const Pipeline& p_pipeline)
+{
+    vkCmdBindPipeline(p_cmd, p_pipeline.bind_point, p_pipeline.pipeline);
+}
+
+void DeviceDriverVulkan::_command_bind_uniform_sets(VkCommandBuffer p_cmd, VkPipelineBindPoint p_bind_point, const std::vector<VkDescriptorSet>& p_sets, uint32_t p_first_set_index, uint32_t p_dynamic_offset)
+{
+    if (p_sets.empty()) return;
+    const uint32_t* offsets = nullptr;
+    uint32_t offset_count = 0;
+    if (p_dynamic_offset != UINT32_MAX) {
+        offsets = &p_dynamic_offset;
+        offset_count = 1;
+    }
+	vkCmdBindDescriptorSets(p_cmd, p_bind_point, bindless_heap.pipeline_layout, p_first_set_index, (uint32_t)p_sets.size(), p_sets.data(), offset_count, offsets);
+}
+
+void DeviceDriverVulkan::command_bind_graphics_uniform_sets(VkCommandBuffer p_cmd, const std::vector<VkDescriptorSet>& p_sets, uint32_t p_first_set_index, uint32_t p_dynamic_offset)
+{
+    _command_bind_uniform_sets(p_cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, p_sets, p_first_set_index, p_dynamic_offset);
+}
+
+void DeviceDriverVulkan::command_bind_compute_uniform_sets(VkCommandBuffer p_cmd, const std::vector<VkDescriptorSet>& p_sets, uint32_t p_first_set_index, uint32_t p_dynamic_offset)
+{
+    _command_bind_uniform_sets(p_cmd, VK_PIPELINE_BIND_POINT_COMPUTE, p_sets, p_first_set_index, p_dynamic_offset);
+}
+
+void DeviceDriverVulkan::command_compute_dispatch(VkCommandBuffer p_cmd, uint32_t p_x_groups, uint32_t p_y_groups, uint32_t p_z_groups)
+{
+    vkCmdDispatch(p_cmd, p_x_groups, p_y_groups, p_z_groups);
+}
+
+void DeviceDriverVulkan::command_compute_dispatch_indirect(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset)
+{
+    vkCmdDispatchIndirect(p_cmd, p_indirect_buffer.buffer, p_offset);
+}
+
+/*********************/
+/**** RENDER PASS ****/
+/*********************/
+
+VkRenderPass DeviceDriverVulkan::render_pass_create(const RenderPassCreateInfo& p_create_info)
+{
+    using enum Error;
+
+    std::vector<VkAttachmentDescription> descs(p_create_info.attachments.size());
+    std::vector<VkAttachmentReference> color_refs;
+    VkAttachmentReference depth_ref{};
+    bool has_depth = false;
+
+    for (uint32_t i = 0; i < p_create_info.attachments.size(); i++) {
+        const RenderPassCreateInfo::Attachment& a = p_create_info.attachments[i];
+        VkAttachmentDescription& d = descs[i];
+        d.format = a.format;
+        d.samples = a.samples;
+        d.loadOp = a.load_op;
+        d.storeOp = a.store_op;
+        d.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        d.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        d.initialLayout = a.initial_layout;
+        d.finalLayout = a.final_layout;
+
+        if (a.is_depth) {
+            depth_ref = { i, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL };
+            has_depth = true;
+        } else {
+            color_refs.push_back({ i, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
+        }
+    }
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = (uint32_t)color_refs.size();
+    subpass.pColorAttachments = color_refs.data();
+    if (has_depth) subpass.pDepthStencilAttachment = &depth_ref;
+
+    VkSubpassDependency default_dep{};
+    default_dep.srcSubpass = VK_SUBPASS_EXTERNAL;
+    default_dep.dstSubpass = 0;
+    default_dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
+    default_dep.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    default_dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    default_dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+    const VkSubpassDependency* dep = p_create_info.dependency ? p_create_info.dependency : &default_dep;
+
+    VkRenderPassCreateInfo render_pass_ci{ VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
+    render_pass_ci.attachmentCount = (uint32_t)descs.size();
+    render_pass_ci.pAttachments = descs.data();
+    render_pass_ci.subpassCount = 1;
+    render_pass_ci.pSubpasses = &subpass;
+    render_pass_ci.dependencyCount = 1;
+    render_pass_ci.pDependencies = dep;
+
+    VkRenderPass render_pass;
+    VkResult err = vkCreateRenderPass(device, &render_pass_ci, nullptr, &render_pass);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan render pass.");
+
+    set_object_name(VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)render_pass, p_create_info.name);
+    return render_pass;
+}
+
+void DeviceDriverVulkan::render_pass_free(VkRenderPass& r_render_pass)
+{
+    if (r_render_pass) {
+        vkDestroyRenderPass(device, r_render_pass, nullptr);
+        r_render_pass = VK_NULL_HANDLE;
+    }
+}
+
+void DeviceDriverVulkan::command_begin_render_pass(VkCommandBuffer p_cmd, VkRenderPass p_render_pass, VkFramebuffer p_framebuffer, VkExtent2D p_extent, const std::vector<VkClearValue>& p_clear_values)
+{
+    VkRenderPassBeginInfo render_pass_bi{ VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
+    render_pass_bi.renderPass = p_render_pass;
+    render_pass_bi.framebuffer = p_framebuffer;
+    render_pass_bi.renderArea = { {0,0}, p_extent };
+    render_pass_bi.clearValueCount = (uint32_t)p_clear_values.size();
+    render_pass_bi.pClearValues = p_clear_values.data();
+    vkCmdBeginRenderPass(p_cmd, &render_pass_bi, VK_SUBPASS_CONTENTS_INLINE);
+}
+
+void DeviceDriverVulkan::command_end_render_pass(VkCommandBuffer p_cmd)
+{
+    vkCmdEndRenderPass(p_cmd);
+}
+
+/******************/
+/**** COMMANDS ****/
+/******************/
+
+void DeviceDriverVulkan::command_render_set_viewport(VkCommandBuffer p_cmd, const std::vector<VkRect2D>& p_viewports)
+{
+    std::vector<VkViewport> viewports(p_viewports.size());
+    for (uint32_t i = 0; i < p_viewports.size(); i++) {
+        viewports[i] = {};
+        viewports[i].x = (float)p_viewports[i].offset.x;
+        viewports[i].y = (float)p_viewports[i].offset.y;
+        viewports[i].width = (float)p_viewports[i].extent.width;
+        viewports[i].height = (float)p_viewports[i].extent.height;
+        viewports[i].minDepth = 0.0f;
+        viewports[i].maxDepth = 1.0f;
+    }
+    vkCmdSetViewport(p_cmd, 0, (uint32_t)viewports.size(), viewports.data());
+}
+
+void DeviceDriverVulkan::command_render_set_scissor(VkCommandBuffer p_cmd, const std::vector<VkRect2D>& p_scissors)
+{
+    vkCmdSetScissor(p_cmd, 0, (uint32_t)p_scissors.size(), p_scissors.data());
+}
+
+void DeviceDriverVulkan::command_bind_push_constants(const VkCommandBuffer& p_cmd, uint32_t p_size, void* r_data, uint32_t p_offset)
+{
+    vkCmdPushConstants(p_cmd, bindless_heap.pipeline_layout, VK_SHADER_STAGE_ALL, p_offset, p_size, r_data);
+}
+
+void DeviceDriverVulkan::command_render_draw(VkCommandBuffer p_cmd, uint32_t p_vertex_count, uint32_t p_instance_count, uint32_t p_base_vertex, uint32_t p_first_instance)
+{
+    vkCmdDraw(p_cmd, p_vertex_count, p_instance_count, p_base_vertex, p_first_instance);
+}
+
+void DeviceDriverVulkan::command_render_draw_indexed(VkCommandBuffer p_cmd, uint32_t p_index_count, uint32_t p_instance_count, uint32_t p_first_index, int32_t p_vertex_offset, uint32_t p_first_instance)
+{
+    vkCmdDrawIndexed(p_cmd, p_index_count, p_instance_count, p_first_index, p_vertex_offset, p_first_instance);
+}
+
+void DeviceDriverVulkan::command_render_draw_indexed_indirect(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, uint32_t p_draw_count, uint32_t p_stride)
+{
+    vkCmdDrawIndexedIndirect(p_cmd, p_indirect_buffer.buffer, p_offset, p_draw_count, p_stride);
+}
+
+void DeviceDriverVulkan::command_render_draw_indexed_indirect_count(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, const Buffer& p_count_buffer, uint64_t p_count_buffer_offset, uint32_t p_max_draw_count, uint32_t p_stride)
+{
+    vkCmdDrawIndexedIndirectCount(p_cmd, p_indirect_buffer.buffer, p_offset, p_count_buffer.buffer, p_count_buffer_offset, p_max_draw_count, p_stride);
+}
+
+void DeviceDriverVulkan::command_render_draw_indirect(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, uint32_t p_draw_count, uint32_t p_stride)
+{
+    vkCmdDrawIndirect(p_cmd, p_indirect_buffer.buffer, p_offset, p_draw_count, p_stride);
+}
+
+void DeviceDriverVulkan::command_render_draw_indirect_count(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, const Buffer& p_count_buffer, uint64_t p_count_buffer_offset, uint32_t p_max_draw_count, uint32_t p_stride)
+{
+    vkCmdDrawIndirectCount(p_cmd, p_indirect_buffer.buffer, p_offset, p_count_buffer.buffer, p_count_buffer_offset, p_max_draw_count, p_stride);
+}
+
+/**************/
+/**** MISC ****/
+/**************/
 
 void DeviceDriverVulkan::set_object_name(VkObjectType p_type, uint64_t p_handle, const char* p_name)
 {

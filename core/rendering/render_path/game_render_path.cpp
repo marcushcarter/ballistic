@@ -12,13 +12,13 @@ Error GameRenderPath::create_resources()
 
     present_pass.name = "present";
     present_pass.formats = {
-        { device_driver->swapchain.format }
+        { dd->swapchain.format }
     };
 
     EmbeddedResource::Blob blit_vert_blob = EmbeddedResource::load(L"SHADERS_FULLSCREEN_VERT");
     EmbeddedResource::Blob blit_frag_blob = EmbeddedResource::load(L"SHADERS_GAMMA_BLIT_FRAG");
-    VkShaderModule blit_vs = device_driver->shader_create({ .stage = drivers::DeviceDriverVulkan::ShaderStage::Vertex, .glsl = (const char*)blit_vert_blob.data, .glsl_size = blit_vert_blob.size, .name = "gamma_blit_vs" });
-    VkShaderModule blit_fs = device_driver->shader_create({ .stage = drivers::DeviceDriverVulkan::ShaderStage::Fragment, .glsl = (const char*)blit_frag_blob.data, .glsl_size = blit_frag_blob.size, .name = "gamma_blit_fs" });
+    VkShaderModule blit_vs = dd->shader_create({ .stage = drivers::DeviceDriverVulkan::ShaderStage::Vertex, .glsl = (const char*)blit_vert_blob.data, .glsl_size = blit_vert_blob.size, .name = "gamma_blit_vs" });
+    VkShaderModule blit_fs = dd->shader_create({ .stage = drivers::DeviceDriverVulkan::ShaderStage::Fragment, .glsl = (const char*)blit_frag_blob.data, .glsl_size = blit_frag_blob.size, .name = "gamma_blit_fs" });
 
     VkRenderPass rp = graph->acquire_render_pass(present_pass);
     drivers::DeviceDriverVulkan::GraphicsPipelineCreateInfo pipeline_ci{};
@@ -27,23 +27,14 @@ Error GameRenderPath::create_resources()
     pipeline_ci.render_pass = rp;
     pipeline_ci.cull_mode = VK_CULL_MODE_NONE;
     pipeline_ci.name = "gamma_blit_pipeline";
-    gamma_blit_pipeline = device_driver->graphics_pipeline_create(pipeline_ci);
+    gamma_blit_pipeline = dd->graphics_pipeline_create(pipeline_ci);
 
-    device_driver->shader_free(blit_vs);
-    device_driver->shader_free(blit_fs);
+    dd->shader_free(blit_vs);
+    dd->shader_free(blit_fs);
 
     present_pass.setup = [](RenderGraph::Builder& b) {
         b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.1f, 0.1f, 1.0f } });
         b.read_image("final_image", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
-
-        drivers::DeviceDriverVulkan::BufferCreateInfo buffer_ci{};
-        buffer_ci.size = sizeof(float) * 4;
-        buffer_ci.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-        buffer_ci.memory = drivers::DeviceDriverVulkan::BufferCreateInfo::Memory::HostVisible;
-        buffer_ci.name = "test_color_buf";
-        b.create_buffer("test_color_buf", buffer_ci);
-        b.read_buffer("test_color_buf", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_READ_BIT);
-
         b.read_all_images();
     };
 
@@ -51,21 +42,15 @@ Error GameRenderPath::create_resources()
         auto* bb = g.image("backbuffer");
         auto* final_image = g.image("final_image");
 
-        auto* color_buf = g.buffer("test_color_buf");
-        float color[4] = { 1.0f, 0.0f, 0.5f, 1.0f };
-        device_driver->buffer_update(*color_buf, color, sizeof(color));
+        dd->command_render_set_viewport(cmd, {{{0,0},bb->extent}});
+        dd->command_render_set_scissor(cmd, {{{0,0},bb->extent}});
 
-        VkViewport vp{ 0, 0, (float)bb->extent.width, (float)bb->extent.height, 0.0f, 1.0f };
-        VkRect2D sc{ {0,0}, { bb->extent.width, bb->extent.height } };
-        vkCmdSetViewport(cmd, 0, 1, &vp);
-        vkCmdSetScissor(cmd, 0, 1, &sc);
-
-        vkCmdBindPipeline(cmd, gamma_blit_pipeline.bind_point, gamma_blit_pipeline.pipeline);
+        dd->command_bind_pipeline(cmd, gamma_blit_pipeline);
         struct { uint32_t srcIndex, samplerIndex; } pc;
         pc.srcIndex = final_image->bindless_sampled;
-        pc.samplerIndex = device_driver->default_sampler.bindless_sampler;
-        vkCmdPushConstants(cmd, device_driver->bindless_heap.pipeline_layout, VK_SHADER_STAGE_ALL, 0, sizeof(pc), &pc);
-        vkCmdDraw(cmd, 3, 1, 0, 0);
+        pc.samplerIndex = dd->default_sampler.bindless_sampler;
+        dd->command_bind_push_constants(cmd, sizeof(pc), &pc);
+        dd->command_render_draw(cmd, 3);
 
         imgui->record_commands(cmd);
     };
@@ -75,7 +60,7 @@ Error GameRenderPath::create_resources()
 
 void GameRenderPath::destroy_resources()
 {
-    device_driver->pipeline_free(gamma_blit_pipeline);
+    dd->pipeline_free(gamma_blit_pipeline);
     RenderPath::destroy_resources();
 }
 

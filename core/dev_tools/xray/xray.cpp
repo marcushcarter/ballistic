@@ -17,7 +17,7 @@ int Xray::push_style()
 
 void Xray::before_begin()
 {
-    ImGui::SetNextWindowSize(ImVec2(750, 200), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(750, 400), ImGuiCond_FirstUseEver);
 }
 
 void Xray::draw_contents(DevContext& ctx)

@@ -16,13 +16,13 @@ struct RenderGraph
     /**** SETUP ****/
     /***************/
     
-    drivers::DeviceDriverVulkan* device_driver = nullptr;
+    drivers::DeviceDriverVulkan* dd = nullptr;
 
     uint32_t frame_count = 1;
     uint32_t current_frame = 0;
     uint32_t width = 0, height = 0;
     
-    Error create(drivers::DeviceDriverVulkan& r_device_driver, uint32_t frame_count);
+    Error create(drivers::DeviceDriverVulkan& r_dd, uint32_t frame_count);
     void destroy();
     Error set_size(uint32_t p_width, uint32_t p_height);
     
@@ -98,7 +98,7 @@ struct RenderGraph
     void import_image(std::string_view p_name, drivers::DeviceDriverVulkan::Image* p_image, VkImageLayout p_final_layout, VkPipelineStageFlags2 p_final_stage, VkAccessFlags2 p_final_access);
     
     void create_image(std::string_view p_name, const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info);
-    uint64_t _image_transient_key(const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info, VkExtent3D p_extent);
+    uint64_t _image_transient_key(const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info, VkExtent2D p_extent);
     void _image_resolve_extent(const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info, uint32_t& r_width, uint32_t& r_height);
     void _image_materialize_transient(ImageResource& r);
     void _image_release_transients();

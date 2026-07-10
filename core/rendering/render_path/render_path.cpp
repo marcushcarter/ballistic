@@ -11,8 +11,6 @@ Error RenderPath::create_resources()
     temp_pass.setup = [](RenderGraph::Builder& b) {
         b.color_attachment("final_image", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.2f, 0.8f, 1.0f } });
         
-        
-
         drivers::DeviceDriverVulkan::ImageCreateInfo depth_ci{};
         depth_ci.format = VK_FORMAT_D32_SFLOAT;
         depth_ci.usage  = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -32,7 +30,6 @@ Error RenderPath::create_resources()
         image_ci2.width_scale  = 1.0f;
         image_ci2.height_scale = 1.0f;
         b.create_image("color222", image_ci2);
-        // image_2 = device_driver->image_create_dedicated(image_ci2, { width, height, 1 });
         b.color_attachment("color222", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.0f, 1.0f, 0.0f, 1.0f } });
     };
 

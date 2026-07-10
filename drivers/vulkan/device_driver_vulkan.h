@@ -28,7 +28,7 @@ struct DeviceDriverVulkan
     };
 
     VkDevice device = VK_NULL_HANDLE;
-    ContextDriverVulkan* context_driver = nullptr;
+    ContextDriverVulkan* cd = nullptr;
     uint32_t device_index = 0;
     DriverDevice driver_device;
     VkPhysicalDevice physical_device = VK_NULL_HANDLE;
@@ -50,10 +50,9 @@ struct DeviceDriverVulkan
     Error _initialize_device(const std::vector<VkDeviceQueueCreateInfo> &p_queue_create_info);
     Error _initialize_allocator();
     Error _initialize_pipeline_cache();
-
     void _check_subgroup_capabilities();
 
-    Error initialize(ContextDriverVulkan& r_context_driver, uint32_t p_device_index, uint32_t p_frame_count);
+    Error initialize(ContextDriverVulkan& r_cd, uint32_t p_device_index, uint32_t p_frame_count);
     void shutdown();
 
     Error device_wait_idle();
@@ -63,44 +62,6 @@ struct DeviceDriverVulkan
     /****************/
 
     VmaAllocator allocator = nullptr;
-
-    /****************/
-    /**** FENCES ****/
-    /****************/
-
-    VkFence fence_create(bool p_signaled = true);
-    void fence_free(VkFence& r_fence);
-    Error fence_wait(VkFence p_fence, uint64_t p_timeout = UINT64_MAX);
-    Error fence_reset(VkFence p_fence);
-
-    /********************/
-    /**** SEMAPHORES ****/
-    /********************/
-
-    VkSemaphore semaphore_create();
-    void semaphore_free(VkSemaphore& r_semaphore);
-
-    /******************/
-    /**** COMMANDS ****/
-    /******************/
-    
-    // ----- POOL -----
-
-    struct CommandPool {
-        VkCommandPool command_pool = VK_NULL_HANDLE;
-        VkCommandBufferLevel buffer_level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    };
-
-    CommandPool command_pool_create(uint32_t p_queue_family_index, VkCommandBufferLevel p_buffer_level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-    void command_pool_free(CommandPool& r_cmd_pool);
-    Error command_pool_reset(CommandPool& r_cmd_pool);
-    
-    // ----- BUFFER -----
-
-    VkCommandBuffer command_buffer_create(CommandPool& p_cmd_pool);
-    Error command_buffer_begin(VkCommandBuffer p_cmd_buffer, VkCommandBufferUsageFlags p_flags = 0);
-    Error command_buffer_end(VkCommandBuffer p_cmd_buffer);
-    Error swapchain_update();
     
 	/****************/
 	/**** IMAGES ****/
@@ -136,18 +97,18 @@ struct DeviceDriverVulkan
         uint32_t bindless_sampled = UINT32_MAX;
         uint32_t bindless_storage = UINT32_MAX;
 
-        VkExtent3D extent = {};
+        VkExtent2D extent = {};
         VkFormat format = VK_FORMAT_UNDEFINED;
         VkImageAspectFlagBits aspect = VK_IMAGE_ASPECT_COLOR_BIT;
         uint32_t mip_levels = 1, layers = 1;
         VkMemoryRequirements mem_req = {};
     };
 
-    Image _image_create(const ImageCreateInfo& p_create_info, VkExtent3D p_extent);
+    Image _image_create(const ImageCreateInfo& p_create_info, VkExtent2D p_extent);
     Error _image_bind(Image& r_image, VmaAllocation p_allocation);
     Error _image_create_view(Image& r_image);
 
-    Image image_create_dedicated(const ImageCreateInfo& p_create_info, VkExtent3D p_extent);
+    Image image_create_dedicated(const ImageCreateInfo& p_create_info, VkExtent2D p_extent);
     void image_free(Image& r_image);
     
 	/*****************/
@@ -228,11 +189,73 @@ struct DeviceDriverVulkan
     Sampler sampler_create(const SamplerCreateInfo& p_create_info);
     void sampler_free(Sampler& r_sampler);
 
-	/*********************/
-	/**** DESCRIPTORS ****/
-	/*********************/
+    /****************/
+    /**** FENCES ****/
+    /****************/
 
-    // ----- BINDLESS HEAP -----
+    VkFence fence_create(bool p_signaled = true);
+    void fence_free(VkFence& r_fence);
+    Error fence_wait(VkFence p_fence, uint64_t p_timeout = UINT64_MAX);
+    Error fence_reset(VkFence p_fence);
+
+    /********************/
+    /**** SEMAPHORES ****/
+    /********************/
+
+    VkSemaphore semaphore_create();
+    void semaphore_free(VkSemaphore& r_semaphore);
+
+    /******************/
+    /**** COMMANDS ****/
+    /******************/
+    
+    // ----- POOL -----
+
+    struct CommandPool {
+        VkCommandPool command_pool = VK_NULL_HANDLE;
+        VkCommandBufferLevel buffer_level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    };
+
+    CommandPool command_pool_create(uint32_t p_queue_family_index, VkCommandBufferLevel p_buffer_level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    void command_pool_free(CommandPool& r_cmd_pool);
+    Error command_pool_reset(CommandPool& r_cmd_pool);
+    
+    // ----- BUFFER -----
+
+    VkCommandBuffer command_buffer_create(CommandPool& p_cmd_pool);
+    Error command_buffer_begin(VkCommandBuffer p_cmd_buffer, VkCommandBufferUsageFlags p_flags = 0);
+    Error command_buffer_end(VkCommandBuffer p_cmd_buffer);
+    Error swapchain_update();
+
+    /*******************/
+    /**** SWAPCHAIN ****/
+    /*******************/
+
+    struct Swapchain {
+        VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+        ContextDriverVulkan::Surface* surface = nullptr;
+        VkRenderPass render_pass = VK_NULL_HANDLE;
+        VkFormat format = VK_FORMAT_UNDEFINED;
+        VkColorSpaceKHR color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        std::vector<Image> images;
+        std::vector<VkFramebuffer> framebuffers;
+        std::vector<VkSemaphore> present_semaphores;
+        uint32_t image_index = 0;
+    };
+
+    Swapchain swapchain;
+
+    bool _determine_swapchain_format(ContextDriverVulkan::Surface* r_surface, VkSurfaceFormatKHR &r_surface_format);
+    void _swapchain_release();
+    
+    Error swapchain_create(ContextDriverVulkan::Surface* r_surface);
+    Error swapchain_resize(uint32_t p_desired_framebuffer_count);
+    void swapchain_free();
+    Error swapchain_acquire_next_image(VkSemaphore p_signal_semaphore);
+
+    /***********************/
+    /**** BINDLESS HEAP ****/
+    /***********************/
 
     struct IndexAllocator {
         uint32_t cap = 0;
@@ -275,65 +298,17 @@ struct DeviceDriverVulkan
     void bindless_heap_free_sampler(uint32_t p_index);
 
 	/*********************/
-	/**** RENDER PASS ****/
-	/*********************/
-
-    struct RenderPassCreateInfo {
-        struct Attachment {
-            VkFormat format = VK_FORMAT_UNDEFINED;
-            VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
-            VkAttachmentLoadOp load_op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-            VkAttachmentStoreOp store_op = VK_ATTACHMENT_STORE_OP_STORE;
-            VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-            VkImageLayout final_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-            bool is_depth = false;
-        };
-        std::vector<Attachment> attachments;
-        const VkSubpassDependency* dependency = nullptr;
-        const char* name = nullptr;
-    };
-
-    VkRenderPass render_pass_create(const RenderPassCreateInfo& p_create_info);
-    void render_pass_free(VkRenderPass& r_render_pass);
-
-	/*********************/
 	/**** FRAMEBUFFER ****/
 	/*********************/
 
     VkFramebuffer framebuffer_create(VkRenderPass p_render_pass, std::vector<VkImageView>& p_image_views, VkExtent2D extent);
     void framebuffer_free(VkFramebuffer& r_framebuffer);
 
-    /*******************/
-    /**** SWAPCHAIN ****/
-    /*******************/
-
-    struct Swapchain {
-        VkSwapchainKHR swapchain = VK_NULL_HANDLE;
-        ContextDriverVulkan::Surface* surface = nullptr;
-        VkRenderPass render_pass = VK_NULL_HANDLE;
-        VkFormat format = VK_FORMAT_UNDEFINED;
-        VkColorSpaceKHR color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-        std::vector<Image> images;
-        std::vector<VkFramebuffer> framebuffers;
-        std::vector<VkSemaphore> present_semaphores;
-        uint32_t image_index = 0;
-    };
-
-    Swapchain swapchain;
-
-    bool _determine_swapchain_format(ContextDriverVulkan::Surface* r_surface, VkSurfaceFormatKHR &r_surface_format);
-    void _swapchain_release();
+	/******************/
+	/**** PIPELINE ****/
+	/******************/
     
-    Error swapchain_create(ContextDriverVulkan::Surface* r_surface);
-    Error swapchain_resize(uint32_t p_desired_framebuffer_count);
-    void swapchain_free();
-    Error swapchain_acquire_next_image(VkSemaphore p_signal_semaphore);
-
-	/****************/
-	/**** SHADER ****/
-	/****************/
-
-    std::string shader_cache_dir;
+    // ----- SHADER -----
 
     enum class ShaderStage : uint8_t { Vertex, Fragment, Compute };
     
@@ -345,18 +320,14 @@ struct DeviceDriverVulkan
         size_t spirv_size = 0;
         const char* name = nullptr;
     };
-
+    
+    std::string shader_cache_dir;
+    
     shaderc_shader_kind _shaderc_kind(ShaderStage p_stage);
     uint64_t _shader_cache_key(const ShaderCreateInfo& p_create_info, size_t p_source_len);
 
     VkShaderModule shader_create(const ShaderCreateInfo& p_create_info);
     void shader_free(VkShaderModule& r_shader);
-
-	/******************/
-	/**** PIPELINE ****/
-	/******************/
-
-    // ----- CACHE -----
 
     // ----- PIPELINE -----
 
@@ -401,30 +372,59 @@ struct DeviceDriverVulkan
     Pipeline graphics_pipeline_create(const GraphicsPipelineCreateInfo& p_create_info);
     Pipeline compute_pipeline_create(const ComputePipelineCreateInfo& p_create_info);
     void pipeline_free(Pipeline& r_pipeline);
+    
+    void command_bind_pipeline(VkCommandBuffer p_cmd, const Pipeline& p_pipeline);
+    void _command_bind_uniform_sets(VkCommandBuffer p_cmd, VkPipelineBindPoint p_bind_point, const std::vector<VkDescriptorSet>& p_sets, uint32_t p_first_set_index, uint32_t p_dynamic_offset);
+    void command_bind_graphics_uniform_sets(VkCommandBuffer p_cmd, const std::vector<VkDescriptorSet>& p_sets, uint32_t p_first_set_index = 0, uint32_t p_dynamic_offset = UINT32_MAX);
+    void command_bind_compute_uniform_sets(VkCommandBuffer p_cmd, const std::vector<VkDescriptorSet>& p_sets, uint32_t p_first_set_index = 0, uint32_t p_dynamic_offset = UINT32_MAX);
+	void command_compute_dispatch(VkCommandBuffer p_cmd, uint32_t p_x_groups, uint32_t p_y_groups, uint32_t p_z_groups);
+	void command_compute_dispatch_indirect(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset);
+
+    /*********************/
+    /**** RENDER PASS ****/
+    /*********************/
+
+    struct RenderPassCreateInfo {
+        struct Attachment {
+            VkFormat format = VK_FORMAT_UNDEFINED;
+            VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+            VkAttachmentLoadOp load_op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            VkAttachmentStoreOp store_op = VK_ATTACHMENT_STORE_OP_STORE;
+            VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+            VkImageLayout final_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+            bool is_depth = false;
+        };
+        std::vector<Attachment> attachments;
+        const VkSubpassDependency* dependency = nullptr;
+        const char* name = nullptr;
+    };
+
+    VkRenderPass render_pass_create(const RenderPassCreateInfo& p_create_info);
+    void render_pass_free(VkRenderPass& r_render_pass);
+
+    void command_begin_render_pass(VkCommandBuffer p_cmd, VkRenderPass p_render_pass, VkFramebuffer p_framebuffer, VkExtent2D p_extent, const std::vector<VkClearValue>& p_clear_values);
+    void command_end_render_pass(VkCommandBuffer p_cmd);
 
 	/******************/
 	/**** COMMANDS ****/
 	/******************/
 
-    // void command_render_set_viewport(VkCommandBuffer p_cmd_buffer, VectorView<Rect2i> p_viewports);
-	// void command_render_set_scissor(VkCommandBuffer p_cmd_buffer, VectorView<Rect2i> p_scissors);
+    void command_render_set_viewport(VkCommandBuffer p_cmd, const std::vector<VkRect2D>& p_viewports);
+    void command_render_set_scissor(VkCommandBuffer p_cmd, const std::vector<VkRect2D>& p_scissors);
+    void command_bind_push_constants(const VkCommandBuffer& p_cmd, uint32_t p_size, void* r_data, uint32_t p_offset = 0);
 
-    // bind vertex buffers
-    // bind index buffers
+    void command_render_draw(VkCommandBuffer p_cmd, uint32_t p_vertex_count, uint32_t p_instance_count = 1, uint32_t p_base_vertex = 0, uint32_t p_first_instance = 0);
+    void command_render_draw_indexed(VkCommandBuffer p_cmd, uint32_t p_index_count, uint32_t p_instance_count = 1, uint32_t p_first_index = 0, int32_t p_vertex_offset = 0, uint32_t p_first_instance = 0);
+	void command_render_draw_indexed_indirect(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, uint32_t p_draw_count, uint32_t p_stride);
+	void command_render_draw_indexed_indirect_count(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, const Buffer& p_count_buffer, uint64_t p_count_buffer_offset, uint32_t p_max_draw_count, uint32_t p_stride);
+	void command_render_draw_indirect(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, uint32_t p_draw_count, uint32_t p_stride);
+	void command_render_draw_indirect_count(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, const Buffer& p_count_buffer, uint64_t p_count_buffer_offset, uint32_t p_max_draw_count, uint32_t p_stride);
 
-    // draw indirect
-    // draw
-    // draw indexed
-
-    // bid render/compute pipeline
-    // bind render/comput uniform sets
-
-	/***************/
-	/**** UTILS ****/
-	/***************/
+	/**************/
+	/**** MISC ****/
+	/**************/
 
     void set_object_name(VkObjectType p_type, uint64_t p_handle, const char* p_name);
-
 };
 
 }

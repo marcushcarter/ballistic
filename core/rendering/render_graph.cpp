@@ -7,11 +7,11 @@ namespace ballistic {
 /**** SETUP ****/
 /***************/
 
-Error RenderGraph::create(drivers::DeviceDriverVulkan& r_device_driver, uint32_t p_frame_count)
+Error RenderGraph::create(drivers::DeviceDriverVulkan& r_dd, uint32_t p_frame_count)
 {
     using enum Error;
 
-    device_driver = &r_device_driver;
+    dd = &r_dd;
     frame_count = p_frame_count;
     current_frame = 0;
     image_transient_pools.clear();
@@ -24,23 +24,23 @@ Error RenderGraph::create(drivers::DeviceDriverVulkan& r_device_driver, uint32_t
 
 void RenderGraph::destroy()
 {
-    device_driver->device_wait_idle();
+    dd->device_wait_idle();
 
-    for (auto& [k, fb] : framebuffer_cache) device_driver->framebuffer_free(fb);
+    for (auto& [k, fb] : framebuffer_cache) dd->framebuffer_free(fb);
     framebuffer_cache.clear();
-    for (auto& [k, rp] : render_pass_cache) device_driver->render_pass_free(rp);
+    for (auto& [k, rp] : render_pass_cache) dd->render_pass_free(rp);
     render_pass_cache.clear();
 
     for (ImageTransientPool& pool : image_transient_pools) {
         for (auto& [key, imgs] : pool.free)
-            for (drivers::DeviceDriverVulkan::Image& img : imgs) device_driver->image_free(img);
+            for (drivers::DeviceDriverVulkan::Image& img : imgs) dd->image_free(img);
         pool.free.clear();
     }
     image_transient_pools.clear();
 
     for (BufferTransientPool& pool : buffer_transient_pools) {
         for (auto& [key, bufs] : pool.free)
-            for (drivers::DeviceDriverVulkan::Buffer& buf : bufs) device_driver->buffer_free(buf);
+            for (drivers::DeviceDriverVulkan::Buffer& buf : bufs) dd->buffer_free(buf);
         pool.free.clear();
     }
     buffer_transient_pools.clear();
@@ -55,12 +55,12 @@ Error RenderGraph::set_size(uint32_t p_width, uint32_t p_height)
     width = p_width;
     height = p_height;
 
-    for (auto& [k, fb] : framebuffer_cache) device_driver->framebuffer_free(fb);
+    for (auto& [k, fb] : framebuffer_cache) dd->framebuffer_free(fb);
     framebuffer_cache.clear();
 
     for (ImageTransientPool& pool : image_transient_pools) {
         for (auto& [key, imgs] : pool.free)
-            for (drivers::DeviceDriverVulkan::Image& img : imgs) device_driver->image_free(img);
+            for (drivers::DeviceDriverVulkan::Image& img : imgs) dd->image_free(img);
         pool.free.clear();
     }
 
@@ -155,7 +155,7 @@ void RenderGraph::create_image(std::string_view p_name, const drivers::DeviceDri
     image_resource_map[id] = idx;    
 }
 
-uint64_t RenderGraph::_image_transient_key(const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info, VkExtent3D p_extent)
+uint64_t RenderGraph::_image_transient_key(const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info, VkExtent2D p_extent)
 {
     uint64_t h = 1469598103934665603ull;
     auto mix = [&](uint64_t v) { h ^= v; h *= 1099511628211ull; };
@@ -167,7 +167,6 @@ uint64_t RenderGraph::_image_transient_key(const drivers::DeviceDriverVulkan::Im
     mix(p_create_info.layers);
     mix(p_extent.width);
     mix(p_extent.height);
-    mix(p_extent.depth);
     return h;
 }
 
@@ -192,7 +191,7 @@ void RenderGraph::_image_materialize_transient(ImageResource& r)
 
     uint32_t w, h;
     _image_resolve_extent(image_ci, w, h);
-    VkExtent3D extent{ w, h, 1 };
+    VkExtent2D extent{ w, h };
 
     uint64_t key = _image_transient_key(image_ci, extent);
     ImageTransientPool& pool = image_transient_pools[current_frame];
@@ -203,7 +202,7 @@ void RenderGraph::_image_materialize_transient(ImageResource& r)
         img = it->second.back();
         it->second.pop_back();
     } else {
-        img = device_driver->image_create_dedicated(image_ci, extent);
+        img = dd->image_create_dedicated(image_ci, extent);
     }
 
     img.state = {};
@@ -304,7 +303,7 @@ void RenderGraph::_buffer_materialize_transient(BufferResource& r)
     buffer_ci.name = debug_names[r.name_id].c_str();
 
     VkDeviceSize logical = buffer_ci.size ? buffer_ci.size : 1;
-    VkDeviceSize size_class = device_driver->_next_power_of_2(logical);
+    VkDeviceSize size_class = dd->_next_power_of_2(logical);
 
     VkBufferUsageFlags usage_final = buffer_ci.usage | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
@@ -319,7 +318,7 @@ void RenderGraph::_buffer_materialize_transient(BufferResource& r)
     } else {
         drivers::DeviceDriverVulkan::BufferCreateInfo alloc_ci = buffer_ci;
         alloc_ci.size = size_class;
-        buf = device_driver->buffer_create(alloc_ci);
+        buf = dd->buffer_create(alloc_ci);
     }
 
     buf.size = logical;
@@ -481,7 +480,7 @@ VkRenderPass RenderGraph::_get_or_create_render_pass(Node& node)
     if (auto it = render_pass_cache.find(key); it != render_pass_cache.end()) return it->second;
 
     render_pass_ci.name = "graph_render_pass";
-    VkRenderPass rp = device_driver->render_pass_create(render_pass_ci);
+    VkRenderPass rp = dd->render_pass_create(render_pass_ci);
     render_pass_cache[key] = rp;
     return rp;
 }
@@ -512,7 +511,7 @@ VkRenderPass RenderGraph::acquire_render_pass(const Pass& p_pass)
         render_pass_ci.attachments.push_back(att);
     }
     render_pass_ci.name = "compat_render_pass";
-    VkRenderPass rp = device_driver->render_pass_create(render_pass_ci);
+    VkRenderPass rp = dd->render_pass_create(render_pass_ci);
     render_pass_cache[key] = rp;
     return rp;
 }
@@ -534,7 +533,7 @@ VkFramebuffer RenderGraph::_get_or_create_framebuffer(Node& node)
 
     if (auto it = framebuffer_cache.find(key); it != framebuffer_cache.end()) return it->second;
 
-    VkFramebuffer fb = device_driver->framebuffer_create(node.render_pass, views, node.area);
+    VkFramebuffer fb = dd->framebuffer_create(node.render_pass, views, node.area);
     framebuffer_cache[key] = fb;
     return fb;
 }
@@ -853,18 +852,9 @@ void RenderGraph::execute(VkCommandBuffer p_cmd)
         emit_barriers_images(p_cmd, node.pre_image_barriers);
         emit_buffer_barriers(p_cmd, node.pre_buffer_barriers);
 
-        if (node.has_render_pass) {
-            VkRenderPassBeginInfo bi{ VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO };
-            bi.renderPass = node.render_pass;
-            bi.framebuffer = node.framebuffer;
-            bi.renderArea = { {0,0}, node.area };
-            bi.clearValueCount = (uint32_t)node.clear_values.size();
-            bi.pClearValues = node.clear_values.data();
-            vkCmdBeginRenderPass(p_cmd, &bi, VK_SUBPASS_CONTENTS_INLINE);
-        }
-
+        if (node.has_render_pass) dd->command_begin_render_pass(p_cmd, node.render_pass, node.framebuffer, node.area, node.clear_values);
         if (node.pass->execute) node.pass->execute(p_cmd, *this);
-        if (node.has_render_pass) vkCmdEndRenderPass(p_cmd);
+        if (node.has_render_pass) dd->command_end_render_pass(p_cmd);
     }
 
     emit_barriers_images(p_cmd, final_image_barriers);

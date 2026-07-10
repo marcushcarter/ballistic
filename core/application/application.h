@@ -25,8 +25,8 @@ struct Application
     drivers::WindowDriverWin32 window_driver;
     drivers::WindowDriverWin32::Window window;
 
-    drivers::ContextDriverVulkan context_driver;
-    drivers::DeviceDriverVulkan device_driver;
+    drivers::ContextDriverVulkan cd;
+    drivers::DeviceDriverVulkan dd;
     Renderer renderer;
     RenderPath* render_path = nullptr;
 
