@@ -1,17 +1,19 @@
-#include <editor/panels/viewport_panel.h>
+#include <editor/viewport/viewport.h>
 #include <editor/editor_context.h>
 #include <core/rendering/renderer.h>
 #include <core/dev_tools/dev_tools.h>
 #include <imgui.h>
 #include <IconsFontAwesome6.h>
+#include <cstdint>
 
 namespace ballistic {
 
-void ViewportPanel::draw(EditorContext& ctx)
+void Viewport::draw(EditorContext& ctx)
 {
     if (!open) return;
+    
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    bool visible = ImGui::Begin("Viewport", &open);
+    bool visible = ImGui::Begin(name(), &open);
     ImGui::PopStyleVar();
 
     if (visible) {

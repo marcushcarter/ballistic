@@ -1,4 +1,7 @@
 #include <editor/editor.h>
+
+#include <editor/viewport/viewport.h>
+
 #include <core/dev_tools/dev_tools.h>
 #include <core/io/path.h>
 #include <core/log/log.h>
@@ -12,6 +15,9 @@ namespace ballistic {
 Error Editor::create(const EditorContext& p_context)
 {
     context = p_context;
+
+    panels.push_back(std::make_unique<Viewport>());
+
     load_settings();
     return Error::Ok;
 }
@@ -30,7 +36,9 @@ void Editor::draw()
 {
     begin_dockspace();
     draw_menu_bar();
-    viewport.draw(context);
+
+    for (auto& p : panels)
+        p->draw(context);
     
     context.dev_tools->draw_tools(true);
 }
@@ -66,42 +74,53 @@ void Editor::begin_dockspace()
 void Editor::draw_menu_bar()
 {
     if (ImGui::BeginMainMenuBar()) {
-
         if (ImGui::BeginMenu("Editor")) {
-            ImGui::MenuItem("Viewport", nullptr, &viewport.open);
+            for (auto& p : panels)
+                ImGui::MenuItem(p->name(), nullptr, &p->open);
             ImGui::Separator();
-            if (ImGui::MenuItem("Close All")) {
-                viewport.open = false;
-            }
+            if (ImGui::MenuItem("Close All"))
+                for (auto& p : panels) p->open = false;
             ImGui::EndMenu();
         }
-
         context.dev_tools->draw_menu();
-        
         ImGui::EndMainMenuBar();
     }
 }
 
-void Editor::load_settings() {
-    std::filesystem::path path = Paths::roaming_data() / "editor_settings.cfg";
-    if (path.empty()) return;
-    std::ifstream f(path);
+void Editor::load_settings()
+{
+    std::ifstream f(Paths::roaming_data() / "editor_settings.cfg");
     if (!f) return;
-    std::string key;
-    int val;
-    while (f >> key >> val) {
-        if (key == "viewport") viewport.open = (val != 0);
-        else if (key == "debug_console") context.dev_tools->debug_console.open = (val != 0);
+
+    std::string line;
+    while (std::getline(f, line)) {
+        size_t sp = line.rfind(' ');
+        if (sp == std::string::npos) continue;
+        std::string key = line.substr(0, sp);
+        std::string value = line.substr(sp + 1);
+
+        // if (key == "Editor.autosave_enabled")  { autosave_enabled = std::atoi(value.c_str()) != 0; continue; }
+        // if (key == "Editor.autosave_interval") { autosave_interval = std::strtof(value.c_str(), nullptr); continue; }
+        // if (key == "Editor.theme") { theme = std::atoi(value.c_str()); continue; }
+
+        for (auto& p : panels) {
+            std::string prefix = std::string(p->name()) + ".open";
+            if (key == prefix) { p->open = std::atoi(value.c_str()) != 0; break; }
+        }
     }
 }
 
-void Editor::save_settings() {
-    std::filesystem::path path = Paths::roaming_data() / "editor_settings.cfg";
-    if (path.empty()) return;
-    std::ofstream f(path);
+void Editor::save_settings()
+{
+    std::ofstream f(Paths::roaming_data() / "editor_settings.cfg");
     if (!f) return;
-    f << "viewport " << (viewport.open ? 1 : 0) << "\n";
-    f << "debug_console " << (context.dev_tools->debug_console.open ? 1 : 0) << "\n";
+
+    // f << "Editor.autosave_enabled " << (autosave_enabled ? 1 : 0) << '\n';
+    // f << "Editor.autosave_interval " << autosave_interval << '\n';
+    // f << "Editor.theme " << theme << '\n';
+
+    for (auto& p : panels)
+        f << p->name() << ".open " << (p->open ? 1 : 0) << '\n';
 }
 
 }

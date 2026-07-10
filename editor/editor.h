@@ -1,16 +1,16 @@
 #pragma once
 #include <editor/editor_context.h>
-#include <editor/panels/viewport_panel.h>
+#include <editor/panel.h>
 #include <core/log/error.h>
-#include <filesystem>
+#include <memory>
+#include <vector>
 
 namespace ballistic {
 
 struct Editor
 {
     EditorContext context;
-
-    ViewportPanel viewport;
+    std::vector<std::unique_ptr<Panel>> panels;
 
     Error create(const EditorContext& p_context);
     void destroy();
