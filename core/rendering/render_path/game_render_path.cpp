@@ -10,10 +10,36 @@ Error GameRenderPath::create_resources()
     using enum Error;
     if (Error e = RenderPath::create_resources(); e != Ok) return e;
 
-    present_pass.name = "present";
+    present_pass.name = "present_pass";
     present_pass.category = "Swapchain";
-    present_pass.formats = {
-        { dd->swapchain.format }
+    present_pass.formats = { { dd->swapchain.format } };
+    
+    present_pass.setup = [](RenderGraph::Builder& b) {
+        b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.1f, 0.1f, 1.0f } });
+        b.read_image("final_image", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+    };
+    present_pass.execute = [this](VkCommandBuffer cmd, RenderGraph& g) {
+        auto* bb = g.image("backbuffer");
+        auto* final_image = g.image("final_image");
+        dd->command_render_set_viewport(cmd, {{{0,0},bb->extent}});
+        dd->command_render_set_scissor(cmd, {{{0,0},bb->extent}});
+        dd->command_bind_pipeline(cmd, gamma_blit_pipeline);
+        struct { uint32_t srcIndex, samplerIndex; } pc;
+        pc.srcIndex = final_image->bindless_sampled;
+        pc.samplerIndex = dd->default_sampler.bindless_sampler;
+        dd->command_bind_push_constants(cmd, sizeof(pc), &pc);
+        dd->command_render_draw(cmd, 3);
+    };
+    
+    editor_ui_pass.name = "editor_ui_pass";
+    editor_ui_pass.category = "Swapchain";
+    editor_ui_pass.formats = { { dd->swapchain.format } };
+    editor_ui_pass.setup = [](RenderGraph::Builder& b) {
+        b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_LOAD);
+        b.read_all_images();
+    };
+    editor_ui_pass.execute = [this](VkCommandBuffer cmd, RenderGraph& g) {
+        (void)g; imgui->record_commands(cmd);
     };
 
     EmbeddedResource::Blob blit_vert_blob = EmbeddedResource::load(L"SHADERS_FULLSCREEN_VERT");
@@ -33,29 +59,6 @@ Error GameRenderPath::create_resources()
     dd->shader_free(blit_vs);
     dd->shader_free(blit_fs);
 
-    present_pass.setup = [](RenderGraph::Builder& b) {
-        b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.1f, 0.1f, 1.0f } });
-        b.read_image("final_image", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
-        b.read_all_images();
-    };
-
-    present_pass.execute = [this](VkCommandBuffer cmd, RenderGraph& g) {
-        auto* bb = g.image("backbuffer");
-        auto* final_image = g.image("final_image");
-
-        dd->command_render_set_viewport(cmd, {{{0,0},bb->extent}});
-        dd->command_render_set_scissor(cmd, {{{0,0},bb->extent}});
-
-        dd->command_bind_pipeline(cmd, gamma_blit_pipeline);
-        struct { uint32_t srcIndex, samplerIndex; } pc;
-        pc.srcIndex = final_image->bindless_sampled;
-        pc.samplerIndex = dd->default_sampler.bindless_sampler;
-        dd->command_bind_push_constants(cmd, sizeof(pc), &pc);
-        dd->command_render_draw(cmd, 3);
-
-        imgui->record_commands(cmd);
-    };
-
     return Ok;
 }
 
@@ -65,6 +68,6 @@ void GameRenderPath::destroy_resources()
     RenderPath::destroy_resources();
 }
 
-void GameRenderPath::build_present(RenderGraph& g) { g.add(&present_pass); }
+void GameRenderPath::build_present(RenderGraph& g) { g.add(&present_pass); g.add(&editor_ui_pass); }
 
 }

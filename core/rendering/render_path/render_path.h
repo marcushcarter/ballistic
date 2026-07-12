@@ -2,6 +2,8 @@
 #include <core/rendering/render_graph.h>
 #include <core/log/error.h>
 
+#include <core/rendering/render_path/features/temp.h>
+
 namespace ballistic {
 
 namespace drivers { struct DeviceDriverVulkan; struct ImGuiDriver; }
@@ -12,11 +14,7 @@ struct RenderPath
     drivers::ImGuiDriver* imgui = nullptr;
     RenderGraph* graph = nullptr;
 
-    RenderGraph::Pass temp_pass;
-    
-    RenderGraph::Pass temp_pass1;
-    RenderGraph::Pass temp_pass2;
-    RenderGraph::Pass temp_pass3;
+    TempFeature temp;
 
     virtual Error create_resources();
     virtual void destroy_resources();

@@ -217,11 +217,15 @@ struct DeviceDriverVulkan
     uint32_t timestamp_valid_bits(uint32_t p_queue_family_index);
 
     QueryPool query_pool_create_timestamp(uint32_t p_query_count);
+    QueryPool query_pool_create_occlusion(uint32_t p_query_count);
+    QueryPool query_pool_create_pipeline_statistics(uint32_t p_query_count, VkQueryPipelineStatisticFlags p_stats);
     void query_pool_free(QueryPool& r_query_pool);
-    Error query_pool_get_results(const QueryPool& p_query_pool, uint32_t p_first, uint32_t p_count, uint64_t* r_results);
+    Error query_pool_get_results(const QueryPool& p_query_pool, uint32_t p_first, uint32_t p_count, uint64_t* r_results, uint32_t p_stride_u64 = 1);
 
     void command_reset_query_pool(VkCommandBuffer p_cmd, const QueryPool& p_query_pool, uint32_t p_first, uint32_t p_count);
     void command_write_timestamp(VkCommandBuffer p_cmd, const QueryPool& p_query_pool, VkPipelineStageFlags2 p_stage, uint32_t p_index);
+    void command_begin_query(VkCommandBuffer p_cmd, const QueryPool& p_query_pool, uint32_t p_index, VkQueryControlFlags p_flags = 0);
+    void command_end_query(VkCommandBuffer p_cmd, const QueryPool& p_query_pool, uint32_t p_index);
 
     /******************/
     /**** COMMANDS ****/

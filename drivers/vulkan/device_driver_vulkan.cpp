@@ -144,6 +144,8 @@ Error DeviceDriverVulkan::_check_device_features()
     VK_DEVICEFEATURE_ENABLE_IF(shaderCullDistance);
     VK_DEVICEFEATURE_ENABLE_IF(shaderInt64);
     VK_DEVICEFEATURE_ENABLE_IF(shaderInt16);
+    VK_DEVICEFEATURE_ENABLE_IF(pipelineStatisticsQuery);
+    VK_DEVICEFEATURE_ENABLE_IF(occlusionQueryPrecise);
 
 #undef VK_DEVICEFEATURE_ENABLE_IF
 
@@ -913,6 +915,33 @@ DeviceDriverVulkan::QueryPool DeviceDriverVulkan::query_pool_create_timestamp(ui
     return query_pool;
 }
 
+DeviceDriverVulkan::QueryPool DeviceDriverVulkan::query_pool_create_occlusion(uint32_t p_query_count)
+{
+    VkQueryPoolCreateInfo query_pool_ci{ VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
+    query_pool_ci.queryType = VK_QUERY_TYPE_OCCLUSION;
+    query_pool_ci.queryCount = p_query_count;
+
+    QueryPool query_pool;
+    query_pool.capacity = p_query_count;
+    VkResult err = vkCreateQueryPool(device, &query_pool_ci, nullptr, &query_pool.pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan occlusion query pool.");
+    return query_pool;
+}
+
+DeviceDriverVulkan::QueryPool DeviceDriverVulkan::query_pool_create_pipeline_statistics(uint32_t p_query_count, VkQueryPipelineStatisticFlags p_stats)
+{
+    VkQueryPoolCreateInfo query_pool_ci{ VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
+    query_pool_ci.queryType = VK_QUERY_TYPE_PIPELINE_STATISTICS;
+    query_pool_ci.queryCount = p_query_count;
+    query_pool_ci.pipelineStatistics = p_stats;
+
+    QueryPool query_pool;
+    query_pool.capacity = p_query_count;
+    VkResult err = vkCreateQueryPool(device, &query_pool_ci, nullptr, &query_pool.pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan pipeline-statistics query query_pool.");
+    return query_pool;
+}
+
 void DeviceDriverVulkan::query_pool_free(QueryPool& r_query_pool)
 {
     if (r_query_pool.pool) {
@@ -921,11 +950,12 @@ void DeviceDriverVulkan::query_pool_free(QueryPool& r_query_pool)
     }
 }
 
-Error DeviceDriverVulkan::query_pool_get_results(const QueryPool& p_query_pool, uint32_t p_first, uint32_t p_count, uint64_t* r_results)
+Error DeviceDriverVulkan::query_pool_get_results(const QueryPool& p_query_pool, uint32_t p_first, uint32_t p_count, uint64_t* r_results, uint32_t p_stride_u64)
 {
     using enum Error;
     if (p_count == 0) return Ok;
-    VkResult err = vkGetQueryPoolResults(device, p_query_pool.pool, p_first, p_count, p_count * sizeof(uint64_t), r_results, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
+    const VkDeviceSize stride = (VkDeviceSize)p_stride_u64 * sizeof(uint64_t);
+    VkResult err = vkGetQueryPoolResults(device, p_query_pool.pool, p_first, p_count, (size_t)p_count * stride, r_results, stride, VK_QUERY_RESULT_64_BIT);
     if (err == VK_NOT_READY) return Failed;
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't get Vulkan query pool results.");
     return Ok;
@@ -939,6 +969,16 @@ void DeviceDriverVulkan::command_reset_query_pool(VkCommandBuffer p_cmd, const Q
 void DeviceDriverVulkan::command_write_timestamp(VkCommandBuffer p_cmd, const QueryPool& p_query_pool, VkPipelineStageFlags2 p_stage, uint32_t p_index)
 {
     vkCmdWriteTimestamp2(p_cmd, p_stage, p_query_pool.pool, p_index);
+}
+
+void DeviceDriverVulkan::command_begin_query(VkCommandBuffer p_cmd, const QueryPool& p_query_pool, uint32_t p_index, VkQueryControlFlags p_flags)
+{
+    vkCmdBeginQuery(p_cmd, p_query_pool.pool, p_index, p_flags);
+}
+
+void DeviceDriverVulkan::command_end_query(VkCommandBuffer p_cmd, const QueryPool& p_query_pool, uint32_t p_index)
+{
+    vkCmdEndQuery(p_cmd, p_query_pool.pool, p_index);
 }
 
 /******************/

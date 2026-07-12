@@ -5,7 +5,7 @@ namespace ballistic {
 
 struct EditorRenderPath : RenderPath
 {
-    RenderGraph::Pass present_pass;
+    RenderGraph::Pass editor_ui_pass;
     
     Error create_resources() override;
     void build_present(RenderGraph& g) override;

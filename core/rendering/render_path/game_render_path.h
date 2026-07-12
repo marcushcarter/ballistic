@@ -7,6 +7,8 @@ namespace ballistic {
 struct GameRenderPath : RenderPath
 {
     RenderGraph::Pass present_pass;
+    RenderGraph::Pass editor_ui_pass;
+
     drivers::DeviceDriverVulkan::Pipeline gamma_blit_pipeline;
     
     Error create_resources() override;

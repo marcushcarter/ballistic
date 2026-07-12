@@ -20,7 +20,9 @@ void Profiler::draw_contents(DevContext& ctx)
 
     ImGui::BeginGroup();
 
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::BeginChild("TopLeft", ImVec2(leftWidth, topHeight), ImGuiChildFlags_Borders);
+    ImGui::PopStyleVar();
     {
         timeline.draw(ctx);
     }
@@ -30,11 +32,17 @@ void Profiler::draw_contents(DevContext& ctx)
     {
         if (ImGui::BeginTabBar("Tabs")) {
             if (ImGui::BeginTabItem("Resources")) {
-                // ...
+                // Passes 6 active / 6 total.
+                // Images: 4. Buffers: 0
+                // resources graph
+                // Images.
+                // Name | Kind | Format | Life | Produces | R | W
+                // Buffers.
+                // Name | Kind | Size | Mem | Life | Producer | R/W
+
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("Materials")) {
-                // ...
                 ImGui::EndTabItem();
             }
             ImGui::EndTabBar();

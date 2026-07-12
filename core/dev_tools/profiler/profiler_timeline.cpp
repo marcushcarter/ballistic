@@ -8,7 +8,7 @@
 #include <algorithm>
 
 namespace ballistic {
-    
+
 static ImU32 rg_category_u32(const char* cat, float alpha = 1.0f)
 {
     ImVec4 c(0.70f, 0.70f, 0.70f, alpha);
@@ -19,6 +19,17 @@ static ImU32 rg_category_u32(const char* cat, float alpha = 1.0f)
         c.w = alpha;
     }
     return ImGui::GetColorU32(c);
+}
+
+static void property_row(const char* name, const char* fmt, ...)
+{
+    constexpr float tab_width = 200.0f;
+    ImGui::TextUnformatted(name);
+    ImGui::SameLine(tab_width);
+    va_list args;
+    va_start(args, fmt);
+    ImGui::TextV(fmt, args);
+    va_end(args);
 }
 
 void ProfilerTimeline::draw(DevContext& ctx)
@@ -82,6 +93,8 @@ void ProfilerTimeline::draw(DevContext& ctx)
         ImGui::InvisibleButton("TimelineInput", ImVec2(content_w, H), ImGuiButtonFlags_MouseButtonLeft);
         hovered = ImGui::IsItemHovered();
 
+        dl->PushClipRect(origin, ImVec2(origin.x + canvas_w, origin.y + H), true);
+
         if (hovered && io.MouseWheelH != 0.0f) {
             if (view_end_ms > view_start_ms) {
                 float range = view_end_ms - view_start_ms;
@@ -121,31 +134,21 @@ void ProfilerTimeline::draw(DevContext& ctx)
 
         // Grid.
         {
-            float ms_per_pixel = 1.0f / px;
-
-            float target_pixels = 100.0f;
-            float raw_block_ms = ms_per_pixel * target_pixels;
-            float exponent = floorf(log10f(raw_block_ms));
-            float fraction = raw_block_ms / powf(10.0f, exponent);
-
-            float nice_fraction;
-            if (fraction < 1.5f) nice_fraction = 1.0f;
-            else if (fraction < 3.0f) nice_fraction = 2.0f;
-            else if (fraction < 7.0f) nice_fraction = 5.0f;
-            else nice_fraction = 10.0f;
-
-            float block_ms = nice_fraction * powf(10.0f, exponent);
-
             float visible_ms = canvas_w / px;
             float start_ms = visible_start;
 
+            float block_ms;
+            if (visible_ms >= 1.5f) block_ms = 1.0f;
+            else if (visible_ms >= 0.15f) block_ms = 0.1f;
+            else block_ms = 0.01f;
+
             int first_index = (int)floorf(start_ms / block_ms);
-            float end = start_ms + visible_ms + block_ms;
+            float end = visible_end;
 
             for (int i = first_index; ; i++) {
                 float t = i * block_ms;
-
                 if (t > end) break;
+
                 float x0 = origin.x + (t - visible_start) * px;
                 float x1 = origin.x + (t + block_ms - visible_start) * px;
 
@@ -153,10 +156,9 @@ void ProfilerTimeline::draw(DevContext& ctx)
                 dl->AddRectFilled(ImVec2(x0, origin.y), ImVec2(x1, origin.y + H), dark ? IM_COL32(45, 45, 45, 255) : IM_COL32(55, 55, 55, 255));
 
                 char label[32];
-                if (block_ms < 0.01f) snprintf(label, sizeof(label), "%.3f ms", t);
-                else if (block_ms < 0.1f) snprintf(label, sizeof(label), "%.2f ms", t);
-                else if (block_ms < 1.0f) snprintf(label, sizeof(label), "%.1f ms", t);
-                else snprintf(label, sizeof(label), "%.0f ms", t);
+                if (block_ms == 1.0f) snprintf(label, sizeof(label), "%.0f ms", t);
+                else if (block_ms == 0.1f) snprintf(label, sizeof(label), "%.1f ms", t);
+                else snprintf(label, sizeof(label), "%.2f ms", t);
 
                 dl->AddText(ImVec2(x0 + 3.0f, origin.y + H - ImGui::GetTextLineHeight()), IM_COL32(220, 220, 220, 180), label);
             }
@@ -179,8 +181,11 @@ void ProfilerTimeline::draw(DevContext& ctx)
             float w = b.x - a.x;
             if (w < 6.0f) return;
             ImVec2 ts = ImGui::CalcTextSize(txt);
+            float x = a.x + 4.0f;
+            x = std::max(x, origin.x + 4.0f);
+            if (x + ts.x > b.x - 4.0f) ts.x = b.x - x - 4.0f;
             dl->PushClipRect(a, b, true);
-            ImVec2 p(a.x + 4.0f, a.y + ((b.y - a.y) - ts.y) * 0.5f);
+            ImVec2 p(x, a.y + ((b.y - a.y) - ts.y) * 0.5f);
             dl->AddText(ImVec2(p.x + 1, p.y + 1), IM_COL32(0, 0, 0, 140), txt);
             dl->AddText(p, col, txt);
             dl->PopClipRect();
@@ -223,7 +228,6 @@ void ProfilerTimeline::draw(DevContext& ctx)
 
             float x_ms = 0.0f;
             for (const CategorySeg& s : categories) {
-                // bool bar_hovered;
                 ImVec2 x = bar(x_ms, s.ms, y_sec0, y_sec1, rg_category_u32(s.cat), s.cat, s.cat);
                 label_in(ImVec2(x.x, y_sec0), ImVec2(x.y, y_sec1), (s.cat && s.cat[0]) ? s.cat : "(uncat)", IM_COL32_WHITE);
                 x_ms += s.ms;
@@ -254,18 +258,47 @@ void ProfilerTimeline::draw(DevContext& ctx)
             float x_ms = 0.0f;
             for (const Seg& s : segs) {
                 bool bar_hovered;
-                bar(x_ms, s.ms, y_draw0, y_draw1, rg_category_u32(s.cat, 0.22f), s.name, s.cat, &bar_hovered);
+                ImVec2 x = bar(x_ms, s.ms, y_draw0, y_draw1, rg_category_u32(s.cat, 0.22f), s.name, s.cat, &bar_hovered);
+                label_in(ImVec2(x.x, y_draw0), ImVec2(x.y, y_draw1), "N/A", IM_COL32_WHITE);
                 
                 if (bar_hovered) {
                     ImGui::BeginTooltip();
-                    ImGui::Text("Category: %s", s.cat);
-                    ImGui::Text("Time: %.3f ms", s.ms);
+
+                    ImGui::Text("%s", "name");
+                    property_row("Time", "%.3f ms", s.ms);
+                    property_row("Pixel Count", "%d", 0);
+                    ImGui::Spacing();
+                    ImGui::Spacing();
+
+                    ImGui::Text("Owner Object");
+                    property_row("Name", "%s", "name");
+                    property_row("Location", "%s", "location");
+                    property_row("Type", "%s", "type");
+                    ImGui::Spacing();
+                    ImGui::Spacing();
+
+                    ImGui::Text("Primitives");
+                    property_row("Triangles", "%d", 0);
+                    property_row("Vertices", "%d", 0);
+                    property_row("Instances", "%d", 0);
+                    property_row("Total Triangles", "%d", 0);
+                    property_row("Cast Shadows", "%s", true ? "True" : "False");
+                    property_row("Shadow Cull", "%s", "cull");
+                    property_row("Allow Static Decals", "%s", true ? "True" : "False");
+                    property_row("Allow Dynamic Decals", "%s", true ? "True" : "False");
+                    ImGui::Spacing();
+                    ImGui::Spacing();
+                    
+                    ImGui::Text("Shader");
+                    property_row("Pass", "%s", s.cat);
+                    property_row("Name", "%s", "name");
+                    property_row("Location", "%s", "loco");
+
                     ImGui::EndTooltip();
                 }
                 
                 x_ms += s.ms;
             }
-            dl->AddText(ImVec2(origin.x + 3, y_draw0 + 1), IM_COL32(200, 200, 200, 120), "draws (needs plumbing)");
         }
 
         // Highlight.
@@ -274,6 +307,13 @@ void ProfilerTimeline::draw(DevContext& ctx)
             float b = std::max(select_start_ms, select_end_ms);
             dl->AddRectFilled(ImVec2(origin.x + (a - visible_start) * px, origin.y), ImVec2(origin.x + (b - visible_start) * px, origin.y + H), IM_COL32(100, 150, 255, 50));
         }
+
+        // Hover bar.
+        if (hovered) {
+            dl->AddLine(ImVec2(io.MousePos.x, origin.y), ImVec2(io.MousePos.x, origin.y + H), IM_COL32(255, 255, 255, 120), 1.0f);
+        }
+
+        dl->PopClipRect();
     }
 }
 
