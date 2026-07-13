@@ -1,0 +1,125 @@
+#pragma once
+#include <drivers/vulkan/device_driver_vulkan.h>
+#include <core/log/error.h>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <vector>
+#include <cstdint>
+
+namespace ballistic {
+
+struct RenderGraphProfiler
+{
+    static constexpr uint32_t INVALID   = UINT32_MAX;
+    static constexpr uint32_t CAPACITY  = 8192;
+    static constexpr uint32_t RESET_MIN = 64;
+
+    /***************/
+    /**** SETUP ****/
+    /***************/
+    
+    drivers::DeviceDriverVulkan* dd = nullptr;
+    bool supported = false;
+    bool enabled = false;
+
+    bool active = false;
+    bool prev_active = false;
+    double period_ns = 1.0;
+    uint64_t valid_mask = ~0ull;
+
+    Error create(drivers::DeviceDriverVulkan& r_dd, uint32_t p_frame_count);
+    void destroy();
+
+    /***************/
+    /**** NAMES ****/
+    /***************/
+    
+    std::unordered_map<uint64_t, std::string> name_table;
+    
+    static uint64_t intern(std::string_view p_s);
+    uint64_t intern_named(std::string_view p_s);
+    static uint64_t draw_key(uint64_t p_pass_name_id, uint64_t p_name_id, uint32_t p_occurrence);
+    const char* name_of(uint64_t p_id) const;
+
+    /*****************/
+    /**** RESULTS ****/
+    /*****************/
+
+    enum class MarkKind : uint8_t { Pass = 0, Draw = 1 };
+
+    struct Timing {
+        uint64_t key = 0;
+        const char* name = "";
+        const char* type = "";
+        const char* category = "";
+        double gap_ms = 0.0;
+        double gpu_ms = 0.0;
+        double raw_gap_ms = 0.0;
+        double raw_ms = 0.0;
+        uint32_t draw_count = 0;
+        uint32_t ordinal = 0;
+        uint32_t parent = INVALID;
+        MarkKind kind = MarkKind::Pass;
+    };
+
+    std::vector<Timing> results;
+    double total_ms = 0.0;
+    uint32_t total_draws = 0;
+    bool truncated = false;
+
+    struct Smoothed { double gap = 0.0; double dur = 0.0; };
+    std::unordered_map<uint64_t, Smoothed> smoothed;
+    double smoothing = 0.001;
+
+    /*******************/
+    /**** RECORDING ****/
+    /*******************/
+
+    struct Mark {
+        uint64_t key = 0;
+        uint64_t name_id = 0;
+        uint64_t type_id = 0;
+        uint64_t cat_id = 0;
+        uint32_t lead_query = 0;
+        uint32_t begin_query = INVALID;
+        uint32_t end_query = INVALID;
+        uint32_t draw_count = 0;
+        uint32_t ordinal = 0;
+        uint32_t parent = INVALID;
+        MarkKind kind = MarkKind::Pass;
+    };
+
+    struct Slot {
+        drivers::DeviceDriverVulkan::QueryPool pool;
+        std::vector<Mark> marks;
+        uint32_t query_count = 0;
+        uint32_t reset_count = 0;
+        uint32_t last_boundary = 0;
+        uint32_t open_pass = INVALID;
+        uint32_t open_draw = INVALID;
+        uint32_t pass_ordinal = 0;
+        std::unordered_map<uint64_t, uint32_t> name_occurrence;
+        bool recorded = false;
+        bool overflowed = false;
+    };
+
+    std::vector<Slot> slots;
+    uint32_t slot = 0;
+    std::vector<uint64_t> raw_scratch;
+    uint32_t last_query_count = 0;
+
+    void _clear_results();
+    bool _write_boundary(VkCommandBuffer p_cmd, uint32_t& r_index);
+    void _resolve();
+
+    void frame_begin(VkCommandBuffer p_cmd, uint32_t p_slot);
+    void frame_end();
+    void pass_begin(VkCommandBuffer p_cmd, std::string_view p_name, std::string_view p_category);
+    void pass_end(VkCommandBuffer p_cmd, uint32_t p_draw_count);
+    void draw_begin(VkCommandBuffer p_cmd, std::string_view p_name, std::string_view p_type);
+    void draw_end(VkCommandBuffer p_cmd);
+
+};
+
+}

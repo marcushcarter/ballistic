@@ -1,7 +1,28 @@
 #include <core/dev_tools/profiler/profiler.h>
+#include <core/rendering/renderer.h>
 #include <imgui.h>
 
 namespace ballistic {
+
+void property_row_value_aligned(const char* name, const char* fmt, ...)
+{
+    ImGui::TextUnformatted(name);
+
+    char buffer[256];
+
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+
+    float value_width = ImGui::CalcTextSize(buffer).x;
+    float right_edge = ImGui::GetContentRegionMax().x;
+
+    ImGui::SameLine();
+    ImGui::SetCursorPosX(right_edge - value_width);
+    ImGui::TextUnformatted(buffer);
+}
+
 
 void Profiler::before_begin()
 {
@@ -30,22 +51,33 @@ void Profiler::draw_contents(DevContext& ctx)
 
     ImGui::BeginChild("BottomLeft", ImVec2(leftWidth, bottomHeight), ImGuiChildFlags_Borders);
     {
-        if (ImGui::BeginTabBar("Tabs")) {
-            if (ImGui::BeginTabItem("Resources")) {
-                // Passes 6 active / 6 total.
-                // Images: 4. Buffers: 0
-                // resources graph
-                // Images.
-                // Name | Kind | Format | Life | Produces | R | W
-                // Buffers.
-                // Name | Kind | Size | Mem | Life | Producer | R/W
+        // if (ImGui::BeginTabBar("Tabs")) {
+        //     if (ImGui::BeginTabItem("Resources")) {
+        //         // Passes 6 active / 6 total.
+        //         // Images: 4. Buffers: 0
+        //         // resources graph
+        //         // Images.
+        //         // Name | Kind | Format | Life | Produces | R | W
+        //         // Buffers.
+        //         // Name | Kind | Size | Mem | Life | Producer | R/W
 
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Materials")) {
-                ImGui::EndTabItem();
-            }
-            ImGui::EndTabBar();
+        //         ImGui::EndTabItem();
+        //     }
+        //     if (ImGui::BeginTabItem("Materials")) {
+        //         ImGui::EndTabItem();
+        //     }
+        //     ImGui::EndTabBar();
+        // }
+
+        if (timeline.selected_pass != nullptr) {
+            ImGui::Text("Selected Pass");
+            ImGui::Text("Name: %s", timeline.selected_pass->name);
+            ImGui::Text("Category: %s", timeline.selected_pass->category);
+            ImGui::Text("GPU Time: %.3f ms", timeline.selected_pass->gpu_ms);
+            ImGui::Text("Raw Time: %.3f ms", timeline.selected_pass->raw_ms);
+            ImGui::Text("Draw Count: %u", timeline.selected_pass->draw_count);
+        } else {
+            ImGui::TextDisabled("No pass selected.");
         }
     }
     ImGui::EndChild();
@@ -55,10 +87,21 @@ void Profiler::draw_contents(DevContext& ctx)
 
     ImGui::BeginChild("Right", ImVec2(rightWidth, avail.y), ImGuiChildFlags_Borders);
     {
-        ImGui::Separator();
-        ImGui::Separator();
-        ImGui::Separator();
-        ImGui::Separator();
+        ImGui::Checkbox("Enable Profiling", &ctx.renderer->graph.profiler.enabled);
+
+        if (timeline.selected_draw != nullptr) {
+            ImGui::Text("Name: %s", timeline.selected_draw->name ? timeline.selected_draw->name : "Unnamed");
+            ImGui::Text("Type: %s", timeline.selected_draw->type);
+            ImGui::Text("GPU Time: %.3f ms", timeline.selected_draw->gpu_ms);
+            ImGui::Text("Raw Time: %.3f ms", timeline.selected_draw->raw_ms);
+
+            // if (draw.parent != RenderGraphProfiler::INVALID) {
+            //     const auto& parent = ctx.renderer->graph.profiler.results[draw.parent];
+            //     ImGui::Text("Pass: %s", parent.name);
+            // }
+        } else {
+            ImGui::TextDisabled("No draw hovered.");
+        }
 
     }
     ImGui::EndChild();

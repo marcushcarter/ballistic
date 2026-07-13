@@ -60,6 +60,10 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
     dev_tools.create(ctx);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
+#if BALLISTIC_DEV_TOOLS
+    log_write("DEV TOOLS ENABLED");
+#endif
+
     return Ok;
 }
 

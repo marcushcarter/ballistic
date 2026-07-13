@@ -19,7 +19,7 @@ Error RenderGraph::create(drivers::DeviceDriverVulkan& r_dd, uint32_t p_frame_co
     buffer_transient_pools.clear();
     buffer_transient_pools.resize(frame_count);
 
-    profiler_initialize();
+    profiler.create(r_dd, p_frame_count);
 
     return Ok;
 }
@@ -28,7 +28,7 @@ void RenderGraph::destroy()
 {
     dd->device_wait_idle();
 
-    profiler_shutdown();
+    profiler.destroy();
 
     for (auto& [k, fb] : framebuffer_cache) dd->framebuffer_free(fb);
     framebuffer_cache.clear();
@@ -70,6 +70,10 @@ Error RenderGraph::set_size(uint32_t p_width, uint32_t p_height)
 
     return Ok;
 }
+
+/***************/
+/**** NAMES ****/
+/***************/
 
 uint64_t RenderGraph::intern(std::string_view p_name)
 {
@@ -348,6 +352,17 @@ void RenderGraph::_buffer_release_transients()
     }
 }
 
+/******************/
+/**** COMMANDS ****/
+/******************/
+
+void RenderGraph::CommandList::draw(std::string_view p_name, uint32_t p_vertex_count, uint32_t p_instance_count, uint32_t p_base_vertex, uint32_t p_first_instance) {
+    graph->profiler.draw_begin(cmd, p_name, "vkCmdDraw");
+    dd->command_render_draw(cmd, p_vertex_count, p_instance_count, p_base_vertex, p_first_instance);
+    ++draw_count;
+    graph->profiler.draw_end(cmd);
+}
+
 /**************/
 /**** PASS ****/
 /**************/
@@ -540,114 +555,6 @@ VkFramebuffer RenderGraph::_get_or_create_framebuffer(Node& node)
     VkFramebuffer fb = dd->framebuffer_create(node.render_pass, views, node.area);
     framebuffer_cache[key] = fb;
     return fb;
-}
-
-/******************/
-/**** PROFILER ****/
-/******************/
-
-void RenderGraph::_profiler_resolve()
-{
-    using enum Error;
-
-    if (!profiler.enabled) return;
-    uint32_t slot = current_frame;
-    if (!profiler.slot_recorded[slot]) return;
-
-    uint32_t count = profiler.slot_count[slot];
-    if (count < 2) {
-        profiler.last_results.clear();
-        profiler.last_total_ms = 0.0;
-        return;
-    }
-
-    uint64_t raw[Profiler::CAPACITY];
-    if (dd->query_pool_get_results(profiler.pools[slot], 0, count, raw) != Ok) return;
-
-    std::vector<uint64_t>& names = profiler.slot_names[slot];
-    profiler.last_results.clear();
-    profiler.last_results.reserve(names.size());
-
-    double total = 0.0;
-    for (size_t i = 0; i < names.size(); ++i) {
-        uint64_t a = raw[i] & profiler.valid_mask;
-        uint64_t b = raw[i + 1] & profiler.valid_mask;
-        double ms = (b >= a ? double(b - a) : 0.0) * profiler.period_ns * 1e-6;
-
-        auto [smit, fresh] = profiler.smoothed_ms.try_emplace(names[i], ms);
-        double& sm = smit->second;
-        if (!fresh) sm += profiler.smoothing * (ms - sm);
-        total += sm;
-        
-        PassTiming t;
-        t.name_id = names[i];
-        auto dit = debug_names.find(names[i]);
-        t.name = (dit != debug_names.end()) ? dit->second.c_str() : "?";
-        t.gpu_ms = sm;
-        t.raw_ms = ms;
-        profiler.last_results.push_back(t);
-    }
-    profiler.last_total_ms = total;
-}
-
-void RenderGraph::_profiler_frame_begin(VkCommandBuffer p_cmd)
-{
-    if (!profiler.enabled) return;
-    uint32_t slot = current_frame;
-
-    dd->command_reset_query_pool(p_cmd, profiler.pools[slot], 0, Profiler::CAPACITY);
-    profiler.slot_names[slot].clear();
-    profiler.query_count = 0;
-
-    dd->command_write_timestamp(p_cmd, profiler.pools[slot], VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, profiler.query_count++);
-}
-
-void RenderGraph::_profiler_mark(VkCommandBuffer p_cmd, const std::string& p_name)
-{
-    if (!profiler.enabled) return;
-    if (profiler.query_count >= Profiler::CAPACITY) return;
-
-    uint32_t slot = current_frame;
-    dd->command_write_timestamp(p_cmd, profiler.pools[slot], VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, profiler.query_count++);
-    profiler.slot_names[slot].push_back(intern_named(p_name));
-}
-
-void RenderGraph::_profiler_frame_end()
-{
-    if (!profiler.enabled) return;
-    uint32_t slot = current_frame;
-    profiler.slot_count[slot] = profiler.query_count;
-    profiler.slot_recorded[slot] = 1;
-}
-
-void RenderGraph::profiler_initialize()
-{
-    profiler = {};
-    profiler.period_ns = dd->physical_device_properties.limits.timestampPeriod;
-
-    uint32_t valid_bits = dd->timestamp_valid_bits(dd->cd->graphics_queue_family);
-    if (valid_bits == 0 || profiler.period_ns == 0.0) {
-        profiler.enabled = false;
-        log_write("RenderGraph: GPU timing disabled (timestampValidBits=%u, period=%f).", valid_bits, profiler.period_ns);
-        return;
-    }
-
-    profiler.valid_mask = (valid_bits >= 64) ? ~0ull : ((1ull << valid_bits) - 1);
-    profiler.enabled = true;
-
-    profiler.pools.resize(frame_count);
-    profiler.slot_names.resize(frame_count);
-    profiler.slot_count.assign(frame_count, 0);
-    profiler.slot_recorded.assign(frame_count, 0);
-    for (uint32_t i = 0; i < frame_count; ++i)
-        profiler.pools[i] = dd->query_pool_create_timestamp(Profiler::CAPACITY);
-}
-
-void RenderGraph::profiler_shutdown()
-{
-    for (drivers::DeviceDriverVulkan::QueryPool& pool : profiler.pools)
-        dd->query_pool_free(pool);
-    profiler = {};
 }
 
 /***************/
@@ -959,25 +866,37 @@ static void emit_buffer_barriers(VkCommandBuffer p_cmd, const std::vector<Render
 
 void RenderGraph::execute(VkCommandBuffer p_cmd)
 {
-    _profiler_resolve();
-    _profiler_frame_begin(p_cmd);
+    profiler.frame_begin(p_cmd, current_frame);
 
-    for (Node& node : nodes) {
+    for (uint32_t n = 0; n < nodes.size(); ++n) {
+        Node& node = nodes[n];
         if (node.culled) continue;
+
         emit_barriers_images(p_cmd, node.pre_image_barriers);
         emit_buffer_barriers(p_cmd, node.pre_buffer_barriers);
 
+        profiler.pass_begin(p_cmd, node.pass->name, node.pass->category);
+
         if (node.has_render_pass) dd->command_begin_render_pass(p_cmd, node.render_pass, node.framebuffer, node.area, node.clear_values);
-        if (node.pass->execute) node.pass->execute(p_cmd, *this);
+
+        CommandList cl;
+        cl.cmd = p_cmd;
+        cl.graph = this;
+        cl.dd = dd;
+        cl.node_index = n;
+
+        if (node.pass->execute) node.pass->execute(cl);
+
         if (node.has_render_pass) dd->command_end_render_pass(p_cmd);
 
-        _profiler_mark(p_cmd, node.pass->name);
+        profiler.pass_end(p_cmd, cl.draw_count);
     }
+
 
     emit_barriers_images(p_cmd, final_image_barriers);
     emit_buffer_barriers(p_cmd, final_buffer_barriers);
 
-    _profiler_frame_end();
+    profiler.frame_end();
     release_transients();
 }
 

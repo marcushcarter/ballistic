@@ -34,30 +34,45 @@ static void property_row(const char* name, const char* fmt, ...)
 
 void ProfilerTimeline::draw(DevContext& ctx)
 {
-    RenderGraph& g = ctx.renderer->graph;
+    RenderGraphProfiler& prof = ctx.renderer->graph.profiler;
 
-    std::unordered_map<uint64_t, const char*> cat_by_id;
-    cat_by_id.reserve(g.nodes.size());
-    for (const RenderGraph::Node& n : g.nodes)
-        if (n.pass) cat_by_id[RenderGraph::intern(n.pass->name)] = n.pass->category.c_str();
+    // selected_draw = nullptr;
+    // selected_pass = nullptr;
 
-    struct Seg { const char* name; const char* cat; float ms; };
-    std::vector<Seg> segs;
-    segs.reserve(g.profiler.last_results.size());
-    float total_ms = 0.0f;
-    for (const RenderGraph::PassTiming& t : g.profiler.last_results) {
-        auto it = cat_by_id.find(t.name_id);
-        const char* cat = (it != cat_by_id.end()) ? it->second : "";
-        segs.push_back({ t.name, cat, (float)t.gpu_ms });
-        total_ms += (float)t.gpu_ms;
-    }
+    const std::vector<RenderGraphProfiler::Timing>& src = prof.results;
+    const float total_ms = (float)prof.total_ms;
+    
+    ImVec2 avail = ImGui::GetContentRegionAvail();
 
-    if (segs.empty() || total_ms <= 0.0f) {
-        ImGui::TextDisabled("No GPU timing yet.");
+    if (src.empty() || total_ms <= 0.0f) {
+        const char* text = "No GPU timing yet.";
+        ImVec2 textSize = ImGui::CalcTextSize(text);
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (avail.x - textSize.x) * 0.5f);
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (avail.y - textSize.y) * 0.5f);
+        ImGui::TextDisabled("%s", text);
     } else {
-        ImVec2 avail2 = ImGui::GetContentRegionAvail();
-        float canvas_w = avail2.x;
-        float canvas_h = avail2.y;
+        const size_t n = src.size();
+        static std::vector<float> start;
+        static std::vector<float> cursor;
+        start.assign(n, 0.0f);
+        cursor.assign(n, 0.0f);
+
+        float frame_cursor = 0.0f;
+        for (size_t i = 0; i < n; ++i) {
+            const RenderGraphProfiler::Timing& t = src[i];
+            if (t.kind == RenderGraphProfiler::MarkKind::Pass || t.parent == RenderGraphProfiler::INVALID) {
+                start[i] = frame_cursor + (float)t.gap_ms;
+                frame_cursor = start[i] + (float)t.gpu_ms;
+            } else {
+                const uint32_t p = t.parent;
+                start[i] = cursor[p] + (float)t.gap_ms;
+                cursor[p] = start[i] + (float)t.gpu_ms;
+            }
+            cursor[i] = start[i];
+        }
+
+        float canvas_w = avail.x;
+        float canvas_h = avail.y;
 
         static float view_start_ms = 0.0f;
         static float view_end_ms = -1.0f;
@@ -191,113 +206,119 @@ void ProfilerTimeline::draw(DevContext& ctx)
             dl->PopClipRect();
         };
 
-        struct BarHit { ImVec2 min; ImVec2 max; const char* name; const char* category; float ms; };
-        BarHit hovered_bar{};
-        bool has_hovered_bar = false;
-        auto bar = [&](float ms_start, float ms_len, float y0, float y1, ImU32 fill, const char* name, const char* category, bool* hovered = nullptr) -> ImVec2 {
+        auto bar = [&](float ms_start, float ms_len, float y0, float y1, ImU32 fill, bool* r_hovered = nullptr) -> ImVec2 {
             float x0 = origin.x + (ms_start - visible_start) * px;
             float x1 = origin.x + (ms_start + ms_len - visible_start) * px;
             ImVec2 a(x0 + 1.0f, y0);
             ImVec2 b(x1 - 1.0f, y1);
             bool is_hovered = io.MousePos.x >= a.x && io.MousePos.x <= b.x && io.MousePos.y >= a.y && io.MousePos.y <= b.y;
-            if (hovered) *hovered = is_hovered;
-            if (hovered && is_hovered) {
-                dl->AddRectFilled(a, b, IM_COL32(255, 50, 50, 255), 3.0f);
-                hovered_bar = { a, b, name, category, ms_len };
-                has_hovered_bar = true;
-            } else if (b.x > a.x) {
-                dl->AddRectFilled(a, b, fill, 3.0f);
-            }
+            if (r_hovered) *r_hovered = is_hovered;
+            if (b.x > a.x) dl->AddRectFilled(a, b, (r_hovered && is_hovered) ? IM_COL32(255, 50, 50, 255) : fill, 3.0f);
             return ImVec2(a.x, b.x);
         };
 
         // Categories.
         {
-            struct CategorySeg { const char* cat; float ms; };
-            std::vector<CategorySeg> categories;
-            categories.reserve(segs.size());
-
-            for (const Seg& s : segs) {
-                const char* cat = s.cat ? s.cat : "";
-                if (!categories.empty() && std::strcmp(categories.back().cat, cat) == 0) {
-                    categories.back().ms += s.ms;
-                } else {
-                    categories.push_back({ cat, s.ms });
-                }
-            }
-
             float x_ms = 0.0f;
-            for (const CategorySeg& s : categories) {
-                ImVec2 x = bar(x_ms, s.ms, y_sec0, y_sec1, rg_category_u32(s.cat), s.cat, s.cat);
-                label_in(ImVec2(x.x, y_sec0), ImVec2(x.y, y_sec1), (s.cat && s.cat[0]) ? s.cat : "(uncat)", IM_COL32_WHITE);
-                x_ms += s.ms;
+            const char* run_cat = nullptr;
+            float run_ms = 0.0f;
+
+            auto flush = [&]() {
+                if (!run_cat) return;
+                ImVec2 x = bar(x_ms, run_ms, y_sec0, y_sec1, rg_category_u32(run_cat));
+                label_in(ImVec2(x.x, y_sec0), ImVec2(x.y, y_sec1), run_cat[0] ? run_cat : "(uncat)", IM_COL32_WHITE);
+                x_ms += run_ms;
+                run_ms = 0.0f;
+            };
+
+            for (const RenderGraphProfiler::Timing& t : src) {
+                if (t.kind != RenderGraphProfiler::MarkKind::Pass) continue;
+                const char* cat = t.category ? t.category : "";
+                const float span = (float)(t.gap_ms + t.gpu_ms);
+                if (run_cat && std::strcmp(run_cat, cat) == 0) { run_ms += span; continue; }
+                flush();
+                run_cat = cat;
+                run_ms = span;
             }
+
+            flush();
         }
 
         // Passes.
-        {
-            float x_ms = 0.0f;
-            for (const Seg& s : segs) {
-                bool bar_hovered;
-                ImVec2 x = bar(x_ms, s.ms, y_pass0, y_pass1, rg_category_u32(s.cat), s.name, s.cat, &bar_hovered);
-                label_in(ImVec2(x.x, y_pass0), ImVec2(x.y, y_pass1), s.name, IM_COL32_WHITE);
-            
-                if (bar_hovered) {
-                    ImGui::BeginTooltip();
-                    ImGui::Text("Category: %s", s.cat);
-                    ImGui::Text("Time: %.3f ms", s.ms);
-                    ImGui::EndTooltip();
-                }
-                
-                x_ms += s.ms;
-            }
+        for (size_t i = 0; i < n; ++i) {
+            const RenderGraphProfiler::Timing& t = src[i];
+            if (t.kind != RenderGraphProfiler::MarkKind::Pass) continue;
+
+            bool bar_hovered = false;
+            ImVec2 x = bar(start[i], (float)t.gpu_ms, y_pass0, y_pass1, rg_category_u32(t.category), &bar_hovered);
+            if (bar_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) selected_pass = (selected_pass == &t) ? nullptr : &t;
+            label_in(ImVec2(x.x, y_pass0), ImVec2(x.y, y_pass1), t.name, IM_COL32_WHITE);
+
+
+            // if (bar_hovered) {
+            //     ImGui::BeginTooltip();
+            //     ImGui::EndTooltip();
+            // }
         }
 
         // Draw calls.
-        {
-            float x_ms = 0.0f;
-            for (const Seg& s : segs) {
-                bool bar_hovered;
-                ImVec2 x = bar(x_ms, s.ms, y_draw0, y_draw1, rg_category_u32(s.cat, 0.22f), s.name, s.cat, &bar_hovered);
-                label_in(ImVec2(x.x, y_draw0), ImVec2(x.y, y_draw1), "N/A", IM_COL32_WHITE);
-                
-                if (bar_hovered) {
-                    ImGui::BeginTooltip();
+        for (size_t i = 0; i < n; ++i) {
+            const RenderGraphProfiler::Timing& t = src[i];
+            if (t.kind != RenderGraphProfiler::MarkKind::Draw) continue;
 
-                    ImGui::Text("%s", "name");
-                    property_row("Time", "%.3f ms", s.ms);
-                    property_row("Pixel Count", "%d", 0);
-                    ImGui::Spacing();
-                    ImGui::Spacing();
+            const uint32_t p = t.parent;
+            if (p == RenderGraphProfiler::INVALID) continue;
+            const float parent_end = start[p] + (float)src[p].gpu_ms;
+            const float a_ms = start[i];
+            if (a_ms >= parent_end) continue;
+            const float len_ms = std::min((float)t.gpu_ms, parent_end - a_ms);
 
-                    ImGui::Text("Owner Object");
-                    property_row("Name", "%s", "name");
-                    property_row("Location", "%s", "location");
-                    property_row("Type", "%s", "type");
-                    ImGui::Spacing();
-                    ImGui::Spacing();
+            bool bar_hovered = false;
+            ImVec2 x = bar(a_ms, len_ms, y_draw0, y_draw1, rg_category_u32(src[p].category, 0.45f), &bar_hovered);
+            if (bar_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) selected_draw = (selected_draw == &t) ? nullptr : &t;
 
-                    ImGui::Text("Primitives");
-                    property_row("Triangles", "%d", 0);
-                    property_row("Vertices", "%d", 0);
-                    property_row("Instances", "%d", 0);
-                    property_row("Total Triangles", "%d", 0);
-                    property_row("Cast Shadows", "%s", true ? "True" : "False");
-                    property_row("Shadow Cull", "%s", "cull");
-                    property_row("Allow Static Decals", "%s", true ? "True" : "False");
-                    property_row("Allow Dynamic Decals", "%s", true ? "True" : "False");
-                    ImGui::Spacing();
-                    ImGui::Spacing();
-                    
-                    ImGui::Text("Shader");
-                    property_row("Pass", "%s", s.cat);
-                    property_row("Name", "%s", "name");
-                    property_row("Location", "%s", "loco");
+            const bool named = t.name && t.name[0];
+            char lbl[16];
+            if (!named) snprintf(lbl, sizeof(lbl), "%u", t.ordinal);
+            label_in(ImVec2(x.x, y_draw0), ImVec2(x.y, y_draw1), named ? t.name : lbl, IM_COL32_WHITE);
 
-                    ImGui::EndTooltip();
-                }
-                
-                x_ms += s.ms;
+            if (bar_hovered) {
+                ImGui::BeginTooltip();
+
+                if (named) ImGui::TextUnformatted(t.name);
+                else ImGui::Text("Draw %u", t.ordinal);
+                property_row("Type", "%s", t.type);
+                ImGui::Separator();
+                property_row("Time", "%.3f ms", t.gpu_ms);
+                property_row("Raw", "%.3f ms", t.raw_ms);
+                property_row("Setup", "%.3f ms", t.gap_ms);
+                property_row("Pass", "%s", src[p].name);
+                property_row("Index", "%u", t.ordinal);
+                property_row("Pixel Count", "%d", 0);
+                ImGui::Spacing();
+                ImGui::Spacing();
+
+                ImGui::Text("Owner Object");
+                property_row("Name", "%s", "n/a");
+                property_row("Location", "%s", "n/a");
+                property_row("Type", "%s", "n/a");
+                ImGui::Spacing();
+                ImGui::Spacing();
+
+                ImGui::Text("Primitives");
+                property_row("Triangles", "%d", 0);
+                property_row("Vertices", "%d", 0);
+                property_row("Instances", "%d", 0);
+                property_row("Total Triangles", "%d", 0);
+                ImGui::Spacing();
+                ImGui::Spacing();
+
+                ImGui::Text("Shader");
+                property_row("Pass", "%s", src[p].category);
+                property_row("Name", "%s", "n/a");
+                property_row("Location", "%s", "n/a");
+
+                ImGui::EndTooltip();
             }
         }
 

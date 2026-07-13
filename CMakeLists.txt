@@ -9,14 +9,6 @@ set(BALLISTIC_VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJE
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-configure_file(
-    ${CMAKE_SOURCE_DIR}/cmake/Version.gen.h.in
-    ${CMAKE_BINARY_DIR}/generated/core/version_generated.gen.h
-    @ONLY
-)
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release)
@@ -26,6 +18,14 @@ set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} /I\"${CMAKE_SOURCE_DIR}\" /I\"${CMAKE_BINA
 option(BALLISTIC_BUILD_EDITOR "Build the editor" ON)
 option(BALLISTIC_BUILD_GAME "Build the game runtime" ON)
 option(BALLISTIC_BUILD_CONSOLE_WRAPPER "Build the console wrapper" ON)
+
+configure_file(
+    ${CMAKE_SOURCE_DIR}/cmake/Version.gen.h.in
+    ${CMAKE_BINARY_DIR}/generated/core/version_generated.gen.h
+    @ONLY
+)
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 include(CompilerOptions)
 include(Platform)
@@ -51,5 +51,8 @@ ballistic_generate_asset_rc(
     ${CMAKE_SOURCE_DIR}/assets/editor/logos
     ${CMAKE_SOURCE_DIR}/assets/editor/fonts
 )
+
+set(BALLISTIC_SHARED_ASSETS ${BALLISTIC_GENERATED_DIR}/embedded_assets_shared.rc)
+set(BALLISTIC_EDITOR_ASSETS ${BALLISTIC_GENERATED_DIR}/embedded_assets_editor.rc)
 
 add_subdirectory(platform)

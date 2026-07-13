@@ -1,3 +1,8 @@
+
+
+
+
+
 function(ballistic_common_target target)
     target_include_directories(${target} PRIVATE
         ${CMAKE_SOURCE_DIR}
@@ -12,14 +17,16 @@ set(BALLISTIC_WRAPPER ${CMAKE_CURRENT_SOURCE_DIR}/ballistic_console_wrapper.cpp)
 if(BALLISTIC_BUILD_EDITOR)
     add_executable(ballistic_editor_app WIN32
         ballistic_res.rc
-        ${CMAKE_BINARY_DIR}/generated/embedded_assets_shared.rc
-        ${CMAKE_BINARY_DIR}/generated/embedded_assets_editor.rc
+        ${BALLISTIC_SHARED_ASSETS}
+        ${BALLISTIC_EDITOR_ASSETS}
         ${BALLISTIC_MAIN}
     )
     target_link_libraries(ballistic_editor_app PRIVATE ballistic_core ballistic_editor)
-    target_compile_definitions(ballistic_editor_app PRIVATE BALLISTIC_EDITOR)
+    target_compile_definitions(ballistic_editor_app PRIVATE BALLISTIC_EDITOR BALLISTIC_DEV_TOOLS)
     ballistic_common_target(ballistic_editor_app)
+endif()
 
+if(BALLISTIC_BUILD_CONSOLE_WRAPPER)
     add_executable(ballistic_console_wrapper
         ballistic_res_console.rc
         ${BALLISTIC_WRAPPER}
@@ -31,17 +38,19 @@ endif()
 if(BALLISTIC_BUILD_GAME)
     add_executable(ballistic_game WIN32
         ballistic_res_app.rc
-        ${CMAKE_BINARY_DIR}/generated/embedded_assets_shared.rc
+        ${BALLISTIC_SHARED_ASSETS}
         ${BALLISTIC_MAIN}
         ${CMAKE_SOURCE_DIR}/game/game_application.cpp
     )
     target_link_libraries(ballistic_game PRIVATE ballistic_core)
     target_compile_definitions(ballistic_game PRIVATE BALLISTIC_GAME)
     ballistic_common_target(ballistic_game)
+endif()
 
+if(BALLISTIC_BUILD_GAME)
     add_executable(ballistic_game_dev_tools
         ballistic_res_app_dev.rc
-        ${CMAKE_BINARY_DIR}/generated/embedded_assets_shared.rc
+        ${BALLISTIC_SHARED_ASSETS}
         ${BALLISTIC_MAIN}
         ${CMAKE_SOURCE_DIR}/game/game_application.cpp
     )

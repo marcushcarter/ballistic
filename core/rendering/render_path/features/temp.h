@@ -37,9 +37,8 @@ struct TempFeature : Feature
             // b.color_attachment("test_color", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.0f, 1.0f, 0.0f, 1.0f } });
         };
 
-        pass.execute = [](VkCommandBuffer cmd, RenderGraph& g) {
-            (void)cmd;
-            (void)g;
+        pass.execute = [](RenderGraph::CommandList& cl) {
+            (void)cl;
         };
 
         return Ok;

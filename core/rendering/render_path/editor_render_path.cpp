@@ -16,8 +16,8 @@ Error EditorRenderPath::create_resources()
         b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.1f, 0.1f, 1.0f } });
         b.read_all_images();
     };
-    editor_ui_pass.execute = [this](VkCommandBuffer cmd, RenderGraph& g) {
-        (void)g; imgui->record_commands(cmd);
+    editor_ui_pass.execute = [this](RenderGraph::CommandList& cl) {
+        imgui->record_commands(cl.cmd);
     };
 
     return Ok; 

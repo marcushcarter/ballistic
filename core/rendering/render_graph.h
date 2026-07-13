@@ -1,5 +1,6 @@
 #pragma once
 #include <drivers/vulkan/device_driver_vulkan.h>
+#include <core/rendering/render_graph_profiler.h>
 #include <core/log/error.h>
 #include <functional>
 #include <string>
@@ -17,14 +18,22 @@ struct RenderGraph
     /***************/
     
     drivers::DeviceDriverVulkan* dd = nullptr;
-
+    
     uint32_t frame_count = 1;
     uint32_t current_frame = 0;
     uint32_t width = 0, height = 0;
     
+    RenderGraphProfiler profiler;
+    
     Error create(drivers::DeviceDriverVulkan& r_dd, uint32_t frame_count);
     void destroy();
     Error set_size(uint32_t p_width, uint32_t p_height);
+
+    /***************/
+    /**** NAMES ****/
+    /***************/
+    
+    std::unordered_map<uint64_t, std::string> debug_names;
     
     static uint64_t intern(std::string_view p_name);
     uint64_t intern_named(std::string_view p_name);
@@ -32,8 +41,6 @@ struct RenderGraph
     /*******************/
     /**** RESOURCES ****/
     /*******************/
-    
-    std::unordered_map<uint64_t, std::string> debug_names;
     
     enum class ResourceKind { Imported, Transient };
 
@@ -158,6 +165,69 @@ struct RenderGraph
     void _buffer_materialize_transient(BufferResource& r);
     void _buffer_release_transients();
     
+    /******************/
+    /**** COMMANDS ****/
+    /******************/
+    
+    struct CommandList {
+        VkCommandBuffer cmd = VK_NULL_HANDLE;
+        RenderGraph* graph = nullptr;
+        drivers::DeviceDriverVulkan* dd = nullptr;
+        uint32_t node_index = 0;
+        uint32_t draw_count = 0;
+
+        void draw(std::string_view p_name, uint32_t p_vertex_count, uint32_t p_instance_count = 1, uint32_t p_base_vertex = 0, uint32_t p_first_instance = 0);
+
+        // void draw_indexed(std::string_view p_name, uint32_t p_index_count, uint32_t p_instance_count = 1, uint32_t p_first_index = 0, int32_t p_vertex_offset = 0, uint32_t p_first_instance = 0) {
+        //     graph->profiler.draw_begin(cmd, _name(p_name));
+        //     dd->command_render_draw_indexed(cmd, p_index_count, p_instance_count, p_first_index, p_vertex_offset, p_first_instance);
+        //     ++draw_count;
+        //     graph->profiler.draw_end(cmd);
+        // }
+
+        // void draw_indexed_indirect(std::string_view p_name, const drivers::DeviceDriverVulkan::Buffer& p_indirect, uint64_t p_offset, uint32_t p_draw_count, uint32_t p_stride) {
+        //     graph->profiler.draw_begin(cmd, _name(p_name));
+        //     dd->command_render_draw_indexed_indirect(cmd, p_indirect, p_offset, p_draw_count, p_stride);
+        //     ++draw_count;
+        //     graph->profiler.draw_end(cmd);
+        // }
+
+        // void draw_indexed_indirect_count(std::string_view p_name, const drivers::DeviceDriverVulkan::Buffer& p_indirect, uint64_t p_offset, const drivers::DeviceDriverVulkan::Buffer& p_count, uint64_t p_count_offset, uint32_t p_max_draws, uint32_t p_stride) {
+        //     graph->profiler.draw_begin(cmd, _name(p_name));
+        //     dd->command_render_draw_indexed_indirect_count(cmd, p_indirect, p_offset, p_count, p_count_offset, p_max_draws, p_stride);
+        //     ++draw_count;
+        //     graph->profiler.draw_end(cmd);
+        // }
+
+        // void draw_indirect(std::string_view p_name, const drivers::DeviceDriverVulkan::Buffer& p_indirect, uint64_t p_offset, uint32_t p_draw_count, uint32_t p_stride) {
+        //     graph->profiler.draw_begin(cmd, _name(p_name));
+        //     dd->command_render_draw_indirect(cmd, p_indirect, p_offset, p_draw_count, p_stride);
+        //     ++draw_count;
+        //     graph->profiler.draw_end(cmd);
+        // }
+
+        // void draw_indirect_count(std::string_view p_name, const drivers::DeviceDriverVulkan::Buffer& p_indirect, uint64_t p_offset, const drivers::DeviceDriverVulkan::Buffer& p_count, uint64_t p_count_offset, uint32_t p_max_draws, uint32_t p_stride) {
+        //     graph->profiler.draw_begin(cmd, _name(p_name));
+        //     dd->command_render_draw_indirect_count(cmd, p_indirect, p_offset, p_count, p_count_offset, p_max_draws, p_stride);
+        //     ++draw_count;
+        //     graph->profiler.draw_end(cmd);
+        // }
+
+        // void dispatch(std::string_view p_name, uint32_t p_x, uint32_t p_y, uint32_t p_z) {
+        //     graph->profiler.draw_begin(cmd, _name(p_name));
+        //     dd->command_compute_dispatch(cmd, p_x, p_y, p_z);
+        //     ++draw_count;
+        //     graph->profiler.draw_end(cmd);
+        // }
+
+        // void dispatch_indirect(std::string_view p_name, const drivers::DeviceDriverVulkan::Buffer& p_indirect, uint64_t p_offset) {
+        //     graph->profiler.draw_begin(cmd, _name(p_name));
+        //     dd->command_compute_dispatch_indirect(cmd, p_indirect, p_offset);
+        //     ++draw_count;
+        //     graph->profiler.draw_end(cmd);
+        // }
+    };
+    
     /**************/
     /**** PASS ****/
     /**************/
@@ -180,7 +250,7 @@ struct RenderGraph
         void read_buffer(std::string_view p_name, VkPipelineStageFlags2 p_stage, VkAccessFlags2 p_access);
         void write_buffer(std::string_view p_name, VkPipelineStageFlags2 p_stage, VkAccessFlags2 p_access);
     };
-    
+
     struct Pass {
         std::string name;
         std::string category;
@@ -189,7 +259,7 @@ struct RenderGraph
         std::vector<Format> formats;
 
         std::function<void(Builder&)> setup;
-        std::function<void(VkCommandBuffer, RenderGraph&)> execute;
+        std::function<void(CommandList&)> execute;
     };
 
     struct Node {
@@ -222,47 +292,6 @@ struct RenderGraph
     std::unordered_map<uint64_t, VkFramebuffer> framebuffer_cache;
 
     VkFramebuffer _get_or_create_framebuffer(Node& node);
-
-    /******************/
-    /**** PROFILER ****/
-    /******************/
-
-    struct PassTiming {
-        uint64_t name_id = 0;
-        const char* name = "?";
-        double gpu_ms = 0.0;
-        double raw_ms = 0.0;
-    };
-
-    struct Profiler {
-        bool enabled = false;
-        double period_ns = 1.0;
-        uint64_t valid_mask = ~0ull;
-
-        std::vector<drivers::DeviceDriverVulkan::QueryPool> pools;
-        std::vector<std::vector<uint64_t>> slot_names;
-        std::vector<uint32_t> slot_count;
-        std::vector<uint8_t> slot_recorded;
-
-        std::vector<PassTiming> last_results;
-        double last_total_ms = 0.0;
-
-        std::unordered_map<uint64_t, double> smoothed_ms;
-        double smoothing = 0.001;
-
-        uint32_t query_count = 0;
-        static constexpr uint32_t CAPACITY = 128;
-    };
-
-    Profiler profiler;
-
-    void _profiler_resolve();
-    void _profiler_frame_begin(VkCommandBuffer p_cmd);
-    void _profiler_mark(VkCommandBuffer p_cmd, const std::string& p_name);
-    void _profiler_frame_end();
-    
-    void profiler_initialize();
-    void profiler_shutdown();
     
     /***************/
     /**** GRAPH ****/

@@ -18,17 +18,20 @@ Error GameRenderPath::create_resources()
         b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.1f, 0.1f, 1.0f } });
         b.read_image("final_image", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
     };
-    present_pass.execute = [this](VkCommandBuffer cmd, RenderGraph& g) {
-        auto* bb = g.image("backbuffer");
-        auto* final_image = g.image("final_image");
-        dd->command_render_set_viewport(cmd, {{{0,0},bb->extent}});
-        dd->command_render_set_scissor(cmd, {{{0,0},bb->extent}});
-        dd->command_bind_pipeline(cmd, gamma_blit_pipeline);
+    present_pass.execute = [this](RenderGraph::CommandList& cl) {
+        auto* bb = cl.graph->image("backbuffer");
+        auto* final_image = cl.graph->image("final_image");
+
+        cl.dd->command_render_set_viewport(cl.cmd, {{{0,0},bb->extent}});
+        cl.dd->command_render_set_scissor(cl.cmd, {{{0,0},bb->extent}});
+        
+        cl.dd->command_bind_pipeline(cl.cmd, gamma_blit_pipeline);
         struct { uint32_t srcIndex, samplerIndex; } pc;
         pc.srcIndex = final_image->bindless_sampled;
-        pc.samplerIndex = dd->default_sampler.bindless_sampler;
-        dd->command_bind_push_constants(cmd, sizeof(pc), &pc);
-        dd->command_render_draw(cmd, 3);
+        pc.samplerIndex = cl.dd->default_sampler.bindless_sampler;
+        cl.dd->command_bind_push_constants(cl.cmd, sizeof(pc), &pc);
+        cl.draw("gamma_blit", 3);
+        
     };
     
     editor_ui_pass.name = "editor_ui_pass";
@@ -38,8 +41,8 @@ Error GameRenderPath::create_resources()
         b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_LOAD);
         b.read_all_images();
     };
-    editor_ui_pass.execute = [this](VkCommandBuffer cmd, RenderGraph& g) {
-        (void)g; imgui->record_commands(cmd);
+    editor_ui_pass.execute = [this](RenderGraph::CommandList& cl) {
+        imgui->record_commands(cl.cmd);
     };
 
     EmbeddedResource::Blob blit_vert_blob = EmbeddedResource::load(L"SHADERS_FULLSCREEN_VERT");
