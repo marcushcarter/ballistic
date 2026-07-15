@@ -357,7 +357,7 @@ void RenderGraph::_buffer_release_transients()
 /******************/
 
 void RenderGraph::CommandList::draw(std::string_view p_name, uint32_t p_vertex_count, uint32_t p_instance_count, uint32_t p_base_vertex, uint32_t p_first_instance) {
-    graph->profiler.draw_begin(cmd, p_name, "vkCmdDraw");
+    graph->profiler.draw_begin(cmd, p_name, "Draw", p_instance_count);
     dd->command_render_draw(cmd, p_vertex_count, p_instance_count, p_base_vertex, p_first_instance);
     ++draw_count;
     graph->profiler.draw_end(cmd);

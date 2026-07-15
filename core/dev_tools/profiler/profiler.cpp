@@ -33,8 +33,8 @@ void Profiler::draw_contents(DevContext& ctx)
 {
     ImVec2 avail = ImGui::GetContentRegionAvail();
 
-    const float rightWidth = avail.x * 0.20f;
-    const float leftWidth = avail.x - rightWidth - ImGui::GetStyle().ItemSpacing.x;
+    const float right_width = avail.x * 0.20f;
+    const float leftWidth = avail.x - right_width - ImGui::GetStyle().ItemSpacing.x;
 
     const float topHeight = avail.y / 3.0f;
     const float bottomHeight = avail.y - topHeight - ImGui::GetStyle().ItemSpacing.y;
@@ -76,47 +76,44 @@ void Profiler::draw_contents(DevContext& ctx)
             ImGui::Text("GPU Time: %.3f ms", timeline.selected_pass->gpu_ms);
             ImGui::Text("Raw Time: %.3f ms", timeline.selected_pass->raw_ms);
             ImGui::Text("Draw Count: %u", timeline.selected_pass->draw_count);
-        } else {
-            ImGui::TextDisabled("No pass selected.");
         }
     }
     ImGui::EndChild();
 
     ImGui::EndGroup();
     ImGui::SameLine();
+    ImGui::BeginGroup();
 
-    ImGui::BeginChild("Right", ImVec2(rightWidth, avail.y), ImGuiChildFlags_Borders);
+    const float header_height = ImGui::GetFrameHeightWithSpacing();
+    ImGui::BeginChild("RightHeader", ImVec2(right_width, header_height), ImGuiChildFlags_None);
+    auto& profiler = ctx.renderer->graph.profiler;
+    ImGui::BeginDisabled(!profiler.supported);
+    ImGui::Checkbox("Enable Profiling", &profiler.enabled);
+    ImGui::EndDisabled();
+    ImGui::EndChild();
+
+    ImGui::BeginChild("Right", ImVec2(right_width, avail.y - header_height - ImGui::GetStyle().ItemSpacing.y), ImGuiChildFlags_Borders);
     {
-        ImGui::Checkbox("Enable Profiling", &ctx.renderer->graph.profiler.enabled);
 
         if (timeline.selected_draw != nullptr) {
             ImGui::Text("Name: %s", timeline.selected_draw->name ? timeline.selected_draw->name : "Unnamed");
             ImGui::Text("Type: %s", timeline.selected_draw->type);
             ImGui::Text("GPU Time: %.3f ms", timeline.selected_draw->gpu_ms);
             ImGui::Text("Raw Time: %.3f ms", timeline.selected_draw->raw_ms);
-
-            // if (draw.parent != RenderGraphProfiler::INVALID) {
-            //     const auto& parent = ctx.renderer->graph.profiler.results[draw.parent];
-            //     ImGui::Text("Pass: %s", parent.name);
-            // }
-        } else {
-            ImGui::TextDisabled("No draw hovered.");
         }
 
-        property_row_value_aligned("Pan Area", "ALT + Mouse / Middle Mouse / ScrollX");
+        property_row_value_aligned("Pan Area", "ALT + Mouse");
         property_row_value_aligned("Zoom", "ScrollY");
         property_row_value_aligned("Zoom Area", "Mouse Drag");
         property_row_value_aligned("Zoom Out", "Double Click");
         property_row_value_aligned("Zoom In", "ALT + Double Click");
         property_row_value_aligned("Frame Pass", "F");
         property_row_value_aligned("Cancel Drag", "Escape");
-
-        // float element_height = 30.0f;
-        // ImGui::SetCursorPosY(ImGui::GetCursorPosY() + avail.y - element_height);
-        // ImGui::Button("Bottom Button", ImVec2(100, element_height));
-
+        
     }
     ImGui::EndChild();
+
+    ImGui::EndGroup();
 }
 
 }

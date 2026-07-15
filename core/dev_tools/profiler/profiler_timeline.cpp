@@ -347,10 +347,9 @@ void ProfilerTimeline::draw(DevContext& ctx)
                 ImGui::Separator();
                 property_row("Time", "%.3f ms", t.gpu_ms);
                 property_row("Raw", "%.3f ms", t.raw_ms);
-                property_row("Setup", "%.3f ms", t.gap_ms);
                 property_row("Pass", "%s", src[p].name);
-                property_row("Index", "%u", t.ordinal);
-                property_row("Pixel Count", "%d", 0);
+                property_row("Draw Index", "%u", t.ordinal);
+                property_row("Pixel Count", "%llu", (unsigned long long)t.samples);
                 ImGui::Spacing();
                 ImGui::Spacing();
 
@@ -362,10 +361,10 @@ void ProfilerTimeline::draw(DevContext& ctx)
                 ImGui::Spacing();
 
                 ImGui::Text("Primitives");
-                property_row("Triangles", "%d", 0);
-                property_row("Vertices", "%d", 0);
-                property_row("Instances", "%d", 0);
-                property_row("Total Triangles", "%d", 0);
+                property_row("Triangles", "%llu", (unsigned long long)t.primitives);
+                property_row("Vertices", "%llu", (unsigned long long)t.vertices);
+                property_row("Instances", "%u", t.instances);
+                property_row("Total Triangles", "%llu", (unsigned long long)src[p].primitives);
                 ImGui::Spacing();
                 ImGui::Spacing();
 

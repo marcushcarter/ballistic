@@ -20,13 +20,6 @@ struct RenderGraphProfiler
     /***************/
     
     drivers::DeviceDriverVulkan* dd = nullptr;
-    bool supported = false;
-    bool enabled = false;
-
-    bool active = false;
-    bool prev_active = false;
-    double period_ns = 1.0;
-    uint64_t valid_mask = ~0ull;
 
     Error create(drivers::DeviceDriverVulkan& r_dd, uint32_t p_frame_count);
     void destroy();
@@ -57,10 +50,15 @@ struct RenderGraphProfiler
         double gpu_ms = 0.0;
         double raw_gap_ms = 0.0;
         double raw_ms = 0.0;
-        uint32_t draw_count = 0;
         uint32_t ordinal = 0;
         uint32_t parent = INVALID;
         MarkKind kind = MarkKind::Pass;
+        uint32_t draw_count = 0;
+
+        uint64_t vertices = 0;
+        uint64_t primitives = 0;
+        uint64_t samples = 0;
+        uint32_t instances = 0;
     };
 
     std::vector<Timing> results;
@@ -88,6 +86,10 @@ struct RenderGraphProfiler
         uint32_t ordinal = 0;
         uint32_t parent = INVALID;
         MarkKind kind = MarkKind::Pass;
+        
+        uint32_t instances  = 0;
+        uint32_t stat_query = INVALID;
+        uint32_t occl_query = INVALID;
     };
 
     struct Slot {
@@ -102,12 +104,34 @@ struct RenderGraphProfiler
         std::unordered_map<uint64_t, uint32_t> name_occurrence;
         bool recorded = false;
         bool overflowed = false;
+        
+        drivers::DeviceDriverVulkan::QueryPool stat_pool;
+        drivers::DeviceDriverVulkan::QueryPool occl_pool;
+        uint32_t stat_count = 0;
+        uint32_t occl_count = 0;
+        uint32_t stat_reset = 0;
+        bool stats_recorded = false;
     };
-
+    
     std::vector<Slot> slots;
     uint32_t slot = 0;
-    std::vector<uint64_t> raw_scratch;
+    double period_ns = 1.0;
+    uint64_t valid_mask = ~0ull;
+    
+    bool supported = false;
+    bool enabled = false;
+    bool active = false;
+    bool prev_active = false;
     uint32_t last_query_count = 0;
+    std::vector<uint64_t> raw_scratch;
+
+    static constexpr uint32_t STAT_COUNT = 2;
+    bool stats_supported = false;
+    bool stats_enabled = false;
+    bool stats_active = false;
+    uint32_t last_stat_count = 0;
+    std::vector<uint64_t> stat_scratch;
+    std::vector<uint64_t> occl_scratch;
 
     void _clear_results();
     bool _write_boundary(VkCommandBuffer p_cmd, uint32_t& r_index);
@@ -117,7 +141,7 @@ struct RenderGraphProfiler
     void frame_end();
     void pass_begin(VkCommandBuffer p_cmd, std::string_view p_name, std::string_view p_category);
     void pass_end(VkCommandBuffer p_cmd, uint32_t p_draw_count);
-    void draw_begin(VkCommandBuffer p_cmd, std::string_view p_name, std::string_view p_type);
+    void draw_begin(VkCommandBuffer p_cmd, std::string_view p_name, std::string_view p_type, uint32_t p_instances = 1);
     void draw_end(VkCommandBuffer p_cmd);
 
 };

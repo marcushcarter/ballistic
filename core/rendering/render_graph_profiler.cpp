@@ -24,27 +24,48 @@ Error RenderGraphProfiler::create(drivers::DeviceDriverVulkan& r_dd, uint32_t p_
     }
 
     supported = true;
+    stats_supported = supported && dd->physical_device_features.pipelineStatisticsQuery && dd->physical_device_features.occlusionQueryPrecise;
     valid_mask = (valid_bits >= 64) ? ~0ull : ((1ull << valid_bits) - 1);
+
+    if (!stats_supported) {
+        log_write("RenderGraphProfiler: extended stats UNSUPPORTED (pipelineStatisticsQuery=%d, occlusionQueryPrecise=%d).", (int)dd->physical_device_features.pipelineStatisticsQuery, (int)dd->physical_device_features.occlusionQueryPrecise);
+    }
 
     slots.resize(p_frame_count);
     for (Slot& s : slots) {
         s.pool = dd->query_pool_create_timestamp(CAPACITY);
+        if (stats_supported) {
+            s.stat_pool = dd->query_pool_create_pipeline_statistics(CAPACITY, VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_VERTICES_BIT | VK_QUERY_PIPELINE_STATISTIC_INPUT_ASSEMBLY_PRIMITIVES_BIT);
+            s.occl_pool = dd->query_pool_create_occlusion(CAPACITY);
+        }
         s.marks.reserve(256);
     }
 
     raw_scratch.resize(CAPACITY);
+    stat_scratch.resize(static_cast<size_t>(CAPACITY) * STAT_COUNT);
+    occl_scratch.resize(CAPACITY);
     return Ok;
 }
 
 void RenderGraphProfiler::destroy()
 {
-    for (Slot& s : slots) dd->query_pool_free(s.pool);
+    for (Slot& s : slots) {
+        dd->query_pool_free(s.pool);
+        if (stats_supported) {
+            dd->query_pool_free(s.stat_pool);
+            dd->query_pool_free(s.occl_pool);
+        }
+    }
     slots.clear();
     raw_scratch.clear();
+    stat_scratch.clear();
+    occl_scratch.clear();
     name_table.clear();
     _clear_results();
     supported = false;
+    stats_supported = false;
     enabled = active = prev_active = false;
+    stats_enabled = stats_active = false;
 }
 
 /***************/
@@ -91,6 +112,7 @@ void RenderGraphProfiler::_clear_results()
     total_draws = 0;
     truncated = false;
     last_query_count = 0;
+    last_stat_count = 0;
 }
 
 bool RenderGraphProfiler::_write_boundary(VkCommandBuffer p_cmd, uint32_t& r_index)
@@ -114,7 +136,15 @@ void RenderGraphProfiler::_resolve()
     if (dd->query_pool_get_results(s.pool, 0, s.query_count, raw_scratch.data()) != Ok) return;
 
     last_query_count = s.query_count;
+    last_stat_count = s.stat_count;
     truncated = s.overflowed;
+
+    bool have_stats = s.stats_recorded && s.stat_count > 0;
+    if (have_stats) {
+        Error e1 = dd->query_pool_get_results(s.stat_pool, 0, s.stat_count, stat_scratch.data(), STAT_COUNT);
+        Error e2 = dd->query_pool_get_results(s.occl_pool, 0, s.occl_count, occl_scratch.data(), 1);
+        if (e1 != Ok || e2 != Ok) have_stats = false;
+    }
 
     results.clear();
     results.reserve(s.marks.size());
@@ -156,6 +186,23 @@ void RenderGraphProfiler::_resolve()
         t.ordinal = m.ordinal;
         t.parent = m.parent;
         t.kind = m.kind;
+
+        if (m.kind == MarkKind::Draw && have_stats && m.stat_query != INVALID) {
+            const uint64_t* st = &stat_scratch[static_cast<size_t>(m.stat_query) * STAT_COUNT];
+            t.vertices   = st[0];
+            t.primitives = st[1];
+            t.samples    = (m.occl_query != INVALID) ? occl_scratch[m.occl_query] : 0;
+        }
+        t.instances = m.instances;
+
+        if (m.kind == MarkKind::Draw && m.parent < results.size()) {
+            Timing& p = results[m.parent];
+            p.vertices   += t.vertices;
+            p.primitives += t.primitives;
+            p.samples    += t.samples;
+            p.instances  += t.instances;
+        }
+
         results.push_back(t);
     }
 
@@ -166,11 +213,13 @@ void RenderGraphProfiler::_resolve()
 void RenderGraphProfiler::frame_begin(VkCommandBuffer p_cmd, uint32_t p_slot)
 {
     slot = p_slot;
+    stats_enabled = enabled;
 
     _resolve();
 
     prev_active = active;
     active = supported && enabled;
+    stats_active = active && stats_supported && stats_enabled;
 
     if (prev_active && !active) {
         _clear_results();
@@ -181,6 +230,8 @@ void RenderGraphProfiler::frame_begin(VkCommandBuffer p_cmd, uint32_t p_slot)
     Slot& s = slots[slot];
     s.marks.clear();
     s.query_count = 0;
+    s.stat_count = 0;
+    s.occl_count = 0;
     s.open_pass = INVALID;
     s.open_draw = INVALID;
     s.pass_ordinal = 0;
@@ -189,8 +240,14 @@ void RenderGraphProfiler::frame_begin(VkCommandBuffer p_cmd, uint32_t p_slot)
 
     uint32_t want = std::max(RESET_MIN, last_query_count * 2);
     s.reset_count = std::min(CAPACITY, want);
-
     dd->command_reset_query_pool(p_cmd, s.pool, 0, s.reset_count);
+
+    if (stats_active) {
+        uint32_t swant = std::max(RESET_MIN, last_stat_count * 2);
+        s.stat_reset = std::min(CAPACITY, swant);
+        dd->command_reset_query_pool(p_cmd, s.stat_pool, 0, s.stat_reset);
+        dd->command_reset_query_pool(p_cmd, s.occl_pool, 0, s.stat_reset);
+    }
 
     uint32_t t0 = 0;
     _write_boundary(p_cmd, t0);
@@ -200,7 +257,9 @@ void RenderGraphProfiler::frame_begin(VkCommandBuffer p_cmd, uint32_t p_slot)
 void RenderGraphProfiler::frame_end()
 {
     if (!active) return;
-    slots[slot].recorded = true;
+    Slot& s = slots[slot];
+    s.recorded = true;
+    s.stats_recorded = stats_active;
 }
 
 void RenderGraphProfiler::pass_begin(VkCommandBuffer p_cmd, std::string_view p_name, std::string_view p_category)
@@ -245,7 +304,7 @@ void RenderGraphProfiler::pass_end(VkCommandBuffer p_cmd, uint32_t p_draw_count)
     s.open_draw = INVALID;
 }
 
-void RenderGraphProfiler::draw_begin(VkCommandBuffer p_cmd, std::string_view p_name, std::string_view p_type)
+void RenderGraphProfiler::draw_begin(VkCommandBuffer p_cmd, std::string_view p_name, std::string_view p_type, uint32_t p_instances)
 {
     if (!active) return;
     Slot& s = slots[slot];
@@ -268,6 +327,7 @@ void RenderGraphProfiler::draw_begin(VkCommandBuffer p_cmd, std::string_view p_n
     m.lead_query = s.last_boundary;
     m.parent = s.open_pass;
     m.draw_count = 1;
+    m.instances = p_instances;
     m.kind = MarkKind::Draw;
 
     uint32_t ts;
@@ -276,6 +336,13 @@ void RenderGraphProfiler::draw_begin(VkCommandBuffer p_cmd, std::string_view p_n
         return;
     }
     m.begin_query = ts;
+
+    if (stats_active && s.stat_count < s.stat_reset) {
+        m.stat_query = s.stat_count++;
+        m.occl_query = s.occl_count++;
+        dd->command_begin_query(p_cmd, s.stat_pool, m.stat_query, 0);
+        dd->command_begin_query(p_cmd, s.occl_pool, m.occl_query, VK_QUERY_CONTROL_PRECISE_BIT);
+    }
 
     s.open_draw = static_cast<uint32_t>(s.marks.size());
     s.marks.push_back(m);
@@ -286,6 +353,12 @@ void RenderGraphProfiler::draw_end(VkCommandBuffer p_cmd)
     if (!active || slots[slot].open_draw == INVALID) return;
     Slot& s = slots[slot];
     Mark& m = s.marks[s.open_draw];
+    
+    if (stats_active && m.stat_query != INVALID) {
+        dd->command_end_query(p_cmd, s.occl_pool, m.occl_query);
+        dd->command_end_query(p_cmd, s.stat_pool, m.stat_query);
+    }
+
     uint32_t ts;
     if (_write_boundary(p_cmd, ts)) {
         m.end_query = ts;
