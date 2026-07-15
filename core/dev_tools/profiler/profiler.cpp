@@ -103,6 +103,18 @@ void Profiler::draw_contents(DevContext& ctx)
             ImGui::TextDisabled("No draw hovered.");
         }
 
+        property_row_value_aligned("Pan Area", "ALT + Mouse / Middle Mouse / ScrollX");
+        property_row_value_aligned("Zoom", "ScrollY");
+        property_row_value_aligned("Zoom Area", "Mouse Drag");
+        property_row_value_aligned("Zoom Out", "Double Click");
+        property_row_value_aligned("Zoom In", "ALT + Double Click");
+        property_row_value_aligned("Frame Pass", "F");
+        property_row_value_aligned("Cancel Drag", "Escape");
+
+        // float element_height = 30.0f;
+        // ImGui::SetCursorPosY(ImGui::GetCursorPosY() + avail.y - element_height);
+        // ImGui::Button("Bottom Button", ImVec2(100, element_height));
+
     }
     ImGui::EndChild();
 }

@@ -9,6 +9,9 @@ struct ProfilerTimeline
     const RenderGraphProfiler::Timing* selected_pass = nullptr;
     const RenderGraphProfiler::Timing* selected_draw = nullptr;
 
+    char sel_name[64] = {};
+    bool follow = false;
+
     void draw(DevContext& ctx);
 };
 

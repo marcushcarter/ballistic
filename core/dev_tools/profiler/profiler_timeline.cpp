@@ -36,7 +36,7 @@ void ProfilerTimeline::draw(DevContext& ctx)
 {
     RenderGraphProfiler& prof = ctx.renderer->graph.profiler;
 
-    // selected_draw = nullptr;
+    selected_draw = nullptr;
     // selected_pass = nullptr;
 
     const std::vector<RenderGraphProfiler::Timing>& src = prof.results;
@@ -74,32 +74,28 @@ void ProfilerTimeline::draw(DevContext& ctx)
         float canvas_w = avail.x;
         float canvas_h = avail.y;
 
-        static float view_start_ms = 0.0f;
-        static float view_end_ms = -1.0f;
-        static float scroll_ms = 0.0f;
+        
+        constexpr float MIN_RANGE_MS = 0.01f;
+
+        static float visible_start = 0.0f;
+        static float visible_range = -1.0f;
 
         static bool selecting = false;
         static float select_start_ms = 0.0f;
         static float select_end_ms = 0.0f;
+        static bool panning = false;
 
         ImDrawList* dl = ImGui::GetWindowDrawList();
         ImGuiIO& io = ImGui::GetIO();
         ImVec2 origin = ImGui::GetCursorScreenPos();
         bool hovered = false;
 
-        float visible_start = 0.0f;
-        float visible_end = total_ms;
-        float range_ms = total_ms;
+        float range_ms = (visible_range > 0.0f) ? visible_range : total_ms;
+        range_ms = std::clamp(range_ms, MIN_RANGE_MS, total_ms);
 
-        if (view_end_ms > view_start_ms) {
-            range_ms = view_end_ms - view_start_ms;
-            float max_scroll = total_ms - range_ms;
-            scroll_ms = std::clamp(scroll_ms, 0.0f, max_scroll);
-            visible_start = scroll_ms;
-            visible_end = visible_start + range_ms;
-        } else {                
-            scroll_ms = 0.0f;
-        }
+        float max_start = std::max(0.0f, total_ms - range_ms);
+        visible_start = std::clamp(visible_start, 0.0f, max_start);
+        float visible_end = visible_start + range_ms;
 
         float px = canvas_w / range_ms;
         float content_w = canvas_w;
@@ -110,28 +106,79 @@ void ProfilerTimeline::draw(DevContext& ctx)
 
         dl->PushClipRect(origin, ImVec2(origin.x + canvas_w, origin.y + H), true);
 
-        if (hovered && io.MouseWheelH != 0.0f) {
-            if (view_end_ms > view_start_ms) {
-                float range = view_end_ms - view_start_ms;
-                scroll_ms -= io.MouseWheelH * range * 0.1f;
-                float max_scroll = total_ms - range;
-                scroll_ms = std::clamp(scroll_ms, 0.0f, max_scroll);
-            }
+        bool alt = io.KeyAlt;
+
+        if (hovered && io.MouseWheel != 0.0f) {
+            float cursor_ms = visible_start + (io.MousePos.x - origin.x) / px;
+            float cursor_frac = (io.MousePos.x - origin.x) / canvas_w;
+            float new_range = range_ms * powf(0.85f, io.MouseWheel);
+            new_range = std::clamp(new_range, MIN_RANGE_MS, total_ms);
+            visible_start = cursor_ms - cursor_frac * new_range;
+            visible_range = new_range;
+            follow = false;
+        }
+
+        if (hovered && io.MouseWheelH != 0.0f && visible_range > 0.0f) {
+            visible_start -= io.MouseWheelH * range_ms * 0.1f;
+            follow = false;
         }
 
         if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+            follow = false;
+            if (alt) {
+                float cursor_ms = visible_start + (io.MousePos.x - origin.x) / px;
+                visible_range = MIN_RANGE_MS;
+                visible_start = cursor_ms - MIN_RANGE_MS * 0.5f;
+            } else {
+                visible_range = -1.0f;
+                visible_start = 0.0f;
+            }
             selecting = false;
-            view_start_ms = 0.0f;
-            view_end_ms = -1.0f;
-            scroll_ms = 0.0f;
+            panning = false;
         } else if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-            selecting = true;
-            select_start_ms = (io.MousePos.x - origin.x) / px + visible_start;
-            select_end_ms = select_start_ms;
+            if (alt) {
+                panning = true;
+            } else {
+                selecting = true;
+                select_start_ms = visible_start + (io.MousePos.x - origin.x) / px;
+                select_end_ms   = select_start_ms;
+            }
+        }
+        
+        if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Middle)) panning = true;
+
+        if (panning) {
+            bool held = ImGui::IsMouseDown(ImGuiMouseButton_Left) || ImGui::IsMouseDown(ImGuiMouseButton_Middle);
+            if (held) visible_start -= io.MouseDelta.x / px;
+            else panning = false;
+        }
+
+        if (hovered && ImGui::IsKeyPressed(ImGuiKey_F) && sel_name[0]) {
+            follow = !follow;
+            if (follow && visible_range <= 0.0f) visible_range = range_ms;
+        }
+
+        if (follow && sel_name[0]) {
+            for (size_t i = 0; i < n; ++i) {
+                if (src[i].kind != RenderGraphProfiler::MarkKind::Pass) continue;
+                if (std::strcmp(src[i].name ? src[i].name : "", sel_name) != 0) continue;
+                float target_start = start[i];
+                float target_range = std::max((float)src[i].gpu_ms, MIN_RANGE_MS);
+
+                const float k = 0.2f;
+                visible_start += (target_start - visible_start) * k;
+                visible_range += (target_range - visible_range) * k;
+                break;
+            }
+        }
+
+        if ((selecting || panning) && ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+            selecting = false;
+            panning = false;
         }
 
         if (selecting) {
-            select_end_ms = (io.MousePos.x - origin.x) / px + visible_start;
+            select_end_ms = visible_start + (io.MousePos.x - origin.x) / px;
             select_start_ms = std::clamp(select_start_ms, 0.0f, total_ms);
             select_end_ms = std::clamp(select_end_ms, 0.0f, total_ms);
         }
@@ -141,11 +188,18 @@ void ProfilerTimeline::draw(DevContext& ctx)
             float a = std::clamp(std::min(select_start_ms, select_end_ms), 0.0f, total_ms);
             float b = std::clamp(std::max(select_start_ms, select_end_ms), 0.0f, total_ms);
             if (b - a > 0.01f) {
-                view_start_ms = a;
-                view_end_ms = b;
-                scroll_ms = a;
+                visible_start = a;
+                visible_range = b - a;
+                follow = false;
             }
         }
+
+        range_ms = (visible_range > 0.0f) ? visible_range : total_ms;
+        range_ms = std::clamp(range_ms, MIN_RANGE_MS, total_ms);
+        max_start = std::max(0.0f, total_ms - range_ms);
+        visible_start = std::clamp(visible_start, 0.0f, max_start);
+        visible_end = visible_start + range_ms;
+        px = canvas_w / range_ms;
 
         // Grid.
         {
@@ -206,12 +260,14 @@ void ProfilerTimeline::draw(DevContext& ctx)
             dl->PopClipRect();
         };
 
+        bool dragging = panning || ImGui::IsMouseDragging(ImGuiMouseButton_Left) || ImGui::IsMouseDragging(ImGuiMouseButton_Middle);
+
         auto bar = [&](float ms_start, float ms_len, float y0, float y1, ImU32 fill, bool* r_hovered = nullptr) -> ImVec2 {
             float x0 = origin.x + (ms_start - visible_start) * px;
             float x1 = origin.x + (ms_start + ms_len - visible_start) * px;
             ImVec2 a(x0 + 1.0f, y0);
             ImVec2 b(x1 - 1.0f, y1);
-            bool is_hovered = io.MousePos.x >= a.x && io.MousePos.x <= b.x && io.MousePos.y >= a.y && io.MousePos.y <= b.y;
+            bool is_hovered = !dragging && io.MousePos.x >= a.x && io.MousePos.x <= b.x && io.MousePos.y >= a.y && io.MousePos.y <= b.y;
             if (r_hovered) *r_hovered = is_hovered;
             if (b.x > a.x) dl->AddRectFilled(a, b, (r_hovered && is_hovered) ? IM_COL32(255, 50, 50, 255) : fill, 3.0f);
             return ImVec2(a.x, b.x);
@@ -251,9 +307,8 @@ void ProfilerTimeline::draw(DevContext& ctx)
 
             bool bar_hovered = false;
             ImVec2 x = bar(start[i], (float)t.gpu_ms, y_pass0, y_pass1, rg_category_u32(t.category), &bar_hovered);
-            if (bar_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) selected_pass = (selected_pass == &t) ? nullptr : &t;
+            if (bar_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) { selected_pass = &t; snprintf(sel_name, sizeof(sel_name), "%s", t.name ? t.name : ""); }
             label_in(ImVec2(x.x, y_pass0), ImVec2(x.y, y_pass1), t.name, IM_COL32_WHITE);
-
 
             // if (bar_hovered) {
             //     ImGui::BeginTooltip();
@@ -275,7 +330,7 @@ void ProfilerTimeline::draw(DevContext& ctx)
 
             bool bar_hovered = false;
             ImVec2 x = bar(a_ms, len_ms, y_draw0, y_draw1, rg_category_u32(src[p].category, 0.45f), &bar_hovered);
-            if (bar_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) selected_draw = (selected_draw == &t) ? nullptr : &t;
+            if (bar_hovered) selected_draw = &t;
 
             const bool named = t.name && t.name[0];
             char lbl[16];
@@ -285,8 +340,9 @@ void ProfilerTimeline::draw(DevContext& ctx)
             if (bar_hovered) {
                 ImGui::BeginTooltip();
 
-                if (named) ImGui::TextUnformatted(t.name);
+                if (named) ImGui::Text("%s · %s", t.name, t.type);
                 else ImGui::Text("Draw %u", t.ordinal);
+
                 property_row("Type", "%s", t.type);
                 ImGui::Separator();
                 property_row("Time", "%.3f ms", t.gpu_ms);

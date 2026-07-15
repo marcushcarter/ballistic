@@ -31,7 +31,6 @@ Error GameRenderPath::create_resources()
         pc.samplerIndex = cl.dd->default_sampler.bindless_sampler;
         cl.dd->command_bind_push_constants(cl.cmd, sizeof(pc), &pc);
         cl.draw("gamma_blit", 3);
-        
     };
     
     editor_ui_pass.name = "editor_ui_pass";
