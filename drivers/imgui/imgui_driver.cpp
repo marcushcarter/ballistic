@@ -2,6 +2,7 @@
 #include <core/log/error_macros.h>
 #include <backends/imgui_impl_win32.h>
 #include <backends/imgui_impl_vulkan.h>
+#include <implot.h>
 #include <vulkan/vulkan.h>
 #include <iostream>
 
@@ -15,8 +16,8 @@ Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_create_info)
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    ImPlot::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     if (p_create_info.enable_docking) {
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     }
@@ -73,9 +74,7 @@ Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_create_info)
     init_info.ImageCount = p_create_info.image_count;
     init_info.PipelineInfoMain.RenderPass = p_create_info.render_pass;
     init_info.PipelineInfoMain.Subpass = p_create_info.subpass;
-    init_info.CheckVkResultFn = [](VkResult err){
-        if(err) fprintf(stderr, "[Ballistic] Vulkan error in ImGui backend: %d\n", err);
-    };
+    init_info.CheckVkResultFn = [](VkResult err){ if(err) fprintf(stderr, "[Ballistic] Vulkan error in ImGui backend: %d\n", err); };
 
     BALLISTIC_ERR_FAIL_COND_V_MSG(!ImGui_ImplVulkan_Init(&init_info), Failed, "Failed to initialize ImGui Vulkan backend.");
 
@@ -88,6 +87,7 @@ void ImGuiDriver::destroy()
 {
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplWin32_Shutdown();
+    ImPlot::DestroyContext();
     ImGui::DestroyContext();
 
     if (descriptor_pool != VK_NULL_HANDLE) {

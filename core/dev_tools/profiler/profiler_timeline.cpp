@@ -33,11 +33,15 @@ void ProfilerTimeline::draw(DevContext& ctx)
         if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) prof.frozen = false;
     }
 
-    selected_draw = nullptr;
-    // selected_pass = nullptr;
-
     const std::vector<RenderGraphProfiler::Timing>& src = prof.results;
     const float total_ms = (float)prof.total_ms;
+
+    selected_pass = nullptr;
+    selected_draw = nullptr;
+    for (const RenderGraphProfiler::Timing& t : src) {
+        if (sel_pass_key && t.kind == RenderGraphProfiler::MarkKind::Pass && t.key == sel_pass_key) selected_pass = &t;
+        if (sel_draw_key && t.kind == RenderGraphProfiler::MarkKind::Draw && t.key == sel_draw_key) selected_draw = &t;
+    }
     
     ImVec2 avail = ImGui::GetContentRegionAvail();
 
@@ -250,7 +254,8 @@ void ProfilerTimeline::draw(DevContext& ctx)
             float x1 = origin.x + (ms_start + ms_len - visible_start) * px;
             ImVec2 a(x0 + 1.0f, y0);
             ImVec2 b(x1 - 1.0f, y1);
-            bool is_hovered = !dragging && io.MousePos.x >= a.x && io.MousePos.x <= b.x && io.MousePos.y >= a.y && io.MousePos.y <= b.y;
+            const bool in_canvas = io.MousePos.x >= origin.x && io.MousePos.x <= origin.x + canvas_w && io.MousePos.y >= origin.y && io.MousePos.y <= origin.y + H;
+            bool is_hovered = in_canvas && !dragging && io.MousePos.x >= a.x && io.MousePos.x <= b.x && io.MousePos.y >= a.y && io.MousePos.y <= b.y;
             if (r_hovered) *r_hovered = is_hovered;
             if (b.x > a.x) dl->AddRectFilled(a, b, (r_hovered && is_hovered) ? IM_COL32(255, 50, 50, 255) : fill, 3.0f);
             return ImVec2(a.x, b.x);
@@ -290,12 +295,17 @@ void ProfilerTimeline::draw(DevContext& ctx)
 
             bool bar_hovered = false;
             ImVec2 x = bar(start[i], (float)t.gpu_ms, y_pass0, y_pass1, rg_category_u32(t.category), &bar_hovered);
-            if (bar_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) { selected_pass = &t; snprintf(sel_name, sizeof(sel_name), "%s", t.name ? t.name : ""); }
+            if (bar_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) { sel_pass_key = t.key; selected_pass = &t; snprintf(sel_name, sizeof(sel_name), "%s", t.name ? t.name : ""); }
             label_in(ImVec2(x.x, y_pass0), ImVec2(x.y, y_pass1), t.name, IM_COL32_WHITE);
+            // if (&t == selected_pass && x.y > x.x) dl->AddRect(ImVec2(x.x, y_pass0), ImVec2(x.y, y_pass1), IM_COL32_WHITE, 3.0f, 0, 1.0f);
 
             if (bar_hovered) {
                 ImGui::BeginTooltip();
-                ui::title("Pass");
+                
+                ui::title("%s", t.name);
+                ui::property_row("Time", "%.0f µs", t.gpu_ms*1000.0f);
+                ui::property_row("Pixel Count", "%llu", (unsigned long long)t.samples);
+
                 ImGui::EndTooltip();
             }
         }
@@ -314,7 +324,11 @@ void ProfilerTimeline::draw(DevContext& ctx)
 
             bool bar_hovered = false;
             ImVec2 x = bar(a_ms, len_ms, y_draw0, y_draw1, rg_category_u32(src[p].category, 0.45f), &bar_hovered);
-            if (bar_hovered) selected_draw = &t;
+            if (bar_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                if (sel_draw_key == t.key) { sel_draw_key = 0; selected_draw = nullptr; }
+                else { sel_draw_key = t.key; selected_draw = &t; }
+            }
+            if (&t == selected_draw && x.y > x.x) dl->AddRect(ImVec2(x.x, y_draw0), ImVec2(x.y, y_draw1), IM_COL32_WHITE, 3.0f, 0, 1.0f);
 
             const bool named = t.name && t.name[0];
             char lbl[16];
@@ -326,18 +340,16 @@ void ProfilerTimeline::draw(DevContext& ctx)
 
                 if (named) ui::title("%s · %s", t.name, t.type);
                 else ui::title("Draw %u", t.ordinal);
-                ui::property_row("Time", "%.0f µs", t.gpu_ms*1000.0f);
+                ui::property_row("Time", "%.0f µs", t.gpu_ms*1000.0);
                 ui::property_row("Pixel Count", "%llu", (unsigned long long)t.samples);
                 ui::spacing();
                 
                 ui::title("Owner Object");
-                ui::property_row("Category · Pass", "%s · %s", src[p].category, src[p].name);
-                ui::property_row("Category", "%s", src[p].category);
                 ui::property_row("Pass", "%s", src[p].name);
                 ui::property_row("Draw Index", "%u", t.ordinal);
-                ui::property_row("Name", "%s", "n/a");
+                ui::property_row("Name", "%s", t.name);
                 ui::property_row("Location", "%s", "n/a");
-                ui::property_row("Type", "%s", "n/a");
+                ui::property_row("Type", "%s", t.type);
                 ui::spacing();
                 
                 ui::title("Primitives");
@@ -360,6 +372,16 @@ void ProfilerTimeline::draw(DevContext& ctx)
         // Hover bar.
         if (hovered) {
             dl->AddLine(ImVec2(io.MousePos.x, origin.y), ImVec2(io.MousePos.x, origin.y + H), IM_COL32(255, 255, 255, 120), 1.0f);
+        }
+
+        // Live / Frozen status (bottom-left).
+        {
+            const char* status = prof.frozen ? "Frozen" : "Live View";
+            ImVec2 ts = ImGui::CalcTextSize(status);
+            float tx = origin.x + 4.0f;
+            float ty = origin.y + H - ts.y - 2.0f;
+            dl->AddRectFilled(ImVec2(tx - 2.0f, ty - 1.0f), ImVec2(tx + ts.x + 2.0f, ty + ts.y + 1.0f), IM_COL32(20, 20, 20, 180));
+            dl->AddText(ImVec2(tx, ty), ImGui::GetColorU32(ImGuiCol_TextDisabled), status);
         }
 
         dl->PopClipRect();

@@ -6,6 +6,9 @@ namespace ballistic {
 
 struct ProfilerTimeline
 {
+    uint64_t sel_pass_key = 0;
+    uint64_t sel_draw_key = 0;
+    
     const RenderGraphProfiler::Timing* selected_pass = nullptr;
     const RenderGraphProfiler::Timing* selected_draw = nullptr;
 

@@ -2,12 +2,13 @@
 #include <core/rendering/renderer.h>
 #include <core/dev_tools/dev_tools_ui.h>
 #include <imgui.h>
+#include <implot.h>
 
 namespace ballistic {
 
 void Profiler::before_begin()
 {
-    ImGui::SetNextWindowSize(ImVec2(1000, 600), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(1100, 600), ImGuiCond_FirstUseEver);
 }
 
 void Profiler::draw_contents(DevContext& ctx)
@@ -34,31 +35,45 @@ void Profiler::draw_contents(DevContext& ctx)
 
     ImGui::BeginChild("BottomLeft", ImVec2(leftWidth, bottomHeight), ImGuiChildFlags_Borders);
     {
-        // if (ImGui::BeginTabBar("Tabs")) {
-        //     if (ImGui::BeginTabItem("Resources")) {
-        //         // Passes 6 active / 6 total.
-        //         // Images: 4. Buffers: 0
-        //         // resources graph
-        //         // Images.
-        //         // Name | Kind | Format | Life | Produces | R | W
-        //         // Buffers.
-        //         // Name | Kind | Size | Mem | Life | Producer | R/W
+        if (ImGui::BeginTabBar("Tabs")) {
+            if (ImGui::BeginTabItem("Resources")) {
+                // Passes 6 active / 6 total.
+                // Images: 4. Buffers: 0
+                // resources graph
+                // Images.
+                // Name | Kind | Format | Life | Produces | R | W
+                // Buffers.
+                // Name | Kind | Size | Mem | Life | Producer | R/W
+                
+                if (timeline.selected_pass != nullptr) {
+                    ImGui::Text("Selected Pass");
+                    ImGui::Text("Name: %s", timeline.selected_pass->name);
+                    ImGui::Text("Category: %s", timeline.selected_pass->category);
+                    ImGui::Text("GPU Time: %.3f ms", timeline.selected_pass->gpu_ms);
+                    ImGui::Text("Raw Time: %.3f ms", timeline.selected_pass->raw_ms);
+                    ImGui::Text("Draw Count: %u", timeline.selected_pass->draw_count);
+                }
 
-        //         ImGui::EndTabItem();
-        //     }
-        //     if (ImGui::BeginTabItem("Materials")) {
-        //         ImGui::EndTabItem();
-        //     }
-        //     ImGui::EndTabBar();
-        // }
+                ImGui::EndTabItem();
+            }
+            
+            if (ImGui::BeginTabItem("Materials")) {
+                const float col_w = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2.0f) / 3.0f;
 
-        if (timeline.selected_pass != nullptr) {
-            ImGui::Text("Selected Pass");
-            ImGui::Text("Name: %s", timeline.selected_pass->name);
-            ImGui::Text("Category: %s", timeline.selected_pass->category);
-            ImGui::Text("GPU Time: %.3f ms", timeline.selected_pass->gpu_ms);
-            ImGui::Text("Raw Time: %.3f ms", timeline.selected_pass->raw_ms);
-            ImGui::Text("Draw Count: %u", timeline.selected_pass->draw_count);
+                ImGui::BeginChild("MatLeft", ImVec2(col_w, 0), ImGuiChildFlags_Borders);
+                ImGui::EndChild();
+
+                ImGui::SameLine();
+                ImGui::BeginChild("MatMid", ImVec2(col_w, 0), ImGuiChildFlags_Borders);
+                ImGui::EndChild();
+
+                ImGui::SameLine();
+                ImGui::BeginChild("MatRight", ImVec2(0, 0), ImGuiChildFlags_Borders);
+                ImGui::EndChild();
+
+                ImGui::EndTabItem();
+            }
+            ImGui::EndTabBar();
         }
     }
     ImGui::EndChild();
@@ -67,12 +82,10 @@ void Profiler::draw_contents(DevContext& ctx)
     ImGui::SameLine();
     
     ImGui::BeginChild("Right", ImVec2(right_width, avail.y), ImGuiChildFlags_Borders);
-    {        
+    {
         ImGui::BeginDisabled(!profiler.supported);
         ImGui::Checkbox("Enable Profiling", &profiler.enabled);
         ImGui::EndDisabled();
-        
-        ImGui::TextDisabled("%s", profiler.frozen ? "Frozen" : "Live");
 
         ui::title("Legend");
         ui::property_row_value_aligned("Pan Area", "ALT + Mouse");
@@ -81,15 +94,10 @@ void Profiler::draw_contents(DevContext& ctx)
         ui::property_row_value_aligned("Zoom Out", "Double Click");
         ui::property_row_value_aligned("Frame Pass", "F");
         ui::property_row_value_aligned("Record", "Space");
-        ui::property_row_value_aligned("Resume", "Esc");
+        ui::property_row_value_aligned("Resume", "ESC");
         ui::spacing();
 
-        if (timeline.selected_draw != nullptr) {
-            ImGui::Text("Name: %s", timeline.selected_draw->name ? timeline.selected_draw->name : "Unnamed");
-            ImGui::Text("Type: %s", timeline.selected_draw->type);
-            ImGui::Text("GPU Time: %.3f ms", timeline.selected_draw->gpu_ms);
-            ImGui::Text("Raw Time: %.3f ms", timeline.selected_draw->raw_ms);
-        }
+        distribution.draw(ctx, timeline.selected_draw, profiler.frozen);
     }
     ImGui::EndChild();
 }
