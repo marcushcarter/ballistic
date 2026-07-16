@@ -16,7 +16,7 @@ Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_create_info)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     if (p_create_info.enable_docking) {
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     }

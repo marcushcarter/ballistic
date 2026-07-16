@@ -20,6 +20,10 @@ struct RenderGraphProfiler
     /***************/
     
     drivers::DeviceDriverVulkan* dd = nullptr;
+    
+    bool enabled = false;
+    bool stats_enabled = false;
+    bool frozen = false;
 
     Error create(drivers::DeviceDriverVulkan& r_dd, uint32_t p_frame_count);
     void destroy();
@@ -119,7 +123,6 @@ struct RenderGraphProfiler
     uint64_t valid_mask = ~0ull;
     
     bool supported = false;
-    bool enabled = false;
     bool active = false;
     bool prev_active = false;
     uint32_t last_query_count = 0;
@@ -127,7 +130,6 @@ struct RenderGraphProfiler
 
     static constexpr uint32_t STAT_COUNT = 2;
     bool stats_supported = false;
-    bool stats_enabled = false;
     bool stats_active = false;
     uint32_t last_stat_count = 0;
     std::vector<uint64_t> stat_scratch;
@@ -143,7 +145,6 @@ struct RenderGraphProfiler
     void pass_end(VkCommandBuffer p_cmd, uint32_t p_draw_count);
     void draw_begin(VkCommandBuffer p_cmd, std::string_view p_name, std::string_view p_type, uint32_t p_instances = 1);
     void draw_end(VkCommandBuffer p_cmd);
-
 };
 
 }

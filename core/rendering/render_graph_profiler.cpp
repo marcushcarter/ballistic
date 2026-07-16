@@ -128,6 +128,7 @@ void RenderGraphProfiler::_resolve()
 {
     using enum Error;
     if (!active) return;
+    if (frozen) return;
 
     Slot& s = slots[slot];
     if (!s.recorded) return;

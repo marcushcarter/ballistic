@@ -1,5 +1,6 @@
 #include <core/dev_tools/profiler/profiler_timeline.h>
 #include <core/rendering/renderer.h>
+#include <core/dev_tools/dev_tools_ui.h>
 #include <imgui.h>
 #include <vector>
 #include <unordered_map>
@@ -21,20 +22,16 @@ static ImU32 rg_category_u32(const char* cat, float alpha = 1.0f)
     return ImGui::GetColorU32(c);
 }
 
-static void property_row(const char* name, const char* fmt, ...)
-{
-    constexpr float tab_width = 200.0f;
-    ImGui::TextUnformatted(name);
-    ImGui::SameLine(tab_width);
-    va_list args;
-    va_start(args, fmt);
-    ImGui::TextV(fmt, args);
-    va_end(args);
-}
-
 void ProfilerTimeline::draw(DevContext& ctx)
 {
     RenderGraphProfiler& prof = ctx.renderer->graph.profiler;
+    
+    ImGuiIO& io = ImGui::GetIO();
+
+    if (!io.WantTextInput) {
+        if (ImGui::IsKeyPressed(ImGuiKey_Space, false)) prof.frozen = true;
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) prof.frozen = false;
+    }
 
     selected_draw = nullptr;
     // selected_pass = nullptr;
@@ -86,7 +83,6 @@ void ProfilerTimeline::draw(DevContext& ctx)
         static bool panning = false;
 
         ImDrawList* dl = ImGui::GetWindowDrawList();
-        ImGuiIO& io = ImGui::GetIO();
         ImVec2 origin = ImGui::GetCursorScreenPos();
         bool hovered = false;
 
@@ -106,8 +102,6 @@ void ProfilerTimeline::draw(DevContext& ctx)
 
         dl->PushClipRect(origin, ImVec2(origin.x + canvas_w, origin.y + H), true);
 
-        bool alt = io.KeyAlt;
-
         if (hovered && io.MouseWheel != 0.0f) {
             float cursor_ms = visible_start + (io.MousePos.x - origin.x) / px;
             float cursor_frac = (io.MousePos.x - origin.x) / canvas_w;
@@ -125,18 +119,12 @@ void ProfilerTimeline::draw(DevContext& ctx)
 
         if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
             follow = false;
-            if (alt) {
-                float cursor_ms = visible_start + (io.MousePos.x - origin.x) / px;
-                visible_range = MIN_RANGE_MS;
-                visible_start = cursor_ms - MIN_RANGE_MS * 0.5f;
-            } else {
-                visible_range = -1.0f;
-                visible_start = 0.0f;
-            }
+            visible_range = -1.0f;
+            visible_start = 0.0f;
             selecting = false;
             panning = false;
         } else if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-            if (alt) {
+            if (io.KeyAlt) {
                 panning = true;
             } else {
                 selecting = true;
@@ -170,11 +158,6 @@ void ProfilerTimeline::draw(DevContext& ctx)
                 visible_range += (target_range - visible_range) * k;
                 break;
             }
-        }
-
-        if ((selecting || panning) && ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-            selecting = false;
-            panning = false;
         }
 
         if (selecting) {
@@ -310,10 +293,11 @@ void ProfilerTimeline::draw(DevContext& ctx)
             if (bar_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) { selected_pass = &t; snprintf(sel_name, sizeof(sel_name), "%s", t.name ? t.name : ""); }
             label_in(ImVec2(x.x, y_pass0), ImVec2(x.y, y_pass1), t.name, IM_COL32_WHITE);
 
-            // if (bar_hovered) {
-            //     ImGui::BeginTooltip();
-            //     ImGui::EndTooltip();
-            // }
+            if (bar_hovered) {
+                ImGui::BeginTooltip();
+                ui::title("Pass");
+                ImGui::EndTooltip();
+            }
         }
 
         // Draw calls.
@@ -340,38 +324,27 @@ void ProfilerTimeline::draw(DevContext& ctx)
             if (bar_hovered) {
                 ImGui::BeginTooltip();
 
-                if (named) ImGui::Text("%s · %s", t.name, t.type);
-                else ImGui::Text("Draw %u", t.ordinal);
-
-                property_row("Type", "%s", t.type);
-                ImGui::Separator();
-                property_row("Time", "%.3f ms", t.gpu_ms);
-                property_row("Raw", "%.3f ms", t.raw_ms);
-                property_row("Pass", "%s", src[p].name);
-                property_row("Draw Index", "%u", t.ordinal);
-                property_row("Pixel Count", "%llu", (unsigned long long)t.samples);
-                ImGui::Spacing();
-                ImGui::Spacing();
-
-                ImGui::Text("Owner Object");
-                property_row("Name", "%s", "n/a");
-                property_row("Location", "%s", "n/a");
-                property_row("Type", "%s", "n/a");
-                ImGui::Spacing();
-                ImGui::Spacing();
-
-                ImGui::Text("Primitives");
-                property_row("Triangles", "%llu", (unsigned long long)t.primitives);
-                property_row("Vertices", "%llu", (unsigned long long)t.vertices);
-                property_row("Instances", "%u", t.instances);
-                property_row("Total Triangles", "%llu", (unsigned long long)src[p].primitives);
-                ImGui::Spacing();
-                ImGui::Spacing();
-
-                ImGui::Text("Shader");
-                property_row("Pass", "%s", src[p].category);
-                property_row("Name", "%s", "n/a");
-                property_row("Location", "%s", "n/a");
+                if (named) ui::title("%s · %s", t.name, t.type);
+                else ui::title("Draw %u", t.ordinal);
+                ui::property_row("Time", "%.0f µs", t.gpu_ms*1000.0f);
+                ui::property_row("Pixel Count", "%llu", (unsigned long long)t.samples);
+                ui::spacing();
+                
+                ui::title("Owner Object");
+                ui::property_row("Category · Pass", "%s · %s", src[p].category, src[p].name);
+                ui::property_row("Category", "%s", src[p].category);
+                ui::property_row("Pass", "%s", src[p].name);
+                ui::property_row("Draw Index", "%u", t.ordinal);
+                ui::property_row("Name", "%s", "n/a");
+                ui::property_row("Location", "%s", "n/a");
+                ui::property_row("Type", "%s", "n/a");
+                ui::spacing();
+                
+                ui::title("Primitives");
+                ui::property_row("Triangles", "%llu", (unsigned long long)t.primitives);
+                ui::property_row("Vertices", "%llu", (unsigned long long)t.vertices);
+                ui::property_row("Instances", "%u", t.instances);
+                ui::property_row("Total Triangles", "%llu", (unsigned long long)src[p].primitives);
 
                 ImGui::EndTooltip();
             }

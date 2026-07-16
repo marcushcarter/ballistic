@@ -1,28 +1,9 @@
 #include <core/dev_tools/profiler/profiler.h>
 #include <core/rendering/renderer.h>
+#include <core/dev_tools/dev_tools_ui.h>
 #include <imgui.h>
 
 namespace ballistic {
-
-void property_row_value_aligned(const char* name, const char* fmt, ...)
-{
-    ImGui::TextUnformatted(name);
-
-    char buffer[256];
-
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(buffer, sizeof(buffer), fmt, args);
-    va_end(args);
-
-    float value_width = ImGui::CalcTextSize(buffer).x;
-    float right_edge = ImGui::GetContentRegionMax().x;
-
-    ImGui::SameLine();
-    ImGui::SetCursorPosX(right_edge - value_width);
-    ImGui::TextUnformatted(buffer);
-}
-
 
 void Profiler::before_begin()
 {
@@ -31,6 +12,8 @@ void Profiler::before_begin()
 
 void Profiler::draw_contents(DevContext& ctx)
 {
+    auto& profiler = ctx.renderer->graph.profiler;
+
     ImVec2 avail = ImGui::GetContentRegionAvail();
 
     const float right_width = avail.x * 0.20f;
@@ -82,18 +65,24 @@ void Profiler::draw_contents(DevContext& ctx)
 
     ImGui::EndGroup();
     ImGui::SameLine();
-    ImGui::BeginGroup();
+    
+    ImGui::BeginChild("Right", ImVec2(right_width, avail.y), ImGuiChildFlags_Borders);
+    {        
+        ImGui::BeginDisabled(!profiler.supported);
+        ImGui::Checkbox("Enable Profiling", &profiler.enabled);
+        ImGui::EndDisabled();
+        
+        ImGui::TextDisabled("%s", profiler.frozen ? "Frozen" : "Live");
 
-    const float header_height = ImGui::GetFrameHeightWithSpacing();
-    ImGui::BeginChild("RightHeader", ImVec2(right_width, header_height), ImGuiChildFlags_None);
-    auto& profiler = ctx.renderer->graph.profiler;
-    ImGui::BeginDisabled(!profiler.supported);
-    ImGui::Checkbox("Enable Profiling", &profiler.enabled);
-    ImGui::EndDisabled();
-    ImGui::EndChild();
-
-    ImGui::BeginChild("Right", ImVec2(right_width, avail.y - header_height - ImGui::GetStyle().ItemSpacing.y), ImGuiChildFlags_Borders);
-    {
+        ui::title("Legend");
+        ui::property_row_value_aligned("Pan Area", "ALT + Mouse");
+        ui::property_row_value_aligned("Navigate", "Mouse Scroll");
+        ui::property_row_value_aligned("Zoom Area", "Mouse Drag");
+        ui::property_row_value_aligned("Zoom Out", "Double Click");
+        ui::property_row_value_aligned("Frame Pass", "F");
+        ui::property_row_value_aligned("Record", "Space");
+        ui::property_row_value_aligned("Resume", "Esc");
+        ui::spacing();
 
         if (timeline.selected_draw != nullptr) {
             ImGui::Text("Name: %s", timeline.selected_draw->name ? timeline.selected_draw->name : "Unnamed");
@@ -101,19 +90,8 @@ void Profiler::draw_contents(DevContext& ctx)
             ImGui::Text("GPU Time: %.3f ms", timeline.selected_draw->gpu_ms);
             ImGui::Text("Raw Time: %.3f ms", timeline.selected_draw->raw_ms);
         }
-
-        property_row_value_aligned("Pan Area", "ALT + Mouse");
-        property_row_value_aligned("Zoom", "ScrollY");
-        property_row_value_aligned("Zoom Area", "Mouse Drag");
-        property_row_value_aligned("Zoom Out", "Double Click");
-        property_row_value_aligned("Zoom In", "ALT + Double Click");
-        property_row_value_aligned("Frame Pass", "F");
-        property_row_value_aligned("Cancel Drag", "Escape");
-        
     }
     ImGui::EndChild();
-
-    ImGui::EndGroup();
 }
 
 }
