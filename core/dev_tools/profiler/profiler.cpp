@@ -37,13 +37,8 @@ void Profiler::draw_contents(DevContext& ctx)
     {
         if (ImGui::BeginTabBar("Tabs")) {
             if (ImGui::BeginTabItem("Resources")) {
-                // Passes 6 active / 6 total.
-                // Images: 4. Buffers: 0
-                // resources graph
-                // Images.
-                // Name | Kind | Format | Life | Produces | R | W
-                // Buffers.
-                // Name | Kind | Size | Mem | Life | Producer | R/W
+
+                resources.draw(ctx);
                 
                 if (timeline.selected_pass != nullptr) {
                     ImGui::Text("Selected Pass");
@@ -56,19 +51,28 @@ void Profiler::draw_contents(DevContext& ctx)
 
                 ImGui::EndTabItem();
             }
-            
+
             if (ImGui::BeginTabItem("Materials")) {
                 const float col_w = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2.0f) / 3.0f;
 
                 ImGui::BeginChild("MatLeft", ImVec2(col_w, 0), ImGuiChildFlags_Borders);
+                {
+
+                }
                 ImGui::EndChild();
 
                 ImGui::SameLine();
                 ImGui::BeginChild("MatMid", ImVec2(col_w, 0), ImGuiChildFlags_Borders);
+                {
+
+                }
                 ImGui::EndChild();
 
                 ImGui::SameLine();
                 ImGui::BeginChild("MatRight", ImVec2(0, 0), ImGuiChildFlags_Borders);
+                {
+
+                }
                 ImGui::EndChild();
 
                 ImGui::EndTabItem();

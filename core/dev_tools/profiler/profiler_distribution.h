@@ -4,7 +4,6 @@
 #include <imgui.h>
 #include <vector>
 
-
 namespace ballistic {
 
 struct ProfilerDistribution

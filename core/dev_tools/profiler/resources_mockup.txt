@@ -1,0 +1,64 @@
+================================================================================
+ GPU RESOURCE INSPECTOR - LAYOUT MOCKUP
+================================================================================
+ Values below are illustrative (a deferred-renderer stand-in), not from a live
+ frame. Field->source notes are at the bottom.
+================================================================================
+
+
+ GPU RESOURCES                                          Frame 3   |   Live
+ Passes: 6 active / 8 total      Images: 8      Buffers: 3      Est. transient VRAM: 46.1 MB
+
+ Pass axis     0     1     2     3     4     5     6     7
+               GBuf  Shdw  Light Fwd   Bloom Tone  UI    Blit
+ ------------------------------------------------------------------------------------------
+
+ IMAGES
+ NAME            TYPE   FORMAT        EXTENT      MEM      LIFE   0  1  2  3  4  5  6  7   PROD       R  W
+ --------------  -----  ------------  ----------  -------  -----  --------------------   ---------  -  -
+ gbuffer_albedo  trans  RGBA8_UNORM   1920x1080   8.3 MB   0-2    W  .  r  .  .  .  .  .   #0 GBuf    y  y
+ gbuffer_normal  trans  RGBA16F       1920x1080   16.6 MB  0-2    W  .  r  .  .  .  .  .   #0 GBuf    y  y
+ depth           trans  D32_SFLOAT    1920x1080   8.3 MB   0-3    W  .  r  r  .  .  .  .   #0 GBuf    y  y
+ shadow_map      trans  D32_SFLOAT    2048x2048   16.0 MB  1-2    .  W  r  .  .  .  .  .   #1 Shdw    y  y
+ hdr_color       trans  RGBA16F       1920x1080   16.6 MB  2-5    .  .  W  W  r  r  .  .   #2 Light   y  y
+ bloom_chain     trans  RGBA16F       960x540     4.1 MB   4-5    .  .  .  .  W  r  .  .   #4 Bloom   y  y
+ ldr             trans  RGBA8_UNORM   1920x1080   8.3 MB   5-7    .  .  .  .  .  W  r  r   #5 Tone    y  y
+ swapchain       IMPORT BGRA8_UNORM   1920x1080   --       7-7    .  .  .  .  .  .  .  W   #7 Blit    n  y
+
+ BUFFERS
+ NAME            TYPE   USAGE         SIZE (log/cap)  WASTE   MEM     LIFE   0  1  2  3  4  5  6  7   PROD       R  W
+ --------------  -----  ------------  --------------  ------  ------  -----  --------------------   ---------  -  -
+ view_uniforms   IMPORT UNIFORM|BDA   256 B / 256 B   0 B     HOST    0-7    r  r  r  r  r  r  r  r   (extern)   y  n
+ light_list      trans  STORAGE|BDA   48.0 KB/64 KB   16 KB   DEVICE  2-3    .  .  W  r  .  .  .  .   #2 Light   y  y
+ draw_args       trans  INDIRECT|BDA  12.0 KB/16 KB   4.0 KB  DEVICE  0-0    W  .  .  .  .  .  .  .   #0 GBuf    y  y
+
+ LIFE cell legend:   W = write access   r = read access   = = alive, untouched   . = dead
+ Peak concurrent transient VRAM @ pass 2:  gbuffer_albedo+normal+depth+shadow+hdr = 66.4 MB
+ Aliasing candidates (non-overlapping lifetimes):  shadow_map <-> bloom_chain  (save 4.1 MB)
+
+
+================================================================================
+ FIELD -> SOURCE
+================================================================================
+ TYPE          ResourceKind (trans / IMPORT)
+ FORMAT        image_create_info.format
+ EXTENT        resolved via _image_resolve_extent
+ USAGE         buffer usage flags | BDA
+ SIZE log/cap  buf.size (logical) vs _next_power_of_2 size_class
+ WASTE         cap - logical (bucketing internal fragmentation)
+ LIFE          first_use-last_use (node index range)
+ LIFE cells    per-node W/r from ImageAccess.is_write; ./= from first/last_use
+ PROD          producer node index -> nodes[producer].pass->name
+ R / W         read / written bools
+
+ NOT CURRENTLY TRACKED (derived at panel-build time):
+   MEM bytes           extent.w * extent.h * bpp(format) * samples * mip_factor
+                       imported images show -- (graph does not own allocation)
+   Peak concurrent     interval-overlap pass over first_use/last_use
+   Aliasing candidates interval-overlap test; pairs with disjoint lifetimes
+
+ CORRECTNESS NOTE:
+   first_use/last_use are PRE-cull node indices. The pass axis must show
+   POST-cull execution order (map through the culled set) or the LIFE bars
+   will not line up with what actually ran.
+================================================================================
