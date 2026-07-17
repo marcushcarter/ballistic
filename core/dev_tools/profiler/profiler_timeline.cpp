@@ -247,6 +247,7 @@ void ProfilerTimeline::draw(DevContext& ctx)
             dl->PopClipRect();
         };
 
+        bool bar_click_consumed = false;
         bool dragging = panning || ImGui::IsMouseDragging(ImGuiMouseButton_Left) || ImGui::IsMouseDragging(ImGuiMouseButton_Middle);
 
         auto bar = [&](float ms_start, float ms_len, float y0, float y1, ImU32 fill, bool* r_hovered = nullptr) -> ImVec2 {
@@ -295,9 +296,25 @@ void ProfilerTimeline::draw(DevContext& ctx)
 
             bool bar_hovered = false;
             ImVec2 x = bar(start[i], (float)t.gpu_ms, y_pass0, y_pass1, rg_category_u32(t.category), &bar_hovered);
-            if (bar_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) { sel_pass_key = t.key; selected_pass = &t; snprintf(sel_name, sizeof(sel_name), "%s", t.name ? t.name : ""); }
+            if (bar_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                bar_click_consumed = true;
+                if (sel_pass_key == t.key) {
+                    sel_pass_key = 0;
+                    selected_pass = nullptr;
+                    sel_name[0] = '\0';
+                    sel_draw_key = 0;
+                    selected_draw = nullptr;
+                } else {
+                    sel_pass_key = t.key; selected_pass = &t;
+                    if (selected_draw && selected_draw->parent != RenderGraphProfiler::INVALID && src[selected_draw->parent].key != t.key) {
+                        sel_draw_key = 0;
+                        selected_draw = nullptr;
+                    }
+                    snprintf(sel_name, sizeof(sel_name), "%s", t.name ? t.name : "");
+                }
+            }
+            if (&t == selected_pass && x.y > x.x) dl->AddRect(ImVec2(x.x, y_pass0), ImVec2(x.y, y_pass1), IM_COL32_WHITE, 3.0f, 0, 1.0f);
             label_in(ImVec2(x.x, y_pass0), ImVec2(x.y, y_pass1), t.name, IM_COL32_WHITE);
-            // if (&t == selected_pass && x.y > x.x) dl->AddRect(ImVec2(x.x, y_pass0), ImVec2(x.y, y_pass1), IM_COL32_WHITE, 3.0f, 0, 1.0f);
 
             if (bar_hovered) {
                 ImGui::BeginTooltip();
@@ -325,8 +342,15 @@ void ProfilerTimeline::draw(DevContext& ctx)
             bool bar_hovered = false;
             ImVec2 x = bar(a_ms, len_ms, y_draw0, y_draw1, rg_category_u32(src[p].category, 0.45f), &bar_hovered);
             if (bar_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-                if (sel_draw_key == t.key) { sel_draw_key = 0; selected_draw = nullptr; }
-                else { sel_draw_key = t.key; selected_draw = &t; }
+                bar_click_consumed = true;
+                if (sel_draw_key == t.key) {
+                    sel_draw_key = 0; selected_draw = nullptr;
+                } else {
+                    sel_draw_key = t.key; selected_draw = &t;
+                    const RenderGraphProfiler::Timing& parent = src[p];
+                    sel_pass_key = parent.key; selected_pass = &parent;
+                    snprintf(sel_name, sizeof(sel_name), "%s", parent.name ? parent.name : "");
+                }
             }
             if (&t == selected_draw && x.y > x.x) dl->AddRect(ImVec2(x.x, y_draw0), ImVec2(x.y, y_draw1), IM_COL32_WHITE, 3.0f, 0, 1.0f);
 
@@ -374,7 +398,7 @@ void ProfilerTimeline::draw(DevContext& ctx)
             dl->AddLine(ImVec2(io.MousePos.x, origin.y), ImVec2(io.MousePos.x, origin.y + H), IM_COL32(255, 255, 255, 120), 1.0f);
         }
 
-        // Live / Frozen status (bottom-left).
+        // Live / Frozen status.
         {
             const char* status = prof.frozen ? "Frozen" : "Live View";
             ImVec2 ts = ImGui::CalcTextSize(status);
@@ -382,6 +406,14 @@ void ProfilerTimeline::draw(DevContext& ctx)
             float ty = origin.y + H - ts.y - 2.0f;
             dl->AddRectFilled(ImVec2(tx - 2.0f, ty - 1.0f), ImVec2(tx + ts.x + 2.0f, ty + ts.y + 1.0f), IM_COL32(20, 20, 20, 180));
             dl->AddText(ImVec2(tx, ty), ImGui::GetColorU32(ImGuiCol_TextDisabled), status);
+        }
+
+        if (hovered && !io.KeyAlt && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !bar_click_consumed) {
+            sel_pass_key = 0;
+            selected_pass = nullptr;
+            sel_name[0] = '\0';
+            sel_draw_key = 0;
+            selected_draw = nullptr;
         }
 
         dl->PopClipRect();

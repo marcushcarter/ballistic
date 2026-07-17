@@ -6,7 +6,7 @@ namespace ballistic {
 
 struct ProfilerResources
 {
-    void draw(DevContext& ctx);
+    void draw(DevContext& ctx, const char* p_pass_name);
 };
 
 }

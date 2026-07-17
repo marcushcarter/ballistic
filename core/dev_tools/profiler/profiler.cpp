@@ -37,44 +37,16 @@ void Profiler::draw_contents(DevContext& ctx)
     {
         if (ImGui::BeginTabBar("Tabs")) {
             if (ImGui::BeginTabItem("Resources")) {
-
-                resources.draw(ctx);
-                
-                if (timeline.selected_pass != nullptr) {
-                    ImGui::Text("Selected Pass");
-                    ImGui::Text("Name: %s", timeline.selected_pass->name);
-                    ImGui::Text("Category: %s", timeline.selected_pass->category);
-                    ImGui::Text("GPU Time: %.3f ms", timeline.selected_pass->gpu_ms);
-                    ImGui::Text("Raw Time: %.3f ms", timeline.selected_pass->raw_ms);
-                    ImGui::Text("Draw Count: %u", timeline.selected_pass->draw_count);
-                }
-
+                resources.draw(ctx, timeline.selected_pass ? timeline.selected_pass->name : nullptr);
                 ImGui::EndTabItem();
             }
-
-            if (ImGui::BeginTabItem("Materials")) {
-                const float col_w = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2.0f) / 3.0f;
-
-                ImGui::BeginChild("MatLeft", ImVec2(col_w, 0), ImGuiChildFlags_Borders);
-                {
-
-                }
-                ImGui::EndChild();
-
-                ImGui::SameLine();
-                ImGui::BeginChild("MatMid", ImVec2(col_w, 0), ImGuiChildFlags_Borders);
-                {
-
-                }
-                ImGui::EndChild();
-
-                ImGui::SameLine();
-                ImGui::BeginChild("MatRight", ImVec2(0, 0), ImGuiChildFlags_Borders);
-                {
-
-                }
-                ImGui::EndChild();
-
+            if (ImGui::BeginTabItem("Samplers")) {
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Blend State")) {
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Shader State")) {
                 ImGui::EndTabItem();
             }
             ImGui::EndTabBar();
