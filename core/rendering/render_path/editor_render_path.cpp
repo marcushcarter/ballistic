@@ -10,7 +10,7 @@ Error EditorRenderPath::create_resources()
     if (Error e = RenderPath::create_resources(); e != Ok) return e;
 
     editor_ui_pass.name = "editor_ui_pass";
-    editor_ui_pass.category = "Swapchain";
+    editor_ui_pass.category = "Present";
     editor_ui_pass.formats = { { dd->swapchain.format } };
     editor_ui_pass.setup = [](RenderGraph::Builder& b) {
         b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.1f, 0.1f, 1.0f } });

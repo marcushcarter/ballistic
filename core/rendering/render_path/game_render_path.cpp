@@ -11,9 +11,8 @@ Error GameRenderPath::create_resources()
     if (Error e = RenderPath::create_resources(); e != Ok) return e;
 
     present_pass.name = "present_pass";
-    present_pass.category = "Swapchain";
+    present_pass.category = "Present";
     present_pass.formats = { { dd->swapchain.format } };
-    
     present_pass.setup = [](RenderGraph::Builder& b) {
         b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.1f, 0.1f, 1.0f } });
         b.read_image("final_image", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
@@ -34,7 +33,7 @@ Error GameRenderPath::create_resources()
     };
     
     editor_ui_pass.name = "editor_ui_pass";
-    editor_ui_pass.category = "Swapchain";
+    editor_ui_pass.category = "Present";
     editor_ui_pass.formats = { { dd->swapchain.format } };
     editor_ui_pass.setup = [](RenderGraph::Builder& b) {
         b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_LOAD);

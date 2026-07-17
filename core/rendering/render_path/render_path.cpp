@@ -19,6 +19,14 @@ void RenderPath::destroy_resources()
 
 void RenderPath::build(RenderGraph& g)
 {
+    // PASS CATEGORIES:
+    // PostProcess.
+    // Cull
+    // DepthOnly (z pass).
+    // Deferred.
+    // Lighting.
+    // Present. (anything that goes to the swapchain)
+
     temp.build(g);
     build_present(g);
 }
