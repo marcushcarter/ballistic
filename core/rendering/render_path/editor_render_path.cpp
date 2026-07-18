@@ -9,7 +9,7 @@ Error EditorRenderPath::create_resources()
     using enum Error;
     if (Error e = RenderPath::create_resources(); e != Ok) return e;
 
-    editor_ui_pass.name = "editor_ui_pass";
+    editor_ui_pass.name = "EditorUI";
     editor_ui_pass.category = "Present";
     editor_ui_pass.formats = { { dd->swapchain.format } };
     editor_ui_pass.setup = [](RenderGraph::Builder& b) {

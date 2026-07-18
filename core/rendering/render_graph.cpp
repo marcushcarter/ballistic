@@ -1,5 +1,6 @@
 #include <core/rendering/render_graph.h>
 #include <core/log/error_macros.h>
+#include <unordered_set>
 
 namespace ballistic {
 
@@ -223,13 +224,16 @@ void RenderGraph::_image_release_transients()
 {
     if (image_transient_pools.empty()) return;
     ImageTransientPool& pool = image_transient_pools[current_frame];
+    std::unordered_set<VkImage> returned;
     for (ImageResource& r : image_resources) {
         if (r.kind != ResourceKind::Transient) continue;
         if (!r.image) continue;
 
-        uint64_t key = _image_transient_key(r.image_create_info, r.transient_storage.extent);
-        pool.free[key].push_back(r.transient_storage);
-
+        VkImage vk = r.transient_storage.image;
+        if (vk != VK_NULL_HANDLE && returned.insert(vk).second) {
+            uint64_t key = _image_transient_key(r.image_create_info, r.transient_storage.extent);
+            pool.free[key].push_back(r.transient_storage);
+        }
         r.image = nullptr;
         r.transient_storage = {};
     }
@@ -422,6 +426,20 @@ void RenderGraph::Builder::color_attachment(std::string_view p_name, VkAttachmen
     a.is_attachment = true;
     a.load_op = p_load;
     a.clear = p_clear;
+    graph->nodes[node_index].image_accesses.push_back(a);
+}
+
+void RenderGraph::Builder::depth_attachment_read(std::string_view p_name, VkAttachmentLoadOp p_load)
+{
+    ImageAccess a;
+    a.name_id = graph->intern_named(p_name);
+    a.layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+    a.stage = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+    a.access = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    a.is_write = false;
+    a.is_attachment = true;
+    a.is_depth = true;
+    a.load_op = p_load;
     graph->nodes[node_index].image_accesses.push_back(a);
 }
 
@@ -639,7 +657,9 @@ Error RenderGraph::compile()
         if (r.read && !r.written && r.kind != ResourceKind::Imported) log_write("RenderGraph: '%s' read before write.", debug_names[r.name_id].c_str());
     }
 
-    for (Node& node : nodes) node.culled = true;
+    // for (Node& node : nodes) node.culled = true;
+    for (Node& node : nodes) node.culled = false;
+
     std::vector<uint32_t> worklist;
     for (uint32_t n = 0; n < nodes.size(); ++n) {
         for (ImageAccess& a : nodes[n].image_accesses) {
@@ -690,18 +710,63 @@ Error RenderGraph::compile()
         }
     }
 
+    for (ImageResource& r : image_resources) {
+        if (r.kind == ResourceKind::Transient) { r.first_use = -1; r.last_use = -1; }
+    }
+    for (int n = 0; n < (int)nodes.size(); ++n) {
+        if (nodes[n].culled) continue;
+        for (ImageAccess& a : nodes[n].image_accesses) {
+            if (a.resource_index < 0) continue;
+            ImageResource& r = image_resources[a.resource_index];
+            if (r.kind != ResourceKind::Transient) continue;
+            if (r.first_use < 0) r.first_use = n;
+            r.last_use = n;
+        }
+    }
+
+    std::unordered_map<uint64_t, std::vector<drivers::DeviceDriverVulkan::Image>> local_free;
+
     for (Node& node : nodes) {
         if (node.culled) continue;
         node.attachment_access_idx.clear();
+        const int node_idx = (int)(&node - nodes.data());
 
         for (int i = 0; i < (int)node.image_accesses.size(); ++i) {
             ImageAccess& a = node.image_accesses[i];
             if (a.resource_index < 0) continue;
             ImageResource& r = image_resources[a.resource_index];
-            if (r.kind == ResourceKind::Transient && !r.image) _image_materialize_transient(r);
+
+            if (r.kind == ResourceKind::Transient && !r.image) {
+                uint32_t w, h; _image_resolve_extent(r.image_create_info, w, h);
+                uint64_t key = _image_transient_key(r.image_create_info, VkExtent2D{ w, h });
+                auto it = local_free.find(key);
+                if (it != local_free.end() && !it->second.empty()) {
+                    r.transient_storage = it->second.back();
+                    it->second.pop_back();
+                    r.image = &r.transient_storage;
+                } else {
+                    _image_materialize_transient(r);
+                }
+            }
             auto& img = *r.image;
 
             if (a.is_attachment) {
+                const bool reused = img.state.layout != VK_IMAGE_LAYOUT_UNDEFINED || img.state.access != 0;
+                if (reused) {
+                    ImageBarrier b{};
+                    b.image = img.image;
+                    b.aspect = img.aspect;
+                    b.old_layout = img.state.layout;
+                    b.new_layout = a.layout;
+                    b.src_stage = img.state.stage;
+                    b.dst_stage = a.stage;
+                    b.src_access = img.state.access;
+                    b.dst_access = a.access;
+                    node.pre_image_barriers.push_back(b);
+                    img.state.layout = a.layout;
+                    img.state.stage = a.stage;
+                    img.state.access = a.access;
+                }
                 node.attachment_access_idx.push_back(i);
                 if (node.area.width == 0) node.area = { img.extent.width, img.extent.height };
                 continue;
@@ -781,9 +846,22 @@ Error RenderGraph::compile()
                 ImageAccess& a = node.image_accesses[ai];
                 auto& img = *image_resources[a.resource_index].image;
                 img.state.layout = a.layout;
-                img.state.stage  = a.stage;
+                img.state.stage = a.stage;
                 img.state.access = a.access;
             }
+        }
+
+        std::unordered_set<int> released;
+        for (ImageAccess& a : node.image_accesses) {
+            if (a.resource_index < 0) continue;
+            ImageResource& r = image_resources[a.resource_index];
+            if (r.kind != ResourceKind::Transient || !r.image) continue;
+            if (r.last_use != node_idx) continue;
+            if (!released.insert(a.resource_index).second) continue;
+            uint32_t w, h;
+            _image_resolve_extent(r.image_create_info, w, h);
+            uint64_t key = _image_transient_key(r.image_create_info, VkExtent2D{ w, h });
+            local_free[key].push_back(r.transient_storage);
         }
     }
 

@@ -1,7 +1,7 @@
 #include <core/dev_tools/dev_tools_ui.h>
-#include <imgui.h>
 #include <cstdarg>
 #include <cstdio>
+#include <cstdint>
 
 namespace ballistic::ui {
 
@@ -48,6 +48,18 @@ void property_row_value_aligned(const char* p_name, const char* p_fmt, ...)
     ImGui::SameLine();
     ImGui::SetCursorPosX(right_edge - value_width);
     ImGui::TextUnformatted(buffer);
+}
+
+ImU32 rg_category_u32(const char* cat, float alpha)
+{
+    ImVec4 c(0.70f, 0.70f, 0.70f, alpha);
+    if (cat && cat[0]) {
+        uint64_t h = 1469598103934665603ull;
+        for (const char* p = cat; *p; ++p) { h ^= (uint8_t)*p; h *= 1099511628211ull; }
+        c = (ImVec4)ImColor::HSV((float)(h % 360) / 360.0f, 0.55f, 0.95f);
+        c.w = alpha;
+    }
+    return ImGui::GetColorU32(c);
 }
 
 }

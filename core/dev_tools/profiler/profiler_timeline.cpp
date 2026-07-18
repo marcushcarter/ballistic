@@ -10,18 +10,6 @@
 
 namespace ballistic {
 
-static ImU32 rg_category_u32(const char* cat, float alpha = 1.0f)
-{
-    ImVec4 c(0.70f, 0.70f, 0.70f, alpha);
-    if (cat && cat[0]) {
-        uint64_t h = 1469598103934665603ull;
-        for (const char* p = cat; *p; ++p) { h ^= (uint8_t)*p; h *= 1099511628211ull; }
-        c = (ImVec4)ImColor::HSV((float)(h % 360) / 360.0f, 0.55f, 0.95f);
-        c.w = alpha;
-    }
-    return ImGui::GetColorU32(c);
-}
-
 void ProfilerTimeline::draw(DevContext& ctx)
 {
     RenderGraphProfiler& prof = ctx.renderer->graph.profiler;
@@ -270,7 +258,7 @@ void ProfilerTimeline::draw(DevContext& ctx)
 
             auto flush = [&]() {
                 if (!run_cat) return;
-                ImVec2 x = bar(x_ms, run_ms, y_sec0, y_sec1, rg_category_u32(run_cat));
+                ImVec2 x = bar(x_ms, run_ms, y_sec0, y_sec1, ui::rg_category_u32(run_cat));
                 label_in(ImVec2(x.x, y_sec0), ImVec2(x.y, y_sec1), run_cat[0] ? run_cat : "(uncat)", IM_COL32_WHITE);
                 x_ms += run_ms;
                 run_ms = 0.0f;
@@ -295,7 +283,7 @@ void ProfilerTimeline::draw(DevContext& ctx)
             if (t.kind != RenderGraphProfiler::MarkKind::Pass) continue;
 
             bool bar_hovered = false;
-            ImVec2 x = bar(start[i], (float)t.gpu_ms, y_pass0, y_pass1, rg_category_u32(t.category), &bar_hovered);
+            ImVec2 x = bar(start[i], (float)t.gpu_ms, y_pass0, y_pass1, ui::rg_category_u32(t.category), &bar_hovered);
             if (bar_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                 bar_click_consumed = true;
                 if (sel_pass_key == t.key) {
@@ -340,7 +328,7 @@ void ProfilerTimeline::draw(DevContext& ctx)
             const float len_ms = std::min((float)t.gpu_ms, parent_end - a_ms);
 
             bool bar_hovered = false;
-            ImVec2 x = bar(a_ms, len_ms, y_draw0, y_draw1, rg_category_u32(src[p].category, 0.45f), &bar_hovered);
+            ImVec2 x = bar(a_ms, len_ms, y_draw0, y_draw1, ui::rg_category_u32(src[p].category, 0.45f), &bar_hovered);
             if (bar_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                 bar_click_consumed = true;
                 if (sel_draw_key == t.key) {

@@ -244,6 +244,7 @@ struct RenderGraph
         void read_all_images(VkPipelineStageFlags2 p_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT);
         void write_image(std::string_view p_name, VkImageLayout p_layout, VkPipelineStageFlags2 p_stage, VkAccessFlags2 p_access);
         void color_attachment(std::string_view p_name, VkAttachmentLoadOp p_load, VkClearValue p_clear = {});
+        void depth_attachment_read(std::string_view p_name, VkAttachmentLoadOp p_load);
         void depth_attachment(std::string_view p_name, VkAttachmentLoadOp p_load, VkClearValue p_clear = {});
 
         void create_buffer(std::string_view p_name, const drivers::DeviceDriverVulkan::BufferCreateInfo& p_create_info);

@@ -46,3 +46,31 @@ Roaming Root
 ├── recent_dirs.cfg
 └── ...
 ```
+
+# PIPELINE
+
+frustum cull
+main z pass
+hi z build
+occlusion + frustum cull
+
+geometry pass (dt = equal)
+
+hbao + ao attachment + bilateral blur
+clustered light culling
+
+deferred lighting
+
+screen space sss (combine with hdr)
+sky + atmosphere (where depth  = far)
+hair pass
+raymarching pass (lava lamp etc)
+transparent sort pass (back to front)
+transparent pass
+
+ssr
+volumetric fog
+
+post processing
+
+ui pass
