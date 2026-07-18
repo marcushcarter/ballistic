@@ -74,3 +74,16 @@ volumetric fog
 post processing
 
 ui pass
+
+# FEATURES
+
+Visibility:
+frustum cull -> main depth pass -> hi-z pyramid -> frustum + occlusion cull
+
+Geometry:
+gbuffer
+
+AO:
+Hbao -> bilateral blur
+
+LightCulling:

@@ -171,14 +171,14 @@ void RenderGraphProfiler::_resolve()
             acc.dur += smoothing * (dur - acc.dur);
         }
 
-        if (m.kind == MarkKind::Pass) sum += acc.gap + acc.dur;
-        else draws++;
+        if (m.kind == MarkKind::Pass || m.kind == MarkKind::Barrier) sum += acc.gap + acc.dur;
+        if (m.kind == MarkKind::Draw) draws++;
 
         Timing t;
         t.key = m.key;
         t.name = (m.name_id != 0) ? name_of(m.name_id) : "";
         t.type = (m.type_id != 0) ? name_of(m.type_id) : "";
-        t.category = (m.kind == MarkKind::Pass) ? name_of(m.cat_id) : "";
+        t.category = (m.kind == MarkKind::Pass || m.kind == MarkKind::Barrier) ? name_of(m.cat_id) : "";
         t.gap_ms = acc.gap;
         t.gpu_ms = acc.dur;
         t.raw_gap_ms = gap;
@@ -190,18 +190,18 @@ void RenderGraphProfiler::_resolve()
 
         if (m.kind == MarkKind::Draw && have_stats && m.stat_query != INVALID) {
             const uint64_t* st = &stat_scratch[static_cast<size_t>(m.stat_query) * STAT_COUNT];
-            t.vertices   = st[0];
+            t.vertices = st[0];
             t.primitives = st[1];
-            t.samples    = (m.occl_query != INVALID) ? occl_scratch[m.occl_query] : 0;
+            t.samples = (m.occl_query != INVALID) ? occl_scratch[m.occl_query] : 0;
         }
         t.instances = m.instances;
 
         if (m.kind == MarkKind::Draw && m.parent < results.size()) {
             Timing& p = results[m.parent];
-            p.vertices   += t.vertices;
+            p.vertices += t.vertices;
             p.primitives += t.primitives;
-            p.samples    += t.samples;
-            p.instances  += t.instances;
+            p.samples += t.samples;
+            p.instances += t.instances;
         }
 
         results.push_back(t);
@@ -235,6 +235,7 @@ void RenderGraphProfiler::frame_begin(VkCommandBuffer p_cmd, uint32_t p_slot)
     s.occl_count = 0;
     s.open_pass = INVALID;
     s.open_draw = INVALID;
+    s.open_barrier = INVALID;
     s.pass_ordinal = 0;
     s.recorded = false;
     s.overflowed = false;
@@ -303,6 +304,43 @@ void RenderGraphProfiler::pass_end(VkCommandBuffer p_cmd, uint32_t p_draw_count)
     }
     s.open_pass = INVALID;
     s.open_draw = INVALID;
+}
+
+void RenderGraphProfiler::sync_begin(VkCommandBuffer p_cmd, std::string_view p_name, std::string_view p_category)
+{
+    if (!active) return;
+    Slot& s = slots[slot];
+
+    Mark m;
+    m.name_id = intern_named(p_name);
+    m.cat_id = intern_named(p_category);
+    m.key = m.name_id ^ 0xBA4713219876BEEFull;
+    m.lead_query = s.last_boundary;
+    m.parent = INVALID;
+    m.kind = MarkKind::Barrier;
+
+    uint32_t ts;
+    if (_write_boundary(p_cmd, ts)) {
+        m.begin_query = ts;
+        s.last_boundary = ts;
+    }
+
+    s.open_barrier = static_cast<uint32_t>(s.marks.size());
+    s.marks.push_back(m);
+}
+
+void RenderGraphProfiler::sync_end(VkCommandBuffer p_cmd)
+{
+    if (!active || slots[slot].open_barrier == INVALID) return;
+    Slot& s = slots[slot];
+    Mark& m = s.marks[s.open_barrier];
+
+    uint32_t ts;
+    if (_write_boundary(p_cmd, ts)) {
+        m.end_query = ts;
+        s.last_boundary = ts;
+    }
+    s.open_barrier = INVALID;
 }
 
 void RenderGraphProfiler::draw_begin(VkCommandBuffer p_cmd, std::string_view p_name, std::string_view p_type, uint32_t p_instances)

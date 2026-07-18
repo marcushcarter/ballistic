@@ -950,26 +950,23 @@ void RenderGraph::execute(VkCommandBuffer p_cmd)
         Node& node = nodes[n];
         if (node.culled) continue;
 
+        const bool has_barriers = !node.pre_image_barriers.empty() || !node.pre_buffer_barriers.empty();
+        if (has_barriers) profiler.sync_begin(p_cmd, node.pass->name, node.pass->category);
         emit_barriers_images(p_cmd, node.pre_image_barriers);
         emit_buffer_barriers(p_cmd, node.pre_buffer_barriers);
+        if (has_barriers) profiler.sync_end(p_cmd);
 
         profiler.pass_begin(p_cmd, node.pass->name, node.pass->category);
-
         if (node.has_render_pass) dd->command_begin_render_pass(p_cmd, node.render_pass, node.framebuffer, node.area, node.clear_values);
-
         CommandList cl;
         cl.cmd = p_cmd;
         cl.graph = this;
         cl.dd = dd;
         cl.node_index = n;
-
         if (node.pass->execute) node.pass->execute(cl);
-
         if (node.has_render_pass) dd->command_end_render_pass(p_cmd);
-
         profiler.pass_end(p_cmd, cl.draw_count);
     }
-
 
     emit_barriers_images(p_cmd, final_image_barriers);
     emit_buffer_barriers(p_cmd, final_buffer_barriers);

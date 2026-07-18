@@ -10,8 +10,8 @@ struct TempFeature : Feature
     Error create_resources() override {
         using enum Error;
 
-        pass.name = "temp";
-        pass.category = category;
+        pass.name = "Temp";
+        pass.category = "Cull";
         pass.setup = [](RenderGraph::Builder& b) {
             b.color_attachment("final_image", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.2f, 0.8f, 1.0f } });
             

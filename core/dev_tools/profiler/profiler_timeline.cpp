@@ -211,12 +211,15 @@ void ProfilerTimeline::draw(DevContext& ctx)
         const float gap = 3.0f;
         const float sec_h = 18.0f;
         const float pass_h = 22.0f;
+        const float barr_h = 8.0f;
         const float draw_h = 14.0f;
 
         float y_sec0  = origin.y;
         float y_sec1 = y_sec0 + sec_h;
         float y_pass0 = y_sec1 + gap;
         float y_pass1 = y_pass0 + pass_h;
+        float y_barr0 = y_sec1 + gap;
+        float y_barr1 = y_pass0 + barr_h;
         float y_draw0 = y_pass1 + gap;
         float y_draw1 = y_draw0 + draw_h;
 
@@ -265,7 +268,7 @@ void ProfilerTimeline::draw(DevContext& ctx)
             };
 
             for (const RenderGraphProfiler::Timing& t : src) {
-                if (t.kind != RenderGraphProfiler::MarkKind::Pass) continue;
+                if (t.kind != RenderGraphProfiler::MarkKind::Pass && t.kind != RenderGraphProfiler::MarkKind::Barrier) continue;
                 const char* cat = t.category ? t.category : "";
                 const float span = (float)(t.gap_ms + t.gpu_ms);
                 if (run_cat && std::strcmp(run_cat, cat) == 0) { run_ms += span; continue; }
@@ -370,6 +373,24 @@ void ProfilerTimeline::draw(DevContext& ctx)
                 ui::property_row("Instances", "%u", t.instances);
                 ui::property_row("Total Triangles", "%llu", (unsigned long long)src[p].primitives);
 
+                ImGui::EndTooltip();
+            }
+        }
+
+        // Barriers.
+        for (size_t i = 0; i < n; ++i) {
+            const RenderGraphProfiler::Timing& t = src[i];
+            if (t.kind != RenderGraphProfiler::MarkKind::Barrier) continue;
+            if (t.gpu_ms <= 0.0) continue;
+
+            bool bar_hovered = false;
+            bar(start[i], (float)t.gpu_ms, y_barr0, y_barr1, IM_COL32(90, 130, 180, 220), &bar_hovered);
+
+            if (bar_hovered) {
+                ImGui::BeginTooltip();
+                ui::title("Syncronization · before %s", t.name);
+                ui::property_row("Time", "%.0f µs", t.gpu_ms * 1000.0);
+                ui::property_row("Gap", "%.0f µs", t.gap_ms * 1000.0);
                 ImGui::EndTooltip();
             }
         }

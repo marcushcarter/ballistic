@@ -11,8 +11,8 @@ namespace ballistic {
 
 struct RenderGraphProfiler
 {
-    static constexpr uint32_t INVALID   = UINT32_MAX;
-    static constexpr uint32_t CAPACITY  = 8192;
+    static constexpr uint32_t INVALID = UINT32_MAX;
+    static constexpr uint32_t CAPACITY = 8192;
     static constexpr uint32_t RESET_MIN = 64;
 
     /***************/
@@ -43,7 +43,7 @@ struct RenderGraphProfiler
     /**** RESULTS ****/
     /*****************/
 
-    enum class MarkKind : uint8_t { Pass = 0, Draw = 1 };
+    enum class MarkKind : uint8_t { Pass = 0, Draw = 1, Barrier = 2 };
 
     struct Timing {
         uint64_t key = 0;
@@ -104,6 +104,7 @@ struct RenderGraphProfiler
         uint32_t last_boundary = 0;
         uint32_t open_pass = INVALID;
         uint32_t open_draw = INVALID;
+        uint32_t open_barrier = INVALID;
         uint32_t pass_ordinal = 0;
         std::unordered_map<uint64_t, uint32_t> name_occurrence;
         bool recorded = false;
@@ -141,8 +142,11 @@ struct RenderGraphProfiler
 
     void frame_begin(VkCommandBuffer p_cmd, uint32_t p_slot);
     void frame_end();
+    
     void pass_begin(VkCommandBuffer p_cmd, std::string_view p_name, std::string_view p_category);
     void pass_end(VkCommandBuffer p_cmd, uint32_t p_draw_count);
+    void sync_begin(VkCommandBuffer p_cmd, std::string_view p_name, std::string_view p_category);
+    void sync_end(VkCommandBuffer p_cmd);
     void draw_begin(VkCommandBuffer p_cmd, std::string_view p_name, std::string_view p_type, uint32_t p_instances = 1);
     void draw_end(VkCommandBuffer p_cmd);
 };
