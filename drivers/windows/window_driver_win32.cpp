@@ -107,6 +107,17 @@ Error WindowDriverWin32::window_set_icon(Window& r_window, HICON p_icon)
     return Ok;
 }
 
+Error WindowDriverWin32::window_set_title(Window& r_window, std::string_view p_title)
+{
+    using enum Error;
+    if (!r_window.hwnd) return Failed;
+    int wide_len = MultiByteToWideChar(CP_UTF8, 0, p_title.data(), (int)p_title.size(), nullptr, 0);
+    if (wide_len <= 0) return Failed;
+    std::wstring wide(wide_len, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, p_title.data(), (int)p_title.size(), wide.data(), wide_len);
+    return SetWindowTextW(r_window.hwnd, wide.c_str()) ? Ok : Failed;
+}
+
 Error WindowDriverWin32::window_set_titlebar_color(Window& r_window, COLORREF p_color)
 {
     using enum Error;

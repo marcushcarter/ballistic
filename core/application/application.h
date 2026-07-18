@@ -5,6 +5,7 @@
 #include <drivers/imgui/imgui_driver.h>
 #include <core/dev_tools/dev_tools.h>
 #include <core/rendering/renderer.h>
+#include <core/project/project.h>
 #include <core/log/error.h>
 #include <string>
 
@@ -29,13 +30,19 @@ struct Application
     drivers::DeviceDriverVulkan dd;
     Renderer renderer;
     RenderPath* render_path = nullptr;
+    RenderPath* pending_render_path = nullptr;
 
     drivers::ImGuiDriver imgui;
     DevTools dev_tools;
 
+    Project project;
+
     Error create(const ApplicationCreateInfo& p_create_info);
     void destroy();
     int run();
+    
+    void render_path_request(RenderPath* p_next);
+    void _apply_pending_render_path();
 
     virtual Error on_init() = 0;
     virtual void on_update(float p_dt) = 0;

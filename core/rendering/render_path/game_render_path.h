@@ -1,13 +1,13 @@
 #pragma once
-#include <core/rendering/render_path/render_path.h>
+#include <core/rendering/render_path/scene_render_path.h>
 #include <drivers/vulkan/device_driver_vulkan.h>
 
 namespace ballistic {
 
-struct GameRenderPath : RenderPath
+struct GameRenderPath : SceneRenderPath
 {
     RenderGraph::Pass present_pass;
-    RenderGraph::Pass editor_ui_pass;
+    RenderGraph::Pass ui_pass;
 
     drivers::DeviceDriverVulkan::Pipeline gamma_blit_pipeline;
     

@@ -35,6 +35,7 @@ struct WindowDriverWin32
     void window_request_close(Window& r_window);
 
     Error window_set_icon(Window& r_window, HICON p_icon);
+    Error window_set_title(Window& r_window, std::string_view p_title);
     Error window_set_titlebar_color(Window& r_window, COLORREF p_color);
 
     static bool system_accent_color(float& r_r, float& r_g, float& r_b);

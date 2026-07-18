@@ -1,4 +1,5 @@
 #pragma once
+#include <core/log/error.h>
 #include <filesystem>
 #include <string_view>
 
@@ -15,6 +16,9 @@ struct Paths
 
     static std::filesystem::path screenshots();
 
+    static std::filesystem::path executable_dir();
+
+    static Error set_hidden(const std::filesystem::path& p_path, bool p_hidden = true);
     static void reveal_in_explorer(const std::filesystem::path& p_path);
 };
     

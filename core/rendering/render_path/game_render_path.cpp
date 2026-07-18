@@ -8,7 +8,7 @@ namespace ballistic {
 Error GameRenderPath::create_resources()
 {
     using enum Error;
-    if (Error e = RenderPath::create_resources(); e != Ok) return e;
+    if (Error e = SceneRenderPath::create_resources(); e != Ok) return e;
 
     present_pass.name = "GammaBlit";
     present_pass.category = "Present";
@@ -32,14 +32,14 @@ Error GameRenderPath::create_resources()
         cl.draw("gamma_blit", 3);
     };
     
-    editor_ui_pass.name = "EditorUI";
-    editor_ui_pass.category = "Present";
-    editor_ui_pass.formats = { { dd->swapchain.format } };
-    editor_ui_pass.setup = [](RenderGraph::Builder& b) {
+    ui_pass.name = "EditorUI";
+    ui_pass.category = "Present";
+    ui_pass.formats = { { dd->swapchain.format } };
+    ui_pass.setup = [](RenderGraph::Builder& b) {
         b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_LOAD);
         b.read_all_images();
     };
-    editor_ui_pass.execute = [this](RenderGraph::CommandList& cl) {
+    ui_pass.execute = [this](RenderGraph::CommandList& cl) {
         imgui->record_commands(cl.cmd);
     };
 
@@ -66,9 +66,9 @@ Error GameRenderPath::create_resources()
 void GameRenderPath::destroy_resources()
 {
     dd->pipeline_free(gamma_blit_pipeline);
-    RenderPath::destroy_resources();
+    SceneRenderPath::destroy_resources();
 }
 
-void GameRenderPath::build_present(RenderGraph& g) { g.add(&present_pass); g.add(&editor_ui_pass); }
+void GameRenderPath::build_present(RenderGraph& g) { g.add(&present_pass); g.add(&ui_pass); }
 
 }

@@ -60,10 +60,6 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
     dev_tools.create(ctx);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
-#if BALLISTIC_DEV_TOOLS
-    log_write("DEV TOOLS ENABLED");
-#endif
-
     return Ok;
 }
 
@@ -102,6 +98,8 @@ int Application::run()
         double delta = std::chrono::duration<double>(now - lastTime).count();
         lastTime = now;
 
+        _apply_pending_render_path();
+
         drivers::WindowDriverWin32::poll_events();
 
         cd.surface_set_size(window.width, window.height);
@@ -127,6 +125,36 @@ int Application::run()
     on_shutdown();
     destroy();
     return 0;
+}
+
+void Application::render_path_request(RenderPath* p_next)
+{
+    if (pending_render_path) delete pending_render_path;
+    pending_render_path = p_next;
+}
+
+void Application::_apply_pending_render_path()
+{
+    using enum Error;
+    if (!pending_render_path) return;
+
+    dd.device_wait_idle();
+    
+    renderer.resize_epoch++;
+
+    if (render_path) {
+        render_path->destroy_resources();
+        delete render_path;
+    }
+
+    render_path = pending_render_path;
+    pending_render_path = nullptr;
+
+    render_path->dd = &dd;
+    render_path->imgui = &imgui;
+    render_path->graph = &renderer.graph;
+    if (render_path->create_resources() != Ok)
+        log_write("Application: render path create_resources failed.");
 }
 
 }

@@ -1,11 +1,18 @@
-#include <core/rendering/render_path/render_path.h>
+#include <core/rendering/render_path/scene_render_path.h>
 #include <core/log/log.h>
 
 namespace ballistic {
 
-Error RenderPath::create_resources()
+Error SceneRenderPath::create_resources()
 {
     using enum Error;
+
+    // Feature* features[] = { &temp, &visibility, &geometry, &ao, &deferred_lighting, &subsurface_scattering };
+    // for (Feature* f : features) {
+    //     f->dd = dd;                                  // was never wired — null today
+    //     f->graph = graph;
+    //     if (Error e = f->create_resources(); e != Ok) return e;   // was discarded
+    // }
     
     temp.create_resources();
     // post_process.create_resources();
@@ -19,7 +26,7 @@ Error RenderPath::create_resources()
     return Ok;
 }
 
-void RenderPath::destroy_resources()
+void SceneRenderPath::destroy_resources()
 {
     temp.destroy_resources();
     // post_process.destroy_resources();
@@ -31,7 +38,7 @@ void RenderPath::destroy_resources()
     subsurface_scattering.destroy_resources();
 }
 
-void RenderPath::build(RenderGraph& g)
+void SceneRenderPath::build(RenderGraph& g)
 {
     // PASS CATEGORIES:
     // PostProcess.

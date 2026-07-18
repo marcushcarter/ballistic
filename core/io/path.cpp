@@ -32,6 +32,24 @@ std::filesystem::path Paths::pipeline_cache() { return local_data(L"pipeline_cac
 
 std::filesystem::path Paths::screenshots() { return roaming_data(L"screenshots"); }
 
+std::filesystem::path Paths::executable_dir()
+{
+    wchar_t buf[MAX_PATH]{};
+    DWORD n = GetModuleFileNameW(nullptr, buf, MAX_PATH);
+    if (n == 0 || n == MAX_PATH) return {};
+    return std::filesystem::path(buf).parent_path();
+}
+
+Error Paths::set_hidden(const std::filesystem::path& p_path, bool p_hidden)
+{
+    using enum Error;
+    DWORD attrs = GetFileAttributesW(p_path.c_str());
+    if (attrs == INVALID_FILE_ATTRIBUTES) return Failed;
+    DWORD next = p_hidden ? (attrs | FILE_ATTRIBUTE_HIDDEN) : (attrs & ~FILE_ATTRIBUTE_HIDDEN);
+    if (next == attrs) return Ok;
+    return SetFileAttributesW(p_path.c_str(), next) ? Ok : Failed;
+}
+
 void Paths::reveal_in_explorer(const std::filesystem::path& p_path)
 {
     std::filesystem::path native = p_path;
@@ -39,5 +57,5 @@ void Paths::reveal_in_explorer(const std::filesystem::path& p_path)
     std::wstring arg = L"/select,\"" + native.wstring() + L"\"";
     ShellExecuteW(nullptr, nullptr, L"explorer.exe", arg.c_str(), nullptr, SW_SHOWNORMAL);
 }
-    
+
 };

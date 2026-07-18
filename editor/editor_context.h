@@ -6,6 +6,7 @@ struct Renderer;
 struct EditorRenderPath;
 struct EditorSettings;
 struct DevTools;
+struct Project;
 namespace drivers { struct ImGuiDriver; }
 
 struct EditorContext
@@ -15,6 +16,7 @@ struct EditorContext
     DevTools* dev = nullptr;
     EditorRenderPath* render_path = nullptr;
     EditorSettings* settings = nullptr;
+    Project* project = nullptr;
 };
 
 }

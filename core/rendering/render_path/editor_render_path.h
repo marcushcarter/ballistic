@@ -1,12 +1,12 @@
 #pragma once
-#include <core/rendering/render_path/render_path.h>
+#include <core/rendering/render_path/scene_render_path.h>
 #include <core/rendering/render_path/features/screenshot_feature.h>
 
 namespace ballistic {
 
-struct EditorRenderPath : RenderPath
+struct EditorRenderPath : SceneRenderPath
 {
-    RenderGraph::Pass editor_ui_pass;
+    RenderGraph::Pass ui_pass;
     ScreenshotFeature screenshot;
     
     Error create_resources() override;

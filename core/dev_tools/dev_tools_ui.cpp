@@ -9,8 +9,7 @@ void title(const char* p_fmt, ...)
 {
     va_list args;
     va_start(args, p_fmt);
-    ImGui::TextColoredV(ImVec4(0.3f, 0.7f, 1.0f, 1.0f), p_fmt, args);
-    // ImGui::TextV(p_fmt, args);
+    ImGui::TextColoredV(ImGui::GetStyleColorVec4(ImGuiCol_TextLink), p_fmt, args);
     va_end(args);
 }
     

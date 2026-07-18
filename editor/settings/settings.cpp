@@ -7,15 +7,15 @@ namespace ballistic {
 
 void Settings::draw_contents(EditorContext& ctx)
 {    
-    EditorSettings::Theme& t = ctx.settings->theme;
+    Theme& t = ctx.settings->theme;
     bool changed = false;
 
-    if (ImGui::BeginCombo("Preset", theme_preset_name(t.preset))) {
-        for (int i = 0; i < (int)std::size(THEME_PRESETS); ++i) {
-            if (ImGui::Selectable(THEME_PRESETS[i].name, t.preset == i)) {
+    if (ImGui::BeginCombo("Preset", Theme::theme_preset_name(t.preset))) {
+        for (int i = 0; i < (int)std::size(Theme::THEME_PRESETS); ++i) {
+            if (ImGui::Selectable(Theme::THEME_PRESETS[i].name, t.preset == i)) {
                 t.preset  = i;
-                t.base    = THEME_PRESETS[i].base;
-                t.accent  = THEME_PRESETS[i].accent;
+                t.base = Theme::THEME_PRESETS[i].base;
+                t.accent  = Theme::THEME_PRESETS[i].accent;
                 changed = true;
             }
         }
@@ -29,7 +29,7 @@ void Settings::draw_contents(EditorContext& ctx)
     ImGui::EndDisabled();
     if (ImGui::Checkbox("Use system accent", &t.use_system_accent)) changed = true;
     if (ImGui::Button("Reset to defaults")) {
-        t = EditorSettings::Theme{};
+        t = Theme{};
         changed = true;
     }
 

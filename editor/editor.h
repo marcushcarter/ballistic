@@ -1,6 +1,5 @@
 #pragma once
 #include <editor/editor_context.h>
-#include <editor/editor_settings.h>
 #include <editor/panel.h>
 #include <core/log/error.h>
 #include <memory>
@@ -11,9 +10,10 @@ namespace ballistic {
 struct Editor
 {
     EditorContext context;
+    
     std::vector<std::unique_ptr<Panel>> panels;
     
-    EditorSettings settings;
+    bool close_project_requested = false;
 
     Error create(const EditorContext& p_context);
     void destroy();
@@ -24,8 +24,8 @@ struct Editor
     void draw_panels();
     void draw_menu();
 
-    void load_settings();
-    void save_settings();
+    void apply_settings();
+    void store_settings();
 };
 
 }

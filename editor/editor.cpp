@@ -5,30 +5,32 @@
 #include <editor/debugger/debugger.h>
 #include <editor/settings/settings.h>
 #include <core/rendering/render_path/editor_render_path.h>
-#include <core/io/path.h>
 #include <core/log/log.h>
+#include <editor/editor_settings.h>
 #include <imgui.h>
-#include <fstream>
-#include <string>
 
 namespace ballistic {
 
 Error Editor::create(const EditorContext& p_context)
 {
+    using enum Error;
+
     context = p_context;
-    context.settings = &settings;
+    if (!context.settings) return Failed;
 
     panels.push_back(std::make_unique<Viewport>());
     panels.push_back(std::make_unique<Debugger>());
     panels.push_back(std::make_unique<Settings>());
 
-    load_settings();
-    return Error::Ok;
+    apply_settings();
+    return Ok;
 }
 
 void Editor::destroy()
 {
-    save_settings();
+    store_settings();
+    panels.clear();
+    close_project_requested = false;
 }
 
 void Editor::on_update(float p_dt)
@@ -38,7 +40,7 @@ void Editor::on_update(float p_dt)
     begin_dockspace();
     draw_panels();
     context.dev->draw_panels(true);
-    
+
     if (ImGui::BeginMainMenuBar()) {
         draw_menu();
         context.dev->draw_menu(true);
@@ -52,7 +54,7 @@ void Editor::begin_dockspace()
     ImGui::SetNextWindowPos(imguiViewport->WorkPos);
     ImGui::SetNextWindowSize(imguiViewport->WorkSize);
     ImGui::SetNextWindowViewport(imguiViewport->ID);
-    
+
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -79,7 +81,7 @@ void Editor::draw_panels() { for (auto& p : panels) p->draw(context); }
 void Editor::draw_menu()
 {
     if (panels.empty()) return;
-    
+
     if (ImGui::BeginMenu("Editor")) {
         for (auto& p : panels) ImGui::MenuItem(p->name(), nullptr, &p->open);
         ImGui::Separator();
@@ -87,57 +89,37 @@ void Editor::draw_menu()
         if (ImGui::MenuItem("Take Screenshot") && context.render_path) {
             context.render_path->screenshot.requested = true;
         }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Close Project")) close_project_requested = true;
         ImGui::EndMenu();
     }
 }
 
-void Editor::load_settings()
+void Editor::apply_settings()
 {
-    std::ifstream f(Paths::roaming_data() / "editor_settings.cfg");
-    if (!f) return;
+    const EditorSettings& s = *context.settings;
 
-    std::string line;
-    while (std::getline(f, line)) {
-        size_t sp = line.rfind(' ');
-        if (sp == std::string::npos) continue;
-        std::string key = line.substr(0, sp);
-        std::string value = line.substr(sp + 1);
+    context.renderer->graph.profiler.enabled = s.profiler_enabled;
 
-        if (key == "interface.theme.preset") { settings.theme.preset = theme_preset_index(value); continue; }
-        if (key == "interface.theme.base") { color_from_hex(value, settings.theme.base); continue; }
-        if (key == "interface.theme.accent") { color_from_hex(value, settings.theme.accent); continue; }
-        if (key == "interface.theme.use_system_accent") { settings.theme.use_system_accent = std::atoi(value.c_str()) != 0; continue; }
-
-        if (key == "Editor.dev_tools.profiler_enabled")  { context.renderer->graph.profiler.enabled = std::atoi(value.c_str()) != 0; continue; }
-
-        for (auto& p : panels) {
-            std::string prefix = std::string(p->name()) + ".open";
-            if (key == prefix) { p->open = std::atoi(value.c_str()) != 0; break; }
+    auto restore = [&](auto& panel_list) {
+        for (auto& p : panel_list) {
+            auto it = s.panel_open.find(p->name());
+            if (it != s.panel_open.end()) p->open = it->second;
         }
+    };
 
-        for (auto& p : context.dev->panels) {
-            std::string prefix = std::string(p->name()) + ".open";
-            if (key == prefix) { p->open = std::atoi(value.c_str()) != 0; break; }
-        }
-    }
-
-    settings.theme.apply();
+    restore(panels);
+    restore(context.dev->panels);
 }
 
-void Editor::save_settings()
+void Editor::store_settings()
 {
-    std::ofstream f(Paths::roaming_data() / "editor_settings.cfg");
-    if (!f) return;
+    EditorSettings& s = *context.settings;
 
-    f << "interface.theme.preset " << theme_preset_name(settings.theme.preset) << '\n';
-    f << "interface.theme.base " << color_to_hex(settings.theme.base) << '\n';
-    f << "interface.theme.accent " << color_to_hex(settings.theme.accent) << '\n';
-    f << "interface.theme.use_system_accent " << (settings.theme.use_system_accent ? 1 : 0) << '\n';
-    
-    f << "Editor.dev_tools.profiler_enabled " << (context.renderer->graph.profiler.enabled ? 1 : 0) << '\n';
+    s.profiler_enabled = context.renderer->graph.profiler.enabled;
 
-    for (auto& p : panels) f << p->name() << ".open " << (p->open ? 1 : 0) << '\n';
-    for (auto& p : context.dev->panels) f << p->name() << ".open " << (p->open ? 1 : 0) << '\n';
+    for (auto& p : panels) s.panel_open[p->name()] = p->open;
+    for (auto& p : context.dev->panels) s.panel_open[p->name()] = p->open;
 }
 
 }
