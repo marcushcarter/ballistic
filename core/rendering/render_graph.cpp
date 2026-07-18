@@ -657,11 +657,15 @@ Error RenderGraph::compile()
         if (r.read && !r.written && r.kind != ResourceKind::Imported) log_write("RenderGraph: '%s' read before write.", debug_names[r.name_id].c_str());
     }
 
-    // for (Node& node : nodes) node.culled = true;
-    for (Node& node : nodes) node.culled = false;
+    for (Node& node : nodes) node.culled = true;
 
     std::vector<uint32_t> worklist;
     for (uint32_t n = 0; n < nodes.size(); ++n) {
+        if (nodes[n].pass->never_cull && nodes[n].culled) {
+            nodes[n].culled = false;
+            worklist.push_back(n);
+        }
+
         for (ImageAccess& a : nodes[n].image_accesses) {
             if (a.is_write && a.resource_index >= 0) {
                 ImageResource& r = image_resources[a.resource_index];

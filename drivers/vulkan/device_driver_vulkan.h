@@ -154,6 +154,8 @@ struct DeviceDriverVulkan
     Error buffer_update(Buffer& r_buffer, const void* p_data, VkDeviceSize p_size, VkDeviceSize p_offset = 0);
     // void buffer_update_staged(VkCommandBuffer p_cmd, Buffer& r_dst, Buffer& r_staging, const void* p_data, VkDeviceSize p_size, VkDeviceSize p_dst_offset = 0, VkDeviceSize p_staging_offset = 0);
 
+    void command_copy_image_to_buffer(VkCommandBuffer p_cmd, const Image& p_image, const Buffer& p_buffer, VkExtent2D p_extent);
+
     // ----- RING -----
 
     struct BufferRing {

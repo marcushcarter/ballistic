@@ -1,5 +1,6 @@
-#include <core/io/image_loader.h>
+#include <core/io/image_io.h>
 #include <stb_image.h>
+#include <stb_image_write.h>
 #include <vector>
 
 namespace ballistic {
@@ -19,8 +20,13 @@ static bool get_resource_bytes(const std::wstring& p_resource_name, const void*&
     p_size = SizeofResource(h_module, h_res_info);
     return p_data != nullptr && p_size > 0;
 }
-    
-ImageData ImageLoader::load_from_resource(const std::wstring& p_resource_name)
+
+static void stbi_write_file_cb(void* p_context, void* p_data, int p_size)
+{
+    std::fwrite(p_data, 1, static_cast<size_t>(p_size), static_cast<FILE*>(p_context));
+}
+
+ImageData ImageIO::load_from_resource(const std::wstring& p_resource_name)
 {
     ImageData image;
     const void* raw_data = nullptr;
@@ -35,7 +41,7 @@ ImageData ImageLoader::load_from_resource(const std::wstring& p_resource_name)
     return image;
 }
 
-ImageData ImageLoader::load_from_file(const std::wstring& p_path)
+ImageData ImageIO::load_from_file(const std::wstring& p_path)
 {
     ImageData image;
     FILE* file = nullptr;
@@ -48,7 +54,7 @@ ImageData ImageLoader::load_from_file(const std::wstring& p_path)
     return image;
 }
 
-ImageData ImageLoader::load_from_icon(HICON p_icon)
+ImageData ImageIO::load_from_icon(HICON p_icon)
 {
     ImageData image;
 
@@ -84,12 +90,26 @@ ImageData ImageLoader::load_from_icon(HICON p_icon)
     return image;
 }
 
-void ImageLoader::free_image(ImageData& p_image)
+void ImageIO::free_image(ImageData& p_image)
 {
     if (p_image.pixels) {
         stbi_image_free(p_image.pixels);
         p_image.pixels = nullptr;
     }
+}
+    
+bool ImageIO::save_png(const std::wstring& p_path, const ImageData& p_image)
+{
+    if (!p_image.pixels || p_image.width <= 0 || p_image.height <= 0 || p_image.channels <= 0) return false;
+
+    FILE* file = nullptr;
+    if (_wfopen_s(&file, p_path.c_str(), L"wb") != 0 || !file) return false;
+
+    const int stride = p_image.width * p_image.channels;
+    int ok = stbi_write_png_to_func(stbi_write_file_cb, file, p_image.width, p_image.height, p_image.channels, p_image.pixels, stride);
+
+    std::fclose(file);
+    return ok != 0;
 }
 
 }

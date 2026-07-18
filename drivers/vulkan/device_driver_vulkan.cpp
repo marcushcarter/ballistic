@@ -88,13 +88,14 @@ void DeviceDriverVulkan::_get_device_properties()
 
     std::string device_type = vk::to_string(vk::PhysicalDeviceType(physical_device_properties.deviceType));
 
-    log_write("Vulkan %u.%u.%u - Driver %u.%u.%u - Using Device: %s (%s)",
+    log_write("Vulkan %u.%u.%u - Driver %u.%u.%u - Using Device #%d: %s (%s)",
         VK_API_VERSION_MAJOR(physical_device_properties.apiVersion),
         VK_API_VERSION_MINOR(physical_device_properties.apiVersion),
         VK_API_VERSION_PATCH(physical_device_properties.apiVersion),
         VK_API_VERSION_MAJOR(physical_device_properties.driverVersion),
         VK_API_VERSION_MINOR(physical_device_properties.driverVersion),
         VK_API_VERSION_PATCH(physical_device_properties.driverVersion),
+        cd->optimal_device_index,
         physical_device_properties.deviceName,
         device_type.c_str());
 }
@@ -756,6 +757,18 @@ Error DeviceDriverVulkan::buffer_update(Buffer& r_buffer, const void* p_data, Vk
     return Ok;
 }
 
+void DeviceDriverVulkan::command_copy_image_to_buffer(VkCommandBuffer p_cmd, const Image& p_image, const Buffer& p_buffer, VkExtent2D p_extent)
+{
+    VkBufferImageCopy region{};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+    region.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+    region.imageOffset = { 0, 0, 0 };
+    region.imageExtent = { p_extent.width, p_extent.height, 1 };
+    vkCmdCopyImageToBuffer(p_cmd, p_image.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, p_buffer.buffer, 1, &region);
+}
+
 DeviceDriverVulkan::BufferRing DeviceDriverVulkan::buffer_ring_create(const BufferCreateInfo& p_create_info, uint32_t p_frame_count)
 {
     using enum Error;
@@ -1266,7 +1279,7 @@ Error DeviceDriverVulkan::swapchain_resize(uint32_t p_desired_framebuffer_count)
     swap_ci.imageColorSpace = swapchain.color_space;
     swap_ci.imageExtent = extent;
     swap_ci.imageArrayLayers = 1;
-    swap_ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swap_ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     swap_ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     swap_ci.preTransform = surface_capabilities.currentTransform;
     swap_ci.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;

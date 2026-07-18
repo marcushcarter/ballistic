@@ -20,9 +20,23 @@ Error EditorRenderPath::create_resources()
         imgui->record_commands(cl.cmd);
     };
 
+    screenshot.dd = dd;
+    screenshot.graph = graph;
+    screenshot.create_resources();
+
     return Ok; 
 }
 
-void EditorRenderPath::build_present(RenderGraph& g) { g.add(&editor_ui_pass); }
+void EditorRenderPath::destroy_resources()
+{
+    screenshot.destroy_resources();
+    RenderPath::destroy_resources();
+}
+
+
+void EditorRenderPath::build_present(RenderGraph& g) {
+    g.add(&editor_ui_pass);
+    screenshot.build(g);
+}
 
 }

@@ -259,6 +259,7 @@ struct RenderGraph
         struct Format { VkFormat format = VK_FORMAT_UNDEFINED; bool is_depth = false; };
         std::vector<Format> formats;
 
+        bool never_cull = false;
         std::function<void(Builder&)> setup;
         std::function<void(CommandList&)> execute;
     };

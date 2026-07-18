@@ -14,6 +14,8 @@ struct Editor
 
     Error create(const EditorContext& p_context);
     void destroy();
+    
+    void on_update(float p_dt);
 
     void begin_dockspace();
     void draw_panels();

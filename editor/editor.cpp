@@ -1,12 +1,14 @@
 #include <editor/editor.h>
+#include <core/dev_tools/dev_tools.h>
+#include <core/rendering/renderer.h>
 #include <editor/viewport/viewport.h>
 #include <editor/debugger/debugger.h>
+#include <core/rendering/render_path/editor_render_path.h>
 #include <core/io/path.h>
 #include <core/log/log.h>
 #include <imgui.h>
 #include <fstream>
 #include <string>
-// #include <iostream>
 
 namespace ballistic {
 
@@ -24,6 +26,21 @@ Error Editor::create(const EditorContext& p_context)
 void Editor::destroy()
 {
     save_settings();
+}
+
+void Editor::on_update(float p_dt)
+{
+    (void)p_dt;
+
+    begin_dockspace();
+    draw_panels();
+    context.dev->draw_panels(true);
+    
+    if (ImGui::BeginMainMenuBar()) {
+        draw_menu();
+        context.dev->draw_menu(true);
+        ImGui::EndMainMenuBar();
+    }
 }
 
 void Editor::begin_dockspace()
@@ -64,6 +81,9 @@ void Editor::draw_menu()
         for (auto& p : panels) ImGui::MenuItem(p->name(), nullptr, &p->open);
         ImGui::Separator();
         if (ImGui::MenuItem("Close All")) for (auto& p : panels) p->open = false;
+        if (ImGui::MenuItem("Take Screenshot") && context.render_path) {
+            context.render_path->screenshot.requested = true;
+        }
         ImGui::EndMenu();
     }
 }
@@ -79,12 +99,15 @@ void Editor::load_settings()
         if (sp == std::string::npos) continue;
         std::string key = line.substr(0, sp);
         std::string value = line.substr(sp + 1);
-
-        // if (key == "Editor.autosave_enabled")  { autosave_enabled = std::atoi(value.c_str()) != 0; continue; }
-        // if (key == "Editor.autosave_interval") { autosave_interval = std::strtof(value.c_str(), nullptr); continue; }
-        // if (key == "Editor.theme") { theme = std::atoi(value.c_str()); continue; }
+        
+        if (key == "Editor.dev_tools.profiler_enabled")  { context.renderer->graph.profiler.enabled = std::atoi(value.c_str()) != 0; continue; }
 
         for (auto& p : panels) {
+            std::string prefix = std::string(p->name()) + ".open";
+            if (key == prefix) { p->open = std::atoi(value.c_str()) != 0; break; }
+        }
+
+        for (auto& p : context.dev->panels) {
             std::string prefix = std::string(p->name()) + ".open";
             if (key == prefix) { p->open = std::atoi(value.c_str()) != 0; break; }
         }
@@ -95,13 +118,11 @@ void Editor::save_settings()
 {
     std::ofstream f(Paths::roaming_data() / "editor_settings.cfg");
     if (!f) return;
+    
+    f << "Editor.dev_tools.profiler_enabled " << (context.renderer->graph.profiler.enabled ? 1 : 0) << '\n';
 
-    // f << "Editor.autosave_enabled " << (autosave_enabled ? 1 : 0) << '\n';
-    // f << "Editor.autosave_interval " << autosave_interval << '\n';
-    // f << "Editor.theme " << theme << '\n';
-
-    for (auto& p : panels)
-        f << p->name() << ".open " << (p->open ? 1 : 0) << '\n';
+    for (auto& p : panels) f << p->name() << ".open " << (p->open ? 1 : 0) << '\n';
+    for (auto& p : context.dev->panels) f << p->name() << ".open " << (p->open ? 1 : 0) << '\n';
 }
 
 }

@@ -12,6 +12,10 @@ struct Paths
 
     static std::filesystem::path shader_cache();
     static std::filesystem::path pipeline_cache();
+
+    static std::filesystem::path screenshots();
+
+    static void reveal_in_explorer(const std::filesystem::path& p_path);
 };
     
 };

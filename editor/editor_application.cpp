@@ -14,6 +14,8 @@ Error EditorApplication::on_init()
     EditorContext ctx{};
     ctx.renderer = &renderer;
     ctx.imgui = &imgui;
+    ctx.dev = &dev_tools;
+    ctx.render_path = static_cast<EditorRenderPath*>(render_path);
 
     err = editor.create(ctx);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
@@ -45,17 +47,7 @@ Error EditorApplication::on_init()
 
 void EditorApplication::on_update(float p_dt)
 {
-    (void)p_dt;
-
-    editor.begin_dockspace();
-    editor.draw_panels();
-    dev_tools.draw_panels(true);
-    
-    if (ImGui::BeginMainMenuBar()) {
-        editor.draw_menu();
-        dev_tools.draw_menu(true);
-        ImGui::EndMainMenuBar();
-    }
+    editor.on_update(p_dt);
 }
 
 void EditorApplication::on_shutdown()
