@@ -1,5 +1,6 @@
 #pragma once
 #include <editor/editor_context.h>
+#include <editor/editor_settings.h>
 #include <editor/panel.h>
 #include <core/log/error.h>
 #include <memory>
@@ -11,6 +12,8 @@ struct Editor
 {
     EditorContext context;
     std::vector<std::unique_ptr<Panel>> panels;
+    
+    EditorSettings settings;
 
     Error create(const EditorContext& p_context);
     void destroy();

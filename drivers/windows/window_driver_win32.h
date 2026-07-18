@@ -37,6 +37,8 @@ struct WindowDriverWin32
     Error window_set_icon(Window& r_window, HICON p_icon);
     Error window_set_titlebar_color(Window& r_window, COLORREF p_color);
 
+    static bool system_accent_color(float& r_r, float& r_g, float& r_b);
+
     static LRESULT CALLBACK wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_wparam, LPARAM p_lparam);
 };
 

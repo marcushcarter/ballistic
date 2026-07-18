@@ -3,10 +3,9 @@
 
 namespace ballistic {
 
-struct Viewport : Panel
+struct Settings : Panel
 {
-    const char* name() const override { return "Viewport"; }
-    int push_style() override;
+    const char* name() const override { return "Editor Settings"; }
     void draw_contents(EditorContext& ctx) override;
 };
 

@@ -116,6 +116,16 @@ Error WindowDriverWin32::window_set_titlebar_color(Window& r_window, COLORREF p_
     return Ok;
 }
 
+bool WindowDriverWin32::system_accent_color(float& r_r, float& r_g, float& r_b)
+{
+    DWORD argb = 0; BOOL opaque = FALSE;
+    if (FAILED(DwmGetColorizationColor(&argb, &opaque))) return false;
+    r_r = ((argb >> 16) & 0xFF) / 255.0f;
+    r_g = ((argb >>  8) & 0xFF) / 255.0f;
+    r_b = ( argb        & 0xFF) / 255.0f;
+    return true;
+}
+
 LRESULT CALLBACK WindowDriverWin32::wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_wparam, LPARAM p_lparam)
 {
     if (ImGui_ImplWin32_WndProcHandler(p_hwnd, p_msg, p_wparam, p_lparam))

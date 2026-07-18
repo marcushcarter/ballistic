@@ -3,6 +3,7 @@
 #include <core/rendering/renderer.h>
 #include <editor/viewport/viewport.h>
 #include <editor/debugger/debugger.h>
+#include <editor/settings/settings.h>
 #include <core/rendering/render_path/editor_render_path.h>
 #include <core/io/path.h>
 #include <core/log/log.h>
@@ -15,9 +16,11 @@ namespace ballistic {
 Error Editor::create(const EditorContext& p_context)
 {
     context = p_context;
+    context.settings = &settings;
 
     panels.push_back(std::make_unique<Viewport>());
     panels.push_back(std::make_unique<Debugger>());
+    panels.push_back(std::make_unique<Settings>());
 
     load_settings();
     return Error::Ok;
@@ -99,7 +102,12 @@ void Editor::load_settings()
         if (sp == std::string::npos) continue;
         std::string key = line.substr(0, sp);
         std::string value = line.substr(sp + 1);
-        
+
+        if (key == "interface.theme.preset") { settings.theme.preset = theme_preset_index(value); continue; }
+        if (key == "interface.theme.base") { color_from_hex(value, settings.theme.base); continue; }
+        if (key == "interface.theme.accent") { color_from_hex(value, settings.theme.accent); continue; }
+        if (key == "interface.theme.use_system_accent") { settings.theme.use_system_accent = std::atoi(value.c_str()) != 0; continue; }
+
         if (key == "Editor.dev_tools.profiler_enabled")  { context.renderer->graph.profiler.enabled = std::atoi(value.c_str()) != 0; continue; }
 
         for (auto& p : panels) {
@@ -112,12 +120,19 @@ void Editor::load_settings()
             if (key == prefix) { p->open = std::atoi(value.c_str()) != 0; break; }
         }
     }
+
+    settings.theme.apply();
 }
 
 void Editor::save_settings()
 {
     std::ofstream f(Paths::roaming_data() / "editor_settings.cfg");
     if (!f) return;
+
+    f << "interface.theme.preset " << theme_preset_name(settings.theme.preset) << '\n';
+    f << "interface.theme.base " << color_to_hex(settings.theme.base) << '\n';
+    f << "interface.theme.accent " << color_to_hex(settings.theme.accent) << '\n';
+    f << "interface.theme.use_system_accent " << (settings.theme.use_system_accent ? 1 : 0) << '\n';
     
     f << "Editor.dev_tools.profiler_enabled " << (context.renderer->graph.profiler.enabled ? 1 : 0) << '\n';
 
