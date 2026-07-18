@@ -62,6 +62,20 @@ struct DeviceDriverVulkan
     /****************/
 
     VmaAllocator allocator = nullptr;
+
+    VmaPool image_transient_pool = nullptr;
+    VmaPool buffer_device_pool = nullptr;
+    VmaPool upload_pool = nullptr;
+
+    uint32_t image_transient_type_index = UINT32_MAX;
+    uint32_t buffer_device_type_index = UINT32_MAX;
+
+    uint32_t _find_memory_type(VkMemoryPropertyFlags p_properties);
+    Error _allocator_pools_create();
+    void _allocator_pools_free();
+
+    Error allocator_create();
+    void allocator_free();
     
 	/****************/
 	/**** IMAGES ****/
@@ -84,7 +98,7 @@ struct DeviceDriverVulkan
         Sizing sizing = Sizing::ViewportRelative;
         float width_scale = 1.0f, height_scale = 1.0f;
         uint32_t fixed_width = 0, fixed_height = 0;
-        
+        VmaPool pool = nullptr;
         const char* name = nullptr;
     };
 
@@ -102,6 +116,8 @@ struct DeviceDriverVulkan
         VkImageAspectFlagBits aspect = VK_IMAGE_ASPECT_COLOR_BIT;
         uint32_t mip_levels = 1, layers = 1;
         VkMemoryRequirements mem_req = {};
+        bool requires_dedicated = false;
+        bool prefers_dedicated = false;
     };
 
     Image _image_create(const ImageCreateInfo& p_create_info, VkExtent2D p_extent);
@@ -128,6 +144,7 @@ struct DeviceDriverVulkan
 
         enum class Memory { DeviceLocal, HostVisible };
         Memory memory = Memory::DeviceLocal;
+        VmaPool pool = nullptr;
         const char* name = nullptr;
     };
 

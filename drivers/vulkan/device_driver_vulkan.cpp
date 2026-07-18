@@ -423,29 +423,6 @@ Error DeviceDriverVulkan::_initialize_device(const std::vector<VkDeviceQueueCrea
     return Ok;
 }
 
-Error DeviceDriverVulkan::_initialize_allocator()
-{
-    using enum Error;
-
-    VmaAllocatorCreateInfo allocator_ci{};
-    allocator_ci.physicalDevice = physical_device;
-    allocator_ci.device = device;
-    allocator_ci.instance = cd->instance_get();
-    const bool use_1_3_features = physical_device_properties.apiVersion >= VK_API_VERSION_1_3;
-    if (use_1_3_features) {
-        allocator_ci.flags |= VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE5_BIT;
-    }
-	if (/*buffer_device_address_support*/ true) {
-		allocator_ci.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-	}
-
-    VkResult err = vmaCreateAllocator(&allocator_ci, &allocator);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed,
-        "Couldn't create Vulkan memory allocator.");
-
-    return Ok;
-}
-
 Error DeviceDriverVulkan::_initialize_pipeline_cache()
 {
     using enum Error;
@@ -484,7 +461,7 @@ Error DeviceDriverVulkan::initialize(ContextDriverVulkan& r_cd, uint32_t p_devic
     err = _initialize_device(queue_create_info);
 	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     
-    err = _initialize_allocator();
+    err = allocator_create();
 	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     
     err = _initialize_pipeline_cache();
@@ -515,10 +492,8 @@ void DeviceDriverVulkan::shutdown()
     sampler_free(default_sampler);
 
     bindless_heap_free();
-
     swapchain_free();
-
-    vmaDestroyAllocator(allocator);
+    allocator_free();
 
     if (device) {
         vkDestroyDevice(device, nullptr);
@@ -532,6 +507,156 @@ Error DeviceDriverVulkan::device_wait_idle()
     VkResult err = vkDeviceWaitIdle(device);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't wait idle for Vulkan device.");
     return Ok;
+}
+
+/****************/
+/**** MEMORY ****/
+/****************/
+
+uint32_t DeviceDriverVulkan::_find_memory_type(VkMemoryPropertyFlags p_properties)
+{
+    VkPhysicalDeviceMemoryProperties memory_properties{};
+    vkGetPhysicalDeviceMemoryProperties(
+        physical_device,
+        &memory_properties
+    );
+
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
+    {
+        VkMemoryPropertyFlags flags =
+            memory_properties.memoryTypes[i].propertyFlags;
+
+        if ((flags & p_properties) == p_properties)
+            return i;
+    }
+
+    return UINT32_MAX;
+}
+
+Error DeviceDriverVulkan::_allocator_pools_create()
+{
+    using enum Error;
+
+    // ---- transient images (VK_IMAGE_TILING_OPTIMAL) ----
+    VkImageCreateInfo image_probe{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+    image_probe.imageType = VK_IMAGE_TYPE_2D;
+    image_probe.format = VK_FORMAT_R8G8B8A8_UNORM;
+    image_probe.extent = { 1920, 1080, 1 };
+    image_probe.mipLevels = 1;
+    image_probe.arrayLayers = 1;
+    image_probe.samples = VK_SAMPLE_COUNT_1_BIT;
+    image_probe.tiling = VK_IMAGE_TILING_OPTIMAL;
+    image_probe.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    image_probe.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    image_probe.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    VmaAllocationCreateInfo image_probe_alloc{};
+    image_probe_alloc.usage = VMA_MEMORY_USAGE_AUTO;
+    image_probe_alloc.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+    VkResult err = vmaFindMemoryTypeIndexForImageInfo(allocator, &image_probe, &image_probe_alloc, &image_transient_type_index);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't resolve memory type for transient image pool.");
+
+    VmaPoolCreateInfo image_pool_ci{};
+    image_pool_ci.memoryTypeIndex = image_transient_type_index;
+    // image_pool_ci.blockSize = 256ull * 1024 * 1024;
+    image_pool_ci.blockSize = 0;
+    err = vmaCreatePool(allocator, &image_pool_ci, &image_transient_pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan transient image pool.");
+    vmaSetPoolName(allocator, image_transient_pool, "image_transient");
+
+    // ---- device-local buffers (linear) ----
+    VkBufferCreateInfo buffer_probe{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+    buffer_probe.size = 1024 * 1024;
+    buffer_probe.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    buffer_probe.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VmaAllocationCreateInfo buffer_probe_alloc{};
+    buffer_probe_alloc.usage = VMA_MEMORY_USAGE_AUTO;
+    buffer_probe_alloc.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+    err = vmaFindMemoryTypeIndexForBufferInfo(allocator, &buffer_probe, &buffer_probe_alloc, &buffer_device_type_index);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't resolve memory type for device buffer pool.");
+
+    VmaPoolCreateInfo buffer_pool_ci{};
+    buffer_pool_ci.memoryTypeIndex = buffer_device_type_index;
+    // buffer_pool_ci.blockSize = 64ull * 1024 * 1024;
+    buffer_pool_ci.blockSize = 0;
+    err = vmaCreatePool(allocator, &buffer_pool_ci, &buffer_device_pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan device buffer pool.");
+    vmaSetPoolName(allocator, buffer_device_pool, "buffer_device");
+
+    // ---- upload ----
+    VkBufferCreateInfo upload_probe = buffer_probe;
+    upload_probe.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+
+    VmaAllocationCreateInfo upload_probe_alloc{};
+    upload_probe_alloc.usage = VMA_MEMORY_USAGE_AUTO;
+    upload_probe_alloc.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+    upload_probe_alloc.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+    uint32_t upload_type_index = UINT32_MAX;
+    err = vmaFindMemoryTypeIndexForBufferInfo(allocator, &upload_probe, &upload_probe_alloc, &upload_type_index);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't resolve memory type for upload pool.");
+
+    VmaPoolCreateInfo upload_pool_ci{};
+    upload_pool_ci.memoryTypeIndex = upload_type_index;
+    // upload_pool_ci.blockSize = 64ull * 1024 * 1024;
+    upload_pool_ci.blockSize = 0;
+    err = vmaCreatePool(allocator, &upload_pool_ci, &upload_pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan upload pool.");
+    vmaSetPoolName(allocator, upload_pool, "upload");
+
+    return Ok;
+}
+
+void DeviceDriverVulkan::_allocator_pools_free()
+{
+    if (image_transient_pool) {
+        vmaDestroyPool(allocator, image_transient_pool);
+        image_transient_pool = nullptr;
+    }
+    if (buffer_device_pool) {
+        vmaDestroyPool(allocator, buffer_device_pool);
+        buffer_device_pool = nullptr;
+    }
+    if (upload_pool) {
+        vmaDestroyPool(allocator, upload_pool);
+        upload_pool = nullptr;
+    }
+    image_transient_type_index = UINT32_MAX;
+    buffer_device_type_index = UINT32_MAX;
+}
+
+Error DeviceDriverVulkan::allocator_create()
+{
+    using enum Error;
+
+    VmaAllocatorCreateInfo allocator_ci{};
+    allocator_ci.physicalDevice = physical_device;
+    allocator_ci.device = device;
+    allocator_ci.instance = cd->instance_get();
+    const bool use_1_3_features = physical_device_properties.apiVersion >= VK_API_VERSION_1_3;
+    if (use_1_3_features) {
+        allocator_ci.flags |= VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE5_BIT;
+    }
+	if (/*buffer_device_address_support*/ true) {
+		allocator_ci.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+	}
+
+    VkResult err = vmaCreateAllocator(&allocator_ci, &allocator);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan memory allocator.");
+
+    return _allocator_pools_create();
+}
+
+void DeviceDriverVulkan::allocator_free()
+{
+    if (allocator) {
+        _allocator_pools_free();
+        vmaDestroyAllocator(allocator);
+        allocator = nullptr;
+    }
 }
 
 /****************/
@@ -565,7 +690,17 @@ DeviceDriverVulkan::Image DeviceDriverVulkan::_image_create(const ImageCreateInf
     VkResult err = vkCreateImage(device, &image_ci, nullptr, &image.image);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan image.");
 
-    vkGetImageMemoryRequirements(device, image.image, &image.mem_req);
+    VkImageMemoryRequirementsInfo2 req_info{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2 };
+    req_info.image = image.image;
+    VkMemoryDedicatedRequirements ded{ VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS };
+    VkMemoryRequirements2 req2{ VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2 };
+    req2.pNext = &ded;
+    vkGetImageMemoryRequirements2(device, &req_info, &req2);
+
+    image.mem_req = req2.memoryRequirements;
+    image.requires_dedicated = ded.requiresDedicatedAllocation == VK_TRUE;
+    image.prefers_dedicated = ded.prefersDedicatedAllocation == VK_TRUE;
+
     set_object_name(VK_OBJECT_TYPE_IMAGE, (uint64_t)image.image, p_create_info.name);
     return image;
 }
@@ -611,10 +746,21 @@ DeviceDriverVulkan::Image DeviceDriverVulkan::image_create_dedicated(const Image
     VmaAllocationCreateInfo alloc_ci{};
     alloc_ci.usage = VMA_MEMORY_USAGE_UNKNOWN;
     alloc_ci.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    alloc_ci.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+
+    const bool type_ok = image_transient_type_index != UINT32_MAX && (image.mem_req.memoryTypeBits & (1u << image_transient_type_index)) != 0;
+    bool pooled = p_create_info.pool != nullptr && type_ok && !image.requires_dedicated && !image.prefers_dedicated;
+
+    if (pooled) alloc_ci.pool = p_create_info.pool;
+    else alloc_ci.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
 
     VmaAllocation allocation = nullptr;
     VkResult err = vmaAllocateMemoryForImage(allocator, image.image, &alloc_ci, &allocation, nullptr);
+    if (err != VK_SUCCESS && pooled) {
+        log_write("Transient image pool exhausted for '%s', falling back to dedicated.", p_create_info.name ? p_create_info.name : "<unnamed>");
+        alloc_ci.pool = nullptr;
+        alloc_ci.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+        err = vmaAllocateMemoryForImage(allocator, image.image, &alloc_ci, &allocation, nullptr);
+    }
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't allocate image memory.");
 
     Error e = _image_bind(image, allocation);
@@ -694,8 +840,24 @@ DeviceDriverVulkan::Buffer DeviceDriverVulkan::buffer_create(const BufferCreateI
         alloc_ci.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     }
 
+    bool pooled = false;
+    if (p_create_info.pool != nullptr && buffer_device_type_index != UINT32_MAX &&
+        p_create_info.memory == BufferCreateInfo::Memory::DeviceLocal) {
+        VkDeviceBufferMemoryRequirements dev_req{ VK_STRUCTURE_TYPE_DEVICE_BUFFER_MEMORY_REQUIREMENTS };
+        dev_req.pCreateInfo = &buffer_ci;
+        VkMemoryRequirements2 req2{ VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2 };
+        vkGetDeviceBufferMemoryRequirements(device, &dev_req, &req2);
+        pooled = (req2.memoryRequirements.memoryTypeBits & (1u << buffer_device_type_index)) != 0;
+    }
+    if (pooled) alloc_ci.pool = p_create_info.pool;
+
     VmaAllocationInfo alloc_info{};
     VkResult err = vmaCreateBuffer(allocator, &buffer_ci, &alloc_ci, &buffer.buffer, &buffer.allocation, &alloc_info);
+    if (err != VK_SUCCESS && pooled) {
+        log_write("Device buffer pool exhausted for '%s', falling back to default allocator.", p_create_info.name ? p_create_info.name : "<unnamed>");
+        alloc_ci.pool = nullptr;
+        err = vmaCreateBuffer(allocator, &buffer_ci, &alloc_ci, &buffer.buffer, &buffer.allocation, &alloc_info);
+    }
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan buffer.");
 
     buffer.capacity = alloc_size;

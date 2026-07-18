@@ -157,6 +157,7 @@ void RenderGraph::create_image(std::string_view p_name, const drivers::DeviceDri
     r.name_id = id;
     r.image = nullptr;
     r.image_create_info = p_create_info;
+    r.image_create_info.pool = dd->image_transient_pool;
     r.final_layout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     uint32_t idx = static_cast<uint32_t>(image_resources.size());
@@ -291,6 +292,7 @@ void RenderGraph::create_buffer(std::string_view p_name, const drivers::DeviceDr
     r.name_id = id;
     r.buffer = nullptr;
     r.buffer_create_info = p_create_info;
+    r.buffer_create_info.pool = dd->buffer_device_pool;
 
     uint32_t idx = static_cast<uint32_t>(buffer_resources.size());
     buffer_resources.push_back(r);
