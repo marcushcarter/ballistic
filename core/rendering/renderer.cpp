@@ -40,8 +40,6 @@ void Renderer::destroy()
 {
     graph.destroy();
 
-    dd->image_free(out_color);
-
     for (uint32_t i = 0; i < frame_count; i++) {
         dd->fence_free(in_flight_fences[i]);
         dd->semaphore_free(image_available_semaphores[i]);
@@ -60,15 +58,6 @@ Error Renderer::set_size(uint32_t p_width, uint32_t p_height)
     resize_epoch++;
     
     dd->device_wait_idle();
-
-    dd->image_free(out_color);
-    drivers::DeviceDriverVulkan::ImageCreateInfo image_ci{};
-    image_ci.name = "out_color";
-    image_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
-    image_ci.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    image_ci.layers = 1;
-    out_color = dd->image_create_dedicated(image_ci, { width, height });
 
     Error err = graph.set_size(p_width, p_height);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
@@ -110,7 +99,6 @@ Error Renderer::begin_frame()
     dd->command_bind_compute_uniform_sets(cmd, { dd->bindless_heap.set });
 
     graph.begin(current_frame);
-    graph.import_image("Out_Color", &out_color, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
     graph.import_image("Backbuffer", &sc.images[sc.image_index], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, 0);
 
     return Ok;

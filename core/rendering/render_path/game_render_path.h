@@ -1,19 +1,20 @@
 #pragma once
 #include <core/rendering/render_path/scene_render_path.h>
-#include <drivers/vulkan/device_driver_vulkan.h>
+#include <core/rendering/features/present_feature.h>
+#include <core/rendering/features/editor/imgui_feature.h>
 
 namespace ballistic {
 
 struct GameRenderPath : SceneRenderPath
 {
-    RenderGraph::Pass present_pass;
-    RenderGraph::Pass ui_pass;
+    PresentFeature present;
+    ImGuiFeature ui;    
 
-    drivers::DeviceDriverVulkan::Pipeline gamma_blit_pipeline;
-    
-    Error create_resources() override;
-    void destroy_resources() override;
-    void build_present(RenderGraph& g) override;
+    GameRenderPath() {
+        ui.sampled_image = "Out_Color";
+        features.push_back(&present);
+        features.push_back(&ui);
+    }
 };
 
 }

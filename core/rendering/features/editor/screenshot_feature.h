@@ -1,5 +1,5 @@
 #pragma once
-#include <core/rendering/render_path/features/feature.h>
+#include <core/rendering/features/feature.h>
 #include <drivers/vulkan/device_driver_vulkan.h>
 #include <future>
 #include <filesystem>

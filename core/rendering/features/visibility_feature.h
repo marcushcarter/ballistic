@@ -1,11 +1,11 @@
 #pragma once
-#include <core/rendering/render_path/features/feature.h>
+#include <core/rendering/features/feature.h>
 
 namespace ballistic {
 
-struct GeometryFeature : Feature
+struct VisibilityFeature : Feature
 {    
-    RenderGraph::Pass geometry_pass;
+    RenderGraph::Pass depth_pass;
 
     Error create_resources() override;
     void destroy_resources() override;

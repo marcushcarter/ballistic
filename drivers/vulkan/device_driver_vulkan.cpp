@@ -44,7 +44,6 @@ Error DeviceDriverVulkan::_initialize_device_extensions()
     _register_requested_device_extension(VK_EXT_DEVICE_MEMORY_REPORT_EXTENSION_NAME, false);
     _register_requested_device_extension(VK_EXT_DEVICE_FAULT_EXTENSION_NAME, false);
     _register_requested_device_extension(VK_NV_RAY_TRACING_VALIDATION_EXTENSION_NAME, false);
-
 #endif
 
     // if (features.variable_rate_shading) {

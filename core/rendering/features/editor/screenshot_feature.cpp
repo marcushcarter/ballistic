@@ -1,4 +1,4 @@
-#include <core/rendering/render_path/features/screenshot_feature.h>
+#include <core/rendering/features/editor/screenshot_feature.h>
 #include <drivers/vulkan/device_driver_vulkan.h>
 #include <core/io/image_io.h>
 #include <core/io/path.h>
@@ -31,12 +31,12 @@ Error ScreenshotFeature::create_resources()
 void ScreenshotFeature::destroy_resources()
 {
     if (encode_job.valid()) encode_job.wait();
-    if (staging.buffer) dd->buffer_free(staging);
+    if (staging.buffer) ctx->dd->buffer_free(staging);
 }
 
 void ScreenshotFeature::_writeback()
 {
-    dd->device_wait_idle();
+    ctx->dd->device_wait_idle();
     
     if (!staging.mapped) { log_write("Screenshot: staging buffer not mapped."); return; }
 
@@ -90,7 +90,7 @@ void ScreenshotFeature::build(RenderGraph& g)
     if (!requested) return;
     requested = false;
 
-    const drivers::DeviceDriverVulkan::Swapchain& sc = dd->swapchain;
+    const drivers::DeviceDriverVulkan::Swapchain& sc = ctx->dd->swapchain;
     if (sc.images.empty()) return;
 
     capture_width = sc.images[0].extent.width;
@@ -105,9 +105,9 @@ void ScreenshotFeature::build(RenderGraph& g)
         ci.size = bytes;
         ci.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         ci.memory = drivers::DeviceDriverVulkan::BufferCreateInfo::Memory::HostVisible;
-        staging = dd->buffer_create(ci);
+        staging = ctx->dd->buffer_create(ci);
         if (!staging.buffer) { log_write("Screenshot: staging alloc failed."); return; }
-    } else if (dd->buffer_ensure_capacity(staging, bytes) != Error::Ok) {
+    } else if (ctx->dd->buffer_ensure_capacity(staging, bytes) != Error::Ok) {
         return;
     }
 

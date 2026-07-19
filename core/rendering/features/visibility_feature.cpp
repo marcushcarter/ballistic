@@ -1,4 +1,4 @@
-#include <core/rendering/render_path/features/visibility_feature.h>
+#include <core/rendering/features/visibility_feature.h>
 
 namespace ballistic {
 

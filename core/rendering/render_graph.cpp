@@ -665,12 +665,13 @@ Error RenderGraph::compile()
     }
 
     for (ImageResource& r : image_resources) {
-        bool is_sink = (r.kind == ResourceKind::Imported) && r.final_layout != VK_IMAGE_LAYOUT_UNDEFINED;
-        if (r.written && !r.read && !is_sink) log_write("RenderGraph: '%s' written but never read (dead write).", debug_names[r.name_id].c_str());
+        // bool is_sink = (r.kind == ResourceKind::Imported) && r.final_layout != VK_IMAGE_LAYOUT_UNDEFINED;
+        // if (r.written && !r.read && !is_sink) log_write("RenderGraph: '%s' written but never read (dead write).", debug_names[r.name_id].c_str());
         if (r.read && !r.written && r.kind != ResourceKind::Imported) log_write("RenderGraph: '%s' read before write.", debug_names[r.name_id].c_str());
     }
 
-    for (Node& node : nodes) node.culled = true;
+    // for (Node& node : nodes) node.culled = true;
+    for (Node& node : nodes) node.culled = false;
 
     std::vector<uint32_t> worklist;
     for (uint32_t n = 0; n < nodes.size(); ++n) {
@@ -727,9 +728,7 @@ Error RenderGraph::compile()
         }
     }
 
-    for (ImageResource& r : image_resources) {
-        if (r.kind == ResourceKind::Transient) { r.first_use = -1; r.last_use = -1; }
-    }
+    for (ImageResource& r : image_resources) if (r.kind == ResourceKind::Transient) { r.first_use = -1; r.last_use = -1; }
     for (int n = 0; n < (int)nodes.size(); ++n) {
         if (nodes[n].culled) continue;
         for (ImageAccess& a : nodes[n].image_accesses) {

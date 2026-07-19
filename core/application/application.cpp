@@ -47,9 +47,9 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     
     render_path = create_render_path();
-    render_path->dd = &dd;
-    render_path->imgui = &imgui;
-    render_path->graph = &renderer.graph;
+    render_path->ctx.dd = &dd;
+    render_path->ctx.imgui = &imgui;
+    render_path->ctx.graph = &renderer.graph;
     err = render_path->create_resources();
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     
@@ -150,9 +150,9 @@ void Application::_apply_pending_render_path()
     render_path = pending_render_path;
     pending_render_path = nullptr;
 
-    render_path->dd = &dd;
-    render_path->imgui = &imgui;
-    render_path->graph = &renderer.graph;
+    render_path->ctx.dd = &dd;
+    render_path->ctx.imgui = &imgui;
+    render_path->ctx.graph = &renderer.graph;
     if (render_path->create_resources() != Ok)
         log_write("Application: render path create_resources failed.");
 }

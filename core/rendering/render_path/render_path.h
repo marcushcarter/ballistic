@@ -1,22 +1,24 @@
 #pragma once
+#include <core/rendering/render_context.h>
 #include <core/rendering/render_graph.h>
+#include <core/rendering/features/feature.h>
 #include <core/log/error.h>
+#include <span>
 
 namespace ballistic {
 
-namespace drivers { struct DeviceDriverVulkan; struct ImGuiDriver; }
-
 struct RenderPath
 {
-    drivers::DeviceDriverVulkan* dd = nullptr;
-    drivers::ImGuiDriver* imgui = nullptr;
-    RenderGraph* graph = nullptr;
-    
-    virtual Error create_resources() { return Error::Ok; }
-    virtual void destroy_resources() {}
-    virtual void build(RenderGraph& g) = 0;
+    RenderContext ctx;
 
+    std::vector<Feature*> features;
+    uint32_t created_count = 0;
+
+    Error create_resources();
+    void destroy_resources();
+    void build(RenderGraph& g);
+    
     virtual ~RenderPath() = default;
 };
-    
+
 }

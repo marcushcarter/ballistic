@@ -1,4 +1,4 @@
-#include <core/rendering/render_path/features/geometry_feature.h>
+#include <core/rendering/features/geometry_feature.h>
 
 namespace ballistic {
 

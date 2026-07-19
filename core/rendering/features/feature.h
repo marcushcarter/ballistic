@@ -1,4 +1,5 @@
 #pragma once
+#include <core/rendering/render_context.h>
 #include <core/rendering/render_graph.h>
 #include <core/log/error.h>
 #include <string>
@@ -7,8 +8,7 @@ namespace ballistic {
 
 struct Feature
 {
-    drivers::DeviceDriverVulkan* dd = nullptr;
-    RenderGraph* graph = nullptr;
+    const RenderContext* ctx = nullptr;
     
     std::string category = "?";
     bool enabled = true;

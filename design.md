@@ -87,3 +87,11 @@ AO:
 Hbao -> bilateral blur
 
 LightCulling:
+
+
+
+
+# Baked Light GI Probes
+- create and tweak them in the editor
+- button to export all probes in a buffer format as binary to a file
+- loads that in on engine start

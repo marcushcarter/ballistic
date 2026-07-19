@@ -24,17 +24,16 @@ void Xray::draw_contents(DevContext& ctx)
     ImVec2 avail = ImGui::GetContentRegionAvail();
     float right_w = avail.x * 0.25f;
     float left_w = avail.x - right_w;
-    
-    RenderGraph::ImageResource* sel = ctx.renderer->graph.image_resource_by_id(selected_name_id);
-    VkImageView sel_view = (sel && sel->image) ? sel->image->image_view : VK_NULL_HANDLE;
-    VkDescriptorSet set = ctx.imgui->texture_cache.get(sel_view);
 
-    ImGui::BeginChild("##xray_image", ImVec2(left_w, avail.y), false, ImGuiWindowFlags_NoScrollbar);
-    {
+    if (ImGui::BeginChild("##xray_image", ImVec2(left_w, avail.y), false, ImGuiWindowFlags_NoScrollbar)) {
         ImVec2 img_size = ImGui::GetContentRegionAvail();
         ImVec2 img_pos = ImGui::GetCursorScreenPos();
         if (img_size.x < 1.0f) img_size.x = 1.0f;
         if (img_size.y < 1.0f) img_size.y = 1.0f;
+        
+        RenderGraph::ImageResource* sel = ctx.renderer->graph.image_resource_by_id(selected_name_id);
+        VkImageView sel_view = (sel && sel->image) ? sel->image->image_view : VK_NULL_HANDLE;
+        VkDescriptorSet set = ctx.imgui->texture_cache.get(sel_view);
 
         if (set) {
             float tex_w = (float)sel->image->extent.width;
@@ -68,21 +67,18 @@ void Xray::draw_contents(DevContext& ctx)
             ImDrawList* dl = ImGui::GetWindowDrawList();
             dl->AddRectFilled(img_pos, ImVec2(img_pos.x + img_size.x, img_pos.y + img_size.y), IM_COL32(25, 25, 25, 255));
         }
+        ImGui::EndChild();
     }
-    ImGui::EndChild();
 
     ImGui::SameLine(0.0f, 0.0f);
 
-    ImGui::BeginChild("##xray_list", ImVec2(right_w, avail.y), true);
-    {
+    if (ImGui::BeginChild("##xray_list", ImVec2(right_w, avail.y), true)) {
         bool any = false;
         for (const RenderGraph::ImageResource& r :  ctx.renderer->graph.image_resources) {
-            if (r.name_id == ctx.renderer->graph.intern("backbuffer")) continue;
+            if (r.name_id == ctx.renderer->graph.intern("Backbuffer")) continue;
+            if (r.kind == RenderGraph::ResourceKind::Transient && r.image_create_info.sizing != drivers::DeviceDriverVulkan::ImageCreateInfo::Sizing::ViewportRelative) continue;
             if (!r.read) continue;
             if (!r.image) continue;
-
-            if (r.kind == RenderGraph::ResourceKind::Transient && r.image_create_info.sizing != drivers::DeviceDriverVulkan::ImageCreateInfo::Sizing::ViewportRelative)
-                continue;
 
             any = true;
             const std::string& name = ctx.renderer->graph.debug_names[r.name_id];
@@ -90,9 +86,8 @@ void Xray::draw_contents(DevContext& ctx)
             if (ImGui::Selectable(name.c_str(), is_selected)) selected_name_id = r.name_id;
         }
         if (!any) ImGui::TextDisabled("(no inspectable resources)");
+        ImGui::EndChild();
     }
-    ImGui::EndChild();
-
 }
 
 }
