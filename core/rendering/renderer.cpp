@@ -28,6 +28,7 @@ Error Renderer::create(drivers::DeviceDriverVulkan& r_dd)
     }
 
     graph.create(r_dd, frame_count);
+    graph.declare_image_format("Backbuffer", dd->swapchain.format);
 
     set_size(1, 1);
     pending_width = width;

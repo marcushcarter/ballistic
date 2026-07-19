@@ -7,7 +7,6 @@ namespace ballistic {
 struct ImGuiFeature : Feature
 {
     RenderGraph::Pass ui_pass;
-
     VkAttachmentLoadOp backbuffer_load_op = VK_ATTACHMENT_LOAD_OP_LOAD;
     const char* sampled_image = nullptr;
 

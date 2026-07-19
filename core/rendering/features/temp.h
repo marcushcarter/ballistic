@@ -7,9 +7,8 @@ struct TempFeature : Feature
 {
     RenderGraph::Pass pass;
 
-    Error create_resources() override {
-        using enum Error;
-
+    Error create_resources() override
+    {
         pass.name = "Placeholder";
         pass.category = "Placeholder";
         pass.setup = [](RenderGraph::Builder& b) {
@@ -19,7 +18,7 @@ struct TempFeature : Feature
             image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
             b.create_image("Out_Color", image_ci);
             b.color_attachment("Out_Color", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.2f, 0.8f, 1.0f } });
-            
+
             // drivers::DeviceDriverVulkan::ImageCreateInfo depth_ci{};
             // image_ci.name = "Depth";
             // depth_ci.format = VK_FORMAT_D32_SFLOAT;
@@ -27,7 +26,7 @@ struct TempFeature : Feature
             // depth_ci.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
             // b.create_image("Depth", depth_ci);
             // b.depth_attachment("Depth", VK_ATTACHMENT_LOAD_OP_CLEAR, [] { VkClearValue v{}; v.depthStencil = { 1.0f, 0 }; return v; }());
-            
+
             // drivers::DeviceDriverVulkan::ImageCreateInfo image_ci{};
             // image_ci.name = "Color";
             // image_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -48,7 +47,7 @@ struct TempFeature : Feature
             (void)cl;
         };
 
-        return Ok;
+        return Error::Ok;
     };
 
     void build(RenderGraph& g) override {

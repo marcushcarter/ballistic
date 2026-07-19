@@ -11,8 +11,6 @@ namespace ballistic {
 
 Error ScreenshotFeature::create_resources()
 {
-    using enum Error;
-
     screenshot_pass.name = "Screenshot";
     screenshot_pass.category = "Present";
     screenshot_pass.never_cull = true;
@@ -25,7 +23,7 @@ Error ScreenshotFeature::create_resources()
         cl.dd->command_copy_image_to_buffer(cl.cmd, *bb, staging, bb->extent);
     };
 
-    return Ok;
+    return Error::Ok;
 };
 
 void ScreenshotFeature::destroy_resources()

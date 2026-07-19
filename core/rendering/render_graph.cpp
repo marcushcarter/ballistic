@@ -148,6 +148,8 @@ void RenderGraph::import_image(std::string_view p_name, drivers::DeviceDriverVul
     p_image->state.stage  = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
     p_image->state.access = 0;
 
+    declared_image_formats[id] = p_image->format;
+
     uint32_t res_idx = static_cast<uint32_t>(image_resources.size());
     image_resources.push_back(r);
     auto [it, inserted] = image_resource_map.insert({ id, res_idx });
@@ -165,6 +167,8 @@ void RenderGraph::create_image(std::string_view p_name, const drivers::DeviceDri
     r.image_create_info = p_create_info;
     r.image_create_info.pool = dd->image_transient_pool;
     r.final_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    declared_image_formats[id] = p_create_info.format;
 
     uint32_t idx = static_cast<uint32_t>(image_resources.size());
     image_resources.push_back(r);
@@ -185,8 +189,6 @@ uint64_t RenderGraph::_image_transient_key(const drivers::DeviceDriverVulkan::Im
     mix(p_extent.height);
     return h;
 }
-
-static inline uint32_t quantize_extent(uint32_t v) { return (v + 63u) & ~63u; }
 
 void RenderGraph::_image_resolve_extent(const drivers::DeviceDriverVulkan::ImageCreateInfo& p_ci, uint32_t& r_w, uint32_t& r_h)
 {
@@ -247,6 +249,11 @@ void RenderGraph::_image_release_transients()
         r.image = nullptr;
         r.transient_storage = {};
     }
+}
+
+void RenderGraph::declare_image_format(std::string_view p_name, VkFormat p_format)
+{
+    declared_image_formats[intern_named(p_name)] = p_format;
 }
 
 // ----- BUFFER -----
@@ -535,29 +542,66 @@ VkRenderPass RenderGraph::_get_or_create_render_pass(Node& node)
     return rp;
 }
 
-VkRenderPass RenderGraph::acquire_render_pass(const Pass& p_pass)
+VkRenderPass RenderGraph::acquire_render_pass(Pass& p_pass)
 {
+    const size_t node_mark = nodes.size();
+    const size_t img_mark  = image_resources.size();
+    const size_t buf_mark  = buffer_resources.size();
+
+    nodes.push_back(Node{ &p_pass });
+    if (p_pass.setup) {
+        Builder b{ this, &p_pass, static_cast<uint32_t>(node_mark) };
+        p_pass.setup(b);
+    }
+
+    struct Att { VkFormat format; bool is_depth; };
+    std::vector<Att> atts;
+    atts.reserve(nodes[node_mark].image_accesses.size());
+
+    for (const ImageAccess& a : nodes[node_mark].image_accesses) {
+        if (!a.is_attachment) continue;
+
+        VkFormat fmt = VK_FORMAT_UNDEFINED;
+        if (auto it = image_resource_map.find(a.name_id); it != image_resource_map.end()) {
+            const ImageResource& r = image_resources[it->second];
+            fmt = (r.kind == ResourceKind::Transient) ? r.image_create_info.format : (r.image ? r.image->format : VK_FORMAT_UNDEFINED);
+        }
+        if (fmt == VK_FORMAT_UNDEFINED) {
+            if (auto it = declared_image_formats.find(a.name_id); it != declared_image_formats.end()) fmt = it->second;
+        }
+        if (fmt == VK_FORMAT_UNDEFINED) {
+            log_write("RenderGraph: pass '%s' attaches '%s' with no resolvable format. If it is imported after pipeline creation, call declare_image_format().", p_pass.name.c_str(), debug_names[a.name_id].c_str());
+        }
+        atts.push_back({ fmt, a.is_depth });
+    }
+
+    for (size_t i = image_resources.size(); i-- > img_mark; ) image_resource_map.erase(image_resources[i].name_id);
+    image_resources.resize(img_mark);
+    for (size_t i = buffer_resources.size(); i-- > buf_mark; ) buffer_resource_map.erase(buffer_resources[i].name_id);
+    buffer_resources.resize(buf_mark);
+    nodes.resize(node_mark);
+
     uint64_t key = 1469598103934665603ull;
     auto mix = [&](uint64_t v){ key ^= v; key *= 1099511628211ull; };
     mix(0xC0FFEEull);
-    for (const Pass::Format& f : p_pass.formats) {
-        mix((uint64_t)f.format);
-        mix((uint64_t)f.is_depth);
+    for (const Att& a : atts) {
+        mix((uint64_t)a.format);
+        mix((uint64_t)a.is_depth);
     }
 
     if (auto it = render_pass_cache.find(key); it != render_pass_cache.end()) return it->second;
 
     drivers::DeviceDriverVulkan::RenderPassCreateInfo render_pass_ci{};
-    render_pass_ci.attachments.reserve(p_pass.formats.size());
-    for (const Pass::Format& f : p_pass.formats) {
+    render_pass_ci.attachments.reserve(atts.size());
+    for (const Att& a : atts) {
         drivers::DeviceDriverVulkan::RenderPassCreateInfo::Attachment att{};
-        att.format = f.format;
+        att.format = a.format;
         att.samples = VK_SAMPLE_COUNT_1_BIT;
         att.load_op = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         att.store_op = VK_ATTACHMENT_STORE_OP_STORE;
         att.initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-        att.final_layout = f.is_depth ? VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        att.is_depth = f.is_depth;
+        att.final_layout = a.is_depth ? VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        att.is_depth = a.is_depth;
         render_pass_ci.attachments.push_back(att);
     }
     render_pass_ci.name = "compat_render_pass";

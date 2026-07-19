@@ -14,8 +14,6 @@
 
 // Error DeferredLightingFeature::create_resources()
 // {
-//     using enum Error;
-
 //     lighting_pass.name = "Lighting";
 //     lighting_pass.category = "Lighting";
 //     lighting_pass.setup = [](RenderGraph::Builder& b) {  
@@ -37,7 +35,7 @@
 //         (void)cl;
 //     };
 
-//     return Ok;
+//     return Error::Ok;
 // };
 
 // void DeferredLightingFeature::destroy_resources() {}

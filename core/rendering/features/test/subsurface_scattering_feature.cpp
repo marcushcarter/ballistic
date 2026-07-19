@@ -14,8 +14,6 @@
 
 // Error SubsurfaceScatteringFeature::create_resources()
 // {
-//     using enum Error;
-
 //     sss_pass.name = "SSS_Blur_H";
 //     sss_pass.category = "Lighting";
 //     sss_pass.setup = [](RenderGraph::Builder& b) {
@@ -43,7 +41,7 @@
 //         (void)cl;
 //     };
 
-//     return Ok;
+//     return Error::Ok;
 // };
 
 // void SubsurfaceScatteringFeature::destroy_resources() {}

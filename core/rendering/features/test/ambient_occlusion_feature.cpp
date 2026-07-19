@@ -15,8 +15,6 @@
 
 // Error AmbientOcclusionFeature::create_resources()
 // {
-//     using enum Error;
-
 //     hbao_pass.name = "Hbao";
 //     hbao_pass.category = "Lighting";
 //     hbao_pass.setup = [](RenderGraph::Builder& b) {
@@ -53,7 +51,7 @@
 //         (void)cl;
 //     };
 
-//     return Ok;
+//     return Error::Ok;
 // };
 
 // void AmbientOcclusionFeature::destroy_resources() {}

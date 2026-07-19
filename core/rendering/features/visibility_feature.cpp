@@ -4,11 +4,8 @@ namespace ballistic {
 
 Error VisibilityFeature::create_resources()
 {
-    using enum Error;
-
     depth_pass.name = "Main_Depth";
     depth_pass.category = "DepthOnly";
-    depth_pass.formats = { { VK_FORMAT_D32_SFLOAT, true } };
     depth_pass.setup = [](RenderGraph::Builder& b) {
         drivers::DeviceDriverVulkan::ImageCreateInfo depth_ci{};
         depth_ci.format = VK_FORMAT_D32_SFLOAT;
@@ -21,10 +18,13 @@ Error VisibilityFeature::create_resources()
         (void)cl;
     };
 
-    return Ok;
+    return Error::Ok;
 };
 
-void VisibilityFeature::destroy_resources() {}
+void VisibilityFeature::destroy_resources()
+{
+
+}
 
 void VisibilityFeature::build(RenderGraph& g)
 {

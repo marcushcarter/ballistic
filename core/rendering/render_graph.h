@@ -98,6 +98,7 @@ struct RenderGraph
     std::unordered_map<uint64_t, uint32_t> image_resource_map;
     std::vector<ImageBarrier> final_image_barriers;
     std::vector<ImageTransientPool> image_transient_pools;
+    std::unordered_map<uint64_t, VkFormat> declared_image_formats;
 
     uint32_t image_peak_live = 0;
     uint32_t image_reuse_hits = 0;
@@ -113,6 +114,8 @@ struct RenderGraph
     void _image_resolve_extent(const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info, uint32_t& r_width, uint32_t& r_height);
     void _image_materialize_transient(ImageResource& r);
     void _image_release_transients();
+    
+    void declare_image_format(std::string_view p_name, VkFormat p_format);
 
     // ----- BUFFER -----
 
@@ -263,9 +266,6 @@ struct RenderGraph
     struct Pass {
         std::string name;
         std::string category;
-        
-        struct Format { VkFormat format = VK_FORMAT_UNDEFINED; bool is_depth = false; };
-        std::vector<Format> formats;
 
         bool never_cull = false;
         std::function<void(Builder&)> setup;
@@ -297,7 +297,7 @@ struct RenderGraph
     std::unordered_map<uint64_t, VkRenderPass> render_pass_cache;
 
     VkRenderPass _get_or_create_render_pass(Node& node);
-    VkRenderPass acquire_render_pass(const Pass& p_pass);
+    VkRenderPass acquire_render_pass(Pass& p_pass);
 
     std::unordered_map<uint64_t, VkFramebuffer> framebuffer_cache;
 

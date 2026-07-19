@@ -4,17 +4,8 @@ namespace ballistic {
 
 Error GeometryFeature::create_resources()
 {
-    using enum Error;
-
     geometry_pass.name = "Deferred";
     geometry_pass.category = "Geometry";
-    geometry_pass.formats = {
-        { VK_FORMAT_R8G8B8A8_SRGB },
-        { VK_FORMAT_R16G16_UNORM },
-        { VK_FORMAT_R8G8B8A8_UNORM },
-        { VK_FORMAT_R16G16_SFLOAT },
-        { VK_FORMAT_D32_SFLOAT, true },
-    };
     geometry_pass.setup = [](RenderGraph::Builder& b) {
         drivers::DeviceDriverVulkan::ImageCreateInfo albedo_image_ci{};
         albedo_image_ci.name = "G_Albedo";
@@ -50,7 +41,7 @@ Error GeometryFeature::create_resources()
         (void)cl;
     };
 
-    return Ok;
+    return Error::Ok;
 };
 
 void GeometryFeature::destroy_resources() {}

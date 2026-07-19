@@ -6,11 +6,8 @@ namespace ballistic {
 
 Error ImGuiFeature::create_resources()
 {
-    using enum Error;
-
     ui_pass.name = "ImGui_Feature";
     ui_pass.category = "Present";
-    ui_pass.formats = { { ctx->dd->swapchain.format } };
     ui_pass.setup = [this](RenderGraph::Builder& b) {
         b.color_attachment("Backbuffer", backbuffer_load_op, { { 0.1f, 0.1f, 0.1f, 1.0f } });
         if (sampled_image) {
@@ -21,7 +18,7 @@ Error ImGuiFeature::create_resources()
         ctx->imgui->record_commands(cl.cmd);
     };
 
-    return Ok;
+    return Error::Ok;
 };
 
 void ImGuiFeature::build(RenderGraph& g)
