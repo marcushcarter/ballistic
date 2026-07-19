@@ -14,6 +14,10 @@ namespace ballistic::drivers {
 /**** SETUP ****/
 /***************/
 
+bool DeviceDriverVulkan::memory_budget_enabled() const {
+    return enabled_device_extension_names.contains(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
+}
+
 void DeviceDriverVulkan::_register_requested_device_extension(const std::string& p_extension_name, bool p_required) {
     requested_device_extensions[p_extension_name] = p_required;
 }
@@ -30,6 +34,7 @@ Error DeviceDriverVulkan::_initialize_device_extensions()
     _register_requested_device_extension(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME, true);
 
     _register_requested_device_extension(VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME, false);
+    _register_requested_device_extension(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME, false);
     _register_requested_device_extension(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME, false);
     _register_requested_device_extension(VK_KHR_VULKAN_MEMORY_MODEL_EXTENSION_NAME, false);
 
@@ -513,6 +518,14 @@ Error DeviceDriverVulkan::device_wait_idle()
 /**** MEMORY ****/
 /****************/
 
+uint32_t DeviceDriverVulkan::_pool_memory_type(VmaPool p_pool) const {
+    if (p_pool == image_transient_pool) return image_transient_type_index;
+    if (p_pool == image_persistent_pool) return image_persistent_type_index;
+    if (p_pool == buffer_device_pool) return buffer_device_type_index;
+    if (p_pool == upload_pool) return upload_type_index;
+    return UINT32_MAX;
+}
+
 uint32_t DeviceDriverVulkan::_find_memory_type(VkMemoryPropertyFlags p_properties)
 {
     VkPhysicalDeviceMemoryProperties memory_properties{};
@@ -554,16 +567,27 @@ Error DeviceDriverVulkan::_allocator_pools_create()
     image_probe_alloc.usage = VMA_MEMORY_USAGE_AUTO;
     image_probe_alloc.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
+    // ---- transient images ----
     VkResult err = vmaFindMemoryTypeIndexForImageInfo(allocator, &image_probe, &image_probe_alloc, &image_transient_type_index);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't resolve memory type for transient image pool.");
 
     VmaPoolCreateInfo image_pool_ci{};
     image_pool_ci.memoryTypeIndex = image_transient_type_index;
-    // image_pool_ci.blockSize = 256ull * 1024 * 1024;
     image_pool_ci.blockSize = 0;
     err = vmaCreatePool(allocator, &image_pool_ci, &image_transient_pool);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan transient image pool.");
     vmaSetPoolName(allocator, image_transient_pool, "image_transient");
+    
+    // ---- persistent images ----
+    err = vmaFindMemoryTypeIndexForImageInfo(allocator, &image_probe, &image_probe_alloc, &image_persistent_type_index);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't resolve memory type for persistent image pool.");
+
+    VmaPoolCreateInfo persistent_pool_ci{};
+    persistent_pool_ci.memoryTypeIndex = image_persistent_type_index;
+    persistent_pool_ci.blockSize = 0;
+    err = vmaCreatePool(allocator, &persistent_pool_ci, &image_persistent_pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan persistent image pool.");
+    vmaSetPoolName(allocator, image_persistent_pool, "image_persistent");
 
     // ---- device-local buffers (linear) ----
     VkBufferCreateInfo buffer_probe{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
@@ -580,7 +604,6 @@ Error DeviceDriverVulkan::_allocator_pools_create()
 
     VmaPoolCreateInfo buffer_pool_ci{};
     buffer_pool_ci.memoryTypeIndex = buffer_device_type_index;
-    // buffer_pool_ci.blockSize = 64ull * 1024 * 1024;
     buffer_pool_ci.blockSize = 0;
     err = vmaCreatePool(allocator, &buffer_pool_ci, &buffer_device_pool);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan device buffer pool.");
@@ -595,13 +618,11 @@ Error DeviceDriverVulkan::_allocator_pools_create()
     upload_probe_alloc.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
     upload_probe_alloc.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
-    uint32_t upload_type_index = UINT32_MAX;
     err = vmaFindMemoryTypeIndexForBufferInfo(allocator, &upload_probe, &upload_probe_alloc, &upload_type_index);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't resolve memory type for upload pool.");
 
     VmaPoolCreateInfo upload_pool_ci{};
     upload_pool_ci.memoryTypeIndex = upload_type_index;
-    // upload_pool_ci.blockSize = 64ull * 1024 * 1024;
     upload_pool_ci.blockSize = 0;
     err = vmaCreatePool(allocator, &upload_pool_ci, &upload_pool);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan upload pool.");
@@ -612,6 +633,10 @@ Error DeviceDriverVulkan::_allocator_pools_create()
 
 void DeviceDriverVulkan::_allocator_pools_free()
 {
+    if (image_persistent_pool) {
+        vmaDestroyPool(allocator, image_persistent_pool);
+        image_persistent_pool = nullptr;
+    }
     if (image_transient_pool) {
         vmaDestroyPool(allocator, image_transient_pool);
         image_transient_pool = nullptr;
@@ -625,7 +650,9 @@ void DeviceDriverVulkan::_allocator_pools_free()
         upload_pool = nullptr;
     }
     image_transient_type_index = UINT32_MAX;
+    image_persistent_type_index = UINT32_MAX;
     buffer_device_type_index = UINT32_MAX;
+    upload_type_index = UINT32_MAX;
 }
 
 Error DeviceDriverVulkan::allocator_create()
@@ -636,6 +663,7 @@ Error DeviceDriverVulkan::allocator_create()
     allocator_ci.physicalDevice = physical_device;
     allocator_ci.device = device;
     allocator_ci.instance = cd->instance_get();
+    allocator_ci.vulkanApiVersion = physical_device_properties.apiVersion;
     const bool use_1_3_features = physical_device_properties.apiVersion >= VK_API_VERSION_1_3;
     if (use_1_3_features) {
         allocator_ci.flags |= VMA_ALLOCATOR_CREATE_KHR_MAINTENANCE5_BIT;
@@ -643,6 +671,9 @@ Error DeviceDriverVulkan::allocator_create()
 	if (/*buffer_device_address_support*/ true) {
 		allocator_ci.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 	}
+    if (enabled_device_extension_names.contains(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME)) {
+        allocator_ci.flags |= VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+    }
 
     VkResult err = vmaCreateAllocator(&allocator_ci, &allocator);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan memory allocator.");
@@ -747,7 +778,8 @@ DeviceDriverVulkan::Image DeviceDriverVulkan::image_create_dedicated(const Image
     alloc_ci.usage = VMA_MEMORY_USAGE_UNKNOWN;
     alloc_ci.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    const bool type_ok = image_transient_type_index != UINT32_MAX && (image.mem_req.memoryTypeBits & (1u << image_transient_type_index)) != 0;
+    const uint32_t pool_type = _pool_memory_type(p_create_info.pool);
+    const bool type_ok = pool_type != UINT32_MAX && (image.mem_req.memoryTypeBits & (1u << pool_type)) != 0;
     bool pooled = p_create_info.pool != nullptr && type_ok && !image.requires_dedicated && !image.prefers_dedicated;
 
     if (pooled) alloc_ci.pool = p_create_info.pool;
@@ -841,13 +873,13 @@ DeviceDriverVulkan::Buffer DeviceDriverVulkan::buffer_create(const BufferCreateI
     }
 
     bool pooled = false;
-    if (p_create_info.pool != nullptr && buffer_device_type_index != UINT32_MAX &&
-        p_create_info.memory == BufferCreateInfo::Memory::DeviceLocal) {
+    const uint32_t pool_type = _pool_memory_type(p_create_info.pool);
+    if (p_create_info.pool != nullptr && pool_type != UINT32_MAX) {
         VkDeviceBufferMemoryRequirements dev_req{ VK_STRUCTURE_TYPE_DEVICE_BUFFER_MEMORY_REQUIREMENTS };
         dev_req.pCreateInfo = &buffer_ci;
         VkMemoryRequirements2 req2{ VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2 };
         vkGetDeviceBufferMemoryRequirements(device, &dev_req, &req2);
-        pooled = (req2.memoryRequirements.memoryTypeBits & (1u << buffer_device_type_index)) != 0;
+        pooled = (req2.memoryRequirements.memoryTypeBits & (1u << pool_type)) != 0;
     }
     if (pooled) alloc_ci.pool = p_create_info.pool;
 
@@ -989,7 +1021,7 @@ void DeviceDriverVulkan::sampler_free(Sampler& r_sampler)
         vkDestroySampler(device, r_sampler.sampler, nullptr);
         r_sampler.sampler = VK_NULL_HANDLE;
     }
-    if (r_sampler.bindless_sampler) {
+    if (r_sampler.bindless_sampler != UINT32_MAX) {
         bindless_heap_free_sampler(r_sampler.bindless_sampler);
         r_sampler.bindless_sampler = UINT32_MAX;
     }

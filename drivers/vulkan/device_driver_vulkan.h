@@ -41,6 +41,8 @@ struct DeviceDriverVulkan
     std::vector<std::vector<Queue>> queue_families;
     SubgroupCapabilities subgroup_capabilities;
 
+    bool memory_budget_enabled() const;
+
 	void _register_requested_device_extension(const std::string& p_extension_name, bool p_required);
     Error _initialize_device_extensions();
     void _get_device_properties();
@@ -62,14 +64,19 @@ struct DeviceDriverVulkan
     /****************/
 
     VmaAllocator allocator = nullptr;
-
+    
+    VmaPool image_persistent_pool = nullptr;
     VmaPool image_transient_pool = nullptr;
     VmaPool buffer_device_pool = nullptr;
     VmaPool upload_pool = nullptr;
+    VmaPool readback_pool = nullptr;
 
     uint32_t image_transient_type_index = UINT32_MAX;
+    uint32_t image_persistent_type_index = UINT32_MAX;
     uint32_t buffer_device_type_index = UINT32_MAX;
+    uint32_t upload_type_index = UINT32_MAX;
 
+    uint32_t _pool_memory_type(VmaPool p_pool) const;
     uint32_t _find_memory_type(VkMemoryPropertyFlags p_properties);
     Error _allocator_pools_create();
     void _allocator_pools_free();

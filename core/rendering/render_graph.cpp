@@ -211,8 +211,10 @@ void RenderGraph::_image_materialize_transient(ImageResource& r)
     if (it != pool.free.end() && !it->second.empty()) {
         img = it->second.back();
         it->second.pop_back();
+        ++image_reuse_hits;
     } else {
         img = dd->image_create_dedicated(image_ci, extent);
+        ++image_reuse_misses;
     }
 
     img.state = {};
@@ -329,10 +331,12 @@ void RenderGraph::_buffer_materialize_transient(BufferResource& r)
     if (it != pool.free.end() && !it->second.empty()) {
         buf = it->second.back();
         it->second.pop_back();
+        ++buffer_reuse_hits;
     } else {
         drivers::DeviceDriverVulkan::BufferCreateInfo alloc_ci = buffer_ci;
         alloc_ci.size = size_class;
         buf = dd->buffer_create(alloc_ci);
+        ++buffer_reuse_misses;
     }
 
     buf.size = logical;

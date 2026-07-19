@@ -19,6 +19,12 @@ void spacing()
     ImGui::Spacing();
 }
 
+void section_gap() {
+    ImGui::Dummy(ImVec2(0, 2));
+    ImGui::Separator();
+    ImGui::Dummy(ImVec2(0, 2));
+}
+
 void property_row(const char* p_name, const char* p_fmt, ...)
 {
     constexpr float tab_width = 200.0f;
@@ -49,6 +55,34 @@ void property_row_value_aligned(const char* p_name, const char* p_fmt, ...)
     ImGui::TextUnformatted(buffer);
 }
 
+void cell_right(const char* p_text)
+{
+    float w = ImGui::CalcTextSize(p_text).x;
+    float avail = ImGui::GetContentRegionAvail().x;
+    if (avail > w) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (avail - w));
+    ImGui::TextUnformatted(p_text);
+}
+
+void cell_right_fmt(const char* p_fmt, ...)
+{
+    char buf[64];
+    va_list ap; va_start(ap, p_fmt);
+    vsnprintf(buf, sizeof(buf), p_fmt, ap);
+    va_end(ap);
+    cell_right(buf);
+}
+
+void tri_right(ImU32 p_color)
+{
+    ImVec2 c = ImGui::GetCursorScreenPos();
+    float h = ImGui::GetFontSize();
+    float s = h * 0.42f;
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    dl->AddTriangleFilled(ImVec2(c.x, c.y + h * 0.28f), ImVec2(c.x, c.y + h * 0.72f), ImVec2(c.x + s, c.y + h * 0.50f), p_color);
+    ImGui::Dummy(ImVec2(s + 4.0f, h));
+    ImGui::SameLine(0, 4.0f);
+}
+
 ImU32 rg_category_u32(const char* cat, float alpha)
 {
     ImVec4 c(0.70f, 0.70f, 0.70f, alpha);
@@ -59,6 +93,13 @@ ImU32 rg_category_u32(const char* cat, float alpha)
         c.w = alpha;
     }
     return ImGui::GetColorU32(c);
+}
+
+ImU32 pct_col(float pct)
+{
+    if (pct < 0.75f) return IM_COL32( 88, 180, 120, 255);
+    if (pct < 0.90f) return IM_COL32(210, 170,  70, 255);
+    return IM_COL32(210,  90,  80, 255);
 }
 
 }

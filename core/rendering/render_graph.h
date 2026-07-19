@@ -99,6 +99,10 @@ struct RenderGraph
     std::vector<ImageBarrier> final_image_barriers;
     std::vector<ImageTransientPool> image_transient_pools;
 
+    uint32_t image_peak_live = 0;
+    uint32_t image_reuse_hits = 0;
+    uint32_t image_reuse_misses = 0;
+
     drivers::DeviceDriverVulkan::Image* image(std::string_view p_name);
     ImageResource* image_resource(std::string_view p_name);
     ImageResource* image_resource_by_id(uint64_t p_name_id);
@@ -154,6 +158,10 @@ struct RenderGraph
     std::unordered_map<uint64_t, uint32_t> buffer_resource_map;
     std::vector<BufferBarrier> final_buffer_barriers;
     std::vector<BufferTransientPool> buffer_transient_pools;
+
+    uint32_t buffer_peak_live = 0;
+    uint32_t buffer_reuse_hits = 0;
+    uint32_t buffer_reuse_misses = 0;
     
     drivers::DeviceDriverVulkan::Buffer* buffer(std::string_view p_name);
     BufferResource* buffer_resource(std::string_view p_name);
