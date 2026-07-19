@@ -17,10 +17,10 @@ Error ScreenshotFeature::create_resources()
     screenshot_pass.category = "Present";
     screenshot_pass.never_cull = true;
     screenshot_pass.setup = [](RenderGraph::Builder& b) {
-        b.read_image("backbuffer", VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT);
+        b.read_image("Backbuffer", VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT);
     };
     screenshot_pass.execute = [this](RenderGraph::CommandList& cl) {
-        auto* bb = cl.graph->image("backbuffer");
+        auto* bb = cl.graph->image("Backbuffer");
         if (!bb) return;
         cl.dd->command_copy_image_to_buffer(cl.cmd, *bb, staging, bb->extent);
     };

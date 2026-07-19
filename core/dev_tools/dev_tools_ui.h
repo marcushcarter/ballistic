@@ -1,6 +1,7 @@
 #pragma once
 #include <imgui.h>
 #include <sal.h>
+#include <cstdint>
 
 namespace ballistic::ui {
 
@@ -15,6 +16,8 @@ void cell_right(const char* p_text);
 void cell_right_fmt(_Printf_format_string_ const char* p_fmt, ...);
 
 void tri_right(ImU32 p_color);
+
+const char* fmt_bytes(uint64_t b);
 
 ImU32 rg_category_u32(const char* cat, float alpha = 1.0f);
 ImU32 pct_col(float pct);

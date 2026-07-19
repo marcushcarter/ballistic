@@ -10,31 +10,33 @@ struct TempFeature : Feature
     Error create_resources() override {
         using enum Error;
 
-        pass.name = "Temp";
-        pass.category = "Cull";
+        pass.name = "Placeholder";
+        pass.category = "Placeholder";
         pass.setup = [](RenderGraph::Builder& b) {
-            b.color_attachment("final_image", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.2f, 0.8f, 1.0f } });
+            b.color_attachment("Out_Color", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.2f, 0.8f, 1.0f } });
             
             // drivers::DeviceDriverVulkan::ImageCreateInfo depth_ci{};
+            // color_ci.name = "Depth";
             // depth_ci.format = VK_FORMAT_D32_SFLOAT;
             // depth_ci.usage  = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
             // depth_ci.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
-            // depth_ci.sizing = drivers::DeviceDriverVulkan::ImageCreateInfo::Sizing::ViewportRelative;
-            // depth_ci.width_scale  = 1.0f;
-            // depth_ci.height_scale = 1.0f;
-            // b.create_image("test_depth", depth_ci);
-            // b.depth_attachment("test_depth", VK_ATTACHMENT_LOAD_OP_CLEAR, [] { VkClearValue v{}; v.depthStencil = { 1.0f, 0 }; return v; }());
+            // b.create_image("Depth", depth_ci);
+            // b.depth_attachment("Depth", VK_ATTACHMENT_LOAD_OP_CLEAR, [] { VkClearValue v{}; v.depthStencil = { 1.0f, 0 }; return v; }());
             
-            // drivers::DeviceDriverVulkan::ImageCreateInfo image_ci2{};
-            // image_ci2.name = "test_color";
-            // image_ci2.format = VK_FORMAT_R8G8B8A8_UNORM;
-            // image_ci2.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-            // image_ci2.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-            // image_ci2.sizing = drivers::DeviceDriverVulkan::ImageCreateInfo::Sizing::ViewportRelative;
-            // image_ci2.width_scale  = 1.0f;
-            // image_ci2.height_scale = 1.0f;
-            // b.create_image("test_color", image_ci2);
-            // b.color_attachment("test_color", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.0f, 1.0f, 0.0f, 1.0f } });
+            // drivers::DeviceDriverVulkan::ImageCreateInfo color_ci{};
+            // color_ci.name = "Color";
+            // color_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
+            // color_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+            // b.create_image("Color", color_ci);
+            // b.color_attachment("Color", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.0f, 1.0f, 0.0f, 1.0f } });
+
+            // drivers::DeviceDriverVulkan::BufferCreateInfo buffer_ci{};
+            // buffer_ci.name = "Buffer";
+            // buffer_ci.size = 3 * 1024 * 1024;
+            // buffer_ci.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+            // buffer_ci.memory = drivers::DeviceDriverVulkan::BufferCreateInfo::Memory::DeviceLocal;
+            // b.create_buffer("Buffer", buffer_ci);
+            // b.write_buffer("Buffer", VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
         };
 
         pass.execute = [](RenderGraph::CommandList& cl) {

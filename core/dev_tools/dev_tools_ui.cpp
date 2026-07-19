@@ -83,6 +83,18 @@ void tri_right(ImU32 p_color)
     ImGui::SameLine(0, 4.0f);
 }
 
+const char* fmt_bytes(uint64_t b)
+{
+    static char pool[8][24];
+    static uint32_t next = 0;
+    char* buf = pool[next++ & 7];
+    if (b >= (1ull << 30)) std::snprintf(buf, 24, "%.2f GiB", double(b) / double(1ull << 30));
+    else if (b >= (1ull << 20)) std::snprintf(buf, 24, "%.1f MiB", double(b) / double(1ull << 20));
+    else if (b >= (1ull << 10)) std::snprintf(buf, 24, "%.0f KiB", double(b) / double(1ull << 10));
+    else std::snprintf(buf, 24, "%llu B", (unsigned long long)b);
+    return buf;
+}
+
 ImU32 rg_category_u32(const char* cat, float alpha)
 {
     ImVec4 c(0.70f, 0.70f, 0.70f, alpha);

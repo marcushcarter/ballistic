@@ -8,13 +8,6 @@
 
 namespace ballistic {
 
-static void fmt_bytes(uint64_t b, char* buf, size_t n) {
-    if (b >= (1ull << 30)) std::snprintf(buf, n, "%.2f GiB", double(b) / double(1ull << 30));
-    else if (b >= (1ull << 20)) std::snprintf(buf, n, "%.1f MiB", double(b) / double(1ull << 20));
-    else if (b >= (1ull << 10)) std::snprintf(buf, n, "%.0f KiB", double(b) / double(1ull << 10));
-    else std::snprintf(buf, n, "%llu B", (unsigned long long)b);
-}
-
 void MemoryProfiler::before_begin()
 {
     ImGui::SetNextWindowSize(ImVec2(620, 720), ImGuiCond_FirstUseEver);
@@ -41,12 +34,10 @@ void MemoryProfiler::draw_contents(DevContext& ctx)
     ImGui::Text("Frame %llu", (unsigned long long)frame_counter++);
     ImGui::SameLine();
     {
-        char pk[24];
-        fmt_bytes(peak_bytes, pk, sizeof(pk));
         float gap = ImGui::GetStyle().ItemInnerSpacing.x;
         float tri = ImGui::GetFontSize() * 0.5f;
         float wA = ImGui::CalcTextSize("peak").x;
-        float wB = ImGui::CalcTextSize(pk).x;
+        float wB = ImGui::CalcTextSize(ui::fmt_bytes(peak_bytes)).x;
         float need = wA + gap + tri + gap + wB;
         float avail = ImGui::GetContentRegionAvail().x;
         if (avail > need) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - need);
@@ -58,7 +49,7 @@ void MemoryProfiler::draw_contents(DevContext& ctx)
         ImGui::GetWindowDrawList()->AddTriangleFilled(ImVec2(c.x, c.y + h * 0.72f), ImVec2(c.x + tri, c.y + h * 0.72f), ImVec2(c.x + tri * 0.5f,c.y + h * 0.28f), IM_COL32(210,120,90,255));
         ImGui::Dummy(ImVec2(tri, h));
         ImGui::SameLine(0, gap);
-        ImGui::TextColored(ImVec4(0.90f, 0.55f, 0.40f, 1.0f), "%s", pk);
+        ImGui::TextColored(ImVec4(0.90f, 0.55f, 0.40f, 1.0f), "%s", ui::fmt_bytes(peak_bytes));
     }
     ImGui::Dummy(ImVec2(0, 4));
 
@@ -69,10 +60,7 @@ void MemoryProfiler::draw_contents(DevContext& ctx)
 
     auto bar = [&](const char* label, uint64_t used, uint64_t total) {
         float pct = total ? float(double(used) / double(total)) : 0.0f;
-        char u[24], t[24];
-        fmt_bytes(used, u, sizeof(u));
-        fmt_bytes(total, t, sizeof(t));
-        ImGui::Text("%-30s %10s / %10s   %d%%", label, u, t, int(pct * 100.0f + 0.5f));
+        ImGui::Text("%-30s %10s / %10s   %d%%", label, ui::fmt_bytes(used), ui::fmt_bytes(total), int(pct * 100.0f + 0.5f));
         ImDrawList* dl = ImGui::GetWindowDrawList();
         ImVec2 p = ImGui::GetCursorScreenPos();
         float fullW  = ImGui::GetContentRegionAvail().x;
@@ -110,11 +98,9 @@ void MemoryProfiler::draw_contents(DevContext& ctx)
             for (uint32_t h = 0; h < heap_count; ++h) {
                 char label[32];
                 heap_label(mem_props.memoryHeaps[h].flags, h, label, sizeof(label));
-                char sz[24];
-                fmt_bytes(budgets[h].statistics.blockBytes, sz, sizeof(sz));
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0); ImGui::Text(label);
-                ImGui::TableSetColumnIndex(1); ImGui::Text(sz);
+                ImGui::TableSetColumnIndex(1); ImGui::Text(ui::fmt_bytes(budgets[h].statistics.blockBytes));
                 ImGui::TableSetColumnIndex(2); ImGui::Text("%u", budgets[h].statistics.allocationCount);
                 ImGui::TableSetColumnIndex(3); ImGui::Text("%u", budgets[h].statistics.blockCount);
                 ImGui::TableSetColumnIndex(4); if (detailed_valid) ImGui::Text("%.1f%%", detailed_frag[h] * 100.0f); else ImGui::Text("-");
@@ -132,16 +118,15 @@ void MemoryProfiler::draw_contents(DevContext& ctx)
             }
             detailed_valid = true;
         }
-        ImGui::SameLine();
-        ImGui::TextDisabled("(walks every block; do not poll)");
 
         ui::section_gap();
         struct PoolRow { const char* name; VmaPool pool; };
         const PoolRow pools[] = {
-            { "image_transient", dd->image_transient_pool },
-            { "image_persistent", dd->image_persistent_pool },
-            { "buffer_device", dd->buffer_device_pool },
-            { "upload", dd->upload_pool },
+            { "Image Transient", dd->image_transient_pool },
+            { "Image Persistent", dd->image_persistent_pool },
+            { "Buffer Device", dd->buffer_device_pool },
+            { "Upload", dd->upload_pool },
+            { "Readback", dd->readback_pool },
         };
         if (ImGui::BeginTable("pools", 4, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoBordersInBody)) {
             ImGui::TableSetupColumn("VMA Pools", ImGuiTableColumnFlags_WidthStretch);
@@ -153,13 +138,10 @@ void MemoryProfiler::draw_contents(DevContext& ctx)
                 if (!row.pool) continue;
                 VmaStatistics s{};
                 vmaGetPoolStatistics(dd->allocator, row.pool, &s);
-                char used[24], comm[24];
-                fmt_bytes(s.allocationBytes, used, sizeof(used));
-                fmt_bytes(s.blockBytes, comm, sizeof(comm));
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0); ui::tri_right(IM_COL32(150, 155, 165, 255)); ImGui::Text(row.name);
-                ImGui::TableSetColumnIndex(1); ImGui::Text(used);
-                ImGui::TableSetColumnIndex(2); if (s.blockBytes > 0 && s.allocationBytes * 4 < s.blockBytes) ImGui::TextColored(warn_color, "%s", comm); else ImGui::Text(comm);
+                ImGui::TableSetColumnIndex(1); ImGui::Text(ui::fmt_bytes(s.allocationBytes));
+                ImGui::TableSetColumnIndex(2); if (s.blockBytes > 0 && s.allocationBytes * 4 < s.blockBytes) ImGui::TextColored(warn_color, "%s", ui::fmt_bytes(s.blockBytes)); else ImGui::Text(ui::fmt_bytes(s.blockBytes));
                 ImGui::TableSetColumnIndex(3); ImGui::Text("%u", s.allocationCount);
             }
             ImGui::EndTable();

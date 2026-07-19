@@ -78,6 +78,7 @@ struct DeviceDriverVulkan
 
     uint32_t _pool_memory_type(VmaPool p_pool) const;
     uint32_t _find_memory_type(VkMemoryPropertyFlags p_properties);
+    VkDeviceSize _heap_size_for_type(uint32_t p_type_index) const;
     Error _allocator_pools_create();
     void _allocator_pools_free();
 

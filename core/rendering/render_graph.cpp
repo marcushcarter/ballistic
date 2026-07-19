@@ -69,6 +69,12 @@ Error RenderGraph::set_size(uint32_t p_width, uint32_t p_height)
         pool.free.clear();
     }
 
+    for (BufferTransientPool& pool : buffer_transient_pools) {
+        for (auto& [key, bufs] : pool.free)
+            for (drivers::DeviceDriverVulkan::Buffer& buf : bufs) dd->buffer_free(buf);
+        pool.free.clear();
+    }
+
     return Ok;
 }
 
@@ -180,16 +186,17 @@ uint64_t RenderGraph::_image_transient_key(const drivers::DeviceDriverVulkan::Im
     return h;
 }
 
-void RenderGraph::_image_resolve_extent(const drivers::DeviceDriverVulkan::ImageCreateInfo& p_create_info, uint32_t& r_width, uint32_t& r_height)
+static inline uint32_t quantize_extent(uint32_t v) { return (v + 63u) & ~63u; }
+
+void RenderGraph::_image_resolve_extent(const drivers::DeviceDriverVulkan::ImageCreateInfo& p_ci, uint32_t& r_w, uint32_t& r_h)
 {
-    using Sizing = drivers::DeviceDriverVulkan::ImageCreateInfo::Sizing;
-    if (p_create_info.sizing == Sizing::Fixed) {
-        r_width = p_create_info.fixed_width;
-        r_height = p_create_info.fixed_height;
-    } else {
-        r_width = std::max(1u, static_cast<uint32_t>(std::lround(width * p_create_info.width_scale)));
-        r_height = std::max(1u, static_cast<uint32_t>(std::lround(height * p_create_info.height_scale)));
+    if (p_ci.sizing == drivers::DeviceDriverVulkan::ImageCreateInfo::Sizing::Fixed) {
+        r_w = p_ci.fixed_width;
+        r_h = p_ci.fixed_height;
+        return;
     }
+    r_w = std::max(1u, static_cast<uint32_t>(std::lround(width * p_ci.width_scale)));
+    r_h = std::max(1u, static_cast<uint32_t>(std::lround(height * p_ci.height_scale)));
 }
 
 void RenderGraph::_image_materialize_transient(ImageResource& r)

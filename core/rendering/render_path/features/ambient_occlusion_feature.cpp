@@ -20,8 +20,8 @@ Error AmbientOcclusionFeature::create_resources()
     hbao_pass.name = "Hbao";
     hbao_pass.category = "Lighting";
     hbao_pass.setup = [](RenderGraph::Builder& b) {
-        b.create_image("AoRaw", ao_target_ci("AoRaw"));
-        b.write_image("AoRaw", VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+        b.create_image("HalfRes_AO_Raw", ao_target_ci("HalfRes_AO_Raw"));
+        b.write_image("HalfRes_AO_Raw", VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
         b.read_image("G_Depth", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
         b.read_image("G_Normal", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
     };
@@ -29,24 +29,24 @@ Error AmbientOcclusionFeature::create_resources()
         (void)cl;
     };
 
-    blur_h_pass.name = "HbaoBlurH";
+    blur_h_pass.name = "Hbao_Blur_H";
     blur_h_pass.category = "Lighting";
     blur_h_pass.setup = [](RenderGraph::Builder& b) {
-        b.create_image("AoTmp", ao_target_ci("AoTmp"));
-        b.write_image("AoTmp", VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
-        b.read_image("AoRaw", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+        b.create_image("HalfRes_AO_Blur_H", ao_target_ci("HalfRes_AO_Blur_H"));
+        b.write_image("HalfRes_AO_Blur_H", VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+        b.read_image("HalfRes_AO_Raw", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
         b.read_image("G_Depth", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
     };
     blur_h_pass.execute = [](RenderGraph::CommandList& cl) {
         (void)cl;
     };
 
-    blur_v_pass.name = "HbaoBlurV";
+    blur_v_pass.name = "Hbao_Blur_V";
     blur_v_pass.category = "Lighting";
     blur_v_pass.setup = [](RenderGraph::Builder& b) {
-        b.create_image("AmbientOcclusion", ao_target_ci("AmbientOcclusion"));
-        b.write_image("AmbientOcclusion", VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
-        b.read_image("AoTmp", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+        b.create_image("HalfRes_AO", ao_target_ci("HalfRes_AO"));
+        b.write_image("HalfRes_AO", VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+        b.read_image("HalfRes_AO_Blur_H", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
         b.read_image("G_Depth", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
     };
     blur_v_pass.execute = [](RenderGraph::CommandList& cl) {

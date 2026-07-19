@@ -9,12 +9,13 @@ Error EditorRenderPath::create_resources()
     using enum Error;
     if (Error e = SceneRenderPath::create_resources(); e != Ok) return e;
 
-    ui_pass.name = "EditorUI";
+    ui_pass.name = "Editor_UI";
     ui_pass.category = "Present";
     ui_pass.formats = { { dd->swapchain.format } };
     ui_pass.setup = [](RenderGraph::Builder& b) {
-        b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.1f, 0.1f, 1.0f } });
-        b.read_all_images();
+        b.color_attachment("Backbuffer", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.1f, 0.1f, 1.0f } });
+        b.read_image("Out_Color", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+        b.read_image("HDR_Color", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
     };
     ui_pass.execute = [this](RenderGraph::CommandList& cl) {
         imgui->record_commands(cl.cmd);

@@ -22,7 +22,7 @@ void Viewport::draw_contents(EditorContext& ctx)
         ctx.renderer->request_size((uint32_t)size.x, (uint32_t)size.y);
     }
 
-    VkDescriptorSet set = ctx.imgui->texture_cache.get(ctx.renderer->final_image.image_view);
+    VkDescriptorSet set = ctx.imgui->texture_cache.get(ctx.renderer->out_color.image_view);
     if (set) {
         ImGui::Image((ImTextureID)set, size);
     } else {

@@ -64,26 +64,20 @@ void ProfilerResources::draw(DevContext& ctx, const char* p_pass_name)
             for (const RenderGraph::ImageAccess& a : node->image_accesses) {
                 if (a.resource_index < 0) continue;
                 const RenderGraph::ImageResource& r = graph.image_resources[a.resource_index];
-
                 VkFormat format = (r.kind == RenderGraph::ResourceKind::Imported && r.image) ? r.image->format : r.image_create_info.format;
 
                 ImGui::TableNextRow();
                 ImGui::PushID(row++);
-
-                ImGui::TableNextColumn();
-                ImGui::Selectable(name_of(r.name_id), false, ImGuiSelectableFlags_SpanAllColumns);
+                ImGui::TableNextColumn(); ImGui::Selectable(name_of(r.name_id), false, ImGuiSelectableFlags_SpanAllColumns);
                 const bool hov = ImGui::IsItemHovered();
-
                 ImGui::TableNextColumn(); ImGui::TextUnformatted(kind_str(r.kind));
                 ImGui::TableNextColumn(); ImGui::TextUnformatted(string_VkFormat(format));
-
+                
                 if (hov) {
                     ImGui::BeginTooltip();
                     ui::title("%s", name_of(r.name_id));
 
-                    const char* acc = a.is_write
-                        ? (a.is_attachment ? (a.is_depth ? "Write (depth attachment)" : "Write (color attachment)") : "Write")
-                        : "Read";
+                    const char* acc = a.is_write ? (a.is_attachment ? (a.is_depth ? "Write (depth attachment)" : "Write (color attachment)") : "Write") : "Read";
                     ui::property_row("Access", "%s", acc);
                     ui::property_row("Layout", "%s", string_VkImageLayout(a.layout));
                     if (a.is_attachment) {
@@ -108,10 +102,9 @@ void ProfilerResources::draw(DevContext& ctx, const char* p_pass_name)
     ImGui::BeginChild("ResRight", ImVec2(0, 0), ImGuiChildFlags_None);
     {
         ui::title("Buffers");
-        if (ImGui::BeginTable("buf", 3, tf)) {
+        if (ImGui::BeginTable("buf", 2, tf)) {
             ImGui::TableSetupColumn("Name");
             ImGui::TableSetupColumn("Kind", ImGuiTableColumnFlags_WidthFixed, 70.0f);
-            ImGui::TableSetupColumn("Size", ImGuiTableColumnFlags_WidthFixed, 80.0f);
             ImGui::TableHeadersRow();
 
             int row = 0;
@@ -121,14 +114,10 @@ void ProfilerResources::draw(DevContext& ctx, const char* p_pass_name)
 
                 ImGui::TableNextRow();
                 ImGui::PushID(row++);
-
-                ImGui::TableNextColumn();
-                ImGui::Selectable(name_of(r.name_id), false, ImGuiSelectableFlags_SpanAllColumns);
+                ImGui::TableNextColumn(); ImGui::Selectable(name_of(r.name_id), false, ImGuiSelectableFlags_SpanAllColumns);
                 const bool hov = ImGui::IsItemHovered();
-
                 ImGui::TableNextColumn(); ImGui::TextUnformatted(kind_str(r.kind));
-                ImGui::TableNextColumn(); ImGui::Text("%llu B", (unsigned long long)r.buffer_create_info.size);
-
+                
                 if (hov) {
                     ImGui::BeginTooltip();
                     ui::title("%s", name_of(r.name_id));

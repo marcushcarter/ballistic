@@ -546,11 +546,18 @@ uint32_t DeviceDriverVulkan::_find_memory_type(VkMemoryPropertyFlags p_propertie
     return UINT32_MAX;
 }
 
+VkDeviceSize DeviceDriverVulkan::_heap_size_for_type(uint32_t p_type_index) const
+{
+    VkPhysicalDeviceMemoryProperties mem{};
+    vkGetPhysicalDeviceMemoryProperties(physical_device, &mem);
+    if (p_type_index >= mem.memoryTypeCount) return 0;
+    return mem.memoryHeaps[mem.memoryTypes[p_type_index].heapIndex].size;
+}
+
 Error DeviceDriverVulkan::_allocator_pools_create()
 {
     using enum Error;
 
-    // ---- transient images (VK_IMAGE_TILING_OPTIMAL) ----
     VkImageCreateInfo image_probe{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
     image_probe.imageType = VK_IMAGE_TYPE_2D;
     image_probe.format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -567,24 +574,28 @@ Error DeviceDriverVulkan::_allocator_pools_create()
     image_probe_alloc.usage = VMA_MEMORY_USAGE_AUTO;
     image_probe_alloc.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    // ---- transient images ----
-    VkResult err = vmaFindMemoryTypeIndexForImageInfo(allocator, &image_probe, &image_probe_alloc, &image_transient_type_index);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't resolve memory type for transient image pool.");
+    uint32_t image_type_index = UINT32_MAX;
+    VkResult err = vmaFindMemoryTypeIndexForImageInfo(allocator, &image_probe, &image_probe_alloc, &image_type_index);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't resolve memory type for image pools.");
+    image_transient_type_index = image_type_index;
+    image_persistent_type_index = image_type_index;
 
+    // ---- transient images ----
     VmaPoolCreateInfo image_pool_ci{};
     image_pool_ci.memoryTypeIndex = image_transient_type_index;
-    image_pool_ci.blockSize = 0;
+    image_pool_ci.blockSize = 64ull << 20;
+    image_pool_ci.minBlockCount = 0;
+    image_pool_ci.maxBlockCount = 0;
     err = vmaCreatePool(allocator, &image_pool_ci, &image_transient_pool);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan transient image pool.");
     vmaSetPoolName(allocator, image_transient_pool, "image_transient");
     
     // ---- persistent images ----
-    err = vmaFindMemoryTypeIndexForImageInfo(allocator, &image_probe, &image_probe_alloc, &image_persistent_type_index);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't resolve memory type for persistent image pool.");
-
     VmaPoolCreateInfo persistent_pool_ci{};
     persistent_pool_ci.memoryTypeIndex = image_persistent_type_index;
-    persistent_pool_ci.blockSize = 0;
+    persistent_pool_ci.blockSize = 64ull << 20;
+    persistent_pool_ci.minBlockCount = 0;
+    persistent_pool_ci.maxBlockCount = 0;
     err = vmaCreatePool(allocator, &persistent_pool_ci, &image_persistent_pool);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan persistent image pool.");
     vmaSetPoolName(allocator, image_persistent_pool, "image_persistent");
@@ -604,7 +615,9 @@ Error DeviceDriverVulkan::_allocator_pools_create()
 
     VmaPoolCreateInfo buffer_pool_ci{};
     buffer_pool_ci.memoryTypeIndex = buffer_device_type_index;
-    buffer_pool_ci.blockSize = 0;
+    buffer_pool_ci.blockSize = 16ull << 20;
+    buffer_pool_ci.minBlockCount = 0;
+    buffer_pool_ci.maxBlockCount = 0;
     err = vmaCreatePool(allocator, &buffer_pool_ci, &buffer_device_pool);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan device buffer pool.");
     vmaSetPoolName(allocator, buffer_device_pool, "buffer_device");
@@ -623,7 +636,9 @@ Error DeviceDriverVulkan::_allocator_pools_create()
 
     VmaPoolCreateInfo upload_pool_ci{};
     upload_pool_ci.memoryTypeIndex = upload_type_index;
-    upload_pool_ci.blockSize = 0;
+    upload_pool_ci.blockSize = 16ull << 20;
+    upload_pool_ci.minBlockCount = 0;
+    upload_pool_ci.maxBlockCount = 0;
     err = vmaCreatePool(allocator, &upload_pool_ci, &upload_pool);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan upload pool.");
     vmaSetPoolName(allocator, upload_pool, "upload");

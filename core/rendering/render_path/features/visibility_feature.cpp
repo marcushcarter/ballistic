@@ -6,7 +6,7 @@ Error VisibilityFeature::create_resources()
 {
     using enum Error;
 
-    depth_pass.name = "MainDepth";
+    depth_pass.name = "Main_Depth";
     depth_pass.category = "DepthOnly";
     depth_pass.formats = { { VK_FORMAT_D32_SFLOAT, true } };
     depth_pass.setup = [](RenderGraph::Builder& b) {

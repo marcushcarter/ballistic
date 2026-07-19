@@ -10,34 +10,34 @@ Error GameRenderPath::create_resources()
     using enum Error;
     if (Error e = SceneRenderPath::create_resources(); e != Ok) return e;
 
-    present_pass.name = "GammaBlit";
+    present_pass.name = "Gamma_Blit";
     present_pass.category = "Present";
     present_pass.formats = { { dd->swapchain.format } };
     present_pass.setup = [](RenderGraph::Builder& b) {
-        b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.1f, 0.1f, 1.0f } });
-        b.read_image("final_image", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+        b.color_attachment("Backbuffer", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.1f, 0.1f, 1.0f } });
+        b.read_image("Out_Color", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
     };
     present_pass.execute = [this](RenderGraph::CommandList& cl) {
-        auto* bb = cl.graph->image("backbuffer");
-        auto* final_image = cl.graph->image("final_image");
+        auto* bb = cl.graph->image("Backbuffer");
+        auto* out_color = cl.graph->image("Out_Color");
 
         cl.dd->command_render_set_viewport(cl.cmd, {{{0,0},bb->extent}});
         cl.dd->command_render_set_scissor(cl.cmd, {{{0,0},bb->extent}});
         
         cl.dd->command_bind_pipeline(cl.cmd, gamma_blit_pipeline);
         struct { uint32_t srcIndex, samplerIndex; } pc;
-        pc.srcIndex = final_image->bindless_sampled;
+        pc.srcIndex = out_color->bindless_sampled;
         pc.samplerIndex = cl.dd->default_sampler.bindless_sampler;
         cl.dd->command_bind_push_constants(cl.cmd, sizeof(pc), &pc);
         cl.draw("gamma_blit", 3);
     };
     
-    ui_pass.name = "EditorUI";
+    ui_pass.name = "Editor_UI";
     ui_pass.category = "Present";
     ui_pass.formats = { { dd->swapchain.format } };
     ui_pass.setup = [](RenderGraph::Builder& b) {
-        b.color_attachment("backbuffer", VK_ATTACHMENT_LOAD_OP_LOAD);
-        b.read_all_images();
+        b.color_attachment("Backbuffer", VK_ATTACHMENT_LOAD_OP_LOAD);
+        b.read_image("HDR_Color", VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
     };
     ui_pass.execute = [this](RenderGraph::CommandList& cl) {
         imgui->record_commands(cl.cmd);

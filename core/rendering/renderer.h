@@ -28,7 +28,7 @@ struct Renderer
     std::vector<VkCommandBuffer> command_buffers;
     VkCommandBuffer cmd = VK_NULL_HANDLE;
 
-    drivers::DeviceDriverVulkan::Image final_image;
+    drivers::DeviceDriverVulkan::Image out_color;
 
     Error create(drivers::DeviceDriverVulkan& r_dd);
     void destroy();
