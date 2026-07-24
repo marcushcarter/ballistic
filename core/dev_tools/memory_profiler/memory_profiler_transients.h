@@ -7,8 +7,8 @@ namespace ballistic {
 
 struct MemoryProfilerTransients
 {
-    static constexpr uint32_t MAX_TRANSIENT_ROWS = 100;
- 
+    uint32_t max_rows = 100;
+
     void draw(DevContext& ctx);
 };
 

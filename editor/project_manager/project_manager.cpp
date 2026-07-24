@@ -1,7 +1,6 @@
 #include <editor/project_manager/project_manager.h>
 #include <core/project/project.h>
 #include <core/io/path.h>
-#include <core/log/log.h>
 #include <imgui.h>
 #include <fstream>
 

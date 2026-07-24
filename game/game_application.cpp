@@ -1,5 +1,4 @@
 #include <game/game_application.h>
-#include <core/log/log.h>
 #include <core/io/path.h>
 #include <imgui.h>
 #include <windows.h>

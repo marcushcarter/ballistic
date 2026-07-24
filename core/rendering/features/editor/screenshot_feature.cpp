@@ -2,7 +2,6 @@
 #include <drivers/vulkan/device_driver_vulkan.h>
 #include <core/io/image_io.h>
 #include <core/io/path.h>
-#include <core/log/log.h>
 #include <vector>
 #include <chrono>
 #include <ctime>
@@ -102,7 +101,7 @@ void ScreenshotFeature::build(RenderGraph& g)
         ci.name = "Screenshot_Staging";
         ci.size = bytes;
         ci.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-        ci.memory = drivers::DeviceDriverVulkan::BufferCreateInfo::Memory::HostVisible;
+        ci.host_visible = true;
         staging = ctx->dd->buffer_create(ci);
         if (!staging.buffer) { log_write("Screenshot: staging alloc failed."); return; }
     } else if (ctx->dd->buffer_ensure_capacity(staging, bytes) != Error::Ok) {

@@ -1,5 +1,4 @@
 #include <drivers/imgui/imgui_driver.h>
-#include <core/log/error_macros.h>
 #include <backends/imgui_impl_win32.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <implot.h>

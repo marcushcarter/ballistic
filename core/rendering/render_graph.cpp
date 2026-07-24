@@ -1,5 +1,4 @@
 #include <core/rendering/render_graph.h>
-#include <core/log/error_macros.h>
 #include <unordered_set>
 
 namespace ballistic {
@@ -315,12 +314,12 @@ void RenderGraph::create_buffer(std::string_view p_name, const drivers::DeviceDr
     buffer_resource_map[id] = idx;
 }
 
-uint64_t RenderGraph::_buffer_transient_key(VkBufferUsageFlags p_usage, drivers::DeviceDriverVulkan::BufferCreateInfo::Memory p_memory, VkDeviceSize p_capacity)
+uint64_t RenderGraph::_buffer_transient_key(VkBufferUsageFlags p_usage, bool p_device_local, bool p_host_visible, bool p_cpu_read, VkDeviceSize p_capacity)
 {
     uint64_t h = 1469598103934665603ull;
     auto mix = [&](uint64_t v) { h ^= v; h *= 1099511628211ull; };
     mix((uint64_t)p_usage);
-    mix((uint64_t)p_memory);
+    mix((uint64_t)p_device_local | ((uint64_t)p_host_visible << 1) | ((uint64_t)p_cpu_read << 2));
     mix((uint64_t)p_capacity);
     return h;
 }
@@ -337,7 +336,7 @@ void RenderGraph::_buffer_materialize_transient(BufferResource& r)
 
     VkBufferUsageFlags usage_final = buffer_ci.usage | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
-    uint64_t key = _buffer_transient_key(usage_final, buffer_ci.memory, size_class);
+    uint64_t key = _buffer_transient_key(usage_final, buffer_ci.device_local, buffer_ci.host_visible, buffer_ci.cpu_read, size_class);
     BufferTransientPool& pool = buffer_transient_pools[current_frame];
 
     drivers::DeviceDriverVulkan::Buffer buf;
@@ -368,7 +367,7 @@ void RenderGraph::_buffer_release_transients()
         if (r.kind != ResourceKind::Transient) continue;
         if (!r.buffer) continue;
 
-        uint64_t key = _buffer_transient_key(r.transient_storage.usage, r.transient_storage.memory, r.transient_storage.capacity);
+        uint64_t key = _buffer_transient_key(r.transient_storage.usage, r.transient_storage.device_local, r.transient_storage.host_visible, r.transient_storage.cpu_read, r.transient_storage.capacity);
         pool.free[key].push_back(r.transient_storage);
 
         r.buffer = nullptr;

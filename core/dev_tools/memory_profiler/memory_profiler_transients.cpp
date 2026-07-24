@@ -48,7 +48,7 @@ void MemoryProfilerTransients::draw(DevContext& ctx)
             uint32_t shown = 0;
             for (const RenderGraph::ImageResource& r : graph->image_resources) {
                 if (r.kind != RenderGraph::ResourceKind::Transient || !r.image) continue;
-                if (shown++ >= MAX_TRANSIENT_ROWS) continue;
+                if (shown++ >= max_rows) continue;
                 auto it = graph->debug_names.find(r.name_id);
                 const char* name = (it != graph->debug_names.end()) ? it->second.c_str() : "<unnamed>";
                 ImGui::TableNextRow();
@@ -58,7 +58,7 @@ void MemoryProfilerTransients::draw(DevContext& ctx)
                 ImGui::TableSetColumnIndex(3); ImGui::Text(ui::fmt_bytes(r.transient_storage.mem_req.size));
             }
             ImGui::EndTable();
-            if (live_count > MAX_TRANSIENT_ROWS) ImGui::TextDisabled("... (+%u more)", live_count - MAX_TRANSIENT_ROWS);
+            if (live_count > max_rows) ImGui::TextDisabled("... (+%u more)", live_count - max_rows);
             ImGui::TextDisabled("live %s | retained in free-lists %s", ui::fmt_bytes(live_bytes), ui::fmt_bytes(free_bytes));
         }
     }
@@ -99,17 +99,17 @@ void MemoryProfilerTransients::draw(DevContext& ctx)
             uint32_t shown = 0;
             for (const RenderGraph::BufferResource& r : graph->buffer_resources) {
                 if (r.kind != RenderGraph::ResourceKind::Transient || !r.buffer) continue;
-                if (shown++ >= MAX_TRANSIENT_ROWS) continue;
+                if (shown++ >= max_rows) continue;
                 auto it = graph->debug_names.find(r.name_id);
                 const char* name = (it != graph->debug_names.end()) ? it->second.c_str() : "<unnamed>";
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0); ImGui::Text(name);
-                ImGui::TableSetColumnIndex(1); ImGui::Text(r.transient_storage.memory == drivers::DeviceDriverVulkan::BufferCreateInfo::Memory::HostVisible ? "HostVisible" : "DeviceLocal");
+                // ImGui::TableSetColumnIndex(1); ImGui::Text(r.transient_storage.memory == drivers::DeviceDriverVulkan::BufferCreateInfo::Memory::HostVisible ? "HostVisible" : "DeviceLocal");
                 ImGui::TableSetColumnIndex(2); ImGui::Text(ui::fmt_bytes(r.transient_storage.size));
                 ImGui::TableSetColumnIndex(3); if (r.transient_storage.capacity > r.transient_storage.size * 2) ImGui::TextColored(warn_color, "%s", ui::fmt_bytes(r.transient_storage.capacity)); else ImGui::Text(ui::fmt_bytes(r.transient_storage.capacity));
             }
             ImGui::EndTable();
-            if (live_count > MAX_TRANSIENT_ROWS) ImGui::TextDisabled("... (+%u more)", live_count - MAX_TRANSIENT_ROWS);
+            if (live_count > max_rows) ImGui::TextDisabled("... (+%u more)", live_count - max_rows);
             ImGui::TextDisabled("requested %s | allocated %s | retained in free-lists %s", ui::fmt_bytes(live_logical), ui::fmt_bytes(live_capacity), ui::fmt_bytes(free_bytes));
         }
     }

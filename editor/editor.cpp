@@ -5,7 +5,6 @@
 #include <editor/debugger/debugger.h>
 #include <editor/settings/settings.h>
 #include <core/rendering/render_path/editor_render_path.h>
-#include <core/log/log.h>
 #include <editor/editor_settings.h>
 #include <imgui.h>
 

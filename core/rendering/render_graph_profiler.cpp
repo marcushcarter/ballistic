@@ -1,5 +1,4 @@
 #include <core/rendering/render_graph_profiler.h>
-#include <core/log/error_macros.h>
 #include <algorithm>
 
 namespace ballistic {

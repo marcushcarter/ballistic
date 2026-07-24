@@ -1,6 +1,5 @@
 #include <core/application/application.h>
 #include <core/rendering/render_path/render_path.h>
-#include <core/log/error_macros.h>
 #include <core/version.h>
 #include <windows.h>
 #include <chrono>

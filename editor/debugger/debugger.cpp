@@ -1,6 +1,6 @@
 #include <editor/debugger/debugger.h>
 #include <drivers/windows/dialogs_win32.h>
-#include <core/log/log.h>
+#include <core/log/error.h>
 #include <imgui.h>
 #include <IconsFontAwesome6.h>
 #include <fstream>

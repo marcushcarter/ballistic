@@ -172,7 +172,7 @@ struct RenderGraph
     void import_buffer(std::string_view p_name, drivers::DeviceDriverVulkan::Buffer* p_buffer, VkPipelineStageFlags2 p_final_stage, VkAccessFlags2 p_final_access);
     
     void create_buffer(std::string_view p_name, const drivers::DeviceDriverVulkan::BufferCreateInfo& p_create_info);
-    uint64_t _buffer_transient_key(VkBufferUsageFlags p_usage, drivers::DeviceDriverVulkan::BufferCreateInfo::Memory p_memory, VkDeviceSize p_capacity);
+    uint64_t _buffer_transient_key(VkBufferUsageFlags p_usage, bool p_device_local, bool p_host_visible, bool p_cpu_read, VkDeviceSize p_capacity);
     void _buffer_materialize_transient(BufferResource& r);
     void _buffer_release_transients();
     

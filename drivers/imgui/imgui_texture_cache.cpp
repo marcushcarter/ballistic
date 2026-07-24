@@ -1,5 +1,4 @@
 #include <drivers/imgui/imgui_texture_cache.h>
-#include <core/log/error_macros.h>
 #include <backends/imgui_impl_vulkan.h>
 
 namespace ballistic::drivers {

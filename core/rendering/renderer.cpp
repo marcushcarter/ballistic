@@ -1,5 +1,4 @@
 #include <core/rendering/renderer.h>
-#include <core/log/error_macros.h>
 #include <core/io/embedded_resource.h>
 #include <iostream>
 

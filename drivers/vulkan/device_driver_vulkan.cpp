@@ -1,5 +1,4 @@
 #include <drivers/vulkan/device_driver_vulkan.h>
-#include <core/log/error_macros.h>
 #include <core/io/path.h>
 #include <vulkan/vulkan.hpp>
 #include <iostream>
@@ -517,11 +516,14 @@ Error DeviceDriverVulkan::device_wait_idle()
 /**** MEMORY ****/
 /****************/
 
-uint32_t DeviceDriverVulkan::_pool_memory_type(VmaPool p_pool) const {
-    if (p_pool == image_transient_pool) return image_transient_type_index;
-    if (p_pool == image_persistent_pool) return image_persistent_type_index;
-    if (p_pool == buffer_device_pool) return buffer_device_type_index;
+uint32_t DeviceDriverVulkan::_pool_memory_type(VmaPool p_pool) const
+{
+    if (!p_pool) return UINT32_MAX;
+    if (p_pool == image_transient_pool || p_pool == image_persistent_pool || p_pool == image_texture_pool) return image_device_type_index;
+    if (p_pool == buffer_geometry_pool || p_pool == buffer_device_pool) return buffer_device_type_index;
+    if (p_pool == buffer_bar_pool) return buffer_bar_type_index;
     if (p_pool == upload_pool) return upload_type_index;
+    if (p_pool == readback_pool) return readback_type_index;
     return UINT32_MAX;
 }
 
@@ -557,6 +559,18 @@ Error DeviceDriverVulkan::_allocator_pools_create()
 {
     using enum Error;
 
+    auto make_pool = [&](uint32_t type_index, const char* name, VmaPool* out) -> VkResult {
+        VmaPoolCreateInfo ci{};
+        ci.memoryTypeIndex = type_index;
+        ci.blockSize = 0;
+        ci.minBlockCount = 0;
+        ci.maxBlockCount = 0;
+        VkResult e = vmaCreatePool(allocator, &ci, out);
+        if (e == VK_SUCCESS) vmaSetPoolName(allocator, *out, name);
+        return e;
+    };
+
+    // ---- device-local images ----
     VkImageCreateInfo image_probe{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
     image_probe.imageType = VK_IMAGE_TYPE_2D;
     image_probe.format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -569,104 +583,111 @@ Error DeviceDriverVulkan::_allocator_pools_create()
     image_probe.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     image_probe.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    VmaAllocationCreateInfo image_probe_alloc{};
-    image_probe_alloc.usage = VMA_MEMORY_USAGE_AUTO;
-    image_probe_alloc.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    VmaAllocationCreateInfo image_alloc{};
+    image_alloc.usage = VMA_MEMORY_USAGE_AUTO;
+    image_alloc.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    uint32_t image_type_index = UINT32_MAX;
-    VkResult err = vmaFindMemoryTypeIndexForImageInfo(allocator, &image_probe, &image_probe_alloc, &image_type_index);
+    VkResult err = vmaFindMemoryTypeIndexForImageInfo(allocator, &image_probe, &image_alloc, &image_device_type_index);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't resolve memory type for image pools.");
-    image_transient_type_index = image_type_index;
-    image_persistent_type_index = image_type_index;
 
-    // ---- transient images ----
-    VmaPoolCreateInfo image_pool_ci{};
-    image_pool_ci.memoryTypeIndex = image_transient_type_index;
-    image_pool_ci.blockSize = 64ull << 20;
-    image_pool_ci.minBlockCount = 0;
-    image_pool_ci.maxBlockCount = 0;
-    err = vmaCreatePool(allocator, &image_pool_ci, &image_transient_pool);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan transient image pool.");
-    vmaSetPoolName(allocator, image_transient_pool, "image_transient");
-    
-    // ---- persistent images ----
-    VmaPoolCreateInfo persistent_pool_ci{};
-    persistent_pool_ci.memoryTypeIndex = image_persistent_type_index;
-    persistent_pool_ci.blockSize = 64ull << 20;
-    persistent_pool_ci.minBlockCount = 0;
-    persistent_pool_ci.maxBlockCount = 0;
-    err = vmaCreatePool(allocator, &persistent_pool_ci, &image_persistent_pool);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan persistent image pool.");
-    vmaSetPoolName(allocator, image_persistent_pool, "image_persistent");
+    err = make_pool(image_device_type_index, "image_transient", &image_transient_pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create transient image pool.");
+    err = make_pool(image_device_type_index, "image_persistent", &image_persistent_pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create persistent image pool.");
+    err = make_pool(image_device_type_index, "image_texture", &image_texture_pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create texture image pool.");
 
-    // ---- device-local buffers (linear) ----
+    // ---- device-local buffers ----
     VkBufferCreateInfo buffer_probe{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
     buffer_probe.size = 1024 * 1024;
-    buffer_probe.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    buffer_probe.usage =
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+        VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+        VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     buffer_probe.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    VmaAllocationCreateInfo buffer_probe_alloc{};
-    buffer_probe_alloc.usage = VMA_MEMORY_USAGE_AUTO;
-    buffer_probe_alloc.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    VmaAllocationCreateInfo device_buf_alloc{};
+    device_buf_alloc.usage = VMA_MEMORY_USAGE_AUTO;
+    device_buf_alloc.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    err = vmaFindMemoryTypeIndexForBufferInfo(allocator, &buffer_probe, &buffer_probe_alloc, &buffer_device_type_index);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't resolve memory type for device buffer pool.");
+    err = vmaFindMemoryTypeIndexForBufferInfo(allocator, &buffer_probe, &device_buf_alloc, &buffer_device_type_index);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't resolve memory type for device buffer pools.");
 
-    VmaPoolCreateInfo buffer_pool_ci{};
-    buffer_pool_ci.memoryTypeIndex = buffer_device_type_index;
-    buffer_pool_ci.blockSize = 16ull << 20;
-    buffer_pool_ci.minBlockCount = 0;
-    buffer_pool_ci.maxBlockCount = 0;
-    err = vmaCreatePool(allocator, &buffer_pool_ci, &buffer_device_pool);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan device buffer pool.");
-    vmaSetPoolName(allocator, buffer_device_pool, "buffer_device");
+    err = make_pool(buffer_device_type_index, "buffer_geometry", &buffer_geometry_pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create geometry buffer pool.");
+    err = make_pool(buffer_device_type_index, "buffer_device", &buffer_device_pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create device buffer pool.");
 
-    // ---- upload ----
+    // ---- bar buffers ----
+    VmaAllocationCreateInfo bar_alloc{};
+    bar_alloc.usage = VMA_MEMORY_USAGE_AUTO;
+    bar_alloc.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    bar_alloc.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+
+    if (vmaFindMemoryTypeIndexForBufferInfo(allocator, &buffer_probe, &bar_alloc, &buffer_bar_type_index) == VK_SUCCESS) {
+        err = make_pool(buffer_bar_type_index, "buffer_bar", &buffer_bar_pool);
+        BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create BAR buffer pool.");
+        bar_available = true;
+    } else {
+        buffer_bar_type_index = UINT32_MAX;
+        bar_available = false;
+        log_write("No DEVICE_LOCAL|HOST_VISIBLE memory type; BAR buffers fall back to upload pool.");
+    }
+
+    // ---- upload buffers ----
     VkBufferCreateInfo upload_probe = buffer_probe;
     upload_probe.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
-    VmaAllocationCreateInfo upload_probe_alloc{};
-    upload_probe_alloc.usage = VMA_MEMORY_USAGE_AUTO;
-    upload_probe_alloc.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-    upload_probe_alloc.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    VmaAllocationCreateInfo upload_alloc{};
+    upload_alloc.usage = VMA_MEMORY_USAGE_AUTO;
+    upload_alloc.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+    upload_alloc.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
-    err = vmaFindMemoryTypeIndexForBufferInfo(allocator, &upload_probe, &upload_probe_alloc, &upload_type_index);
+    err = vmaFindMemoryTypeIndexForBufferInfo(allocator, &upload_probe, &upload_alloc, &upload_type_index);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't resolve memory type for upload pool.");
+    err = make_pool(upload_type_index, "upload", &upload_pool);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create upload pool.");
 
-    VmaPoolCreateInfo upload_pool_ci{};
-    upload_pool_ci.memoryTypeIndex = upload_type_index;
-    upload_pool_ci.blockSize = 16ull << 20;
-    upload_pool_ci.minBlockCount = 0;
-    upload_pool_ci.maxBlockCount = 0;
-    err = vmaCreatePool(allocator, &upload_pool_ci, &upload_pool);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan upload pool.");
-    vmaSetPoolName(allocator, upload_pool, "upload");
+    // ---- readback buffers ----
+    VkBufferCreateInfo readback_probe = buffer_probe;
+    readback_probe.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+
+    VmaAllocationCreateInfo readback_alloc{};
+    readback_alloc.usage = VMA_MEMORY_USAGE_AUTO;
+    readback_alloc.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+    readback_alloc.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+
+    if (vmaFindMemoryTypeIndexForBufferInfo(allocator, &readback_probe, &readback_alloc, &readback_type_index) == VK_SUCCESS) {
+        err = make_pool(readback_type_index, "readback", &readback_pool);
+        BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create readback pool.");
+    } else {
+        readback_type_index = UINT32_MAX;
+        log_write("No HOST_VISIBLE|HOST_CACHED memory type; readback pool unavailable.");
+    }
 
     return Ok;
 }
 
 void DeviceDriverVulkan::_allocator_pools_free()
 {
-    if (image_persistent_pool) {
-        vmaDestroyPool(allocator, image_persistent_pool);
-        image_persistent_pool = nullptr;
-    }
-    if (image_transient_pool) {
-        vmaDestroyPool(allocator, image_transient_pool);
-        image_transient_pool = nullptr;
-    }
-    if (buffer_device_pool) {
-        vmaDestroyPool(allocator, buffer_device_pool);
-        buffer_device_pool = nullptr;
-    }
-    if (upload_pool) {
-        vmaDestroyPool(allocator, upload_pool);
-        upload_pool = nullptr;
-    }
-    image_transient_type_index = UINT32_MAX;
-    image_persistent_type_index = UINT32_MAX;
+    auto kill = [&](VmaPool& p) { if (p) { vmaDestroyPool(allocator, p); p = nullptr; } };
+    kill(image_transient_pool);
+    kill(image_persistent_pool);
+    kill(image_texture_pool);
+    kill(buffer_geometry_pool);
+    kill(buffer_device_pool);
+    kill(buffer_bar_pool);
+    kill(upload_pool);
+    kill(readback_pool);
+
+    image_device_type_index = UINT32_MAX;
     buffer_device_type_index = UINT32_MAX;
+    buffer_bar_type_index = UINT32_MAX;
     upload_type_index = UINT32_MAX;
+    readback_type_index = UINT32_MAX;
+    bar_available = false;
 }
 
 Error DeviceDriverVulkan::allocator_create()
@@ -708,27 +729,27 @@ void DeviceDriverVulkan::allocator_free()
 /**** IMAGES ****/
 /****************/
 
-DeviceDriverVulkan::Image DeviceDriverVulkan::_image_create(const ImageCreateInfo& p_create_info, VkExtent2D p_extent)
+DeviceDriverVulkan::Image DeviceDriverVulkan::_image_create(const ImageCreateInfo& p_ci, VkExtent2D p_extent)
 {
     using enum Error;
     
     Image image;
     image.extent = p_extent;
-    image.format = p_create_info.format;
-    image.aspect= p_create_info.aspect;
-    image.mip_levels = p_create_info.mip_levels;
-    image.layers = p_create_info.layers;
+    image.format = p_ci.format;
+    image.aspect= p_ci.aspect;
+    image.mip_levels = p_ci.mip_levels;
+    image.layers = p_ci.layers;
     
     VkImageCreateInfo image_ci{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
     image_ci.flags = 0;
     image_ci.imageType = VK_IMAGE_TYPE_2D;
-    image_ci.format = p_create_info.format;
+    image_ci.format = p_ci.format;
     image_ci.extent = { p_extent.width, p_extent.height, 1 };
-    image_ci.mipLevels = p_create_info.mip_levels;
-    image_ci.arrayLayers = p_create_info.layers;
-    image_ci.samples = p_create_info.samples;
+    image_ci.mipLevels = p_ci.mip_levels;
+    image_ci.arrayLayers = p_ci.layers;
+    image_ci.samples = p_ci.samples;
     image_ci.tiling = VK_IMAGE_TILING_OPTIMAL;
-    image_ci.usage = p_create_info.usage;
+    image_ci.usage = p_ci.usage;
     image_ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     image_ci.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     
@@ -746,7 +767,7 @@ DeviceDriverVulkan::Image DeviceDriverVulkan::_image_create(const ImageCreateInf
     image.requires_dedicated = ded.requiresDedicatedAllocation == VK_TRUE;
     image.prefers_dedicated = ded.prefersDedicatedAllocation == VK_TRUE;
 
-    set_object_name(VK_OBJECT_TYPE_IMAGE, (uint64_t)image.image, p_create_info.name);
+    set_object_name(VK_OBJECT_TYPE_IMAGE, (uint64_t)image.image, p_ci.name);
     return image;
 }
 
@@ -781,28 +802,28 @@ Error DeviceDriverVulkan::_image_create_view(Image& r_image)
     return Ok;
 }
 
-DeviceDriverVulkan::Image DeviceDriverVulkan::image_create_dedicated(const ImageCreateInfo& p_create_info, VkExtent2D p_extent)
+DeviceDriverVulkan::Image DeviceDriverVulkan::image_create_dedicated(const ImageCreateInfo& p_ci, VkExtent2D p_extent)
 {
     using enum Error;
 
-    Image image = _image_create(p_create_info, p_extent);
+    Image image = _image_create(p_ci, p_extent);
     BALLISTIC_ERR_FAIL_COND_V(image.image == VK_NULL_HANDLE, {});
 
     VmaAllocationCreateInfo alloc_ci{};
     alloc_ci.usage = VMA_MEMORY_USAGE_UNKNOWN;
     alloc_ci.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-    const uint32_t pool_type = _pool_memory_type(p_create_info.pool);
+    const uint32_t pool_type = _pool_memory_type(p_ci.pool);
     const bool type_ok = pool_type != UINT32_MAX && (image.mem_req.memoryTypeBits & (1u << pool_type)) != 0;
-    bool pooled = p_create_info.pool != nullptr && type_ok && !image.requires_dedicated && !image.prefers_dedicated;
+    bool pooled = p_ci.pool != nullptr && type_ok && !image.requires_dedicated && !image.prefers_dedicated;
 
-    if (pooled) alloc_ci.pool = p_create_info.pool;
+    if (pooled) alloc_ci.pool = p_ci.pool;
     else alloc_ci.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
 
     VmaAllocation allocation = nullptr;
     VkResult err = vmaAllocateMemoryForImage(allocator, image.image, &alloc_ci, &allocation, nullptr);
     if (err != VK_SUCCESS && pooled) {
-        log_write("Transient image pool exhausted for '%s', falling back to dedicated.", p_create_info.name ? p_create_info.name : "<unnamed>");
+        log_write("Transient image pool exhausted for '%s', falling back to dedicated.", p_ci.name ? p_ci.name : "<unnamed>");
         alloc_ci.pool = nullptr;
         alloc_ci.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
         err = vmaAllocateMemoryForImage(allocator, image.image, &alloc_ci, &allocation, nullptr);
@@ -815,8 +836,8 @@ DeviceDriverVulkan::Image DeviceDriverVulkan::image_create_dedicated(const Image
     e = _image_create_view(image);
     BALLISTIC_ERR_FAIL_COND_V(e != Ok, {});
 
-    if (p_create_info.usage & VK_IMAGE_USAGE_SAMPLED_BIT) image.bindless_sampled = bindless_heap_alloc_sampled(image.image_view);
-    if (p_create_info.usage & VK_IMAGE_USAGE_STORAGE_BIT) image.bindless_storage = bindless_heap_alloc_storage(image.image_view);
+    if (p_ci.usage & VK_IMAGE_USAGE_SAMPLED_BIT) image.bindless_sampled = bindless_heap_alloc_sampled(image.image_view);
+    if (p_ci.usage & VK_IMAGE_USAGE_STORAGE_BIT) image.bindless_storage = bindless_heap_alloc_storage(image.image_view);
 
     return image;
 }
@@ -859,18 +880,25 @@ VkDeviceSize DeviceDriverVulkan::_next_power_of_2(VkDeviceSize v)
     return ++v;
 }
 
-DeviceDriverVulkan::Buffer DeviceDriverVulkan::buffer_create(const BufferCreateInfo& p_create_info)
+DeviceDriverVulkan::Buffer DeviceDriverVulkan::buffer_create(const BufferCreateInfo& p_ci)
 {
+    BALLISTIC_ERR_FAIL_COND_V_MSG(!p_ci.device_local && !p_ci.host_visible, {}, "Buffer must be device_local, host_visible, or both.");
+    BALLISTIC_ERR_FAIL_COND_V_MSG(p_ci.cpu_read && !p_ci.host_visible, {}, "cpu_read requires host_visible.");
+
     using enum Error;
 
     Buffer buffer;
-    buffer.memory = p_create_info.memory;
-    buffer.name = p_create_info.name;
+    buffer.name = p_ci.name;
 
-    VkBufferUsageFlags usage = p_create_info.usage | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    buffer.device_local = p_ci.device_local;
+    buffer.host_visible = p_ci.host_visible;
+    buffer.cpu_read = p_ci.cpu_read;
+    buffer.pool = p_ci.pool;
+
+    VkBufferUsageFlags usage = p_ci.usage | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     buffer.usage = usage;
 
-    VkDeviceSize alloc_size = p_create_info.size ? p_create_info.size : 1;
+    VkDeviceSize alloc_size = p_ci.size ? p_ci.size : 1;
 
     VkBufferCreateInfo buffer_ci{ VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
     buffer_ci.size = alloc_size;
@@ -879,42 +907,52 @@ DeviceDriverVulkan::Buffer DeviceDriverVulkan::buffer_create(const BufferCreateI
 
     VmaAllocationCreateInfo alloc_ci{};
     alloc_ci.usage = VMA_MEMORY_USAGE_UNKNOWN;
-    if (p_create_info.memory == BufferCreateInfo::Memory::HostVisible) {
-        alloc_ci.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        alloc_ci.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
-    } else {
-        alloc_ci.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    if (p_ci.device_local) alloc_ci.requiredFlags |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    if (p_ci.host_visible) {
+        alloc_ci.requiredFlags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        alloc_ci.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
+        if (p_ci.cpu_read) {
+            alloc_ci.requiredFlags |= VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+            alloc_ci.flags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+        } else {
+            alloc_ci.preferredFlags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            alloc_ci.flags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        }
     }
 
     bool pooled = false;
-    const uint32_t pool_type = _pool_memory_type(p_create_info.pool);
-    if (p_create_info.pool != nullptr && pool_type != UINT32_MAX) {
+    const uint32_t pool_type = _pool_memory_type(p_ci.pool);
+    if (p_ci.pool != nullptr && pool_type != UINT32_MAX) {
         VkDeviceBufferMemoryRequirements dev_req{ VK_STRUCTURE_TYPE_DEVICE_BUFFER_MEMORY_REQUIREMENTS };
         dev_req.pCreateInfo = &buffer_ci;
         VkMemoryRequirements2 req2{ VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2 };
         vkGetDeviceBufferMemoryRequirements(device, &dev_req, &req2);
         pooled = (req2.memoryRequirements.memoryTypeBits & (1u << pool_type)) != 0;
     }
-    if (pooled) alloc_ci.pool = p_create_info.pool;
+    if (pooled) alloc_ci.pool = p_ci.pool;
 
     VmaAllocationInfo alloc_info{};
     VkResult err = vmaCreateBuffer(allocator, &buffer_ci, &alloc_ci, &buffer.buffer, &buffer.allocation, &alloc_info);
     if (err != VK_SUCCESS && pooled) {
-        log_write("Device buffer pool exhausted for '%s', falling back to default allocator.", p_create_info.name ? p_create_info.name : "<unnamed>");
+        log_write("Device buffer pool exhausted for '%s', falling back to default allocator.", p_ci.name ? p_ci.name : "<unnamed>");
         alloc_ci.pool = nullptr;
         err = vmaCreateBuffer(allocator, &buffer_ci, &alloc_ci, &buffer.buffer, &buffer.allocation, &alloc_info);
     }
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan buffer.");
 
     buffer.capacity = alloc_size;
-    buffer.size = p_create_info.size;
+    buffer.size = p_ci.size;
     buffer.mapped = alloc_info.pMappedData;
+    
+    VkMemoryPropertyFlags mem_props = 0;
+    vmaGetAllocationMemoryProperties(allocator, buffer.allocation, &mem_props);
+    buffer.coherent = (mem_props & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0;
 
     VkBufferDeviceAddressInfo addr_info{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO };
     addr_info.buffer = buffer.buffer;
     buffer.device_address = vkGetBufferDeviceAddress(device, &addr_info);
 
-    set_object_name(VK_OBJECT_TYPE_BUFFER, (uint64_t)buffer.buffer, p_create_info.name);
+    set_object_name(VK_OBJECT_TYPE_BUFFER, (uint64_t)buffer.buffer, p_ci.name);
     return buffer;
 }
 
@@ -944,7 +982,10 @@ Error DeviceDriverVulkan::buffer_ensure_capacity(Buffer& r_buffer, VkDeviceSize 
     BufferCreateInfo buffer_ci{};
     buffer_ci.size = new_cap;
     buffer_ci.usage = r_buffer.usage;
-    buffer_ci.memory = r_buffer.memory;
+    buffer_ci.device_local = r_buffer.device_local;
+    buffer_ci.host_visible = r_buffer.host_visible;
+    buffer_ci.cpu_read = r_buffer.cpu_read;
+    buffer_ci.pool = r_buffer.pool;
     buffer_ci.name = r_buffer.name;
 
     Buffer fresh = buffer_create(buffer_ci);
@@ -965,6 +1006,24 @@ Error DeviceDriverVulkan::buffer_update(Buffer& r_buffer, const void* p_data, Vk
     return Ok;
 }
 
+Error DeviceDriverVulkan::buffer_flush(Buffer& r_buffer, VkDeviceSize p_offset, VkDeviceSize p_size)
+{
+    using enum Error;
+    if (r_buffer.coherent || !r_buffer.allocation) return Ok;
+    VkResult err = vmaFlushAllocation(allocator, r_buffer.allocation, p_offset, p_size);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't flush buffer allocation.");
+    return Ok;
+}
+
+Error DeviceDriverVulkan::buffer_invalidate(Buffer& r_buffer, VkDeviceSize p_offset, VkDeviceSize p_size)
+{
+    using enum Error;
+    if (r_buffer.coherent || !r_buffer.allocation) return Ok;
+    VkResult err = vmaInvalidateAllocation(allocator, r_buffer.allocation, p_offset, p_size);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't invalidate buffer allocation.");
+    return Ok;
+}
+
 void DeviceDriverVulkan::command_copy_image_to_buffer(VkCommandBuffer p_cmd, const Image& p_image, const Buffer& p_buffer, VkExtent2D p_extent)
 {
     VkBufferImageCopy region{};
@@ -977,12 +1036,12 @@ void DeviceDriverVulkan::command_copy_image_to_buffer(VkCommandBuffer p_cmd, con
     vkCmdCopyImageToBuffer(p_cmd, p_image.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, p_buffer.buffer, 1, &region);
 }
 
-DeviceDriverVulkan::BufferRing DeviceDriverVulkan::buffer_ring_create(const BufferCreateInfo& p_create_info, uint32_t p_frame_count)
+DeviceDriverVulkan::BufferRing DeviceDriverVulkan::buffer_ring_create(const BufferCreateInfo& p_ci, uint32_t p_frame_count)
 {
     using enum Error;
     BufferRing ring;
     for (uint32_t i = 0; i < p_frame_count; i++) {
-        buffer_create(p_create_info);
+        buffer_create(p_ci);
     }
     return ring;
 }
@@ -998,23 +1057,23 @@ void DeviceDriverVulkan::buffer_ring_free(BufferRing& r_buffer_ring)
 /**** SAMPLER ****/
 /*****************/
 
-DeviceDriverVulkan::Sampler DeviceDriverVulkan::sampler_create(const SamplerCreateInfo& p_create_info)
+DeviceDriverVulkan::Sampler DeviceDriverVulkan::sampler_create(const SamplerCreateInfo& p_ci)
 {
     using enum Error;
 
     VkSamplerCreateInfo sampler_ci{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-    sampler_ci.magFilter = p_create_info.filter;
-    sampler_ci.minFilter = p_create_info.filter;
-    sampler_ci.addressModeU = p_create_info.address_mode;
-    sampler_ci.addressModeV = p_create_info.address_mode;
-    sampler_ci.addressModeW = p_create_info.address_mode;
-    sampler_ci.anisotropyEnable = p_create_info.anisotropy > 1.0f;
-    sampler_ci.maxAnisotropy = p_create_info.anisotropy;
+    sampler_ci.magFilter = p_ci.filter;
+    sampler_ci.minFilter = p_ci.filter;
+    sampler_ci.addressModeU = p_ci.address_mode;
+    sampler_ci.addressModeV = p_ci.address_mode;
+    sampler_ci.addressModeW = p_ci.address_mode;
+    sampler_ci.anisotropyEnable = p_ci.anisotropy > 1.0f;
+    sampler_ci.maxAnisotropy = p_ci.anisotropy;
     sampler_ci.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
     sampler_ci.unnormalizedCoordinates = false;
-    sampler_ci.compareEnable = p_create_info.compare;
-    sampler_ci.compareOp = p_create_info.compare_op;
-    sampler_ci.mipmapMode = p_create_info.mipmap_mode;
+    sampler_ci.compareEnable = p_ci.compare;
+    sampler_ci.compareOp = p_ci.compare_op;
+    sampler_ci.mipmapMode = p_ci.mipmap_mode;
     sampler_ci.mipLodBias = 0.0f;
     sampler_ci.minLod = 0.0f;
     sampler_ci.maxLod = VK_LOD_CLAMP_NONE;
@@ -1025,7 +1084,7 @@ DeviceDriverVulkan::Sampler DeviceDriverVulkan::sampler_create(const SamplerCrea
 
     sampler.bindless_sampler = bindless_heap_alloc_sampler(sampler.sampler);
 
-    set_object_name(VK_OBJECT_TYPE_SAMPLER, (uint64_t)sampler.sampler, p_create_info.name);
+    set_object_name(VK_OBJECT_TYPE_SAMPLER, (uint64_t)sampler.sampler, p_ci.name);
     return sampler;
 }
 
@@ -1803,7 +1862,7 @@ VkFramebuffer DeviceDriverVulkan::framebuffer_create(VkRenderPass p_render_pass,
     VkResult err = vkCreateFramebuffer(device, &framebuffer_ci, nullptr, &framebuffer);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan framebuffer.");
 
-    // set_object_name(VK_OBJECT_TYPE_FRAMEBUFFER, (uint64_t)framebuffer, p_create_info.name);
+    // set_object_name(VK_OBJECT_TYPE_FRAMEBUFFER, (uint64_t)framebuffer, p_ci.name);
     return framebuffer;
 }
 
@@ -1833,7 +1892,7 @@ shaderc_shader_kind DeviceDriverVulkan::_shaderc_kind(DeviceDriverVulkan::Shader
     return shaderc_vertex_shader;
 }
 
-uint64_t DeviceDriverVulkan::_shader_cache_key(const DeviceDriverVulkan::ShaderCreateInfo& p_create_info, size_t p_source_len)
+uint64_t DeviceDriverVulkan::_shader_cache_key(const DeviceDriverVulkan::ShaderCreateInfo& p_ci, size_t p_source_len)
 {
     constexpr uint32_t CACHE_FORMAT = 1;
 
@@ -1844,25 +1903,25 @@ uint64_t DeviceDriverVulkan::_shader_cache_key(const DeviceDriverVulkan::ShaderC
     };
     auto mix_u32 = [&](uint32_t v) { mix(&v, sizeof(v)); };
 
-    mix(p_create_info.glsl, p_source_len);
-    mix_u32(static_cast<uint32_t>(p_create_info.stage));
+    mix(p_ci.glsl, p_source_len);
+    mix_u32(static_cast<uint32_t>(p_ci.stage));
     mix_u32(CACHE_FORMAT);
     mix_u32(static_cast<uint32_t>(shaderc_env_version_vulkan_1_3));
     mix_u32(static_cast<uint32_t>(shaderc_optimization_level_performance));
     return h;
 }
 
-VkShaderModule DeviceDriverVulkan::shader_create(const ShaderCreateInfo& p_create_info)
+VkShaderModule DeviceDriverVulkan::shader_create(const ShaderCreateInfo& p_ci)
 {
     using enum Error;
 
     std::vector<uint32_t> spirv_storage;
-    const uint32_t* code = p_create_info.spirv;
-    size_t code_size = p_create_info.spirv_size;
+    const uint32_t* code = p_ci.spirv;
+    size_t code_size = p_ci.spirv_size;
 
-    if (!code && p_create_info.glsl) {
-        const size_t source_len = p_create_info.glsl_size;
-        const uint64_t key = _shader_cache_key(p_create_info, source_len);
+    if (!code && p_ci.glsl) {
+        const size_t source_len = p_ci.glsl_size;
+        const uint64_t key = _shader_cache_key(p_ci, source_len);
 
         std::filesystem::path cache_file;
         if (!shader_cache_dir.empty()) {
@@ -1894,7 +1953,7 @@ VkShaderModule DeviceDriverVulkan::shader_create(const ShaderCreateInfo& p_creat
             options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
             options.SetOptimizationLevel(shaderc_optimization_level_performance);
 
-            shaderc::SpvCompilationResult res = compiler.CompileGlslToSpv(p_create_info.glsl, source_len, _shaderc_kind(p_create_info.stage), p_create_info.name ? p_create_info.name : "embedded_shader", options);
+            shaderc::SpvCompilationResult res = compiler.CompileGlslToSpv(p_ci.glsl, source_len, _shaderc_kind(p_ci.stage), p_ci.name ? p_ci.name : "embedded_shader", options);
             BALLISTIC_ERR_FAIL_COND_V_MSG(res.GetCompilationStatus() != shaderc_compilation_status_success, VK_NULL_HANDLE, res.GetErrorMessage().c_str());
 
             spirv_storage.assign(res.cbegin(), res.cend());
@@ -1920,7 +1979,7 @@ VkShaderModule DeviceDriverVulkan::shader_create(const ShaderCreateInfo& p_creat
     VkResult err = vkCreateShaderModule(device, &shader_ci, nullptr, &module);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan shader module.");
 
-    set_object_name(VK_OBJECT_TYPE_SHADER_MODULE, (uint64_t)module, p_create_info.name);
+    set_object_name(VK_OBJECT_TYPE_SHADER_MODULE, (uint64_t)module, p_ci.name);
     return module;
 }
 
@@ -1970,12 +2029,12 @@ VkPipelineColorBlendAttachmentState DeviceDriverVulkan::_blend_state(BlendMode p
     return s;
 }
 
-DeviceDriverVulkan::Pipeline DeviceDriverVulkan::graphics_pipeline_create(const GraphicsPipelineCreateInfo& p_create_info)
+DeviceDriverVulkan::Pipeline DeviceDriverVulkan::graphics_pipeline_create(const GraphicsPipelineCreateInfo& p_ci)
 {
     using enum Error;
 
-    BALLISTIC_ERR_FAIL_COND_V_MSG(!p_create_info.render_pass, {}, "Graphics pipeline needs a render pass.");
-    BALLISTIC_ERR_FAIL_COND_V_MSG(!p_create_info.vertex_shader, {}, "Graphics pipeline needs a vertex shader.");
+    BALLISTIC_ERR_FAIL_COND_V_MSG(!p_ci.render_pass, {}, "Graphics pipeline needs a render pass.");
+    BALLISTIC_ERR_FAIL_COND_V_MSG(!p_ci.vertex_shader, {}, "Graphics pipeline needs a vertex shader.");
 
     // ---- shader stages ----
     VkPipelineShaderStageCreateInfo stages[2]{};
@@ -1983,14 +2042,14 @@ DeviceDriverVulkan::Pipeline DeviceDriverVulkan::graphics_pipeline_create(const 
     
     stages[stage_count] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
     stages[stage_count].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    stages[stage_count].module = p_create_info.vertex_shader;
+    stages[stage_count].module = p_ci.vertex_shader;
     stages[stage_count].pName = "main";
     stage_count++;
 
-    if (p_create_info.fragment_shader != VK_NULL_HANDLE) {
+    if (p_ci.fragment_shader != VK_NULL_HANDLE) {
         stages[stage_count] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
         stages[stage_count].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        stages[stage_count].module = p_create_info.fragment_shader;
+        stages[stage_count].module = p_ci.fragment_shader;
         stages[stage_count].pName = "main";
         stage_count++;
     }
@@ -2002,7 +2061,7 @@ DeviceDriverVulkan::Pipeline DeviceDriverVulkan::graphics_pipeline_create(const 
 
     // ---- input assembly ----
     VkPipelineInputAssemblyStateCreateInfo input_assembly{ VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
-    input_assembly.topology = p_create_info.topology;
+    input_assembly.topology = p_ci.topology;
     input_assembly.primitiveRestartEnable = VK_FALSE;
 
     // ---- viewport/scissor ----
@@ -2021,34 +2080,34 @@ DeviceDriverVulkan::Pipeline DeviceDriverVulkan::graphics_pipeline_create(const 
     VkPipelineRasterizationStateCreateInfo rasterizer{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = p_create_info.polygon_mode;
-    rasterizer.cullMode = p_create_info.cull_mode;
-    rasterizer.frontFace = p_create_info.front_face;
+    rasterizer.polygonMode = p_ci.polygon_mode;
+    rasterizer.cullMode = p_ci.cull_mode;
+    rasterizer.frontFace = p_ci.front_face;
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.lineWidth = 1.0f;
 
     // ---- multisample ----
     VkPipelineMultisampleStateCreateInfo multisample{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
-    multisample.rasterizationSamples = p_create_info.samples;
+    multisample.rasterizationSamples = p_ci.samples;
     multisample.sampleShadingEnable = VK_FALSE;
 
     // ---- depth/stencil ----
     VkPipelineDepthStencilStateCreateInfo depth_stencil{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
-    depth_stencil.depthTestEnable = p_create_info.depth_test ? VK_TRUE : VK_FALSE;
-    depth_stencil.depthWriteEnable = p_create_info.depth_write ? VK_TRUE : VK_FALSE;
-    depth_stencil.depthCompareOp = p_create_info.depth_compare;
+    depth_stencil.depthTestEnable = p_ci.depth_test ? VK_TRUE : VK_FALSE;
+    depth_stencil.depthWriteEnable = p_ci.depth_write ? VK_TRUE : VK_FALSE;
+    depth_stencil.depthCompareOp = p_ci.depth_compare;
     depth_stencil.depthBoundsTestEnable = VK_FALSE;
     depth_stencil.stencilTestEnable = VK_FALSE;
 
     // ---- color blend ----
     std::vector<VkPipelineColorBlendAttachmentState> blend_attachments;
-    if (!p_create_info.blend_overrides.empty()) {
-        blend_attachments = p_create_info.blend_overrides;
-    } else if (p_create_info.blend_modes.empty()) {
+    if (!p_ci.blend_overrides.empty()) {
+        blend_attachments = p_ci.blend_overrides;
+    } else if (p_ci.blend_modes.empty()) {
         blend_attachments.push_back(_blend_state(BlendMode::None));
     } else {
-        blend_attachments.reserve(p_create_info.blend_modes.size());
-        for (BlendMode m : p_create_info.blend_modes)
+        blend_attachments.reserve(p_ci.blend_modes.size());
+        for (BlendMode m : p_ci.blend_modes)
             blend_attachments.push_back(_blend_state(m));
     }
 
@@ -2070,23 +2129,23 @@ DeviceDriverVulkan::Pipeline DeviceDriverVulkan::graphics_pipeline_create(const 
     pipeline_ci.pColorBlendState = &color_blend;
     pipeline_ci.pDynamicState = &dynamic_state;
     pipeline_ci.layout = bindless_heap.pipeline_layout;
-    pipeline_ci.renderPass = p_create_info.render_pass;
-    pipeline_ci.subpass = p_create_info.subpass;
+    pipeline_ci.renderPass = p_ci.render_pass;
+    pipeline_ci.subpass = p_ci.subpass;
 
     Pipeline pipeline;
     pipeline.bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;
     VkResult err = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipeline_ci, nullptr, &pipeline.pipeline);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan graphics pipeline.");
 
-    set_object_name(VK_OBJECT_TYPE_PIPELINE, (uint64_t)pipeline.pipeline, p_create_info.name);
+    set_object_name(VK_OBJECT_TYPE_PIPELINE, (uint64_t)pipeline.pipeline, p_ci.name);
     return pipeline;
 }
 
-DeviceDriverVulkan::Pipeline DeviceDriverVulkan::compute_pipeline_create(const ComputePipelineCreateInfo& p_create_info)
+DeviceDriverVulkan::Pipeline DeviceDriverVulkan::compute_pipeline_create(const ComputePipelineCreateInfo& p_ci)
 {
     using enum Error;
     
-    BALLISTIC_ERR_FAIL_COND_V_MSG(!p_create_info.compute_shader, {}, "Compute pipeline needs a compute shader.");
+    BALLISTIC_ERR_FAIL_COND_V_MSG(!p_ci.compute_shader, {}, "Compute pipeline needs a compute shader.");
 
     VkComputePipelineCreateInfo pipeline_ci{};
     
@@ -2095,7 +2154,7 @@ DeviceDriverVulkan::Pipeline DeviceDriverVulkan::compute_pipeline_create(const C
     VkResult err = vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &pipeline_ci, nullptr, &pipeline.pipeline);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan graphics pipeline.");
 
-    set_object_name(VK_OBJECT_TYPE_PIPELINE, (uint64_t)pipeline.pipeline, p_create_info.name);
+    set_object_name(VK_OBJECT_TYPE_PIPELINE, (uint64_t)pipeline.pipeline, p_ci.name);
     return pipeline;
 }
 
@@ -2148,17 +2207,17 @@ void DeviceDriverVulkan::command_compute_dispatch_indirect(VkCommandBuffer p_cmd
 /**** RENDER PASS ****/
 /*********************/
 
-VkRenderPass DeviceDriverVulkan::render_pass_create(const RenderPassCreateInfo& p_create_info)
+VkRenderPass DeviceDriverVulkan::render_pass_create(const RenderPassCreateInfo& p_ci)
 {
     using enum Error;
 
-    std::vector<VkAttachmentDescription> descs(p_create_info.attachments.size());
+    std::vector<VkAttachmentDescription> descs(p_ci.attachments.size());
     std::vector<VkAttachmentReference> color_refs;
     VkAttachmentReference depth_ref{};
     bool has_depth = false;
 
-    for (uint32_t i = 0; i < p_create_info.attachments.size(); i++) {
-        const RenderPassCreateInfo::Attachment& a = p_create_info.attachments[i];
+    for (uint32_t i = 0; i < p_ci.attachments.size(); i++) {
+        const RenderPassCreateInfo::Attachment& a = p_ci.attachments[i];
         VkAttachmentDescription& d = descs[i];
         d.format = a.format;
         d.samples = a.samples;
@@ -2191,7 +2250,7 @@ VkRenderPass DeviceDriverVulkan::render_pass_create(const RenderPassCreateInfo& 
     default_dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
     default_dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
-    const VkSubpassDependency* dep = p_create_info.dependency ? p_create_info.dependency : &default_dep;
+    const VkSubpassDependency* dep = p_ci.dependency ? p_ci.dependency : &default_dep;
 
     VkRenderPassCreateInfo render_pass_ci{ VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO };
     render_pass_ci.attachmentCount = (uint32_t)descs.size();
@@ -2205,7 +2264,7 @@ VkRenderPass DeviceDriverVulkan::render_pass_create(const RenderPassCreateInfo& 
     VkResult err = vkCreateRenderPass(device, &render_pass_ci, nullptr, &render_pass);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, VK_NULL_HANDLE, "Couldn't create Vulkan render pass.");
 
-    set_object_name(VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)render_pass, p_create_info.name);
+    set_object_name(VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)render_pass, p_ci.name);
     return render_pass;
 }
 

@@ -24,6 +24,10 @@ void MemoryProfiler::draw_contents(DevContext& ctx)
     VkPhysicalDeviceMemoryProperties mem_props{};
     vkGetPhysicalDeviceMemoryProperties(dd->physical_device, &mem_props);
     const uint32_t heap_count = mem_props.memoryHeapCount;
+    if (detailed_frag.size() != heap_count) {
+        detailed_frag.assign(heap_count, 0.0f);
+        detailed_valid = false;
+    }
 
     uint64_t peak_now = 0;
     for (uint32_t h = 0; h < heap_count; ++h) peak_now += budgets[h].usage;
@@ -70,7 +74,7 @@ void MemoryProfiler::draw_contents(DevContext& ctx)
         ImGui::Dummy(ImVec2(fullW, h));
     };
 
-    for (uint32_t h = 0; h < heap_count && h < MAX_TRACKED_HEAPS; ++h) {
+    for (uint32_t h = 0; h < heap_count; h++) {
         char label[32];
         heap_label(mem_props.memoryHeaps[h].flags, h, label, sizeof(label));
         uint64_t total = budgets[h].budget ? budgets[h].budget : mem_props.memoryHeaps[h].size;
@@ -111,7 +115,7 @@ void MemoryProfiler::draw_contents(DevContext& ctx)
         if (ImGui::SmallButton("Refresh fragmentation")) {
             VmaTotalStatistics total{};
             vmaCalculateStatistics(dd->allocator, &total);
-            for (uint32_t h = 0; h < heap_count && h < MAX_TRACKED_HEAPS; ++h) {
+            for (uint32_t h = 0; h < heap_count; h++) {
                 const VmaDetailedStatistics& d = total.memoryHeap[h];
                 uint64_t free_bytes = d.statistics.blockBytes - d.statistics.allocationBytes;
                 detailed_frag[h] = (d.statistics.blockBytes > 0) ? float(double(free_bytes) / double(d.statistics.blockBytes)) : 0.0f;
@@ -124,7 +128,10 @@ void MemoryProfiler::draw_contents(DevContext& ctx)
         const PoolRow pools[] = {
             { "Image Transient", dd->image_transient_pool },
             { "Image Persistent", dd->image_persistent_pool },
+            { "Image Texture", dd->image_texture_pool },
+            { "Buffer Geometry", dd->buffer_geometry_pool },
             { "Buffer Device", dd->buffer_device_pool },
+            { "Buffer BAR", dd->buffer_bar_pool },
             { "Upload", dd->upload_pool },
             { "Readback", dd->readback_pool },
         };

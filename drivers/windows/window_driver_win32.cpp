@@ -1,5 +1,4 @@
 #include <drivers/windows/window_driver_win32.h>
-#include <core/log/error_macros.h>
 #include <backends/imgui_impl_win32.h>
 #include <dwmapi.h>
 

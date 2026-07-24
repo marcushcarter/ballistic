@@ -1,5 +1,4 @@
 #include <core/rendering/render_path/render_path.h>
-#include <core/log/log.h>
 
 namespace ballistic {
 

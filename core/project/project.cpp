@@ -1,5 +1,4 @@
 #include <core/project/project.h>
-#include <core/log/log.h>
 #include <core/io/path.h>
 #include <fstream>
 

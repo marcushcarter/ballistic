@@ -65,16 +65,23 @@ struct DeviceDriverVulkan
 
     VmaAllocator allocator = nullptr;
     
-    VmaPool image_persistent_pool = nullptr;
     VmaPool image_transient_pool = nullptr;
+    VmaPool image_persistent_pool = nullptr;
+    VmaPool image_texture_pool = nullptr;
+    VmaPool buffer_geometry_pool = nullptr;
     VmaPool buffer_device_pool = nullptr;
+    VmaPool buffer_bar_pool = nullptr;
     VmaPool upload_pool = nullptr;
     VmaPool readback_pool = nullptr;
 
-    uint32_t image_transient_type_index = UINT32_MAX;
-    uint32_t image_persistent_type_index = UINT32_MAX;
+    uint32_t image_device_type_index = UINT32_MAX;
     uint32_t buffer_device_type_index = UINT32_MAX;
+    uint32_t buffer_bar_type_index = UINT32_MAX;
     uint32_t upload_type_index = UINT32_MAX;
+    uint32_t readback_type_index = UINT32_MAX;
+    bool bar_available = false;
+
+    VmaPool bar_pool() const { return buffer_bar_pool ? buffer_bar_pool : upload_pool; }
 
     uint32_t _pool_memory_type(VmaPool p_pool) const;
     uint32_t _find_memory_type(VkMemoryPropertyFlags p_properties);
@@ -101,7 +108,6 @@ struct DeviceDriverVulkan
         VkImageAspectFlagBits aspect = VK_IMAGE_ASPECT_COLOR_BIT;
         VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
         uint32_t mip_levels = 1, layers = 1;
-
         enum class Sizing { ViewportRelative, Fixed };
         Sizing sizing = Sizing::ViewportRelative;
         float width_scale = 1.0f, height_scale = 1.0f;
@@ -115,10 +121,8 @@ struct DeviceDriverVulkan
         VkImageView image_view = VK_NULL_HANDLE;
         VmaAllocation allocation = nullptr;
         ImageBarrierState state;
-
         uint32_t bindless_sampled = UINT32_MAX;
         uint32_t bindless_storage = UINT32_MAX;
-
         VkExtent2D extent = {};
         VkFormat format = VK_FORMAT_UNDEFINED;
         VkImageAspectFlagBits aspect = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -128,11 +132,11 @@ struct DeviceDriverVulkan
         bool prefers_dedicated = false;
     };
 
-    Image _image_create(const ImageCreateInfo& p_create_info, VkExtent2D p_extent);
+    Image _image_create(const ImageCreateInfo& p_ci, VkExtent2D p_extent);
     Error _image_bind(Image& r_image, VmaAllocation p_allocation);
     Error _image_create_view(Image& r_image);
 
-    Image image_create_dedicated(const ImageCreateInfo& p_create_info, VkExtent2D p_extent);
+    Image image_create_dedicated(const ImageCreateInfo& p_ci, VkExtent2D p_extent);
     void image_free(Image& r_image);
     
 	/*****************/
@@ -149,9 +153,9 @@ struct DeviceDriverVulkan
     struct BufferCreateInfo {
         VkDeviceSize size = 0;
         VkBufferUsageFlags usage = 0;
-
-        enum class Memory { DeviceLocal, HostVisible };
-        Memory memory = Memory::DeviceLocal;
+        bool device_local = true; // gpu only
+        bool host_visible = false; // updatable / dynamic
+        bool cpu_read = false; // very cpu friendly (readback friendly)
         VmaPool pool = nullptr;
         const char* name = nullptr;
     };
@@ -160,24 +164,27 @@ struct DeviceDriverVulkan
         VkBuffer buffer = VK_NULL_HANDLE;
         VmaAllocation allocation = nullptr;
         BufferBarrierState state;
-
         VkDeviceSize capacity = 0;
         VkDeviceSize size = 0;
         VkDeviceSize device_address = 0;
         void* mapped = nullptr;
-
         VkBufferUsageFlags usage = 0;
-        BufferCreateInfo::Memory memory = BufferCreateInfo::Memory::DeviceLocal;
+        bool device_local = true;
+        bool host_visible = false;
+        bool cpu_read = false;
+        bool coherent = false;
+        VmaPool pool = nullptr;
         const char* name = nullptr;
     };
 
     VkDeviceSize _next_power_of_2(VkDeviceSize v);
 
-    Buffer buffer_create(const BufferCreateInfo& p_create_info);
+    Buffer buffer_create(const BufferCreateInfo& p_ci);
     void buffer_free(Buffer& r_buffer);
     Error buffer_ensure_capacity(Buffer& r_buffer, VkDeviceSize p_size);
     Error buffer_update(Buffer& r_buffer, const void* p_data, VkDeviceSize p_size, VkDeviceSize p_offset = 0);
-    // void buffer_update_staged(VkCommandBuffer p_cmd, Buffer& r_dst, Buffer& r_staging, const void* p_data, VkDeviceSize p_size, VkDeviceSize p_dst_offset = 0, VkDeviceSize p_staging_offset = 0);
+    Error buffer_flush(Buffer& r_buffer, VkDeviceSize p_offset = 0, VkDeviceSize p_size = VK_WHOLE_SIZE);
+    Error buffer_invalidate(Buffer& r_buffer, VkDeviceSize p_offset = 0, VkDeviceSize p_size = VK_WHOLE_SIZE);
 
     void command_copy_image_to_buffer(VkCommandBuffer p_cmd, const Image& p_image, const Buffer& p_buffer, VkExtent2D p_extent);
 
@@ -187,7 +194,7 @@ struct DeviceDriverVulkan
         std::vector<Buffer> buffers;
     };
 
-    BufferRing buffer_ring_create(const BufferCreateInfo& p_create_info, uint32_t p_frame_count);
+    BufferRing buffer_ring_create(const BufferCreateInfo& p_ci, uint32_t p_frame_count);
     void buffer_ring_free(BufferRing& r_buffer_ring);
 
     /*****************/
@@ -213,7 +220,7 @@ struct DeviceDriverVulkan
 
     Sampler default_sampler;
 
-    Sampler sampler_create(const SamplerCreateInfo& p_create_info);
+    Sampler sampler_create(const SamplerCreateInfo& p_ci);
     void sampler_free(Sampler& r_sampler);
 
     /****************/
@@ -381,9 +388,9 @@ struct DeviceDriverVulkan
     std::string shader_cache_dir;
     
     shaderc_shader_kind _shaderc_kind(ShaderStage p_stage);
-    uint64_t _shader_cache_key(const ShaderCreateInfo& p_create_info, size_t p_source_len);
+    uint64_t _shader_cache_key(const ShaderCreateInfo& p_ci, size_t p_source_len);
 
-    VkShaderModule shader_create(const ShaderCreateInfo& p_create_info);
+    VkShaderModule shader_create(const ShaderCreateInfo& p_ci);
     void shader_free(VkShaderModule& r_shader);
 
     // ----- PIPELINE -----
@@ -426,8 +433,8 @@ struct DeviceDriverVulkan
 
     VkPipelineColorBlendAttachmentState _blend_state(BlendMode p_mode);
 
-    Pipeline graphics_pipeline_create(const GraphicsPipelineCreateInfo& p_create_info);
-    Pipeline compute_pipeline_create(const ComputePipelineCreateInfo& p_create_info);
+    Pipeline graphics_pipeline_create(const GraphicsPipelineCreateInfo& p_ci);
+    Pipeline compute_pipeline_create(const ComputePipelineCreateInfo& p_ci);
     void pipeline_free(Pipeline& r_pipeline);
     
     void command_bind_pipeline(VkCommandBuffer p_cmd, const Pipeline& p_pipeline);
@@ -456,7 +463,7 @@ struct DeviceDriverVulkan
         const char* name = nullptr;
     };
 
-    VkRenderPass render_pass_create(const RenderPassCreateInfo& p_create_info);
+    VkRenderPass render_pass_create(const RenderPassCreateInfo& p_ci);
     void render_pass_free(VkRenderPass& r_render_pass);
 
     void command_begin_render_pass(VkCommandBuffer p_cmd, VkRenderPass p_render_pass, VkFramebuffer p_framebuffer, VkExtent2D p_extent, const std::vector<VkClearValue>& p_clear_values);
