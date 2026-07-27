@@ -39,25 +39,26 @@ void MemoryProfilerTransients::draw(DevContext& ctx)
             ImGui::TextDisabled("(none live)");
         } else {
             ImGui::TextDisabled("live %u | free %u | peak %u | reused %u/%u", live_count, free_count, graph->image_peak_live, graph->image_reuse_hits, graph->image_reuse_hits + graph->image_reuse_misses);
-            ImGui::BeginTable("transient_img", 4, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoBordersInBody);
-            ImGui::TableSetupColumn("Transient Images", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("format", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("dims", ImGuiTableColumnFlags_WidthFixed, 70);
-            ImGui::TableSetupColumn("size", ImGuiTableColumnFlags_WidthFixed, 50);
-            ImGui::TableHeadersRow();
-            uint32_t shown = 0;
-            for (const RenderGraph::ImageResource& r : graph->image_resources) {
-                if (r.kind != RenderGraph::ResourceKind::Transient || !r.image) continue;
-                if (shown++ >= max_rows) continue;
-                auto it = graph->debug_names.find(r.name_id);
-                const char* name = (it != graph->debug_names.end()) ? it->second.c_str() : "<unnamed>";
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0); ImGui::Text(name);
-                ImGui::TableSetColumnIndex(1); ImGui::TextUnformatted(string_VkFormat(r.transient_storage.format));
-                ImGui::TableSetColumnIndex(2); ImGui::Text("%ux%u", r.transient_storage.extent.width, r.transient_storage.extent.height);
-                ImGui::TableSetColumnIndex(3); ImGui::Text(ui::fmt_bytes(r.transient_storage.mem_req.size));
+            if (ImGui::BeginTable("transient_img", 4, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoBordersInBody)) {
+                ImGui::TableSetupColumn("Transient Images", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("format", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("dims", ImGuiTableColumnFlags_WidthFixed, 70);
+                ImGui::TableSetupColumn("size", ImGuiTableColumnFlags_WidthFixed, 50);
+                ImGui::TableHeadersRow();
+                uint32_t shown = 0;
+                for (const RenderGraph::ImageResource& r : graph->image_resources) {
+                    if (r.kind != RenderGraph::ResourceKind::Transient || !r.image) continue;
+                    if (shown++ >= max_rows) continue;
+                    auto it = graph->debug_names.find(r.name_id);
+                    const char* name = (it != graph->debug_names.end()) ? it->second.c_str() : "<unnamed>";
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0); ImGui::Text(name);
+                    ImGui::TableSetColumnIndex(1); ImGui::TextUnformatted(string_VkFormat(r.transient_storage.format));
+                    ImGui::TableSetColumnIndex(2); ImGui::Text("%ux%u", r.transient_storage.extent.width, r.transient_storage.extent.height);
+                    ImGui::TableSetColumnIndex(3); ImGui::Text(ui::fmt_bytes(r.transient_storage.mem_req.size));
+                }
+                ImGui::EndTable();
             }
-            ImGui::EndTable();
             if (live_count > max_rows) ImGui::TextDisabled("... (+%u more)", live_count - max_rows);
             ImGui::TextDisabled("live %s | retained in free-lists %s", ui::fmt_bytes(live_bytes), ui::fmt_bytes(free_bytes));
         }
@@ -90,25 +91,27 @@ void MemoryProfilerTransients::draw(DevContext& ctx)
             ImGui::TextDisabled("(none live)");
         } else {
             ImGui::TextDisabled("live %u | free %u | peak %u | reused %u/%u", live_count, free_count, graph->buffer_peak_live, graph->buffer_reuse_hits, graph->buffer_reuse_hits + graph->buffer_reuse_misses);
-            ImGui::BeginTable("transient_buf", 4, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoBordersInBody);
-            ImGui::TableSetupColumn("Transient Buffers", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("memory", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("requested", ImGuiTableColumnFlags_WidthFixed, 70);
-            ImGui::TableSetupColumn("allocated", ImGuiTableColumnFlags_WidthFixed, 70);
-            ImGui::TableHeadersRow();
-            uint32_t shown = 0;
-            for (const RenderGraph::BufferResource& r : graph->buffer_resources) {
-                if (r.kind != RenderGraph::ResourceKind::Transient || !r.buffer) continue;
-                if (shown++ >= max_rows) continue;
-                auto it = graph->debug_names.find(r.name_id);
-                const char* name = (it != graph->debug_names.end()) ? it->second.c_str() : "<unnamed>";
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0); ImGui::Text(name);
-                // ImGui::TableSetColumnIndex(1); ImGui::Text(r.transient_storage.memory == drivers::DeviceDriverVulkan::BufferCreateInfo::Memory::HostVisible ? "HostVisible" : "DeviceLocal");
-                ImGui::TableSetColumnIndex(2); ImGui::Text(ui::fmt_bytes(r.transient_storage.size));
-                ImGui::TableSetColumnIndex(3); if (r.transient_storage.capacity > r.transient_storage.size * 2) ImGui::TextColored(warn_color, "%s", ui::fmt_bytes(r.transient_storage.capacity)); else ImGui::Text(ui::fmt_bytes(r.transient_storage.capacity));
+            if (ImGui::BeginTable("transient_buf", 4, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoBordersInBody)) {
+                ImGui::TableSetupColumn("Transient Buffers", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("memory", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("requested", ImGuiTableColumnFlags_WidthFixed, 70);
+                ImGui::TableSetupColumn("allocated", ImGuiTableColumnFlags_WidthFixed, 70);
+                ImGui::TableHeadersRow();
+                uint32_t shown = 0;
+                for (const RenderGraph::BufferResource& r : graph->buffer_resources) {
+                    if (r.kind != RenderGraph::ResourceKind::Transient || !r.buffer) continue;
+                    if (shown++ >= max_rows) continue;
+                    auto it = graph->debug_names.find(r.name_id);
+                    const char* name = (it != graph->debug_names.end()) ? it->second.c_str() : "<unnamed>";
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0); ImGui::Text(name);
+                    // ImGui::TableSetColumnIndex(1); ImGui::Text(r.transient_storage.memory == drivers::DeviceDriverVulkan::BufferCreateInfo::Memory::HostVisible ? "HostVisible" : "DeviceLocal");
+                    ImGui::TableSetColumnIndex(1); ImGui::Text("NULL");
+                    ImGui::TableSetColumnIndex(2); ImGui::Text(ui::fmt_bytes(r.transient_storage.size));
+                    ImGui::TableSetColumnIndex(3); if (r.transient_storage.capacity > r.transient_storage.size * 2) ImGui::TextColored(warn_color, "%s", ui::fmt_bytes(r.transient_storage.capacity)); else ImGui::Text(ui::fmt_bytes(r.transient_storage.capacity));
+                }
+                ImGui::EndTable();
             }
-            ImGui::EndTable();
             if (live_count > max_rows) ImGui::TextDisabled("... (+%u more)", live_count - max_rows);
             ImGui::TextDisabled("requested %s | allocated %s | retained in free-lists %s", ui::fmt_bytes(live_logical), ui::fmt_bytes(live_capacity), ui::fmt_bytes(free_bytes));
         }

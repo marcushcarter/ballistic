@@ -19,6 +19,9 @@ struct ProjectManager
     bool open_requested = false;
     std::filesystem::path open_path;
 
+    bool delete_confirm_open = false;
+    std::filesystem::path delete_path;
+
     void load_recent();
     void save_recent();
     void add_recent(const std::filesystem::path& p_root, std::string_view p_name);

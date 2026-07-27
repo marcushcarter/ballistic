@@ -15,7 +15,7 @@ struct TempFeature : Feature
             drivers::DeviceDriverVulkan::ImageCreateInfo image_ci{};
             image_ci.name = "Out_Color";
             image_ci.format = VK_FORMAT_R8G8B8A8_UNORM;
-            image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+            image_ci.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
             b.create_image("Out_Color", image_ci);
             b.color_attachment("Out_Color", VK_ATTACHMENT_LOAD_OP_CLEAR, { { 0.1f, 0.2f, 0.8f, 1.0f } });
 

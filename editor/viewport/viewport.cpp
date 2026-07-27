@@ -49,10 +49,8 @@ void Viewport::draw_contents(EditorContext& ctx)
 
         bool any = false;
         for (const RenderGraph::ImageResource& r : ctx.renderer->graph.image_resources) {
-            if (r.name_id == ctx.renderer->graph.intern("Backbuffer")) continue;
-            if (r.kind == RenderGraph::ResourceKind::Transient && r.image_create_info.sizing != drivers::DeviceDriverVulkan::ImageCreateInfo::Sizing::ViewportRelative) continue;
-            if (!r.read) continue;
-            if (!r.image) continue;
+            if (r.image->state.layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL || !r.image) continue;
+            if (r.image_create_info.sizing != drivers::DeviceDriverVulkan::ImageCreateInfo::Sizing::ViewportRelative) continue;
 
             any = true;
             const std::string& name = ctx.renderer->graph.debug_names[r.name_id];

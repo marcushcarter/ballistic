@@ -121,7 +121,10 @@ void ProjectManager::on_update()
         }
     }
     ImGui::BeginDisabled(selected < 0);
-    if (ImGui::Button("Open", ImVec2(-1, 0))) { open_requested = true; open_path = recent[selected].path; }
+    if (ImGui::Button("Open", ImVec2(-1, 0))) {
+        open_requested = true;
+        open_path = recent[selected].path;
+    }
     if (ImGui::Button("Remove", ImVec2(-1, 0))) {
         recent.erase(recent.begin() + selected);
         selected = -1;
