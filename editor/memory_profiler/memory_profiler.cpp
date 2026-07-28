@@ -1,5 +1,5 @@
-#include <core/dev_tools/memory_profiler/memory_profiler.h>
-#include <core/dev_tools/dev_tools_ui.h>
+#include <editor/memory_profiler/memory_profiler.h>
+#include <editor/editor_ui.h>
 #include <core/rendering/renderer.h>
 #include <vulkan/vk_enum_string_helper.h>
 #include <imgui.h>
@@ -13,7 +13,7 @@ void MemoryProfiler::before_begin()
     ImGui::SetNextWindowSize(ImVec2(620, 720), ImGuiCond_FirstUseEver);
 }
 
-void MemoryProfiler::draw_contents(DevContext& ctx)
+void MemoryProfiler::draw_contents(EditorContext& ctx)
 {
     drivers::DeviceDriverVulkan* dd = ctx.renderer->dd;
 

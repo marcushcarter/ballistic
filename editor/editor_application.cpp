@@ -56,7 +56,6 @@ void EditorApplication::on_update(float p_dt)
         EditorContext ctx{};
         ctx.renderer = &renderer;
         ctx.imgui = &imgui;
-        ctx.dev = &dev_tools;
         ctx.render_path = static_cast<EditorRenderPath*>(render_path);
         ctx.project = &project;
         ctx.settings = &settings;

@@ -1,5 +1,5 @@
-#include <core/dev_tools/memory_profiler/memory_profiler_transients.h>
-#include <core/dev_tools/dev_tools_ui.h>
+#include <editor/memory_profiler/memory_profiler_transients.h>
+#include <editor/editor_ui.h>
 #include <core/rendering/renderer.h>
 #include <vulkan/vk_enum_string_helper.h>
 #include <imgui.h>
@@ -8,7 +8,7 @@
 
 namespace ballistic {
 
-void MemoryProfilerTransients::draw(DevContext& ctx)
+void MemoryProfilerTransients::draw(EditorContext& ctx)
 {
     RenderGraph* graph = &ctx.renderer->graph;
 

@@ -1,6 +1,6 @@
-#include <core/dev_tools/profiler/profiler_distribution.h>
+#include <editor/profiler/profiler_distribution.h>
+#include <editor/editor_ui.h>
 #include <core/rendering/renderer.h>
-#include <core/dev_tools/dev_tools_ui.h>
 #include <imgui.h>
 #include <implot.h>
 #include <algorithm>
@@ -8,7 +8,7 @@
 
 namespace ballistic {
 
-void ProfilerDistribution::draw(DevContext& ctx, const RenderGraphProfiler::Timing* selected, bool frozen)
+void ProfilerDistribution::draw(EditorContext& ctx, const RenderGraphProfiler::Timing* selected, bool frozen)
 {
     if (!selected) return;
 

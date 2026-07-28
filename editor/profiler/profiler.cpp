@@ -1,6 +1,6 @@
-#include <core/dev_tools/profiler/profiler.h>
+#include <editor/profiler/profiler.h>
+#include <editor/editor_ui.h>
 #include <core/rendering/renderer.h>
-#include <core/dev_tools/dev_tools_ui.h>
 #include <imgui.h>
 #include <implot.h>
 
@@ -11,7 +11,7 @@ void Profiler::before_begin()
     ImGui::SetNextWindowSize(ImVec2(1100, 600), ImGuiCond_FirstUseEver);
 }
 
-void Profiler::draw_contents(DevContext& ctx)
+void Profiler::draw_contents(EditorContext& ctx)
 {
     auto& profiler = ctx.renderer->graph.profiler;
 

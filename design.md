@@ -95,3 +95,16 @@ LightCulling:
 - create and tweak them in the editor
 - button to export all probes in a buffer format as binary to a file
 - loads that in on engine start
+
+
+
+
+
+# ballistic
+
+Proprietary game engine that focusses on rendering scenes with a high amount of foliage. Becasue this engine was made primarily for a wilderness hiking game,it does not focus too much on trying to get PBR look for man made metallic objects such as houses and mirrors and such.
+
+## Light + Shadows
+
+Ballistic uses three shadow systems combined into one. The techniques help us with 
+

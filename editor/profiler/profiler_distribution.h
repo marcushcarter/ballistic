@@ -1,5 +1,5 @@
 #pragma once
-#include <core/dev_tools/dev_context.h>
+#include <editor/editor_context.h>
 #include <core/rendering/render_graph_profiler.h>
 #include <imgui.h>
 #include <vector>
@@ -22,7 +22,7 @@ struct ProfilerDistribution
     ScrollBuf plot_hist;
     std::vector<float> sort_scratch;
 
-    void draw(DevContext& ctx, const RenderGraphProfiler::Timing* selected, bool frozen);
+    void draw(EditorContext& ctx, const RenderGraphProfiler::Timing* selected, bool frozen);
 };
 
 }

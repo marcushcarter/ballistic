@@ -51,13 +51,6 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
     render_path->ctx.graph = &renderer.graph;
     err = render_path->create_resources();
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
-    
-    DevContext ctx{};
-    ctx.renderer = &renderer;
-    ctx.imgui = &imgui;
-
-    dev_tools.create(ctx);
-    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     return Ok;
 }
@@ -65,7 +58,6 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
 void Application::destroy()
 {
     dd.device_wait_idle();
-    dev_tools.destroy();
     
     if (render_path) {
         render_path->destroy_resources();

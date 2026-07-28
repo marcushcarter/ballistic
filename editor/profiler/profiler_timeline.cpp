@@ -1,6 +1,6 @@
-#include <core/dev_tools/profiler/profiler_timeline.h>
+#include <editor/profiler/profiler_timeline.h>
+#include <editor/editor_ui.h>
 #include <core/rendering/renderer.h>
-#include <core/dev_tools/dev_tools_ui.h>
 #include <imgui.h>
 #include <vector>
 #include <unordered_map>
@@ -10,7 +10,7 @@
 
 namespace ballistic {
 
-void ProfilerTimeline::draw(DevContext& ctx)
+void ProfilerTimeline::draw(EditorContext& ctx)
 {
     RenderGraphProfiler& prof = ctx.renderer->graph.profiler;
     

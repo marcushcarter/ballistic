@@ -1,12 +1,12 @@
 #pragma once
-#include <core/dev_tools/dev_panel.h>
-#include <core/dev_tools/memory_profiler/memory_profiler_transients.h>
+#include <editor/panel.h>
+#include <editor/memory_profiler/memory_profiler_transients.h>
 #include <cstdint>
 #include <vector>
 
 namespace ballistic {
 
-struct MemoryProfiler : DevPanel
+struct MemoryProfiler : Panel
 {    
     uint64_t frame_counter = 0;
     uint64_t peak_bytes = 0;
@@ -16,9 +16,9 @@ struct MemoryProfiler : DevPanel
 
     MemoryProfilerTransients transients;
 
-    const char* name() const override { return "Memory Profiler"; }
+    const char* name() const override { return "Memory Profiler (NEW)"; }
     void before_begin() override;
-    void draw_contents(DevContext& ctx) override;
+    void draw_contents(EditorContext& ctx) override;
 };
 
 }

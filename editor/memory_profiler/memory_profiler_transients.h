@@ -1,5 +1,5 @@
 #pragma once
-#include <core/dev_tools/dev_context.h>
+#include <editor/editor_context.h>
 #include <core/rendering/render_graph_profiler.h>
 #include <cstdint>
 
@@ -9,7 +9,7 @@ struct MemoryProfilerTransients
 {
     uint32_t max_rows = 100;
 
-    void draw(DevContext& ctx);
+    void draw(EditorContext& ctx);
 };
 
 }

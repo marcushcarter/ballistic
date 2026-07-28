@@ -1,14 +1,14 @@
-#include <core/dev_tools/profiler/profiler_resources.h>
+#include <editor/profiler/profiler_resources.h>
+#include <editor/editor_ui.h>
 #include <core/rendering/renderer.h>
 #include <vulkan/vk_enum_string_helper.h>
-#include <core/dev_tools/dev_tools_ui.h>
 #include <imgui.h>
 #include <algorithm>
 #include <cstdio>
 
 namespace ballistic {
 
-void ProfilerResources::draw(DevContext& ctx, const char* p_pass_name)
+void ProfilerResources::draw(EditorContext& ctx, const char* p_pass_name)
 {
     if (!p_pass_name || !p_pass_name[0]) {
         ImGui::TextDisabled("Select a pass in the timeline.");

@@ -3,7 +3,6 @@
 #include <drivers/vulkan/device_driver_vulkan.h>
 #include <drivers/vulkan/context_driver_vulkan.h>
 #include <drivers/imgui/imgui_driver.h>
-#include <core/dev_tools/dev_tools.h>
 #include <core/rendering/renderer.h>
 #include <core/project/project.h>
 #include <core/log/error.h>
@@ -33,7 +32,6 @@ struct Application
     RenderPath* pending_render_path = nullptr;
 
     drivers::ImGuiDriver imgui;
-    DevTools dev_tools;
 
     Project project;
 

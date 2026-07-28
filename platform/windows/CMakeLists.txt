@@ -46,15 +46,3 @@ if(BALLISTIC_BUILD_GAME)
     target_compile_definitions(ballistic_game PRIVATE BALLISTIC_GAME)
     ballistic_common_target(ballistic_game)
 endif()
-
-if(BALLISTIC_BUILD_GAME)
-    add_executable(ballistic_game_dev_tools
-        ballistic_res_app_dev.rc
-        ${BALLISTIC_SHARED_ASSETS}
-        ${BALLISTIC_MAIN}
-        ${CMAKE_SOURCE_DIR}/game/game_application.cpp
-    )
-    target_link_libraries(ballistic_game_dev_tools PRIVATE ballistic_core)
-    target_compile_definitions(ballistic_game_dev_tools PRIVATE BALLISTIC_GAME BALLISTIC_DEV_TOOLS BALLISTIC_CONSOLE)
-    ballistic_common_target(ballistic_game_dev_tools)
-endif()

@@ -1,12 +1,18 @@
 #include <editor/editor.h>
-#include <core/dev_tools/dev_tools.h>
 #include <core/rendering/renderer.h>
+
 #include <editor/viewport/viewport.h>
 #include <editor/debugger/debugger.h>
 #include <editor/settings/settings.h>
+#include <editor/profiler/profiler.h>
+#include <editor/memory_profiler/memory_profiler.h>
+
 #include <core/rendering/render_path/editor_render_path.h>
 #include <editor/editor_settings.h>
 #include <imgui.h>
+
+#include <windows.h>
+#include <shellapi.h>
 
 namespace ballistic {
 
@@ -20,6 +26,8 @@ Error Editor::create(const EditorContext& p_context)
     panels.push_back(std::make_unique<Viewport>());
     panels.push_back(std::make_unique<Debugger>());
     panels.push_back(std::make_unique<Settings>());
+    panels.push_back(std::make_unique<Profiler>());
+    panels.push_back(std::make_unique<MemoryProfiler>());
 
     apply_settings();
     return Ok;
@@ -38,11 +46,8 @@ void Editor::on_update(float p_dt)
 
     begin_dockspace();
     draw_panels();
-    context.dev->draw_panels(true);
-
     if (ImGui::BeginMainMenuBar()) {
         draw_menu();
-        context.dev->draw_menu(true);
         ImGui::EndMainMenuBar();
     }
 }
@@ -92,6 +97,13 @@ void Editor::draw_menu()
         if (ImGui::MenuItem("Close Project")) close_project_requested = true;
         ImGui::EndMenu();
     }
+
+    if (ImGui::BeginMenu("Help")) {
+        if (ImGui::MenuItem("Open Documentation")) {
+            ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
+        }
+        ImGui::EndMenu();
+    }
 }
 
 void Editor::apply_settings()
@@ -108,7 +120,6 @@ void Editor::apply_settings()
     };
 
     restore(panels);
-    restore(context.dev->panels);
 }
 
 void Editor::store_settings()
@@ -118,7 +129,6 @@ void Editor::store_settings()
     s.profiler_enabled = context.renderer->graph.profiler.enabled;
 
     for (auto& p : panels) s.panel_open[p->name()] = p->open;
-    for (auto& p : context.dev->panels) s.panel_open[p->name()] = p->open;
 }
 
 }
