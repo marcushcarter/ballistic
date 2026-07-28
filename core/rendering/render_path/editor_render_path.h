@@ -11,7 +11,6 @@ struct EditorRenderPath : SceneRenderPath
     ScreenshotFeature screenshot;    
 
     EditorRenderPath() {
-        ui.backbuffer_load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
         ui.sampled_image = "Out_Color";
         features.push_back(&ui);
         features.push_back(&screenshot);

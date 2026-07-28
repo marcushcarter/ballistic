@@ -58,11 +58,10 @@ void ScreenshotFeature::_writeback()
 
     encode_path = Paths::screenshots() / name;
     encode_job = std::async(std::launch::async, [path = encode_path, pixels = std::move(rgba), w = (int)capture_width, h = (int)capture_height]() mutable -> bool {
-        ImageData img{};
+        ImageData<uint8_t, 4> img{};
         img.pixels = pixels.data();
         img.width = w;
         img.height = h;
-        img.channels = 4;
         return ImageIO::save_png(path.wstring(), img);
     });
 }

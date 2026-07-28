@@ -11,32 +11,11 @@ Error EditorApplication::on_init()
 {
     using enum Error;
 
-    ImageData logo = ImageIO::load_from_resource(L"LOGOS_ICON_PNG");
-    if (logo.pixels && logo.width > 0 && logo.height > 0) {
-        const uint32_t w = (uint32_t)logo.width;
-        const uint32_t h = (uint32_t)logo.height;
-
-        const unsigned char* rgba = logo.pixels;
-        std::vector<unsigned char> expanded;
-        if (logo.channels != 4) {
-            expanded.resize((size_t)w * h * 4);
-            const int c = logo.channels;
-            for (size_t i = 0; i < (size_t)w * h; ++i) {
-                expanded[i*4+0] = logo.pixels[i*c+0];
-                expanded[i*4+1] = c > 1 ? logo.pixels[i*c+1] : logo.pixels[i*c+0];
-                expanded[i*4+2] = c > 2 ? logo.pixels[i*c+2] : logo.pixels[i*c+0];
-                expanded[i*4+3] = c > 3 ? logo.pixels[i*c+3] : 255;
-            }
-            rgba = expanded.data();
-        }
-
-        logo_image = dd.image_create_texture(rgba, w, h, "editor_logo");
-    }
+    ImageData<uint8_t, 4> logo = ImageIO::load_from_resource<uint8_t, 4>(L"LOGOS_ICON_PNG");
+    if (logo.valid()) logo_image = dd.image_create_texture(logo.pixels, static_cast<uint32_t>(logo.width), static_cast<uint32_t>(logo.height), "editor_logo");
     ImageIO::free_image(logo);
 
-    Error err;
-
-    err = window_driver.window_set_icon(window, EmbeddedResource::load_icon(L"BALLISTIC_ICON"));
+    Error err = window_driver.window_set_icon(window, EmbeddedResource::load_icon(L"BALLISTIC_ICON"));
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     err = window_driver.window_set_titlebar_color(window, RGB(20, 20, 25));
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
@@ -171,6 +150,12 @@ void EditorApplication::_draw_titlebar()
         ImGui::SetCursorPosX(LOGO + 6.0f);
         float menu_x0 = ImGui::GetCursorScreenPos().x;
         if (editor_created && mode == Mode::Editor) editor.draw_menu();
+
+        ProjectManagerRenderPath* path = static_cast<ProjectManagerRenderPath*>(render_path);
+        if (ImGui::MenuItem("Take Screenshot")) {
+            path->screenshot.requested = true;
+        }
+
         float menu_x1 = ImGui::GetCursorScreenPos().x;
         if (menu_x1 > menu_x0) blocker(ImVec2(menu_x0, origin.y), ImVec2(menu_x1, origin.y + MENU_H));
 
