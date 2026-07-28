@@ -43,13 +43,8 @@ void Editor::destroy()
 void Editor::on_update(float p_dt)
 {
     (void)p_dt;
-
     begin_dockspace();
     draw_panels();
-    if (ImGui::BeginMainMenuBar()) {
-        draw_menu();
-        ImGui::EndMainMenuBar();
-    }
 }
 
 void Editor::begin_dockspace()
@@ -58,24 +53,17 @@ void Editor::begin_dockspace()
     ImGui::SetNextWindowPos(imguiViewport->WorkPos);
     ImGui::SetNextWindowSize(imguiViewport->WorkSize);
     ImGui::SetNextWindowViewport(imguiViewport->ID);
-
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
-    ImGui::Begin("DockSpace", nullptr,
-        ImGuiWindowFlags_NoDocking |
-        ImGuiWindowFlags_NoTitleBar |
-        ImGuiWindowFlags_NoCollapse |
-        ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoBringToFrontOnFocus |
-        ImGuiWindowFlags_NoNavFocus |
-        ImGuiWindowFlags_NoBackground
+    ImGui::Begin("DockSpace", nullptr, 
+        ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | 
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
+        ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground
     );
 
     ImGui::PopStyleVar(3);
-
     ImGui::DockSpace(ImGui::GetID("MainDockSpace"), ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
     ImGui::End();
 }
@@ -118,7 +106,6 @@ void Editor::apply_settings()
             if (it != s.panel_open.end()) p->open = it->second;
         }
     };
-
     restore(panels);
 }
 

@@ -474,6 +474,8 @@ struct DeviceDriverVulkan
 	/**************/
 
     void set_object_name(VkObjectType p_type, uint64_t p_handle, const char* p_name);
+
+    Image image_create_texture(const void* p_rgba, uint32_t p_width, uint32_t p_height, const char* p_name);
 };
 
 }

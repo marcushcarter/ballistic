@@ -15,6 +15,8 @@ struct Editor
     
     bool close_project_requested = false;
 
+    int active_tab = 0;
+
     Error create(const EditorContext& p_context);
     void destroy();
     

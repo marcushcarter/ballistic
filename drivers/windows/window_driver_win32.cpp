@@ -1,9 +1,18 @@
 #include <drivers/windows/window_driver_win32.h>
 #include <backends/imgui_impl_win32.h>
 #include <dwmapi.h>
+#include <windowsx.h>
 
 #ifndef DWMWA_CAPTION_COLOR
 #define DWMWA_CAPTION_COLOR 35
+#endif
+
+#ifndef DWMWA_WINDOW_CORNER_PREFERENCE
+#define DWMWA_WINDOW_CORNER_PREFERENCE 33
+#endif
+
+#ifndef DWMWCP_ROUND
+#define DWMWCP_ROUND 2
 #endif
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -49,9 +58,10 @@ void WindowDriverWin32::poll_events()
     }
 }
 
-WindowDriverWin32::Window WindowDriverWin32::window_create(const std::string& p_title, int p_width, int p_height)
+WindowDriverWin32::Window WindowDriverWin32::window_create(const std::string& p_title, int p_width, int p_height, bool p_custom_titlebar)
 {
     Window window;
+    window.custom_titlebar = p_custom_titlebar;
     
     std::wstring title = utf8_to_wstring(p_title);
 
@@ -66,7 +76,6 @@ WindowDriverWin32::Window WindowDriverWin32::window_create(const std::string& p_
 
     window.width = static_cast<uint32_t>(p_width);
     window.height = static_cast<uint32_t>(p_height);
-
     return window;
 
 }
@@ -75,6 +84,13 @@ void WindowDriverWin32::window_bind(Window& r_window)
 {
     if (!r_window.hwnd) return;
     SetWindowLongPtrW(r_window.hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&r_window));
+
+    if (r_window.custom_titlebar) {
+        DWORD corner = DWMWCP_ROUND;
+        DwmSetWindowAttribute(r_window.hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(corner));
+        SetWindowPos(r_window.hwnd, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+
     ShowWindow(r_window.hwnd, SW_SHOW);
 }
 
@@ -126,6 +142,33 @@ Error WindowDriverWin32::window_set_titlebar_color(Window& r_window, COLORREF p_
     return Ok;
 }
 
+void WindowDriverWin32::window_minimize(Window& r_window)
+{
+    if (r_window.hwnd) ShowWindow(r_window.hwnd, SW_MINIMIZE);
+}
+
+void WindowDriverWin32::window_toggle_maximize(Window& r_window)
+{
+    if (!r_window.hwnd) return;
+    ShowWindow(r_window.hwnd, IsZoomed(r_window.hwnd) ? SW_RESTORE : SW_MAXIMIZE);
+}
+
+bool WindowDriverWin32::window_is_maximized(const Window& r_window)
+{
+    return r_window.hwnd && IsZoomed(r_window.hwnd);
+}
+
+void WindowDriverWin32::window_titlebar_reset(Window& r_window, int height)
+{
+    r_window.titlebar_height = height;
+    r_window.titlebar_interactive_rects.clear();
+}
+
+void WindowDriverWin32::window_titlebar_add_rect(Window& r_window, long l, long t, long r, long b)
+{
+    r_window.titlebar_interactive_rects.push_back(RECT{ l, t, r, b });
+}
+
 bool WindowDriverWin32::system_accent_color(float& r_r, float& r_g, float& r_b)
 {
     DWORD argb = 0; BOOL opaque = FALSE;
@@ -144,18 +187,75 @@ LRESULT CALLBACK WindowDriverWin32::wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_w
     auto* window = reinterpret_cast<Window*>(GetWindowLongPtrW(p_hwnd, GWLP_USERDATA));
 
     switch (p_msg) {
-        case WM_CLOSE:
+        case WM_NCCALCSIZE: {
+            if (!p_wparam || !window || !window->custom_titlebar) break;
+            NCCALCSIZE_PARAMS* params = reinterpret_cast<NCCALCSIZE_PARAMS*>(p_lparam);
+            RECT& rect = params->rgrc[0];
+            if (IsZoomed(p_hwnd)) {
+                int fx = GetSystemMetrics(SM_CXFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
+                int fy = GetSystemMetrics(SM_CYFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
+                rect.left += fx;
+                rect.right -= fx;
+                rect.top += fy;
+                rect.bottom -= fy;
+            }
+            return 0;
+        }
+
+        case WM_NCHITTEST: {
+            if (!window || !window->custom_titlebar) break;
+            POINT cursor = { GET_X_LPARAM(p_lparam), GET_Y_LPARAM(p_lparam) };
+            RECT client;
+            ScreenToClient(p_hwnd, &cursor);
+            GetClientRect(p_hwnd, &client);
+
+            bool over_widget = false;
+            if (cursor.y < window->titlebar_height) {
+                for (const RECT& r : window->titlebar_interactive_rects) {
+                    if (cursor.x >= r.left && cursor.x < r.right && cursor.y >= r.top  && cursor.y < r.bottom) {
+                        over_widget = true;
+                        break;
+                    }
+                }
+            }
+                
+            const int border = GetSystemMetrics(SM_CXFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
+            if (!IsZoomed(p_hwnd)) {
+                bool l = cursor.x < border;
+                bool r = cursor.x >= client.right - border;
+                bool t = cursor.y < border;
+                bool b = cursor.y >= client.bottom - border;
+                if (t && l) return HTTOPLEFT;
+                if (t && r) return HTTOPRIGHT;
+                if (b && l) return HTBOTTOMLEFT;
+                if (b && r) return HTBOTTOMRIGHT;
+                if (l) return HTLEFT;
+                if (r) return HTRIGHT;
+                if (b) return HTBOTTOM;
+                if (t && !over_widget) return HTTOP;
+            }
+            if (over_widget) return HTCLIENT;
+            if (cursor.y < window->titlebar_height) return HTCAPTION;
+            return HTCLIENT;
+        }
+
+        case WM_CLOSE: {
             if (window) window->close_requested = true;
             return 0;
-        case WM_DESTROY:
+        }
+
+        case WM_DESTROY: {
             PostQuitMessage(0);
             return 0;
-        case WM_SIZE:
+        }
+
+        case WM_SIZE: {
             if (window) {
                 window->width = LOWORD(p_lparam);
                 window->height = HIWORD(p_lparam);
             }
             return 0;
+        }
     }
 
     return DefWindowProcW(p_hwnd, p_msg, p_wparam, p_lparam);

@@ -47,6 +47,8 @@ struct Application
     virtual void on_shutdown() = 0;
     
     virtual bool wants_docking() const { return false; }
+    virtual bool wants_custom_titlebar() const { return false; }
+
     virtual RenderPath* create_render_path() = 0;
 
     virtual ~Application() = default;

@@ -17,7 +17,7 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
     err = window_driver.initialize();
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
-    window = window_driver.window_create(p_create_info.window_title, p_create_info.width, p_create_info.height);
+    window = window_driver.window_create(p_create_info.window_title, p_create_info.width, p_create_info.height, wants_custom_titlebar());
     BALLISTIC_ERR_FAIL_COND_V(window.hwnd == nullptr, Failed);
     window_driver.window_bind(window);
 
