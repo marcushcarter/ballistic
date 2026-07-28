@@ -34,6 +34,8 @@ struct EditorSettings
     std::map<std::string, bool> panel_open;
     bool profiler_enabled = false;
 
+    int selected_viewport_attachment = 0;
+
     void load();
     void save() const;
 };

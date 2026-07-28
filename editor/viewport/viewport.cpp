@@ -57,6 +57,8 @@ void Viewport::draw_contents(EditorContext& ctx)
             if (ImGui::Selectable(name.c_str(), is_selected)) selected_name_id = r.name_id;
         }
         if (!any) ImGui::TextDisabled("(no inspectable resources)");
+        
+        ImGui::Text("%llu", selected_name_id);
 
         ImGui::EndPopup();
     }

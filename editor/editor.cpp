@@ -2,7 +2,7 @@
 #include <core/rendering/renderer.h>
 
 #include <editor/viewport/viewport.h>
-#include <editor/debugger/debugger.h>
+#include <editor/console/console.h>
 #include <editor/settings/settings.h>
 #include <editor/profiler/profiler.h>
 #include <editor/memory_profiler/memory_profiler.h>
@@ -24,7 +24,7 @@ Error Editor::create(const EditorContext& p_context)
     if (!context.settings) return Failed;
 
     panels.push_back(std::make_unique<Viewport>());
-    panels.push_back(std::make_unique<Debugger>());
+    panels.push_back(std::make_unique<Console>());
     panels.push_back(std::make_unique<Settings>());
     panels.push_back(std::make_unique<Profiler>());
     panels.push_back(std::make_unique<MemoryProfiler>());

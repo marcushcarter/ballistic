@@ -16,7 +16,7 @@ void ProfilerTimeline::draw(EditorContext& ctx)
     
     ImGuiIO& io = ImGui::GetIO();
 
-    if (!io.WantTextInput) {
+    if (!io.WantTextInput && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
         if (ImGui::IsKeyPressed(ImGuiKey_Space, false)) prof.frozen = true;
         if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) prof.frozen = false;
     }

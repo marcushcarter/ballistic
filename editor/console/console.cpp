@@ -1,4 +1,4 @@
-#include <editor/debugger/debugger.h>
+#include <editor/console/console.h>
 #include <drivers/windows/dialogs_win32.h>
 #include <core/log/error.h>
 #include <imgui.h>
@@ -7,7 +7,7 @@
 
 namespace ballistic {
 
-void Debugger::draw_contents(EditorContext& ctx)
+void Console::draw_contents(EditorContext& ctx)
 {
     (void)ctx;
     
