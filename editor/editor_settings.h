@@ -1,13 +1,13 @@
 #pragma once
 #include <imgui.h>
 #include <string>
-#include <map>
 #include <iterator>
 #include <cstdio>
 
 namespace ballistic {
 
-struct Theme {
+struct Theme
+{
     ImVec4 base { 0.12f, 0.12f, 0.14f, 1.0f };
     ImVec4 accent { 0.66f, 0.30f, 0.76f, 1.0f };
     bool use_system_accent = false;
@@ -30,14 +30,6 @@ struct Theme {
 struct EditorSettings
 {
     Theme theme;
-
-    std::map<std::string, bool> panel_open;
-    bool profiler_enabled = false;
-
-    int selected_viewport_attachment = 0;
-
-    void load();
-    void save() const;
 };
 
 }

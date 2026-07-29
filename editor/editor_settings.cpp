@@ -1,10 +1,5 @@
 #include <editor/editor_settings.h>
 #include <drivers/windows/window_driver_win32.h>
-#include <core/io/path.h>
-#include <core/math/color.h>
-#include <fstream>
-#include <cstdlib>
-#include <cstdint>
 
 namespace ballistic {
 
@@ -121,44 +116,5 @@ int Theme::theme_preset_index(std::string_view n)
     for (int i = 0; i < (int)std::size(THEME_PRESETS); ++i) if (n == THEME_PRESETS[i].name) return i;
     return -1;
 }
-
-void EditorSettings::load()
-{
-    std::ifstream f(Paths::roaming_data() / "editor_settings.cfg");
-    if (!f) return;
-
-    std::string line;
-    while (std::getline(f, line)) {
-        size_t sp = line.rfind(' ');
-        if (sp == std::string::npos) continue;
-        std::string key   = line.substr(0, sp);
-        std::string value = line.substr(sp + 1);
-
-        if (key == "interface.theme.preset") { theme.preset = Theme::theme_preset_index(value); continue; }
-        if (key == "interface.theme.base") { color_from_hex(value, theme.base); continue; }
-        if (key == "interface.theme.accent") { color_from_hex(value, theme.accent); continue; }
-        if (key == "interface.theme.use_system_accent") { theme.use_system_accent = std::atoi(value.c_str()) != 0; continue; }
-        
-        if (key == "debugger.profiler.enabled") { profiler_enabled = std::atoi(value.c_str()) != 0; continue; }
-
-        if (key.size() > 5 && key.compare(key.size() - 5, 5, ".open") == 0) panel_open[key.substr(0, key.size() - 5)] = std::atoi(value.c_str()) != 0;
-    }
-}
-
-void EditorSettings::save() const
-{
-    std::ofstream f(Paths::roaming_data() / "editor_settings.cfg");
-    if (!f) return;
-
-    f << "interface.theme.preset " << Theme::theme_preset_name(theme.preset) << '\n';
-    f << "interface.theme.base " << color_to_hex(theme.base) << '\n';
-    f << "interface.theme.accent " << color_to_hex(theme.accent) << '\n';
-    f << "interface.theme.use_system_accent " << (theme.use_system_accent ? 1 : 0) << '\n';
-
-    f << "debugger.profiler.enabled " << (profiler_enabled ? 1 : 0) << '\n';
-
-    for (const auto& [name, open] : panel_open) f << name << ".open " << (open ? 1 : 0) << '\n';
-}
-
 
 }

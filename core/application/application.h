@@ -22,8 +22,7 @@ struct ApplicationCreateInfo
 
 struct Application
 {
-    drivers::WindowDriverWin32 window_driver;
-    drivers::WindowDriverWin32::Window window;
+    drivers::WindowDriverWin32 win32;
 
     drivers::ContextDriverVulkan cd;
     drivers::DeviceDriverVulkan dd;

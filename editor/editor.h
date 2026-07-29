@@ -4,6 +4,7 @@
 #include <core/log/error.h>
 #include <memory>
 #include <vector>
+#include <map>
 
 namespace ballistic {
 
@@ -12,6 +13,7 @@ struct Editor
     EditorContext context;
     
     std::vector<std::unique_ptr<Panel>> panels;
+    std::map<std::string, bool> panel_open;
     
     bool close_project_requested = false;
 

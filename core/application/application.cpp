@@ -14,14 +14,14 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
 
     ballistic::log_write("%s v%s.stable.official - https://ballisticgames.ca", BALLISTIC_VERSION_NAME, BALLISTIC_VERSION_NUMBER);
 
-    err = window_driver.initialize();
+    err = win32.initialize();
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+    
+    err = win32.window_create(p_create_info.window_title, p_create_info.width, p_create_info.height, wants_custom_titlebar());
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+    win32.window_bind();
 
-    window = window_driver.window_create(p_create_info.window_title, p_create_info.width, p_create_info.height, wants_custom_titlebar());
-    BALLISTIC_ERR_FAIL_COND_V(window.hwnd == nullptr, Failed);
-    window_driver.window_bind(window);
-
-    err = cd.full_initialize_windows(window.hwnd);
+    err = cd.full_initialize_windows(win32.window.hwnd);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     err = dd.initialize(cd, cd.optimal_device_index, 3);
@@ -31,7 +31,7 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     drivers::ImGuiDriverCreateInfo imgui_ci{};
-    imgui_ci.hwnd = window.hwnd;
+    imgui_ci.hwnd = win32.window.hwnd;
     imgui_ci.instance = cd.instance;
     imgui_ci.physical_device = dd.physical_device;
     imgui_ci.device = dd.device;
@@ -70,8 +70,8 @@ void Application::destroy()
     dd.shutdown();
     cd.shutdown();
     
-    window_driver.window_free(window);
-    window_driver.shutdown();
+    win32.window_free();
+    win32.shutdown();
 }
 
 int Application::run()
@@ -84,7 +84,7 @@ int Application::run()
 
     auto lastTime = std::chrono::steady_clock::now();
 
-    while (!window_driver.window_should_close(window)) {
+    while (!win32.window_should_close()) {
         auto now = std::chrono::steady_clock::now();
         double delta = std::chrono::duration<double>(now - lastTime).count();
         lastTime = now;
@@ -93,7 +93,7 @@ int Application::run()
 
         drivers::WindowDriverWin32::poll_events();
 
-        cd.surface_set_size(window.width, window.height);
+        cd.surface_set_size(win32.window.width, win32.window.height);
         if (dd.swapchain_update() != Ok) continue;
 
         renderer.apply_pending_size();

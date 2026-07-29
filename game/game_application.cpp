@@ -13,7 +13,7 @@ Error GameApplication::on_init()
     // if (project.load(Paths::executable_dir()) != Error::Ok) log_write("GameApplication: no project at exe root; running without content.");
     if (project.load("D:/TestBallistic") != Error::Ok) log_write("GameApplication: no project at exe root; running without content.");
     
-    window_driver.window_set_title(window, project.name);
+    win32.window_set_title(project.name);
     
     return Ok;
 }
@@ -21,7 +21,7 @@ Error GameApplication::on_init()
 void GameApplication::on_update(float p_dt)
 {
     (void)p_dt;
-    renderer.request_size(window.width, window.height);
+    renderer.request_size(win32.window.width, win32.window.height);
 }
 
 void GameApplication::on_shutdown() {}

@@ -11,9 +11,6 @@
 #include <editor/editor_settings.h>
 #include <imgui.h>
 
-#include <windows.h>
-#include <shellapi.h>
-
 namespace ballistic {
 
 Error Editor::create(const EditorContext& p_context)
@@ -73,49 +70,32 @@ void Editor::draw_panels() { for (auto& p : panels) p->draw(context); }
 void Editor::draw_menu()
 {
     if (panels.empty()) return;
-
-    if (ImGui::BeginMenu("Editor")) {
-        for (auto& p : panels) ImGui::MenuItem(p->name(), nullptr, &p->open);
-        ImGui::Separator();
-        if (ImGui::MenuItem("Close All")) for (auto& p : panels) p->open = false;
-        if (ImGui::MenuItem("Take Screenshot") && context.render_path) {
-            context.render_path->screenshot.requested = true;
-        }
+    
+    if (ImGui::BeginMenu("Project")) {
         ImGui::Separator();
         if (ImGui::MenuItem("Close Project")) close_project_requested = true;
         ImGui::EndMenu();
     }
 
-    if (ImGui::BeginMenu("Help")) {
-        if (ImGui::MenuItem("Open Documentation")) {
-            ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
-        }
+    if (ImGui::BeginMenu("Editor")) {
+        for (auto& p : panels) ImGui::MenuItem(p->name(), nullptr, &p->open);
+        ImGui::Separator();
+        if (ImGui::MenuItem("Close All")) for (auto& p : panels) p->open = false;
         ImGui::EndMenu();
     }
 }
 
 void Editor::apply_settings()
 {
-    const EditorSettings& s = *context.settings;
-
-    context.renderer->graph.profiler.enabled = s.profiler_enabled;
-
-    auto restore = [&](auto& panel_list) {
-        for (auto& p : panel_list) {
-            auto it = s.panel_open.find(p->name());
-            if (it != s.panel_open.end()) p->open = it->second;
-        }
-    };
-    restore(panels);
+    for (auto& p : panels) {
+        auto it = panel_open.find(p->name());
+        if (it != panel_open.end()) p->open = it->second;
+    }
 }
 
 void Editor::store_settings()
 {
-    EditorSettings& s = *context.settings;
-
-    s.profiler_enabled = context.renderer->graph.profiler.enabled;
-
-    for (auto& p : panels) s.panel_open[p->name()] = p->open;
+    for (auto& p : panels) panel_open[p->name()] = p->open;
 }
 
 }

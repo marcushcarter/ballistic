@@ -30,25 +30,28 @@ struct WindowDriverWin32
         std::vector<RECT> titlebar_interactive_rects;
     };
 
+    Window window;
+
     static void poll_events();
 
-    Window window_create(const std::string& p_title, int p_width, int p_height, bool p_custom_titlebar = false);
-    void window_bind(Window& r_window);
-    void window_free(Window& r_window);
+    Error window_create(const std::string& p_title, int p_width, int p_height, bool p_custom_titlebar = false);
+    void window_bind();
+    void window_free();
 
-    bool window_should_close(const Window& r_window);
-    void window_request_close(Window& r_window);
+    bool window_should_close();
+    void window_request_close();
 
-    Error window_set_icon(Window& r_window, HICON p_icon);
-    Error window_set_title(Window& r_window, std::string_view p_title);
-    Error window_set_titlebar_color(Window& r_window, COLORREF p_color);
+    Error window_set_icon(HICON p_icon);
+    Error window_set_title(std::string_view p_title);
+    Error window_set_titlebar_color(COLORREF p_color);
 
-    void window_minimize(Window& r_window);
-    void window_toggle_maximize(Window& r_window);
-    bool window_is_maximized(const Window& r_window);
-
-    void window_titlebar_reset(Window& r_window, int height);
-    void window_titlebar_add_rect(Window& r_window, long left, long top, long right, long bottom);
+    void window_minimize();
+    void window_toggle_maximize();
+    bool window_is_maximized();
+    
+    void window_set_custom_titlebar(bool p_enabled);
+    void window_titlebar_reset(int height);
+    void window_titlebar_add_rect(long left, long top, long right, long bottom);
 
     static bool system_accent_color(float& r_r, float& r_g, float& r_b);
 

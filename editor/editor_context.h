@@ -2,19 +2,21 @@
 
 namespace ballistic {
 
+namespace drivers { struct WindowDriverWin32; }
+namespace drivers { struct ImGuiDriver; }
 struct Renderer;
+struct Project;
 struct EditorRenderPath;
 struct EditorSettings;
-struct Project;
-namespace drivers { struct ImGuiDriver; }
 
 struct EditorContext
 {
-    Renderer* renderer = nullptr;
+    drivers::WindowDriverWin32* win32 = nullptr;
     drivers::ImGuiDriver* imgui = nullptr;
+    Renderer* renderer = nullptr;
     EditorRenderPath* render_path = nullptr;
-    EditorSettings* settings = nullptr;
     Project* project = nullptr;
+    EditorSettings* settings = nullptr;
 };
 
 }

@@ -58,9 +58,10 @@ void WindowDriverWin32::poll_events()
     }
 }
 
-WindowDriverWin32::Window WindowDriverWin32::window_create(const std::string& p_title, int p_width, int p_height, bool p_custom_titlebar)
+Error WindowDriverWin32::window_create(const std::string& p_title, int p_width, int p_height, bool p_custom_titlebar)
 {
-    Window window;
+    using enum Error;
+
     window.custom_titlebar = p_custom_titlebar;
     
     std::wstring title = utf8_to_wstring(p_title);
@@ -72,101 +73,114 @@ WindowDriverWin32::Window WindowDriverWin32::window_create(const std::string& p_
         nullptr, nullptr, GetModuleHandleW(nullptr), this
     );
 
-    BALLISTIC_ERR_FAIL_COND_V_MSG(!window.hwnd, {}, "Couldn't create Win32 window.");
+    BALLISTIC_ERR_FAIL_COND_V_MSG(!window.hwnd, Failed, "Couldn't create Win32 window.");
 
     window.width = static_cast<uint32_t>(p_width);
     window.height = static_cast<uint32_t>(p_height);
-    return window;
 
-}
-
-void WindowDriverWin32::window_bind(Window& r_window)
-{
-    if (!r_window.hwnd) return;
-    SetWindowLongPtrW(r_window.hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&r_window));
-
-    if (r_window.custom_titlebar) {
-        DWORD corner = DWMWCP_ROUND;
-        DwmSetWindowAttribute(r_window.hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(corner));
-        SetWindowPos(r_window.hwnd, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
-    }
-
-    ShowWindow(r_window.hwnd, SW_SHOW);
-}
-
-void WindowDriverWin32::window_free(Window& r_window)
-{
-    if (r_window.hwnd) {
-        DestroyWindow(r_window.hwnd);
-        r_window.hwnd = nullptr;
-    }
-}
-
-bool WindowDriverWin32::window_should_close(const Window& r_window)
-{
-    return r_window.close_requested;
-}
-
-void WindowDriverWin32::window_request_close(Window& r_window)
-{
-    r_window.close_requested = true;
-}
-
-Error WindowDriverWin32::window_set_icon(Window& r_window, HICON p_icon)
-{
-    using enum Error;
-    BALLISTIC_ERR_FAIL_COND_V(!p_icon, Failed);
-    BALLISTIC_ERR_FAIL_COND_V(!r_window.hwnd, Failed);
-    SendMessageW(r_window.hwnd, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(p_icon));
-    SendMessageW(r_window.hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(p_icon));
     return Ok;
 }
 
-Error WindowDriverWin32::window_set_title(Window& r_window, std::string_view p_title)
+void WindowDriverWin32::window_bind()
+{
+    if (!window.hwnd) return;
+    SetWindowLongPtrW(window.hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&window));
+
+    if (window.custom_titlebar) {
+        DWORD corner = DWMWCP_ROUND;
+        DwmSetWindowAttribute(window.hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(corner));
+        SetWindowPos(window.hwnd, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+
+    ShowWindow(window.hwnd, SW_SHOW);
+}
+
+void WindowDriverWin32::window_free()
+{
+    if (window.hwnd) {
+        DestroyWindow(window.hwnd);
+        window.hwnd = nullptr;
+    }
+}
+
+bool WindowDriverWin32::window_should_close()
+{
+    return window.close_requested;
+}
+
+void WindowDriverWin32::window_request_close()
+{
+    window.close_requested = true;
+}
+
+Error WindowDriverWin32::window_set_icon(HICON p_icon)
 {
     using enum Error;
-    if (!r_window.hwnd) return Failed;
+    BALLISTIC_ERR_FAIL_COND_V(!p_icon, Failed);
+    BALLISTIC_ERR_FAIL_COND_V(!window.hwnd, Failed);
+    SendMessageW(window.hwnd, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(p_icon));
+    SendMessageW(window.hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(p_icon));
+    return Ok;
+}
+
+Error WindowDriverWin32::window_set_title(std::string_view p_title)
+{
+    using enum Error;
+    if (!window.hwnd) return Failed;
     int wide_len = MultiByteToWideChar(CP_UTF8, 0, p_title.data(), (int)p_title.size(), nullptr, 0);
     if (wide_len <= 0) return Failed;
     std::wstring wide(wide_len, L'\0');
     MultiByteToWideChar(CP_UTF8, 0, p_title.data(), (int)p_title.size(), wide.data(), wide_len);
-    return SetWindowTextW(r_window.hwnd, wide.c_str()) ? Ok : Failed;
+    return SetWindowTextW(window.hwnd, wide.c_str()) ? Ok : Failed;
 }
 
-Error WindowDriverWin32::window_set_titlebar_color(Window& r_window, COLORREF p_color)
+Error WindowDriverWin32::window_set_titlebar_color(COLORREF p_color)
 {
     using enum Error;
-    BALLISTIC_ERR_FAIL_COND_V(!r_window.hwnd, Failed);
-    HRESULT result = DwmSetWindowAttribute(r_window.hwnd, DWMWA_CAPTION_COLOR, &p_color, sizeof(p_color));
+    BALLISTIC_ERR_FAIL_COND_V(!window.hwnd, Failed);
+    HRESULT result = DwmSetWindowAttribute(window.hwnd, DWMWA_CAPTION_COLOR, &p_color, sizeof(p_color));
     BALLISTIC_ERR_FAIL_COND_V_MSG(FAILED(result), Failed, "Failed to set Win32 window titlebar color - DWMWA_CAPTION_COLOR requires Windows 11 (build 22000+).");
     return Ok;
 }
 
-void WindowDriverWin32::window_minimize(Window& r_window)
+void WindowDriverWin32::window_minimize()
 {
-    if (r_window.hwnd) ShowWindow(r_window.hwnd, SW_MINIMIZE);
+    if (window.hwnd) ShowWindow(window.hwnd, SW_MINIMIZE);
 }
 
-void WindowDriverWin32::window_toggle_maximize(Window& r_window)
+void WindowDriverWin32::window_toggle_maximize()
 {
-    if (!r_window.hwnd) return;
-    ShowWindow(r_window.hwnd, IsZoomed(r_window.hwnd) ? SW_RESTORE : SW_MAXIMIZE);
+    if (!window.hwnd) return;
+    ShowWindow(window.hwnd, IsZoomed(window.hwnd) ? SW_RESTORE : SW_MAXIMIZE);
 }
 
-bool WindowDriverWin32::window_is_maximized(const Window& r_window)
+bool WindowDriverWin32::window_is_maximized()
 {
-    return r_window.hwnd && IsZoomed(r_window.hwnd);
+    return window.hwnd && IsZoomed(window.hwnd);
 }
 
-void WindowDriverWin32::window_titlebar_reset(Window& r_window, int height)
+void WindowDriverWin32::window_set_custom_titlebar(bool p_enabled)
 {
-    r_window.titlebar_height = height;
-    r_window.titlebar_interactive_rects.clear();
+    if (!window.hwnd || window.custom_titlebar == p_enabled) return;
+    window.custom_titlebar = p_enabled;
+    DWORD corner = p_enabled ? DWMWCP_ROUND : 0;
+    DwmSetWindowAttribute(window.hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(corner));
+    SetWindowPos(window.hwnd, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    if (!p_enabled) {
+        window.titlebar_height = 0;
+        window.titlebar_interactive_rects.clear();
+    }
 }
 
-void WindowDriverWin32::window_titlebar_add_rect(Window& r_window, long l, long t, long r, long b)
+void WindowDriverWin32::window_titlebar_reset(int height)
 {
-    r_window.titlebar_interactive_rects.push_back(RECT{ l, t, r, b });
+    window.titlebar_height = height;
+    window.titlebar_interactive_rects.clear();
+}
+
+void WindowDriverWin32::window_titlebar_add_rect(long l, long t, long r, long b)
+{
+    window.titlebar_interactive_rects.push_back(RECT{ l, t, r, b });
 }
 
 bool WindowDriverWin32::system_accent_color(float& r_r, float& r_g, float& r_b)

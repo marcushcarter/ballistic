@@ -1,5 +1,6 @@
 #include <editor/settings/settings.h>
 #include <editor/editor_settings.h>
+#include <drivers/windows/window_driver_win32.h>
 #include <imgui.h>
 #include <IconsFontAwesome6.h>
 
@@ -34,6 +35,9 @@ void Settings::draw_contents(EditorContext& ctx)
     }
 
     if (changed) t.apply();
+
+    bool custom = ctx.win32->window.custom_titlebar;
+    if (ImGui::Checkbox("Window Custom Titlebar", &custom)) ctx.win32->window_set_custom_titlebar(custom);
 }
 
 }

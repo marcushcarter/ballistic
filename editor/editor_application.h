@@ -30,13 +30,17 @@ struct EditorApplication : Application
     void on_update(float p_dt) override;
     void on_shutdown() override;
 
+    void _load_state();
+    void _save_state();
+
     void open_project(const std::filesystem::path& p_root);
     void close_project();
 
     void _draw_titlebar();
+    void _draw_shared_menu_items();
 
     bool wants_docking() const override { return true; }
-    bool wants_custom_titlebar() const override { return true; }
+    bool wants_custom_titlebar() const override { return false; }
     
     RenderPath* EditorApplication::create_render_path() { return new EditorRenderPath(); }
 };

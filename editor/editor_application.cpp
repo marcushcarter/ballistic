@@ -1,9 +1,18 @@
 #include <editor/editor_application.h>
 #include <core/io/embedded_resource.h>
+#include <core/io/path.h>
 #include <core/io/image_io.h>
+#include <core/math/color.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <IconsFontAwesome6.h>
+
+#include <fstream>
+#include <cstdlib>
+#include <cstdint>
+#include <windows.h>
+#include <shellapi.h>
+#include <filesystem>
 
 namespace ballistic {
 
@@ -15,9 +24,9 @@ Error EditorApplication::on_init()
     if (logo.valid()) logo_image = dd.image_create_texture(logo.pixels, static_cast<uint32_t>(logo.width), static_cast<uint32_t>(logo.height), "editor_logo");
     ImageIO::free_image(logo);
 
-    Error err = window_driver.window_set_icon(window, EmbeddedResource::load_icon(L"BALLISTIC_ICON"));
+    Error err = win32.window_set_icon(EmbeddedResource::load_icon(L"BALLISTIC_ICON"));
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
-    err = window_driver.window_set_titlebar_color(window, RGB(20, 20, 25));
+    err = win32.window_set_titlebar_color(RGB(20, 20, 25));
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     
     ImGuiIO& io = ImGui::GetIO();
@@ -37,10 +46,15 @@ Error EditorApplication::on_init()
         io.Fonts->Build();
     }
 
-    settings.load();
+    close_project();
+
+    _load_state();
     settings.theme.apply();
 
-    close_project();
+    // if (settings.restore_project_on_load && !settings.restore_project_root.empty() && std::filesystem::exists(settings.restore_project_root)) {
+    //     open_project(settings.restore_project_root);
+    // }
+
     return Ok;
 }
 
@@ -61,8 +75,9 @@ void EditorApplication::on_update(float p_dt)
         if (pending_render_path) return;
 
         EditorContext ctx{};
-        ctx.renderer = &renderer;
+        ctx.win32 = &win32;
         ctx.imgui = &imgui;
+        ctx.renderer = &renderer;
         ctx.render_path = static_cast<EditorRenderPath*>(render_path);
         ctx.project = &project;
         ctx.settings = &settings;
@@ -86,10 +101,53 @@ void EditorApplication::on_shutdown()
     dd.image_free(logo_image);
 
     if (editor_created) editor.destroy();
-    settings.save();
+    _save_state();
     project_manager.save_recent();
 }
 
+void EditorApplication::_load_state()
+{
+    std::ifstream f(Paths::roaming_data() / "editor_state.cfg");
+    if (!f) return;
+
+    std::string line;
+    while (std::getline(f, line)) {
+        size_t sp = line.rfind(' ');
+        if (sp == std::string::npos) continue;
+        std::string key = line.substr(0, sp), val = line.substr(sp + 1);
+
+        if (key == "interface.theme.preset") { settings.theme.preset = Theme::theme_preset_index(val); continue; }
+        if (key == "interface.theme.base") { color_from_hex(val, settings.theme.base); continue; }
+        if (key == "interface.theme.accent") { color_from_hex(val, settings.theme.accent); continue; }
+        if (key == "interface.theme.use_system_accent") { settings.theme.use_system_accent = std::atoi(val.c_str()) != 0; continue; }
+
+        if (key == "interface.window.custom_titlebar") { win32.window_set_custom_titlebar(std::atoi(val.c_str()) != 0); continue; }
+
+        if (key == "debugger.profiler.enabled") { renderer.graph.profiler.enabled = std::atoi(val.c_str()) != 0; continue; }
+
+        if (key.size() > 5 && key.compare(key.size() - 5, 5, ".open") == 0) editor.panel_open[key.substr(0, key.size() - 5)] = std::atoi(val.c_str()) != 0;
+    }
+
+    settings.theme.apply();
+}
+
+void EditorApplication::_save_state()
+{
+    std::ofstream f(Paths::roaming_data() / "editor_state.cfg");
+    if (!f) return;
+
+    f << "interface.theme.preset " << Theme::theme_preset_name(settings.theme.preset) << '\n';
+    f << "interface.theme.base " << color_to_hex(settings.theme.base) << '\n';
+    f << "interface.theme.accent " << color_to_hex(settings.theme.accent) << '\n';
+    f << "interface.theme.use_system_accent " << (settings.theme.use_system_accent ? 1 : 0) << '\n';
+    
+    f << "interface.window.custom_titlebar " << (win32.window.custom_titlebar ? 1 : 0) << '\n';
+
+    f << "debugger.profiler.enabled " << (renderer.graph.profiler.enabled ? 1 : 0) << '\n';
+
+    for (const auto& [name, open] : editor.panel_open) f << name << ".open " << (open ? 1 : 0) << '\n';
+}
+    
 void EditorApplication::open_project(const std::filesystem::path& p_root)
 {
     if (project.load(p_root) != Error::Ok) return;
@@ -98,7 +156,7 @@ void EditorApplication::open_project(const std::filesystem::path& p_root)
     render_path_request(new EditorRenderPath());
     mode = Mode::Editor;
 
-    window_driver.window_set_title(window, project.name + std::string(" - Ballistic Editor"));
+    win32.window_set_title(project.name + std::string(" - Ballistic Editor"));
 }
 
 void EditorApplication::close_project()
@@ -115,7 +173,7 @@ void EditorApplication::close_project()
     project_manager.selected = -1;
     project_manager.load_recent();
 
-    window_driver.window_set_title(window, "Ballistic Editor - Project Manager");
+    win32.window_set_title("Ballistic Editor - Project Manager");
 }
 
 void EditorApplication::_draw_titlebar()
@@ -140,9 +198,9 @@ void EditorApplication::_draw_titlebar()
     const float width = ImGui::GetWindowWidth();
     ImDrawList* dl = ImGui::GetWindowDrawList();
 
-    window_driver.window_titlebar_reset(window, (int)H);
+    win32.window_titlebar_reset((int)H);
     auto blocker = [&](ImVec2 mn, ImVec2 mx) {
-        window_driver.window_titlebar_add_rect(window, (long)(mn.x - origin.x), (long)(mn.y - origin.y), (long)(mx.x - origin.x), (long)(mx.y - origin.y));
+        win32.window_titlebar_add_rect((long)(mn.x - origin.x), (long)(mn.y - origin.y), (long)(mx.x - origin.x), (long)(mx.y - origin.y));
     };
 
     if (ImGui::BeginMenuBar()) {
@@ -151,47 +209,47 @@ void EditorApplication::_draw_titlebar()
         float menu_x0 = ImGui::GetCursorScreenPos().x;
         if (editor_created && mode == Mode::Editor) editor.draw_menu();
 
-        ProjectManagerRenderPath* path = static_cast<ProjectManagerRenderPath*>(render_path);
-        if (ImGui::MenuItem("Take Screenshot")) {
-            path->screenshot.requested = true;
-        }
+        _draw_shared_menu_items();
 
         float menu_x1 = ImGui::GetCursorScreenPos().x;
         if (menu_x1 > menu_x0) blocker(ImVec2(menu_x0, origin.y), ImVec2(menu_x1, origin.y + MENU_H));
 
-        float btns_x = origin.x + width - BTN_W * 3.0f;
-        
         const std::string& title = project.name.empty() ? std::string("Ballistic Editor") : project.name;
         ImVec2 ts = ImGui::CalcTextSize(title.c_str());
-        dl->AddText(ImVec2(btns_x - ts.x - 16.0f, origin.y + (MENU_H - ts.y) * 0.5f), IM_COL32(200, 200, 205, 255), title.c_str());
-
-        ImGui::SetCursorScreenPos(ImVec2(btns_x, origin.y));
-        auto ctrl = [&](const char* id, int glyph, bool danger) -> bool {
-            ImVec2 p = ImGui::GetCursorScreenPos();
-            bool pressed = ImGui::InvisibleButton(id, ImVec2(BTN_W, MENU_H));
-            blocker(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
-            if (ImGui::IsItemHovered()) dl->AddRectFilled(p, ImVec2(p.x + BTN_W, p.y + MENU_H), danger ? IM_COL32(196, 43, 28, 255) : IM_COL32(255, 255, 255, 24));
-            ImVec2 c(p.x + BTN_W * 0.5f, p.y + MENU_H * 0.5f);
-            ImU32 col = IM_COL32(235, 235, 235, 255); float s = 5.0f;
-            switch (glyph) {
-                case 0: dl->AddLine(ImVec2(c.x-s,c.y), ImVec2(c.x+s,c.y), col, 1.0f); break;
-                case 1: dl->AddRect(ImVec2(c.x-s,c.y-s), ImVec2(c.x+s,c.y+s), col, 0,0,1.0f); break;
-                case 2:
-                    dl->AddRect(ImVec2(c.x-s+2,c.y-s-2), ImVec2(c.x+s+2,c.y+s-2), col, 0,0,1.0f);
-                    dl->AddRectFilled(ImVec2(c.x-s-2,c.y-s+2), ImVec2(c.x+s-2,c.y+s+2), IM_COL32(20,20,25,255));
-                    dl->AddRect(ImVec2(c.x-s-2,c.y-s+2), ImVec2(c.x+s-2,c.y+s+2), col, 0,0,1.0f);
-                    break;
-                case 3:
-                    dl->AddLine(ImVec2(c.x-s,c.y-s), ImVec2(c.x+s,c.y+s), col, 1.2f);
-                    dl->AddLine(ImVec2(c.x-s,c.y+s), ImVec2(c.x+s,c.y-s), col, 1.2f);
-                    break;
-            }
-            ImGui::SameLine(0, 0);
-            return pressed;
-        };
-        if (ctrl("##min", 0, false)) window_driver.window_minimize(window);
-        if (ctrl("##max", window_driver.window_is_maximized(window) ? 2 : 1, false)) window_driver.window_toggle_maximize(window);
-        if (ctrl("##close", 3, true)) window.close_requested = true;
+        float btns_x = origin.x + width - BTN_W * 3.0f;
+        float right_pad = win32.window.custom_titlebar ? (width - BTN_W * 3.0f) : width;
+        float title_x = origin.x + right_pad - ts.x - 16.0f;
+        dl->AddText(ImVec2(title_x, origin.y + (MENU_H - ts.y) * 0.5f), IM_COL32(200, 200, 205, 255), title.c_str());
+        
+        if (win32.window.custom_titlebar) {
+            ImGui::SetCursorScreenPos(ImVec2(btns_x, origin.y));
+            auto ctrl = [&](const char* id, int glyph, bool danger) -> bool {
+                ImVec2 p = ImGui::GetCursorScreenPos();
+                bool pressed = ImGui::InvisibleButton(id, ImVec2(BTN_W, MENU_H));
+                blocker(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+                if (ImGui::IsItemHovered()) dl->AddRectFilled(p, ImVec2(p.x + BTN_W, p.y + MENU_H), danger ? IM_COL32(196, 43, 28, 255) : IM_COL32(255, 255, 255, 24));
+                ImVec2 c(p.x + BTN_W * 0.5f, p.y + MENU_H * 0.5f);
+                ImU32 col = IM_COL32(235, 235, 235, 255); float s = 5.0f;
+                switch (glyph) {
+                    case 0: dl->AddLine(ImVec2(c.x-s,c.y), ImVec2(c.x+s,c.y), col, 1.0f); break;
+                    case 1: dl->AddRect(ImVec2(c.x-s,c.y-s), ImVec2(c.x+s,c.y+s), col, 0,0,1.0f); break;
+                    case 2:
+                        dl->AddRect(ImVec2(c.x-s+2,c.y-s-2), ImVec2(c.x+s+2,c.y+s-2), col, 0,0,1.0f);
+                        dl->AddRectFilled(ImVec2(c.x-s-2,c.y-s+2), ImVec2(c.x+s-2,c.y+s+2), IM_COL32(20,20,25,255));
+                        dl->AddRect(ImVec2(c.x-s-2,c.y-s+2), ImVec2(c.x+s-2,c.y+s+2), col, 0,0,1.0f);
+                        break;
+                    case 3:
+                        dl->AddLine(ImVec2(c.x-s,c.y-s), ImVec2(c.x+s,c.y+s), col, 1.2f);
+                        dl->AddLine(ImVec2(c.x-s,c.y+s), ImVec2(c.x+s,c.y-s), col, 1.2f);
+                        break;
+                }
+                ImGui::SameLine(0, 0);
+                return pressed;
+            };
+            if (ctrl("##min", 0, false)) win32.window_minimize();
+            if (ctrl("##max", win32.window_is_maximized() ? 2 : 1, false)) win32.window_toggle_maximize();
+            if (ctrl("##close", 3, true)) win32.window.close_requested = true;
+        }
 
         ImGui::EndMenuBar();
     }
@@ -215,15 +273,6 @@ void EditorApplication::_draw_titlebar()
     }
     ImGui::PopStyleVar(2);
 
-    // {
-    //     dl->PushClipRect(origin, ImVec2(origin.x + width, origin.y + H), false);
-    //     float m = 6.0f;
-    //     ImVec2 mn(origin.x + m, origin.y + m);
-    //     ImVec2 mx(origin.x + LOGO - m, origin.y + H - m);
-    //     dl->AddRectFilled(mn, mx, IM_COL32(255, 255, 255, 255), 4.0f);
-    //     dl->PopClipRect();
-    // }
-
     {
         VkDescriptorSet logo_set = imgui.texture_cache.get(logo_image.image_view);
 
@@ -238,6 +287,24 @@ void EditorApplication::_draw_titlebar()
 
     ImGui::End();
     ImGui::PopStyleVar();
+}
+
+void EditorApplication::_draw_shared_menu_items()
+{
+    if (ImGui::BeginMenu("Screenshot")) {
+    
+        ProjectManagerRenderPath* path = static_cast<ProjectManagerRenderPath*>(render_path);
+        if (ImGui::MenuItem("Take Screenshot")) path->screenshot.requested = true;
+    
+        ImGui::EndMenu();
+    }
+    
+    if (ImGui::BeginMenu("Help")) {
+        if (ImGui::MenuItem("Open Documentation")) {
+            ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
+        }
+        ImGui::EndMenu();
+    }
 }
 
 }
