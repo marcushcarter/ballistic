@@ -1,4 +1,4 @@
-#include <editor/profiler/profiler_resources.h>
+#include <editor/panel/profiler/profiler_resources.h>
 #include <editor/editor_ui.h>
 #include <core/rendering/renderer.h>
 #include <vulkan/vk_enum_string_helper.h>

@@ -6,6 +6,7 @@
 #include <core/rendering/render_path/editor_render_path.h>
 #include <core/rendering/render_path/project_manager_render_path.h>
 #include <editor/editor_settings.h>
+#include <editor/popup/popup.h>
 #include <vector>
 
 namespace ballistic {
@@ -15,16 +16,16 @@ struct EditorApplication : Application
     enum class Mode { ProjectManager, Editor };
     Mode mode = Mode::ProjectManager;
 
-    std::vector<std::string> titlebar_tabs { "Level", "Profiling" };
-    int titlebar_active_tab = 0;
-
     ProjectManager project_manager;
     Editor editor;
+    EditorSettings settings;
     bool editor_created = false;
 
-    EditorSettings settings;
-
     drivers::DeviceDriverVulkan::Image logo_image;
+
+    std::vector<std::unique_ptr<Popup>> popups;
+    std::vector<std::string> titlebar_tabs { "Level", "Profiling" };
+    int titlebar_active_tab = 0;
 
     Error on_init() override;
     void on_update(float p_dt) override;
@@ -38,6 +39,8 @@ struct EditorApplication : Application
 
     void _draw_titlebar();
     void _draw_shared_menu_items();
+
+    void open_popup(std::string_view name);
 
     bool wants_docking() const override { return true; }
     bool wants_custom_titlebar() const override { return false; }

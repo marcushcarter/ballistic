@@ -1,4 +1,4 @@
-#include <editor/profiler/profiler.h>
+#include <editor/panel/profiler/profiler.h>
 #include <editor/editor_ui.h>
 #include <core/rendering/renderer.h>
 #include <imgui.h>

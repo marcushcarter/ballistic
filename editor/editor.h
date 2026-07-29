@@ -1,6 +1,6 @@
 #pragma once
 #include <editor/editor_context.h>
-#include <editor/panel.h>
+#include <editor/panel/panel.h>
 #include <core/log/error.h>
 #include <memory>
 #include <vector>
@@ -23,9 +23,8 @@ struct Editor
     void destroy();
     
     void on_update(float p_dt);
-
+    
     void begin_dockspace();
-    void draw_panels();
     void draw_menu();
 
     void apply_settings();

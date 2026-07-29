@@ -223,6 +223,8 @@ LRESULT CALLBACK WindowDriverWin32::wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_w
             ScreenToClient(p_hwnd, &cursor);
             GetClientRect(p_hwnd, &client);
 
+            if (ImGui::IsAnyItemHovered() || ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)) return HTCLIENT;
+
             bool over_widget = false;
             if (cursor.y < window->titlebar_height) {
                 for (const RECT& r : window->titlebar_interactive_rects) {

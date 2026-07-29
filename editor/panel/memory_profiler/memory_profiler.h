@@ -1,6 +1,6 @@
 #pragma once
-#include <editor/panel.h>
-#include <editor/memory_profiler/memory_profiler_transients.h>
+#include <editor/panel/panel.h>
+#include <editor/panel/memory_profiler/memory_profiler_transients.h>
 #include <cstdint>
 #include <vector>
 

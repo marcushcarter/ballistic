@@ -1,8 +1,8 @@
 #pragma once
-#include <editor/panel.h>
-#include <editor/profiler/profiler_timeline.h>
-#include <editor/profiler/profiler_distribution.h>
-#include <editor/profiler/profiler_resources.h>
+#include <editor/panel/panel.h>
+#include <editor/panel/profiler/profiler_timeline.h>
+#include <editor/panel/profiler/profiler_distribution.h>
+#include <editor/panel/profiler/profiler_resources.h>
 #include <cstdint>
 
 namespace ballistic {

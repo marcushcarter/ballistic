@@ -1,4 +1,4 @@
-#include <editor/memory_profiler/memory_profiler_transients.h>
+#include <editor/panel/memory_profiler/memory_profiler_transients.h>
 #include <editor/editor_ui.h>
 #include <core/rendering/renderer.h>
 #include <vulkan/vk_enum_string_helper.h>

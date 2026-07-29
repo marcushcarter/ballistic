@@ -1,12 +1,9 @@
 #include <editor/editor.h>
 #include <core/rendering/renderer.h>
-
-#include <editor/viewport/viewport.h>
-#include <editor/console/console.h>
-#include <editor/settings/settings.h>
-#include <editor/profiler/profiler.h>
-#include <editor/memory_profiler/memory_profiler.h>
-
+#include <editor/panel/viewport/viewport.h>
+#include <editor/panel/console/console.h>
+#include <editor/panel/profiler/profiler.h>
+#include <editor/panel/memory_profiler/memory_profiler.h>
 #include <core/rendering/render_path/editor_render_path.h>
 #include <editor/editor_settings.h>
 #include <imgui.h>
@@ -22,7 +19,6 @@ Error Editor::create(const EditorContext& p_context)
 
     panels.push_back(std::make_unique<Viewport>());
     panels.push_back(std::make_unique<Console>());
-    panels.push_back(std::make_unique<Settings>());
     panels.push_back(std::make_unique<Profiler>());
     panels.push_back(std::make_unique<MemoryProfiler>());
 
@@ -41,7 +37,7 @@ void Editor::on_update(float p_dt)
 {
     (void)p_dt;
     begin_dockspace();
-    draw_panels();
+    for (auto& p : panels) p->draw(context);
 }
 
 void Editor::begin_dockspace()
@@ -65,19 +61,10 @@ void Editor::begin_dockspace()
     ImGui::End();
 }
 
-void Editor::draw_panels() { for (auto& p : panels) p->draw(context); }
-
 void Editor::draw_menu()
 {
     if (panels.empty()) return;
-    
-    if (ImGui::BeginMenu("Project")) {
-        ImGui::Separator();
-        if (ImGui::MenuItem("Close Project")) close_project_requested = true;
-        ImGui::EndMenu();
-    }
-
-    if (ImGui::BeginMenu("Editor")) {
+    if (ImGui::BeginMenu("Panels")) {
         for (auto& p : panels) ImGui::MenuItem(p->name(), nullptr, &p->open);
         ImGui::Separator();
         if (ImGui::MenuItem("Close All")) for (auto& p : panels) p->open = false;

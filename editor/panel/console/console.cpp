@@ -1,4 +1,4 @@
-#include <editor/console/console.h>
+#include <editor/panel/console/console.h>
 #include <drivers/windows/dialogs_win32.h>
 #include <core/log/error.h>
 #include <imgui.h>

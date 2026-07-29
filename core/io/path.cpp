@@ -54,8 +54,12 @@ void Paths::reveal_in_explorer(const std::filesystem::path& p_path)
 {
     std::filesystem::path native = p_path;
     native.make_preferred();
-    std::wstring arg = L"/select,\"" + native.wstring() + L"\"";
-    ShellExecuteW(nullptr, nullptr, L"explorer.exe", arg.c_str(), nullptr, SW_SHOWNORMAL);
-}
 
+    if (std::filesystem::is_directory(p_path)) {
+        ShellExecuteW(nullptr, L"open", native.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    } else {
+        std::wstring arg = L"/select,\"" + native.wstring() + L"\"";
+        ShellExecuteW(nullptr, nullptr, L"explorer.exe", arg.c_str(), nullptr, SW_SHOWNORMAL);
+    }
+}
 };

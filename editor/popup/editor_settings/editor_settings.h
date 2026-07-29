@@ -1,9 +1,9 @@
 #pragma once
-#include <editor/panel.h>
+#include <editor/popup/popup.h>
 
 namespace ballistic {
 
-struct Settings : Panel
+struct EditorSettingsPopup : Popup
 {
     const char* name() const override { return "Editor Settings"; }
     void draw_contents(EditorContext& ctx) override;

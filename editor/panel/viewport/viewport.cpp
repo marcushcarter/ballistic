@@ -1,4 +1,4 @@
-#include <editor/viewport/viewport.h>
+#include <editor/panel/viewport/viewport.h>
 #include <drivers/imgui/imgui_driver.h>
 #include <core/rendering/renderer.h>
 #include <imgui.h>

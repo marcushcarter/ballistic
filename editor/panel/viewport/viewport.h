@@ -1,5 +1,5 @@
 #pragma once
-#include <editor/panel.h>
+#include <editor/panel/panel.h>
 #include <cstdint>
 
 namespace ballistic {

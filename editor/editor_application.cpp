@@ -1,12 +1,15 @@
 #include <editor/editor_application.h>
+#include <editor/popup/editor_settings/editor_settings.h>
+#include <editor/popup/project_settings/project_settings.h>
+#include <editor/popup/export/export.h>
 #include <core/io/embedded_resource.h>
 #include <core/io/path.h>
 #include <core/io/image_io.h>
+#include <core/io/path.h>
 #include <core/math/color.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <IconsFontAwesome6.h>
-
 #include <fstream>
 #include <cstdlib>
 #include <cstdint>
@@ -45,6 +48,10 @@ Error EditorApplication::on_init()
         io.Fonts->AddFontFromMemoryTTF((void*)fa.data, (int)fa.size, 14.0f, &fa_cfg, fa_ranges);
         io.Fonts->Build();
     }
+    
+    popups.push_back(std::make_unique<EditorSettingsPopup>());
+    popups.push_back(std::make_unique<ProjectSettingsPopup>());
+    popups.push_back(std::make_unique<ExportPopup>());
 
     close_project();
 
@@ -62,6 +69,16 @@ void EditorApplication::on_update(float p_dt)
 {
     _draw_titlebar();
 
+    EditorContext ctx{};
+    ctx.win32 = &win32;
+    ctx.imgui = &imgui;
+    ctx.renderer = &renderer;
+    ctx.render_path = static_cast<EditorRenderPath*>(render_path);
+    ctx.project = &project;
+    ctx.settings = &settings;
+
+    for (auto& p : popups) p->draw(ctx);
+
     if (mode == Mode::ProjectManager) {
         project_manager.on_update();
         if (project_manager.open_requested) {
@@ -73,15 +90,6 @@ void EditorApplication::on_update(float p_dt)
 
     if (!editor_created) {
         if (pending_render_path) return;
-
-        EditorContext ctx{};
-        ctx.win32 = &win32;
-        ctx.imgui = &imgui;
-        ctx.renderer = &renderer;
-        ctx.render_path = static_cast<EditorRenderPath*>(render_path);
-        ctx.project = &project;
-        ctx.settings = &settings;
-
         if (editor.create(ctx) != Error::Ok) return;
         editor_created = true;
     }
@@ -207,9 +215,22 @@ void EditorApplication::_draw_titlebar()
         
         ImGui::SetCursorPosX(LOGO + 6.0f);
         float menu_x0 = ImGui::GetCursorScreenPos().x;
-        if (editor_created && mode == Mode::Editor) editor.draw_menu();
 
-        _draw_shared_menu_items();
+        if (editor_created && mode == Mode::Editor) _draw_shared_menu_items();
+        
+        if (ImGui::BeginMenu("Help")) {
+            if (ImGui::MenuItem("Online Documentation")) ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
+            // if (ImGui::MenuItem("Forum")) ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
+            // if (ImGui::MenuItem("Community")) ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
+            ImGui::Separator();
+            if (ImGui::MenuItem("Copy System Info")) {
+
+            }
+            ImGui::Separator();
+            // if (ImGui::MenuItem("About Ballistic")) open_popup("About Ballistic");
+            // if (ImGui::MenuItem("Support Development")) ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
+            ImGui::EndMenu();
+        }
 
         float menu_x1 = ImGui::GetCursorScreenPos().x;
         if (menu_x1 > menu_x0) blocker(ImVec2(menu_x0, origin.y), ImVec2(menu_x1, origin.y + MENU_H));
@@ -222,6 +243,13 @@ void EditorApplication::_draw_titlebar()
         dl->AddText(ImVec2(title_x, origin.y + (MENU_H - ts.y) * 0.5f), IM_COL32(200, 200, 205, 255), title.c_str());
         
         if (win32.window.custom_titlebar) {
+            float cluster_x = btns_x;
+            float cluster_w = BTN_W * 3.0f;
+            dl->AddRectFilled(
+                ImVec2(cluster_x, origin.y),
+                ImVec2(cluster_x + cluster_w, origin.y + MENU_H),
+                IM_COL32(38, 38, 44, 255));
+
             ImGui::SetCursorScreenPos(ImVec2(btns_x, origin.y));
             auto ctrl = [&](const char* id, int glyph, bool danger) -> bool {
                 ImVec2 p = ImGui::GetCursorScreenPos();
@@ -274,6 +302,24 @@ void EditorApplication::_draw_titlebar()
     ImGui::PopStyleVar(2);
 
     {
+        const char* cog = ICON_FA_GEAR;
+        ImVec2 cog_sz = ImGui::CalcTextSize(cog);
+        float pad = 12.0f;
+        float box = TAB_H;
+        ImVec2 cog_pos(origin.x + width - pad - box, origin.y + MENU_H);
+
+        ImGui::SetCursorScreenPos(cog_pos);
+        ImGui::InvisibleButton("##settings_cog", ImVec2(box, box));
+        blocker(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+
+        bool hovered = ImGui::IsItemHovered();
+        if (ImGui::IsItemClicked()) open_popup("Editor Settings");
+
+        ImU32 col = hovered ? IM_COL32(255, 255, 255, 255) : IM_COL32(200, 200, 205, 255);
+        dl->AddText(ImVec2(cog_pos.x + (box - cog_sz.x) * 0.5f, cog_pos.y + (box - cog_sz.y) * 0.5f), col, cog);
+    }
+
+    {
         VkDescriptorSet logo_set = imgui.texture_cache.get(logo_image.image_view);
 
         dl->PushClipRect(origin, ImVec2(origin.x + width, origin.y + H), false);
@@ -291,20 +337,47 @@ void EditorApplication::_draw_titlebar()
 
 void EditorApplication::_draw_shared_menu_items()
 {
-    if (ImGui::BeginMenu("Screenshot")) {
-    
-        ProjectManagerRenderPath* path = static_cast<ProjectManagerRenderPath*>(render_path);
-        if (ImGui::MenuItem("Take Screenshot")) path->screenshot.requested = true;
-    
-        ImGui::EndMenu();
-    }
-    
-    if (ImGui::BeginMenu("Help")) {
-        if (ImGui::MenuItem("Open Documentation")) {
-            ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
+    if (ImGui::BeginMenu("Project")) {
+        if (ImGui::MenuItem("Project Settings")) open_popup("Project Settings");
+        ImGui::Separator();
+        if (ImGui::MenuItem("Version Control")) {}
+        ImGui::Separator();
+        if (ImGui::MenuItem("Export")) open_popup("Export");
+        if (ImGui::MenuItem("Pack Project as ZIP")) {
+            // file dialog
+            // export project
+            // convert to zip
+            // delete exported folder
         }
+        ImGui::Separator();
+        if (ImGui::MenuItem("Quit to Project List")) editor.close_project_requested = true;
+        if (ImGui::MenuItem("Quit")) win32.window_request_close();
         ImGui::EndMenu();
     }
+    
+    if (ImGui::BeginMenu("Scene")) {
+        ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Editor")) {
+        if (ImGui::MenuItem("Editor Settings")) open_popup("Editor Settings");
+        ImGui::Separator();
+        if (ImGui::MenuItem("Take Screenshot")) {
+            EditorRenderPath* path = static_cast<EditorRenderPath*>(render_path);
+            path->screenshot.requested = true;
+        }
+        if (ImGui::MenuItem("Toggle Fullscreen")) {}
+        ImGui::Separator();
+        if (ImGui::MenuItem("Open Editor Data Folder")) Paths::reveal_in_explorer(Paths::roaming_data());
+        ImGui::EndMenu();
+    }
+    
+    editor.draw_menu();
+}
+
+void EditorApplication::open_popup(std::string_view name)
+{
+    for (auto& p : popups) if (name == p->name()) { p->open = true; return; }
 }
 
 }

@@ -1,4 +1,4 @@
-#include <editor/settings/settings.h>
+#include <editor/popup/editor_settings/editor_settings.h>
 #include <editor/editor_settings.h>
 #include <drivers/windows/window_driver_win32.h>
 #include <imgui.h>
@@ -6,7 +6,7 @@
 
 namespace ballistic {
 
-void Settings::draw_contents(EditorContext& ctx)
+void EditorSettingsPopup::draw_contents(EditorContext& ctx)
 {    
     Theme& t = ctx.settings->theme;
     bool changed = false;
