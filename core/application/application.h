@@ -6,7 +6,7 @@
 #include <core/rendering/renderer.h>
 #include <core/project/project.h>
 #include <core/scene/scenes.h>
-#include <core/log/error.h>
+#include <core/base/error.h>
 #include <string>
 #include <filesystem>
 

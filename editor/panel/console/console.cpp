@@ -1,6 +1,6 @@
 #include <editor/panel/console/console.h>
 #include <drivers/windows/dialogs_win32.h>
-#include <core/log/error.h>
+#include <core/base/error.h>
 #include <imgui.h>
 #include <IconsFontAwesome6.h>
 #include <fstream>
@@ -56,9 +56,9 @@ void Console::draw_contents(EditorContext& ctx)
             std::ofstream f(path);
             if (f) {
                 f << sink.to_string();
-                log_write("Exported log to file");
+                log_write("Exported base to file");
             } else {
-                log_write("Failed to write log export");
+                log_write("Failed to write base export");
             }
         }
     }

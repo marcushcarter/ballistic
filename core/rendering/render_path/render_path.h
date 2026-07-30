@@ -2,7 +2,7 @@
 #include <core/rendering/render_context.h>
 #include <core/rendering/render_graph.h>
 #include <core/rendering/features/feature.h>
-#include <core/log/error.h>
+#include <core/base/error.h>
 #include <span>
 
 namespace ballistic {

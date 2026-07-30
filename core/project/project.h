@@ -1,7 +1,7 @@
 #pragma once
 #include <core/project/project_settings.h>
-#include <core/log/error.h>
-#include <core/assets/guid.h>
+#include <core/base/error.h>
+#include <core/base/guid.h>
 #include <filesystem>
 #include <string>
 

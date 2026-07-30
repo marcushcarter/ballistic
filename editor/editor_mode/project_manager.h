@@ -1,6 +1,6 @@
 #pragma once
 #include <editor/editor_context.h>
-#include <core/log/error.h>
+#include <core/base/error.h>
 #include <filesystem>
 #include <string>
 #include <vector>

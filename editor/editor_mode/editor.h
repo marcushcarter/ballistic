@@ -1,7 +1,7 @@
 #pragma once
 #include <editor/editor_context.h>
 #include <editor/panel/panel.h>
-#include <core/log/error.h>
+#include <core/base/error.h>
 #include <memory>
 #include <vector>
 #include <map>

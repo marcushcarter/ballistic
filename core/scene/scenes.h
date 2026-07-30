@@ -1,6 +1,6 @@
 #pragma once
-#include <core/assets/guid.h>
-#include <core/log/error.h>
+#include <core/base/guid.h>
+#include <core/base/error.h>
 #include <vector>
 
 namespace ballistic {

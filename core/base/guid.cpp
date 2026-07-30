@@ -1,4 +1,4 @@
-#include <core/assets/guid.h>
+#include <core/base/guid.h>
 #include <chrono>
 #include <random>
 #include <thread>
