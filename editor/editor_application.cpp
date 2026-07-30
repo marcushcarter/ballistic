@@ -7,6 +7,7 @@
 #include <core/io/image_io.h>
 #include <core/io/path.h>
 #include <core/math/color.h>
+#include <core/version.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <IconsFontAwesome6.h>
@@ -22,17 +23,11 @@ namespace ballistic {
 void limit_fps(uint32_t fps)
 {
     using clock = std::chrono::steady_clock;
-
     static auto next = clock::now();
-
     const auto frame = std::chrono::microseconds(1000000 / fps);
-
     next += frame;
     std::this_thread::sleep_until(next);
-
-    // Handle oversleep or long frames.
-    if (clock::now() > next + frame)
-        next = clock::now();
+    if (clock::now() > next + frame) next = clock::now();
 }
 
 Error EditorApplication::on_init()
@@ -237,15 +232,42 @@ void EditorApplication::_draw_titlebar()
         
         if (ImGui::BeginMenu("Help")) {
             if (ImGui::MenuItem("Online Documentation")) ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
-            // if (ImGui::MenuItem("Forum")) ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
-            // if (ImGui::MenuItem("Community")) ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
+            if (ImGui::MenuItem("Forum")) ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
+            if (ImGui::MenuItem("Community")) ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
             ImGui::Separator();
             if (ImGui::MenuItem("Copy System Info")) {
-
+                const auto sys = win32.get_system_info();
+                const auto gpu = dd.gpu_describe();
+                char buf[1024];
+                std::snprintf(buf, sizeof(buf),
+                    "Ballistic v%d.%d.%d\n"
+                    "OS:       %s (build %u)\n"
+                    "Renderer: Vulkan %s (Deferred+)\n"
+                    "GPU:      %s [%s]\n"
+                    "          %s (%s)\n"
+                    "          %.2f GiB VRAM\n"
+                    "CPU:      %s\n"
+                    "          %u cores / %u threads @ %u MHz\n"
+                    "RAM:      %.2f GiB\n"
+                    "Display:  %d monitor%s\n"
+                    "Audio:    nah\n"
+                    "Physics:  nah\n",
+                    BALLISTIC_VERSION_MAJOR, BALLISTIC_VERSION_MINOR, BALLISTIC_VERSION_PATCH,
+                    sys.os_name.c_str(), sys.os_build,
+                    gpu.api_version.c_str(),
+                    gpu.name.c_str(), gpu.type.c_str(),
+                    gpu.driver_name.c_str(), gpu.driver_id.c_str(),
+                    static_cast<double>(gpu.vram_bytes) / (1024.0 * 1024.0 * 1024.0),
+                    sys.cpu_brand.c_str(),
+                    sys.cpu_cores, sys.cpu_threads, sys.cpu_mhz,
+                    static_cast<double>(sys.ram_total_bytes) / (1024.0 * 1024.0 * 1024.0),
+                    sys.monitor_count, sys.monitor_count == 1 ? "" : "s"
+                );
+                ImGui::SetClipboardText(buf);
             }
             ImGui::Separator();
-            // if (ImGui::MenuItem("About Ballistic")) open_popup("About Ballistic");
-            // if (ImGui::MenuItem("Support Development")) ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
+            if (ImGui::MenuItem("About Ballistic")) open_popup("About Ballistic");
+            if (ImGui::MenuItem("Support Development")) ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
             ImGui::EndMenu();
         }
 
@@ -273,7 +295,6 @@ void EditorApplication::_draw_titlebar()
 
             ImVec2 mouse = ImGui::GetIO().MousePos;
 
-            // ImGui::SetCursorScreenPos(ImVec2(btns_x, origin.y));
             auto ctrl = [&](float x0, int glyph, bool danger) {
                 ImVec2 p(x0, origin.y);
                 bool hovered = mouse.x >= x0 && mouse.x < x0 + BTN_W && mouse.y >= origin.y && mouse.y < origin.y + MENU_H;
@@ -295,40 +316,16 @@ void EditorApplication::_draw_titlebar()
                 }
             };
 
-            // auto ctrl = [&](const char* id, int glyph, bool danger) -> bool {
-            //     ImVec2 p = ImGui::GetCursorScreenPos();
-            //     bool pressed = ImGui::InvisibleButton(id, ImVec2(BTN_W, MENU_H));
-            //     blocker(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
-            //     if (ImGui::IsItemHovered()) fg->AddRectFilled(p, ImVec2(p.x + BTN_W, p.y + MENU_H), danger ? IM_COL32(196, 43, 28, 255) : IM_COL32(255, 255, 255, 24));
-            //     ImVec2 c(p.x + BTN_W * 0.5f, p.y + MENU_H * 0.5f);
-            //     ImU32 col = IM_COL32(235, 235, 235, 255); float s = 5.0f;
-            //     switch (glyph) {
-            //         case 0: fg->AddLine(ImVec2(c.x-s,c.y), ImVec2(c.x+s,c.y), col, 1.0f); break;
-            //         case 1: fg->AddRect(ImVec2(c.x-s,c.y-s), ImVec2(c.x+s,c.y+s), col, 0,0,1.0f); break;
-            //         case 2:
-            //             fg->AddRect(ImVec2(c.x-s+2,c.y-s-2), ImVec2(c.x+s+2,c.y+s-2), col, 0,0,1.0f);
-            //             fg->AddRectFilled(ImVec2(c.x-s-2,c.y-s+2), ImVec2(c.x+s-2,c.y+s+2), IM_COL32(20,20,25,255));
-            //             fg->AddRect(ImVec2(c.x-s-2,c.y-s+2), ImVec2(c.x+s-2,c.y+s+2), col, 0,0,1.0f);
-            //             break;
-            //         case 3:
-            //             fg->AddLine(ImVec2(c.x-s,c.y-s), ImVec2(c.x+s,c.y+s), col, 1.2f);
-            //             fg->AddLine(ImVec2(c.x-s,c.y+s), ImVec2(c.x+s,c.y-s), col, 1.2f);
-            //             break;
-            //     }
-            //     ImGui::SameLine(0, 0);
-            //     return pressed;
-            // };
-
-            float x_min   = btns_x;
-            float x_max   = btns_x + BTN_W;
+            float x_min = btns_x;
+            float x_max = btns_x + BTN_W;
             float x_close = btns_x + BTN_W * 2.0f;
 
-            ctrl(x_min,   0, false);
-            ctrl(x_max,   win32.window_is_maximized() ? 2 : 1, false);
+            ctrl(x_min, 0, false);
+            ctrl(x_max, win32.window_is_maximized() ? 2 : 1, false);
             ctrl(x_close, 3, true);
 
-            rmin   = client_rect(x_min);
-            rmax   = client_rect(x_max);
+            rmin = client_rect(x_min);
+            rmax = client_rect(x_max);
             rclose = client_rect(x_close);
             win32.window_titlebar_set_controls(rmin, rmax, rclose);
         }

@@ -60,6 +60,24 @@ struct WindowDriverWin32
     static bool system_accent_color(float& r_r, float& r_g, float& r_b);
 
     static LRESULT CALLBACK _wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_wparam, LPARAM p_lparam);
+    
+    /****************/
+    /**** SYSTEM ****/
+    /****************/
+
+    struct SystemInfo {
+        std::string os_name;
+        uint32_t os_build = 0;
+        std::string cpu_brand;
+        uint32_t cpu_cores = 0;
+        uint32_t cpu_threads = 0;
+        uint32_t cpu_mhz = 0;
+        uint64_t ram_total_bytes = 0;
+        int monitor_count = 0;
+        std::string locale;
+    };
+
+    static SystemInfo get_system_info();
 };
 
 }

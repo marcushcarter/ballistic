@@ -2308,6 +2308,29 @@ void DeviceDriverVulkan::set_object_name(VkObjectType p_type, uint64_t p_handle,
     fn(device, &info);
 }
 
+DeviceDriverVulkan::GpuDescription DeviceDriverVulkan::gpu_describe() const
+{
+    GpuDescription d;
+
+    VkPhysicalDeviceDriverProperties driver_props{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES };
+    VkPhysicalDeviceProperties2 props2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
+    props2.pNext = &driver_props;
+    vkGetPhysicalDeviceProperties2(physical_device, &props2);
+
+    const VkPhysicalDeviceProperties& p = props2.properties;
+
+    d.name = p.deviceName;
+    d.type = vk::to_string(vk::PhysicalDeviceType(p.deviceType));
+    d.driver_id = vk::to_string(vk::DriverId(driver_props.driverID));
+    d.driver_name = driver_props.driverName;
+
+    char api[32];
+    std::snprintf(api, sizeof(api), "%u.%u.%u", VK_API_VERSION_MAJOR(p.apiVersion), VK_API_VERSION_MINOR(p.apiVersion), VK_API_VERSION_PATCH(p.apiVersion));
+    d.api_version = api;
+
+    return d;
+}
+
 DeviceDriverVulkan::Image DeviceDriverVulkan::image_create_texture(const void* p_rgba, uint32_t p_width, uint32_t p_height, const char* p_name)
 {
     using enum Error;

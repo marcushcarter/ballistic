@@ -24,7 +24,7 @@ struct EditorApplication : Application
     drivers::DeviceDriverVulkan::Image logo_image;
 
     std::vector<std::unique_ptr<Popup>> popups;
-    std::vector<std::string> titlebar_tabs { "Level", "Profiling" };
+    std::vector<std::string> titlebar_tabs { "Level", "Text Editor", "Particles" };
     int titlebar_active_tab = 0;
 
     Error on_init() override;

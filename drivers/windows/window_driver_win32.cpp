@@ -335,4 +335,85 @@ LRESULT CALLBACK WindowDriverWin32::_wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_
     return DefWindowProcW(p_hwnd, p_msg, p_wparam, p_lparam);
 }
 
+WindowDriverWin32::SystemInfo WindowDriverWin32::get_system_info()
+{
+    SystemInfo info;
+    
+    {
+        typedef LONG (WINAPI *RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
+        RTL_OSVERSIONINFOW rovi{};
+        rovi.dwOSVersionInfoSize = sizeof(rovi);
+
+        HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+        if (ntdll) {
+            auto fn = reinterpret_cast<RtlGetVersionPtr>(GetProcAddress(ntdll, "RtlGetVersion"));
+            if (fn) fn(&rovi);
+        }
+
+        info.os_build = rovi.dwBuildNumber;
+
+        if (rovi.dwMajorVersion == 10 && rovi.dwBuildNumber >= 22000) {
+            info.os_name = "Windows 11";
+        } else if (rovi.dwMajorVersion == 10) {
+            info.os_name = "Windows 10";
+        } else {
+            char buf[32];
+            std::snprintf(buf, sizeof(buf), "Windows %lu.%lu", rovi.dwMajorVersion, rovi.dwMinorVersion);
+            info.os_name = buf;
+        }
+    }
+    
+    {
+        int regs[4] = {};
+        __cpuid(regs, 0x80000000);
+        if (static_cast<unsigned>(regs[0]) >= 0x80000004u) {
+            char brand[49] = {};
+            __cpuid(reinterpret_cast<int*>(brand + 0),  0x80000002);
+            __cpuid(reinterpret_cast<int*>(brand + 16), 0x80000003);
+            __cpuid(reinterpret_cast<int*>(brand + 32), 0x80000004);
+            const char* start = brand;
+            while (*start == ' ') ++start;
+            info.cpu_brand = start;
+        } else {
+            info.cpu_brand = "Unknown CPU";
+        }
+    }
+    
+    info.cpu_threads = std::thread::hardware_concurrency();
+
+    {
+        DWORD len = 0;
+        GetLogicalProcessorInformationEx(RelationProcessorCore, nullptr, &len);
+        if (len > 0) {
+            std::vector<uint8_t> buf(len);
+            if (GetLogicalProcessorInformationEx(RelationProcessorCore, reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>(buf.data()), &len)) {
+                uint8_t* ptr = buf.data();
+                uint8_t* end = ptr + len;
+                while (ptr < end) {
+                    auto* rec = reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>(ptr);
+                    if (rec->Relationship == RelationProcessorCore) ++info.cpu_cores;
+                    ptr += rec->Size;
+                }
+            }
+        }
+    }
+
+    {
+        DWORD mhz = 0;
+        DWORD size = sizeof(mhz);
+        RegGetValueA(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", "~MHz", RRF_RT_REG_DWORD, nullptr, &mhz, &size);
+        info.cpu_mhz = mhz;
+    }
+
+    {
+        MEMORYSTATUSEX mem{};
+        mem.dwLength = sizeof(mem);
+        GlobalMemoryStatusEx(&mem);
+        info.ram_total_bytes = mem.ullTotalPhys;
+    }
+
+    info.monitor_count = GetSystemMetrics(SM_CMONITORS);
+    return info;
+}
+
 }

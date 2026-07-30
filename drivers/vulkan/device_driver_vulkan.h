@@ -475,6 +475,17 @@ struct DeviceDriverVulkan
 
     void set_object_name(VkObjectType p_type, uint64_t p_handle, const char* p_name);
 
+    struct GpuDescription {
+        std::string name;
+        std::string type;
+        std::string driver_name;
+        std::string driver_id;
+        std::string api_version;
+        uint64_t vram_bytes = 0;
+    };
+    
+    GpuDescription gpu_describe() const;
+
     Image image_create_texture(const void* p_rgba, uint32_t p_width, uint32_t p_height, const char* p_name);
 };
 
