@@ -15,6 +15,7 @@ Error GameApplication::on_init()
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     
     win32.window_set_title(project.name);
+    win32.window_set_size(project.settings.width, project.settings.height);
     
     return Ok;
 }

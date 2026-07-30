@@ -198,6 +198,7 @@ void EditorApplication::_draw_titlebar()
     const ImVec2 origin = ImGui::GetWindowPos();
     const float width = ImGui::GetWindowWidth();
     ImDrawList* dl = ImGui::GetWindowDrawList();
+    ImDrawList* fg = ImGui::GetForegroundDrawList();
 
     win32.window_titlebar_reset((int)H);
     auto blocker = [&](ImVec2 mn, ImVec2 mx) {
@@ -263,8 +264,6 @@ void EditorApplication::_draw_titlebar()
         dl->AddText(ImVec2(title_x, origin.y + (MENU_H - ts.y) * 0.5f), IM_COL32(200, 200, 205, 255), title.c_str());
         
         if (win32.window.custom_titlebar) {
-            ImDrawList* fg = ImGui::GetForegroundDrawList();
-
             float cluster_x = btns_x;
             float cluster_w = BTN_W * 3.0f;
             fg->AddRectFilled(ImVec2(cluster_x, origin.y), ImVec2(cluster_x + cluster_w, origin.y + MENU_H), IM_COL32(38, 38, 44, 255));
@@ -352,7 +351,6 @@ void EditorApplication::_draw_titlebar()
 
     {
         VkDescriptorSet logo_set = imgui.texture_cache.get(logo_image.image_view);
-
         dl->PushClipRect(origin, ImVec2(origin.x + width, origin.y + H), false);
         float m = 6.0f;
         ImVec2 mn(origin.x + m, origin.y + m);
@@ -368,6 +366,8 @@ void EditorApplication::_draw_titlebar()
 
 void EditorApplication::_draw_shared_menu_items()
 {
+    if (ImGui::MenuItem("Save")) project.save();
+
     if (ImGui::BeginMenu("Project")) {
         if (ImGui::MenuItem("Project Settings")) popups.open("Project Settings");
         ImGui::Separator();

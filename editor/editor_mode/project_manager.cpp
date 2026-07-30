@@ -85,6 +85,9 @@ void ProjectManager::on_update(EditorContext& ctx)
     ImGui::BeginDisabled(selected < 0);
     if (ImGui::Button("Open", ImVec2(-1, 0))) ctx.open_project_callback(recent[selected].path);
     if (ImGui::Button("Remove", ImVec2(-1, 0))) {}
+    if (ImGui::Button("Delete", ImVec2(-1, 0))) {}
+    if (ImGui::Button("Export", ImVec2(-1, 0))) {}
+    if (ImGui::Button("Run", ImVec2(-1, 0))) {}
     ImGui::EndDisabled();
     ImGui::EndChild();
  

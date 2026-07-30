@@ -151,6 +151,15 @@ Error WindowDriverWin32::window_set_titlebar_color(COLORREF p_color)
     return Ok;
 }
 
+void WindowDriverWin32::window_set_size(int w, int h)
+{
+    RECT rect{ 0, 0, w, h };
+    DWORD style = (DWORD)GetWindowLongPtrW(window.hwnd, GWL_STYLE);
+    DWORD ex_style = (DWORD)GetWindowLongPtrW(window.hwnd, GWL_EXSTYLE);
+    AdjustWindowRectEx(&rect, style, FALSE, ex_style);
+    SetWindowPos(window.hwnd, nullptr, 0, 0, rect.right - rect.left, rect.bottom - rect.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
 void WindowDriverWin32::window_minimize()
 {
     if (window.hwnd) ShowWindow(window.hwnd, SW_MINIMIZE);

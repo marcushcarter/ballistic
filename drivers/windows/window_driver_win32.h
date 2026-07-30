@@ -48,6 +48,7 @@ struct WindowDriverWin32
     Error window_set_title(std::string_view p_title);
     Error window_set_titlebar_color(COLORREF p_color);
 
+    void window_set_size(int w, int h);
     void window_minimize();
     void window_toggle_maximize();
     bool window_is_maximized();

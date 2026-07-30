@@ -61,8 +61,11 @@ Error Project::load(const std::filesystem::path& p_root)
         std::string key = line.substr(0, sp);
         std::string value = line.substr(sp + 1);
 
-        if (key == "project.name") { name = value; continue; }
         if (key == "project.version") { parsed_version = (uint32_t)std::strtoul(value.c_str(), nullptr, 10); continue; }
+        if (key == "project.name") { name = value; continue; }
+
+        if (key == "window.width")  { std::from_chars(value.data(), value.data() + value.size(), settings.width);  continue; }
+        if (key == "window.height") { std::from_chars(value.data(), value.data() + value.size(), settings.height); continue; }
     }
 
     if (parsed_version > FORMAT_VERSION) {
@@ -91,7 +94,11 @@ Error Project::save() const
     if (!f) return Failed;
 
     f << "project.version " << FORMAT_VERSION << '\n';
-    f << "project.name "    << name           << '\n';
+    f << "project.name " << name << '\n';
+
+    f << "window.width " << settings.width << '\n';
+    f << "window.height " << settings.height << '\n';
+
     return Ok;
 }
 
@@ -137,6 +144,7 @@ void Project::unload()
 {
     root.clear();
     name.clear();
+    settings = {};
 }
 
 }
