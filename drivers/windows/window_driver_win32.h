@@ -15,6 +15,8 @@ struct WindowDriverWin32
     Error initialize();
     void shutdown();
 
+    void poll_events();
+
     /****************/
     /**** WINDOW ****/
     /****************/
@@ -28,11 +30,12 @@ struct WindowDriverWin32
         bool custom_titlebar = false;
         int  titlebar_height = 0;
         std::vector<RECT> titlebar_interactive_rects;
+
+        RECT ctrl_min{}, ctrl_max{}, ctrl_close{};
+        bool has_ctrls = false;
     };
 
     Window window;
-
-    static void poll_events();
 
     Error window_create(const std::string& p_title, int p_width, int p_height, bool p_custom_titlebar = false);
     void window_bind();
@@ -52,10 +55,11 @@ struct WindowDriverWin32
     void window_set_custom_titlebar(bool p_enabled);
     void window_titlebar_reset(int height);
     void window_titlebar_add_rect(long left, long top, long right, long bottom);
+    void window_titlebar_set_controls(RECT min, RECT max, RECT close);
 
     static bool system_accent_color(float& r_r, float& r_g, float& r_b);
 
-    static LRESULT CALLBACK wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_wparam, LPARAM p_lparam);
+    static LRESULT CALLBACK _wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_wparam, LPARAM p_lparam);
 };
 
 }

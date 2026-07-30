@@ -19,6 +19,22 @@
 
 namespace ballistic {
 
+void limit_fps(uint32_t fps)
+{
+    using clock = std::chrono::steady_clock;
+
+    static auto next = clock::now();
+
+    const auto frame = std::chrono::microseconds(1000000 / fps);
+
+    next += frame;
+    std::this_thread::sleep_until(next);
+
+    // Handle oversleep or long frames.
+    if (clock::now() > next + frame)
+        next = clock::now();
+}
+
 Error EditorApplication::on_init()
 {
     using enum Error;
@@ -80,6 +96,7 @@ void EditorApplication::on_update(float p_dt)
     for (auto& p : popups) p->draw(ctx);
 
     if (mode == Mode::ProjectManager) {
+        limit_fps(60);
         project_manager.on_update();
         if (project_manager.open_requested) {
             project_manager.open_requested = false;
@@ -243,40 +260,77 @@ void EditorApplication::_draw_titlebar()
         dl->AddText(ImVec2(title_x, origin.y + (MENU_H - ts.y) * 0.5f), IM_COL32(200, 200, 205, 255), title.c_str());
         
         if (win32.window.custom_titlebar) {
+            ImDrawList* fg = ImGui::GetForegroundDrawList();
+
             float cluster_x = btns_x;
             float cluster_w = BTN_W * 3.0f;
-            dl->AddRectFilled(
-                ImVec2(cluster_x, origin.y),
-                ImVec2(cluster_x + cluster_w, origin.y + MENU_H),
-                IM_COL32(38, 38, 44, 255));
+            fg->AddRectFilled(ImVec2(cluster_x, origin.y), ImVec2(cluster_x + cluster_w, origin.y + MENU_H), IM_COL32(38, 38, 44, 255));
 
-            ImGui::SetCursorScreenPos(ImVec2(btns_x, origin.y));
-            auto ctrl = [&](const char* id, int glyph, bool danger) -> bool {
-                ImVec2 p = ImGui::GetCursorScreenPos();
-                bool pressed = ImGui::InvisibleButton(id, ImVec2(BTN_W, MENU_H));
-                blocker(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
-                if (ImGui::IsItemHovered()) dl->AddRectFilled(p, ImVec2(p.x + BTN_W, p.y + MENU_H), danger ? IM_COL32(196, 43, 28, 255) : IM_COL32(255, 255, 255, 24));
+            RECT rmin, rmax, rclose;
+            auto client_rect = [&](float x0) -> RECT {
+                return RECT{ (long)(x0 - origin.x), (long)(origin.y - origin.y), (long)(x0 + BTN_W - origin.x), (long)(origin.y + MENU_H - origin.y) };
+            };
+
+            ImVec2 mouse = ImGui::GetIO().MousePos;
+
+            // ImGui::SetCursorScreenPos(ImVec2(btns_x, origin.y));
+            auto ctrl = [&](float x0, int glyph, bool danger) {
+                ImVec2 p(x0, origin.y);
+                bool hovered = mouse.x >= x0 && mouse.x < x0 + BTN_W && mouse.y >= origin.y && mouse.y < origin.y + MENU_H;
+                if (hovered) fg->AddRectFilled(p, ImVec2(p.x + BTN_W, p.y + MENU_H), danger ? IM_COL32(196, 43, 28, 255) : IM_COL32(255, 255, 255, 24));
                 ImVec2 c(p.x + BTN_W * 0.5f, p.y + MENU_H * 0.5f);
                 ImU32 col = IM_COL32(235, 235, 235, 255); float s = 5.0f;
                 switch (glyph) {
-                    case 0: dl->AddLine(ImVec2(c.x-s,c.y), ImVec2(c.x+s,c.y), col, 1.0f); break;
-                    case 1: dl->AddRect(ImVec2(c.x-s,c.y-s), ImVec2(c.x+s,c.y+s), col, 0,0,1.0f); break;
+                    case 0: fg->AddLine(ImVec2(c.x-s,c.y), ImVec2(c.x+s,c.y), col, 1.0f); break;
+                    case 1: fg->AddRect(ImVec2(c.x-s,c.y-s), ImVec2(c.x+s,c.y+s), col, 0,0,1.0f); break;
                     case 2:
-                        dl->AddRect(ImVec2(c.x-s+2,c.y-s-2), ImVec2(c.x+s+2,c.y+s-2), col, 0,0,1.0f);
-                        dl->AddRectFilled(ImVec2(c.x-s-2,c.y-s+2), ImVec2(c.x+s-2,c.y+s+2), IM_COL32(20,20,25,255));
-                        dl->AddRect(ImVec2(c.x-s-2,c.y-s+2), ImVec2(c.x+s-2,c.y+s+2), col, 0,0,1.0f);
+                        fg->AddRect(ImVec2(c.x-s+2,c.y-s-2), ImVec2(c.x+s+2,c.y+s-2), col, 0,0,1.0f);
+                        fg->AddRectFilled(ImVec2(c.x-s-2,c.y-s+2), ImVec2(c.x+s-2,c.y+s+2), IM_COL32(20,20,25,255));
+                        fg->AddRect(ImVec2(c.x-s-2,c.y-s+2), ImVec2(c.x+s-2,c.y+s+2), col, 0,0,1.0f);
                         break;
                     case 3:
-                        dl->AddLine(ImVec2(c.x-s,c.y-s), ImVec2(c.x+s,c.y+s), col, 1.2f);
-                        dl->AddLine(ImVec2(c.x-s,c.y+s), ImVec2(c.x+s,c.y-s), col, 1.2f);
+                        fg->AddLine(ImVec2(c.x-s,c.y-s), ImVec2(c.x+s,c.y+s), col, 1.2f);
+                        fg->AddLine(ImVec2(c.x-s,c.y+s), ImVec2(c.x+s,c.y-s), col, 1.2f);
                         break;
                 }
-                ImGui::SameLine(0, 0);
-                return pressed;
             };
-            if (ctrl("##min", 0, false)) win32.window_minimize();
-            if (ctrl("##max", win32.window_is_maximized() ? 2 : 1, false)) win32.window_toggle_maximize();
-            if (ctrl("##close", 3, true)) win32.window.close_requested = true;
+
+            // auto ctrl = [&](const char* id, int glyph, bool danger) -> bool {
+            //     ImVec2 p = ImGui::GetCursorScreenPos();
+            //     bool pressed = ImGui::InvisibleButton(id, ImVec2(BTN_W, MENU_H));
+            //     blocker(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+            //     if (ImGui::IsItemHovered()) fg->AddRectFilled(p, ImVec2(p.x + BTN_W, p.y + MENU_H), danger ? IM_COL32(196, 43, 28, 255) : IM_COL32(255, 255, 255, 24));
+            //     ImVec2 c(p.x + BTN_W * 0.5f, p.y + MENU_H * 0.5f);
+            //     ImU32 col = IM_COL32(235, 235, 235, 255); float s = 5.0f;
+            //     switch (glyph) {
+            //         case 0: fg->AddLine(ImVec2(c.x-s,c.y), ImVec2(c.x+s,c.y), col, 1.0f); break;
+            //         case 1: fg->AddRect(ImVec2(c.x-s,c.y-s), ImVec2(c.x+s,c.y+s), col, 0,0,1.0f); break;
+            //         case 2:
+            //             fg->AddRect(ImVec2(c.x-s+2,c.y-s-2), ImVec2(c.x+s+2,c.y+s-2), col, 0,0,1.0f);
+            //             fg->AddRectFilled(ImVec2(c.x-s-2,c.y-s+2), ImVec2(c.x+s-2,c.y+s+2), IM_COL32(20,20,25,255));
+            //             fg->AddRect(ImVec2(c.x-s-2,c.y-s+2), ImVec2(c.x+s-2,c.y+s+2), col, 0,0,1.0f);
+            //             break;
+            //         case 3:
+            //             fg->AddLine(ImVec2(c.x-s,c.y-s), ImVec2(c.x+s,c.y+s), col, 1.2f);
+            //             fg->AddLine(ImVec2(c.x-s,c.y+s), ImVec2(c.x+s,c.y-s), col, 1.2f);
+            //             break;
+            //     }
+            //     ImGui::SameLine(0, 0);
+            //     return pressed;
+            // };
+
+            float x_min   = btns_x;
+            float x_max   = btns_x + BTN_W;
+            float x_close = btns_x + BTN_W * 2.0f;
+
+            ctrl(x_min,   0, false);
+            ctrl(x_max,   win32.window_is_maximized() ? 2 : 1, false);
+            ctrl(x_close, 3, true);
+
+            rmin   = client_rect(x_min);
+            rmax   = client_rect(x_max);
+            rclose = client_rect(x_close);
+            win32.window_titlebar_set_controls(rmin, rmax, rclose);
         }
 
         ImGui::EndMenuBar();

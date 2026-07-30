@@ -91,7 +91,7 @@ int Application::run()
 
         _apply_pending_render_path();
 
-        drivers::WindowDriverWin32::poll_events();
+        win32.poll_events();
 
         cd.surface_set_size(win32.window.width, win32.window.height);
         if (dd.swapchain_update() != Ok) continue;

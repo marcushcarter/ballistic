@@ -36,7 +36,7 @@ Error WindowDriverWin32::initialize()
     using enum Error;
 
     WNDCLASSW wc{};
-    wc.lpfnWndProc = wnd_proc;
+    wc.lpfnWndProc = _wnd_proc;
     wc.hInstance = GetModuleHandleW(nullptr);
     wc.lpszClassName = BALLISTIC_WINDOW_CLASS;
     RegisterClassW(&wc);
@@ -90,6 +90,14 @@ void WindowDriverWin32::window_bind()
         DWORD corner = DWMWCP_ROUND;
         DwmSetWindowAttribute(window.hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(corner));
         SetWindowPos(window.hwnd, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+
+        RECT c;
+        GetClientRect(window.hwnd, &c);
+        const long BW = 46, MH = 34;
+        window.ctrl_min = { c.right - BW*3, 0, c.right - BW*2, MH };
+        window.ctrl_max = { c.right - BW*2, 0, c.right - BW*1, MH };
+        window.ctrl_close = { c.right - BW*1, 0, c.right, MH };
+        window.has_ctrls = true;
     }
 
     ShowWindow(window.hwnd, SW_SHOW);
@@ -166,9 +174,19 @@ void WindowDriverWin32::window_set_custom_titlebar(bool p_enabled)
     DWORD corner = p_enabled ? DWMWCP_ROUND : 0;
     DwmSetWindowAttribute(window.hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(corner));
     SetWindowPos(window.hwnd, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
-    if (!p_enabled) {
+
+    if (p_enabled) {
+        RECT c;
+        GetClientRect(window.hwnd, &c);
+        const long BW = 46, MH = 34;
+        window.ctrl_min = { c.right - BW*3, 0, c.right - BW*2, MH };
+        window.ctrl_max = { c.right - BW*2, 0, c.right - BW*1, MH };
+        window.ctrl_close = { c.right - BW*1, 0, c.right, MH };
+        window.has_ctrls = true;
+    } else {
         window.titlebar_height = 0;
         window.titlebar_interactive_rects.clear();
+        window.has_ctrls = false;
     }
 }
 
@@ -183,6 +201,14 @@ void WindowDriverWin32::window_titlebar_add_rect(long l, long t, long r, long b)
     window.titlebar_interactive_rects.push_back(RECT{ l, t, r, b });
 }
 
+void WindowDriverWin32::window_titlebar_set_controls(RECT min, RECT max, RECT close)
+{
+    window.ctrl_min = min;
+    window.ctrl_max = max;
+    window.ctrl_close = close;
+    window.has_ctrls = true;
+}
+
 bool WindowDriverWin32::system_accent_color(float& r_r, float& r_g, float& r_b)
 {
     DWORD argb = 0; BOOL opaque = FALSE;
@@ -193,7 +219,7 @@ bool WindowDriverWin32::system_accent_color(float& r_r, float& r_g, float& r_b)
     return true;
 }
 
-LRESULT CALLBACK WindowDriverWin32::wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_wparam, LPARAM p_lparam)
+LRESULT CALLBACK WindowDriverWin32::_wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_wparam, LPARAM p_lparam)
 {
     if (ImGui_ImplWin32_WndProcHandler(p_hwnd, p_msg, p_wparam, p_lparam))
         return true;
@@ -223,7 +249,17 @@ LRESULT CALLBACK WindowDriverWin32::wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_w
             ScreenToClient(p_hwnd, &cursor);
             GetClientRect(p_hwnd, &client);
 
-            if (ImGui::IsAnyItemHovered() || ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId | ImGuiPopupFlags_AnyPopupLevel)) return HTCLIENT;
+            auto in = [&](const RECT& r) {
+                return cursor.x >= r.left && cursor.x < r.right && cursor.y >= r.top  && cursor.y < r.bottom;
+            };
+
+            if (window->has_ctrls) {
+                if (in(window->ctrl_close)) return HTCLOSE;
+                if (in(window->ctrl_max))   return HTMAXBUTTON;
+                if (in(window->ctrl_min))   return HTMINBUTTON;
+            }
+
+            if (ImGui::IsAnyItemHovered()) return HTCLIENT;
 
             bool over_widget = false;
             if (cursor.y < window->titlebar_height) {
@@ -269,8 +305,30 @@ LRESULT CALLBACK WindowDriverWin32::wnd_proc(HWND p_hwnd, UINT p_msg, WPARAM p_w
             if (window) {
                 window->width = LOWORD(p_lparam);
                 window->height = HIWORD(p_lparam);
+                if (window->custom_titlebar && window->has_ctrls) {
+                    const long BW = 46, MH = 34;
+                    long right = (long)LOWORD(p_lparam);
+                    window->ctrl_min   = { right - BW*3, 0, right - BW*2, MH };
+                    window->ctrl_max   = { right - BW*2, 0, right - BW*1, MH };
+                    window->ctrl_close = { right - BW*1, 0, right,        MH };
+                }
             }
             return 0;
+        }
+
+        case WM_NCLBUTTONUP: {
+            if (window && window->custom_titlebar) {
+                if (p_wparam == HTCLOSE) { window->close_requested = true; return 0; }
+                if (p_wparam == HTMINBUTTON) { ShowWindow(p_hwnd, SW_MINIMIZE); return 0; }
+                if (p_wparam == HTMAXBUTTON) { ShowWindow(p_hwnd, IsZoomed(p_hwnd) ? SW_RESTORE : SW_MAXIMIZE); return 0; }
+            }
+            break;
+        }
+        
+        case WM_NCLBUTTONDOWN: {
+            if (window && window->custom_titlebar && (p_wparam == HTCLOSE || p_wparam == HTMAXBUTTON || p_wparam == HTMINBUTTON))
+                return 0;
+            break;
         }
     }
 
