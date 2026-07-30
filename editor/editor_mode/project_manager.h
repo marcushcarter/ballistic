@@ -1,4 +1,6 @@
 #pragma once
+#include <editor/editor_context.h>
+#include <core/log/error.h>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -10,24 +12,19 @@ struct ProjectManager
     struct Entry {
         std::string name;
         std::filesystem::path path;
-        bool favorite = false;
     };
 
     std::vector<Entry> recent;
     int selected = -1;
 
-    bool open_requested = false;
-    std::filesystem::path open_path;
+    Error initialize();
+    void shutdown();
 
-    bool delete_confirm_open = false;
-    std::filesystem::path delete_path;
-
-    void load_recent();
-    void save_recent();
+    void load_recents();
+    void save_recents();
     void add_recent(const std::filesystem::path& p_root, std::string_view p_name);
-    void sort_entries();
 
-    void on_update();
+    void on_update(EditorContext& ctx);
 };
 
 }

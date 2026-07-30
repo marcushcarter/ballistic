@@ -58,6 +58,8 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
 void Application::destroy()
 {
     dd.device_wait_idle();
+
+    project_unload();
     
     if (render_path) {
         render_path->destroy_resources();
@@ -116,6 +118,26 @@ int Application::run()
     on_shutdown();
     destroy();
     return 0;
+}
+
+Error Application::project_load(const std::filesystem::path &p_root)
+{
+    using enum Error;
+    Error err = project.load(p_root);
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+    // Error err = renderer.load();
+    // BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+    err = scenes.load();
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+    return Ok;
+}
+
+void Application::project_unload()
+{
+    dd.device_wait_idle();
+    scenes.unload();
+    // renderer.unload();
+    project.unload();
 }
 
 void Application::render_path_request(RenderPath* p_next)

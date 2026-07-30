@@ -9,20 +9,14 @@
 namespace ballistic {
 
 struct Editor
-{
-    EditorContext context;
-    
+{    
     std::vector<std::unique_ptr<Panel>> panels;
     std::map<std::string, bool> panel_open;
-    
-    bool close_project_requested = false;
 
-    int active_tab = 0;
-
-    Error create(const EditorContext& p_context);
-    void destroy();
+    Error initialize();
+    void shutdown();
     
-    void on_update(float p_dt);
+    void on_update(EditorContext& ctx, float p_dt);
     
     void begin_dockspace();
     void draw_menu();

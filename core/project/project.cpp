@@ -73,8 +73,7 @@ Error Project::load(const std::filesystem::path& p_root)
     if (Error e = _ensure_layout(p_root); e != Ok) return e;
 
     _resolve_dirs(p_root);
-    name   = parsed_name;
-    loaded = true;
+    name = parsed_name;
     log_write("Project loaded: %s (%s)", name.c_str(), root.string().c_str());
     return Ok;
 }
@@ -118,18 +117,18 @@ Error Project::create(const std::filesystem::path& p_root, std::string_view p_na
 // {
 //     using enum Error;
 //     std::error_code ec;
-
+//
 //     BALLISTIC_ERR_FAIL_COND_V_MSG(!std::filesystem::exists(p_root / FILE_NAME, ec) || ec, Failed, "Not a Ballistic project; refusing to delete.");
 //     std::filesystem::path target = std::filesystem::weakly_canonical(p_root, ec);
 //     if (ec) return Failed;
 //     BALLISTIC_ERR_FAIL_COND_V_MSG(target == target.root_path(), Failed, "Refusing to remove a filesystem root.");
-
+//
 //     uintmax_t removed = std::filesystem::remove_all(target, ec);
 //     if (ec || removed == static_cast<uintmax_t>(-1)) {
 //         log_write("Failed to remove '%s' (%s)", target.string().c_str(), ec.message().c_str());
 //         return Failed;
 //     }
-
+//
 //     log_write("Destroyed project '%s' (%llu entries)", target.string().c_str(), (unsigned long long)removed);
 //     return Ok;
 // }
@@ -138,7 +137,6 @@ void Project::unload()
 {
     root.clear();
     name.clear();
-    loaded = false;
 }
 
 }

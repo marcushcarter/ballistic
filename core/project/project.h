@@ -24,13 +24,14 @@ struct Project
     std::filesystem::path content_dir;
 
     std::string name;
-    bool loaded = false;
 
     ProjectSettings settings;
 
     Error load(const std::filesystem::path& p_root);
     Error save() const;
     void unload();
+
+    bool loaded() const { return !root.empty(); }
 
     static Error create(const std::filesystem::path& p_root, std::string_view p_name);
     // static Error destroy(const std::filesystem::path& p_root);

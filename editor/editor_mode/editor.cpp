@@ -1,4 +1,4 @@
-#include <editor/editor.h>
+#include <editor/editor_mode/editor.h>
 #include <core/rendering/renderer.h>
 #include <editor/panel/viewport/viewport.h>
 #include <editor/panel/console/console.h>
@@ -10,34 +10,28 @@
 
 namespace ballistic {
 
-Error Editor::create(const EditorContext& p_context)
+Error Editor::initialize()
 {
     using enum Error;
-
-    context = p_context;
-    if (!context.settings) return Failed;
 
     panels.push_back(std::make_unique<Viewport>());
     panels.push_back(std::make_unique<Console>());
     panels.push_back(std::make_unique<Profiler>());
     panels.push_back(std::make_unique<MemoryProfiler>());
 
-    apply_settings();
     return Ok;
 }
 
-void Editor::destroy()
+void Editor::shutdown()
 {
-    store_settings();
     panels.clear();
-    close_project_requested = false;
 }
 
-void Editor::on_update(float p_dt)
+void Editor::on_update(EditorContext& ctx, float p_dt)
 {
     (void)p_dt;
     begin_dockspace();
-    for (auto& p : panels) p->draw(context);
+    for (auto& p : panels) p->draw(ctx);
 }
 
 void Editor::begin_dockspace()

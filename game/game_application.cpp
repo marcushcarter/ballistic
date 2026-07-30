@@ -9,9 +9,10 @@ namespace ballistic {
 Error GameApplication::on_init()
 {
     using enum Error;
-    
-    // if (project.load(Paths::executable_dir()) != Error::Ok) log_write("GameApplication: no project at exe root; running without content.");
-    if (project.load("D:/TestBallistic") != Error::Ok) log_write("GameApplication: no project at exe root; running without content.");
+
+    // Error err = project_load(Paths::executable_dir());
+    Error err = project_load("D:/TestBallistic");
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     
     win32.window_set_title(project.name);
     

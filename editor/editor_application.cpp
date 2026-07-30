@@ -35,6 +35,8 @@ void limit_fps(uint32_t fps)
 Error EditorApplication::on_init()
 {
     using enum Error;
+    
+    win32.window_set_title("Ballistic Editor");
 
     ImageData<uint8_t, 4> logo = ImageIO::load_from_resource<uint8_t, 4>(L"LOGOS_ICON_PNG");
     if (logo.valid()) logo_image = dd.image_create_texture(logo.pixels, static_cast<uint32_t>(logo.width), static_cast<uint32_t>(logo.height), "editor_logo");
@@ -68,14 +70,15 @@ Error EditorApplication::on_init()
     popups.register_popup(std::make_unique<NewProjectPopup>());
     popups.register_popup(std::make_unique<AboutBallisticPopup>());
 
-    close_project();
+    err = project_manager.initialize();
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+    err = editor.initialize();
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     _load_state();
+    
+    editor.apply_settings();
     settings.theme.apply();
-
-    // if (settings.restore_project_on_load && !settings.restore_project_root.empty() && std::filesystem::exists(settings.restore_project_root)) {
-    //     open_project(settings.restore_project_root);
-    // }
 
     return Ok;
 }
@@ -87,30 +90,11 @@ void EditorApplication::on_update(float p_dt)
     EditorContext ctx = _make_context();
     
     popups.draw(ctx);
-
-    if (mode == Mode::ProjectManager) {
+    if (project.loaded()) {
+        editor.on_update(ctx, p_dt);
+    } else {
         limit_fps(120);
-        project_manager.on_update();
-
-        if (project_manager.open_requested) {
-            project_manager.open_requested = false;
-            open_project(project_manager.open_path);
-        }
-        return;
-    }
-
-    if (!editor_created) {
-        if (pending_render_path) return;
-        if (editor.create(ctx) != Error::Ok) return;
-        editor_created = true;
-    }
-
-    editor.active_tab = titlebar_active_tab;
-
-    editor.on_update(p_dt);
-    if (editor.close_project_requested) {
-        editor.close_project_requested = false;
-        close_project();
+        project_manager.on_update(ctx);
     }
 }
 
@@ -118,14 +102,38 @@ void EditorApplication::on_shutdown()
 {
     dd.device_wait_idle();
     dd.image_free(logo_image);
-
-    if (editor_created) editor.destroy();
+    
     _save_state();
-    project_manager.save_recent();
+    // project_manager.save_recent();
+
+    project_manager.shutdown();
+    editor.shutdown();
+}
+
+Error EditorApplication::open_project(const std::filesystem::path& p_root)
+{
+    using enum Error;
+    
+    Error err = project_load(p_root);
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+
+    render_path_request(new EditorRenderPath());
+    project_manager.add_recent(project.root, project.name);
+
+    return Ok;
+}
+
+void EditorApplication::close_project()
+{
+    project_unload();
+
+    render_path_request(new ProjectManagerRenderPath());
 }
 
 void EditorApplication::_load_state()
 {
+    editor.apply_settings();
+
     std::ifstream f(Paths::roaming_data() / "editor_state.cfg");
     if (!f) return;
 
@@ -152,6 +160,8 @@ void EditorApplication::_load_state()
 
 void EditorApplication::_save_state()
 {
+    editor.store_settings();
+
     std::ofstream f(Paths::roaming_data() / "editor_state.cfg");
     if (!f) return;
 
@@ -165,34 +175,6 @@ void EditorApplication::_save_state()
     f << "debugger.profiler.enabled " << (renderer.graph.profiler.enabled ? 1 : 0) << '\n';
 
     for (const auto& [name, open] : editor.panel_open) f << name << ".open " << (open ? 1 : 0) << '\n';
-}
-    
-void EditorApplication::open_project(const std::filesystem::path& p_root)
-{
-    if (project.load(p_root) != Error::Ok) return;
-
-    project_manager.add_recent(p_root, project.name);
-    render_path_request(new EditorRenderPath());
-    mode = Mode::Editor;
-
-    win32.window_set_title(project.name + std::string(" - Ballistic Editor"));
-}
-
-void EditorApplication::close_project()
-{
-    if (editor_created) {
-        editor.destroy();
-        editor_created = false;
-    }
-
-    project.unload();
-    render_path_request(new ProjectManagerRenderPath());
-    mode = Mode::ProjectManager;
-
-    project_manager.selected = -1;
-    project_manager.load_recent();
-
-    win32.window_set_title("Ballistic Editor - Project Manager");
 }
 
 void EditorApplication::_draw_titlebar()
@@ -227,7 +209,7 @@ void EditorApplication::_draw_titlebar()
         ImGui::SetCursorPosX(LOGO + 6.0f);
         float menu_x0 = ImGui::GetCursorScreenPos().x;
 
-        if (editor_created && mode == Mode::Editor) _draw_shared_menu_items();
+        if (project.loaded()) _draw_shared_menu_items();
         
         if (ImGui::BeginMenu("Help")) {
             if (ImGui::MenuItem("Online Documentation")) ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
@@ -293,7 +275,6 @@ void EditorApplication::_draw_titlebar()
             };
 
             ImVec2 mouse = ImGui::GetIO().MousePos;
-
             auto ctrl = [&](float x0, int glyph, bool danger) {
                 ImVec2 p(x0, origin.y);
                 bool hovered = mouse.x >= x0 && mouse.x < x0 + BTN_W && mouse.y >= origin.y && mouse.y < origin.y + MENU_H;
@@ -400,7 +381,7 @@ void EditorApplication::_draw_shared_menu_items()
         //     // delete exported folder
         // }
         ImGui::Separator();
-        if (ImGui::MenuItem("Quit to Project List")) editor.close_project_requested = true;
+        if (ImGui::MenuItem("Quit to Project List")) close_project();
         if (ImGui::MenuItem("Quit")) win32.window_request_close();
         ImGui::EndMenu();
     }
@@ -435,6 +416,10 @@ EditorContext EditorApplication::_make_context()
     ctx.project = &project;
     ctx.settings = &settings;
     ctx.popups = &popups;
+
+    ctx.open_project_callback = [this](const auto& path){this->open_project(path);};
+    ctx.close_project_callback = [this](){this->close_project();};
+    
     return ctx;
 }
 

@@ -5,8 +5,10 @@
 #include <drivers/imgui/imgui_driver.h>
 #include <core/rendering/renderer.h>
 #include <core/project/project.h>
+#include <core/scene/scenes.h>
 #include <core/log/error.h>
 #include <string>
+#include <filesystem>
 
 namespace ballistic {
 
@@ -32,11 +34,16 @@ struct Application
 
     drivers::ImGuiDriver imgui;
 
+    Scenes scenes;
+
     Project project;
 
     Error create(const ApplicationCreateInfo& p_create_info);
     void destroy();
     int run();
+
+    Error project_load(const std::filesystem::path &p_root);
+    void project_unload();
     
     void render_path_request(RenderPath* p_next);
     void _apply_pending_render_path();

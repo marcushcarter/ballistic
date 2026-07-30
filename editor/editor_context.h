@@ -1,4 +1,6 @@
 #pragma once
+#include <functional>
+#include <filesystem>
 
 namespace ballistic {
 
@@ -19,6 +21,9 @@ struct EditorContext
     Project* project = nullptr;
     EditorSettings* settings = nullptr;
     PopupManager* popups = nullptr;
+    
+    std::function<void(const std::filesystem::path&)> open_project_callback;
+    std::function<void()> close_project_callback;
 };
 
 }
