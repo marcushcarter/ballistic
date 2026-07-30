@@ -2,6 +2,8 @@
 #include <editor/popup/editor_settings/editor_settings.h>
 #include <editor/popup/project_settings/project_settings.h>
 #include <editor/popup/export/export.h>
+#include <editor/popup/new_project/new_project.h>
+#include <editor/popup/about_ballistic/about_ballistic.h>
 #include <core/io/embedded_resource.h>
 #include <core/io/path.h>
 #include <core/io/image_io.h>
@@ -60,9 +62,11 @@ Error EditorApplication::on_init()
         io.Fonts->Build();
     }
     
-    popups.push_back(std::make_unique<EditorSettingsPopup>());
-    popups.push_back(std::make_unique<ProjectSettingsPopup>());
-    popups.push_back(std::make_unique<ExportPopup>());
+    popups.register_popup(std::make_unique<EditorSettingsPopup>());
+    popups.register_popup(std::make_unique<ProjectSettingsPopup>());
+    popups.register_popup(std::make_unique<ExportPopup>());
+    popups.register_popup(std::make_unique<NewProjectPopup>());
+    popups.register_popup(std::make_unique<AboutBallisticPopup>());
 
     close_project();
 
@@ -80,19 +84,14 @@ void EditorApplication::on_update(float p_dt)
 {
     _draw_titlebar();
 
-    EditorContext ctx{};
-    ctx.win32 = &win32;
-    ctx.imgui = &imgui;
-    ctx.renderer = &renderer;
-    ctx.render_path = static_cast<EditorRenderPath*>(render_path);
-    ctx.project = &project;
-    ctx.settings = &settings;
-
-    for (auto& p : popups) p->draw(ctx);
+    EditorContext ctx = _make_context();
+    
+    popups.draw(ctx);
 
     if (mode == Mode::ProjectManager) {
-        limit_fps(60);
+        limit_fps(120);
         project_manager.on_update();
+
         if (project_manager.open_requested) {
             project_manager.open_requested = false;
             open_project(project_manager.open_path);
@@ -266,7 +265,7 @@ void EditorApplication::_draw_titlebar()
                 ImGui::SetClipboardText(buf);
             }
             ImGui::Separator();
-            if (ImGui::MenuItem("About Ballistic")) open_popup("About Ballistic");
+            if (ImGui::MenuItem("About Ballistic")) popups.open("About Ballistic");
             if (ImGui::MenuItem("Support Development")) ShellExecuteA(nullptr, "open", "https://ballisticgames.ca", nullptr, nullptr, SW_SHOWNORMAL);
             ImGui::EndMenu();
         }
@@ -364,7 +363,7 @@ void EditorApplication::_draw_titlebar()
         blocker(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
 
         bool hovered = ImGui::IsItemHovered();
-        if (ImGui::IsItemClicked()) open_popup("Editor Settings");
+        if (ImGui::IsItemClicked()) popups.open("Editor Settings");
 
         ImU32 col = hovered ? IM_COL32(255, 255, 255, 255) : IM_COL32(200, 200, 205, 255);
         dl->AddText(ImVec2(cog_pos.x + (box - cog_sz.x) * 0.5f, cog_pos.y + (box - cog_sz.y) * 0.5f), col, cog);
@@ -389,17 +388,17 @@ void EditorApplication::_draw_titlebar()
 void EditorApplication::_draw_shared_menu_items()
 {
     if (ImGui::BeginMenu("Project")) {
-        if (ImGui::MenuItem("Project Settings")) open_popup("Project Settings");
+        if (ImGui::MenuItem("Project Settings")) popups.open("Project Settings");
         ImGui::Separator();
         if (ImGui::MenuItem("Version Control")) {}
         ImGui::Separator();
-        if (ImGui::MenuItem("Export")) open_popup("Export");
-        if (ImGui::MenuItem("Pack Project as ZIP")) {
-            // file dialog
-            // export project
-            // convert to zip
-            // delete exported folder
-        }
+        if (ImGui::MenuItem("Export")) popups.open("Export");
+        // if (ImGui::MenuItem("Pack Project as ZIP")) {
+        //     // file dialog
+        //     // export project
+        //     // convert to zip
+        //     // delete exported folder
+        // }
         ImGui::Separator();
         if (ImGui::MenuItem("Quit to Project List")) editor.close_project_requested = true;
         if (ImGui::MenuItem("Quit")) win32.window_request_close();
@@ -411,7 +410,7 @@ void EditorApplication::_draw_shared_menu_items()
     }
 
     if (ImGui::BeginMenu("Editor")) {
-        if (ImGui::MenuItem("Editor Settings")) open_popup("Editor Settings");
+        if (ImGui::MenuItem("Editor Settings")) popups.open("Editor Settings");
         ImGui::Separator();
         if (ImGui::MenuItem("Take Screenshot")) {
             EditorRenderPath* path = static_cast<EditorRenderPath*>(render_path);
@@ -426,9 +425,17 @@ void EditorApplication::_draw_shared_menu_items()
     editor.draw_menu();
 }
 
-void EditorApplication::open_popup(std::string_view name)
+EditorContext EditorApplication::_make_context()
 {
-    for (auto& p : popups) if (name == p->name()) { p->open = true; return; }
+    EditorContext ctx{};
+    ctx.win32 = &win32;
+    ctx.imgui = &imgui;
+    ctx.renderer = &renderer;
+    ctx.render_path = static_cast<EditorRenderPath*>(render_path);
+    ctx.project = &project;
+    ctx.settings = &settings;
+    ctx.popups = &popups;
+    return ctx;
 }
 
 }

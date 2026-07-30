@@ -8,6 +8,7 @@ struct Renderer;
 struct Project;
 struct EditorRenderPath;
 struct EditorSettings;
+struct PopupManager;
 
 struct EditorContext
 {
@@ -17,6 +18,7 @@ struct EditorContext
     EditorRenderPath* render_path = nullptr;
     Project* project = nullptr;
     EditorSettings* settings = nullptr;
+    PopupManager* popups = nullptr;
 };
 
 }

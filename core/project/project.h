@@ -1,4 +1,5 @@
 #pragma once
+#include <core/project/project_settings.h>
 #include <core/log/error.h>
 #include <core/assets/guid.h>
 #include <filesystem>
@@ -24,6 +25,8 @@ struct Project
 
     std::string name;
     bool loaded = false;
+
+    ProjectSettings settings;
 
     Error load(const std::filesystem::path& p_root);
     Error save() const;
