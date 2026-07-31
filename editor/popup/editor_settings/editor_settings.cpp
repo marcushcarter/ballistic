@@ -16,7 +16,8 @@ void EditorSettingsPopup::draw_contents(EditorContext& ctx)
             if (ImGui::Selectable(Theme::THEME_PRESETS[i].name, t.preset == i)) {
                 t.preset  = i;
                 t.base = Theme::THEME_PRESETS[i].base;
-                t.accent  = Theme::THEME_PRESETS[i].accent;
+                t.accent = Theme::THEME_PRESETS[i].accent;
+                t.text = Theme::THEME_PRESETS[i].text;
                 changed = true;
             }
         }
@@ -25,6 +26,7 @@ void EditorSettingsPopup::draw_contents(EditorContext& ctx)
     }
 
     if (ImGui::ColorEdit3("Base", &t.base.x)) { t.preset = -1; changed = true; }
+    if (ImGui::ColorEdit3("Text", &t.text.x)) { t.preset = -1; changed = true; }
     ImGui::BeginDisabled(t.use_system_accent);
     if (ImGui::ColorEdit3("Accent", &t.accent.x)) { t.preset = -1; changed = true; }
     ImGui::EndDisabled();
@@ -34,7 +36,11 @@ void EditorSettingsPopup::draw_contents(EditorContext& ctx)
         changed = true;
     }
 
-    if (changed) t.apply();
+    if (changed) {
+        t.apply();
+        ImVec4 titlebar = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+        ctx.win32->window_set_titlebar_color(RGB((BYTE)(titlebar.x * 255), (BYTE)(titlebar.y * 255), (BYTE)(titlebar.z * 255)));
+    }
 
     bool custom = ctx.win32->window.custom_titlebar;
     if (ImGui::Checkbox("Window Custom Titlebar", &custom)) ctx.win32->window_set_custom_titlebar(custom);

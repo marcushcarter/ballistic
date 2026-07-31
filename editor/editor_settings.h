@@ -10,17 +10,38 @@ struct Theme
 {
     ImVec4 base { 0.12f, 0.12f, 0.14f, 1.0f };
     ImVec4 accent { 0.66f, 0.30f, 0.76f, 1.0f };
+    ImVec4 text { 0.92f, 0.92f, 0.94f, 1.0f };
     bool use_system_accent = false;
     int preset = -1;
 
     void apply() const;
     
-    struct ThemePreset { const char* name; ImVec4 base, accent; };
+    struct ThemePreset { const char* name; ImVec4 base, accent, text; };
+
+    /**
+        ADD THEMES.CFG FILE TO EASILY EDIT THEMES AND IMPRT THEM
+        
+        [Theme]
+        Name=Default
+        Base=0.012,0.010,0.014,1.000
+        Accent=0.660,0.300,0.760,1.000
+
+        [Theme]
+        Name=Graphite
+        Base=0.140,0.140,0.150,1.000
+        Accent=0.350,0.550,0.850,1.000
+
+        [Theme]
+        Name=Midnight
+        Base=0.080,0.090,0.130,1.000
+        Accent=0.300,0.700,0.850,1.000
+     */
 
     static inline constexpr ThemePreset THEME_PRESETS[] = {
-        { "Dark",     { 0.12f, 0.12f, 0.14f, 1.0f }, { 0.66f, 0.30f, 0.76f, 1.0f } },
-        { "Graphite", { 0.14f, 0.14f, 0.15f, 1.0f }, { 0.35f, 0.55f, 0.85f, 1.0f } },
-        { "Midnight", { 0.08f, 0.09f, 0.13f, 1.0f }, { 0.30f, 0.70f, 0.85f, 1.0f } },
+        { "Default", { 0.12f, 0.12f, 0.14f, 1.0f }, { 0.66f, 0.30f, 0.76f, 1.0f }, { 0.92f, 0.92f, 0.94f, 1.0f } },
+        { "Dark", { 0.012f, 0.010f, 0.014f, 1.0f }, { 0.66f, 0.30f, 0.76f, 1.0f }, { 0.92f, 0.92f, 0.94f, 1.0f } },
+        { "Light", { 0.90f, 0.90f, 0.92f, 1.0f }, { 0.30f, 0.50f, 0.90f, 1.0f }, { 0.10f, 0.10f, 0.12f, 1.0f } },
+        { "Classic", { 0.14f, 0.14f, 0.15f, 1.0f }, { 0.35f, 0.55f, 0.85f, 1.0f }, { 0.92f, 0.92f, 0.94f, 1.0f } }, 
     };
     
     static const char* theme_preset_name(int i);

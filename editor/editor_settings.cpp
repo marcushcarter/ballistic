@@ -6,7 +6,7 @@ namespace ballistic {
 static ImVec4 shade(const ImVec4& c, float f) { return { c.x*f, c.y*f, c.z*f, c.w }; }
 static ImVec4 fade(const ImVec4& c, float a) { return { c.x, c.y, c.z, a }; }
 static ImVec4 mix(const ImVec4& a, const ImVec4& b, float t) { return { a.x+(b.x-a.x)*t, a.y+(b.y-a.y)*t, a.z+(b.z-a.z)*t, a.w }; }
-static float luminance(const ImVec4& c) { return 0.2126f*c.x + 0.7152f*c.y + 0.0722f*c.z; }
+// static float luminance(const ImVec4& c) { return 0.2126f*c.x + 0.7152f*c.y + 0.0722f*c.z; }
 
 void Theme::apply() const
 {
@@ -18,8 +18,6 @@ void Theme::apply() const
 
     ImGui::StyleColorsDark();
     ImVec4* c = ImGui::GetStyle().Colors;
-
-    const ImVec4 text = (luminance(base) < 0.5f) ? ImVec4(0.92f, 0.92f, 0.94f, 1.0f) : ImVec4(0.10f, 0.10f, 0.12f, 1.0f);
 
     c[ImGuiCol_Text]                       = text;
     c[ImGuiCol_TextDisabled]               = mix(text, base, 0.55f);

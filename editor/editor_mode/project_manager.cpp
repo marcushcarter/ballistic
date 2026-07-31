@@ -143,13 +143,13 @@ void ProjectManager::_draw_list(EditorContext& ctx)
         if (sel) dl->AddRectFilled(rmin, rmax, ImGui::GetColorU32(ImGuiCol_Button), rounding);
         else if (ImGui::IsMouseHoveringRect(rmin, rmax)) dl->AddRectFilled(rmin, rmax, ImGui::GetColorU32(ImGuiCol_ButtonHovered), rounding);
 
-        dl->AddLine(ImVec2(rmin.x + pad, rmax.y), ImVec2(rmax.x - pad, rmax.y), IM_COL32(255, 255, 255, 15));
+        dl->AddLine(ImVec2(rmin.x + pad, rmax.y), ImVec2(rmax.x - pad, rmax.y), ImGui::GetColorU32(ImGuiCol_TextDisabled));
 
         float thumb = row_h - pad * 2;
         float thumb_x = rmin.x + pad * 4;
         float thumb_y = rmin.y + pad;
-        dl->AddRectFilled(ImVec2(thumb_x, thumb_y), ImVec2(thumb_x + thumb, thumb_y + thumb), IM_COL32(40, 40, 50, 255), 4.0f);
-        dl->AddRect(ImVec2(thumb_x, thumb_y), ImVec2(thumb_x + thumb, thumb_y + thumb), IM_COL32(80, 80, 90, 255), 4.0f);
+        dl->AddRectFilled(ImVec2(thumb_x, thumb_y), ImVec2(thumb_x + thumb, thumb_y + thumb), ImGui::GetColorU32(ImGuiCol_TextDisabled), 4.0f);
+        dl->AddRect(ImVec2(thumb_x, thumb_y), ImVec2(thumb_x + thumb, thumb_y + thumb), ImGui::GetColorU32(ImGuiCol_Text), 4.0f);
 
         ImGui::PushID(idx);
 
@@ -160,7 +160,7 @@ void ProjectManager::_draw_list(EditorContext& ctx)
             ImGui::SetCursorScreenPos(ImVec2(star_c.x - star_r, star_c.y - star_r));
             if (ImGui::InvisibleButton("##fav", ImVec2(star_r * 2, star_r * 2))) { e.favorite = !e.favorite; save_recents(); }
             bool star_hover = ImGui::IsItemHovered();
-            ImU32 star_col = e.favorite ? IM_COL32(255, 180, 0, 255) : star_hover ? IM_COL32(230, 230, 230, 255) : IM_COL32(90, 90, 90, 255);
+            ImU32 star_col = e.favorite ? IM_COL32(255, 180, 0, 255) : star_hover ? ImGui::GetColorU32(ImGuiCol_Text) : ImGui::GetColorU32(ImGuiCol_TextDisabled);
             
             ImVec2 pts[10];
             for (int i = 0; i < 10; ++i) {
@@ -179,11 +179,11 @@ void ProjectManager::_draw_list(EditorContext& ctx)
         ImGui::PopID();
 
         float text_x = thumb_x + thumb + pad;
-        dl->AddText(ImVec2(text_x, thumb_y), IM_COL32(220, 220, 220, 255), e.name.c_str());
-        dl->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 0.85f, ImVec2(text_x, thumb_y + ImGui::GetTextLineHeight() + 3.0f), IM_COL32(110, 110, 110, 255), e.path.string().c_str());
+        dl->AddText(ImVec2(text_x, thumb_y), ImGui::GetColorU32(ImGuiCol_Text), e.name.c_str());
+        dl->AddText(ImGui::GetFont(), ImGui::GetFontSize() * 0.85f, ImVec2(text_x, thumb_y + ImGui::GetTextLineHeight() + 3.0f), ImGui::GetColorU32(ImGuiCol_TextDisabled), e.path.string().c_str());
         if (!e.last_opened.empty()) {
             float mw = ImGui::CalcTextSize(e.last_opened.c_str()).x;
-            dl->AddText(ImVec2(rmax.x - mw - pad, rmin.y + (row_h - ImGui::GetTextLineHeight()) * 0.5f), IM_COL32(100, 100, 100, 255), e.last_opened.c_str());
+            dl->AddText(ImVec2(rmax.x - mw - pad, rmin.y + (row_h - ImGui::GetTextLineHeight()) * 0.5f), ImGui::GetColorU32(ImGuiCol_TextDisabled), e.last_opened.c_str());
         }
     }
 

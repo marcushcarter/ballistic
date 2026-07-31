@@ -22,15 +22,15 @@
 
 namespace ballistic {
 
-void limit_fps(uint32_t fps)
-{
-    using clock = std::chrono::steady_clock;
-    static auto next = clock::now();
-    const auto frame = std::chrono::microseconds(1000000 / fps);
-    next += frame;
-    std::this_thread::sleep_until(next);
-    if (clock::now() > next + frame) next = clock::now();
-}
+// void limit_fps(uint32_t fps)
+// {
+//     using clock = std::chrono::steady_clock;
+//     static auto next = clock::now();
+//     const auto frame = std::chrono::microseconds(1000000 / fps);
+//     next += frame;
+//     std::this_thread::sleep_until(next);
+//     if (clock::now() > next + frame) next = clock::now();
+// }
 
 Error EditorApplication::on_init()
 {
@@ -44,7 +44,8 @@ Error EditorApplication::on_init()
 
     Error err = win32.window_set_icon(EmbeddedResource::load_icon(L"BALLISTIC_ICON"));
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
-    err = win32.window_set_titlebar_color(RGB(20, 20, 25));
+    ImVec4 titlebar = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+    err = win32.window_set_titlebar_color(RGB((BYTE)(titlebar.x * 255), (BYTE)(titlebar.y * 255), (BYTE)(titlebar.z * 255)));
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     
     ImGuiIO& io = ImGui::GetIO();
@@ -94,7 +95,7 @@ void EditorApplication::on_update(float p_dt)
     if (project.loaded()) {
         editor.on_update(ctx, p_dt);
     } else {
-        limit_fps(120);
+        // limit_fps(120);
         project_manager.on_update(ctx);
     }
 }
@@ -178,6 +179,7 @@ void EditorApplication::_load_state()
         if (key == "interface.theme.preset") { settings.theme.preset = Theme::theme_preset_index(val); continue; }
         if (key == "interface.theme.base") { color_from_hex(val, settings.theme.base); continue; }
         if (key == "interface.theme.accent") { color_from_hex(val, settings.theme.accent); continue; }
+        if (key == "interface.theme.text") { color_from_hex(val, settings.theme.text); continue; }
         if (key == "interface.theme.use_system_accent") { settings.theme.use_system_accent = std::atoi(val.c_str()) != 0; continue; }
 
         if (key == "interface.window.custom_titlebar") { win32.window_set_custom_titlebar(std::atoi(val.c_str()) != 0); continue; }
@@ -200,6 +202,7 @@ void EditorApplication::_save_state()
     f << "interface.theme.preset " << Theme::theme_preset_name(settings.theme.preset) << '\n';
     f << "interface.theme.base " << color_to_hex(settings.theme.base) << '\n';
     f << "interface.theme.accent " << color_to_hex(settings.theme.accent) << '\n';
+    f << "interface.theme.text " << color_to_hex(settings.theme.text) << '\n';
     f << "interface.theme.use_system_accent " << (settings.theme.use_system_accent ? 1 : 0) << '\n';
     
     f << "interface.window.custom_titlebar " << (win32.window.custom_titlebar ? 1 : 0) << '\n';
@@ -293,12 +296,12 @@ void EditorApplication::_draw_titlebar()
         float btns_x = origin.x + width - BTN_W * 3.0f;
         float right_pad = win32.window.custom_titlebar ? (width - BTN_W * 3.0f) : width;
         float title_x = origin.x + right_pad - ts.x - 16.0f;
-        dl->AddText(ImVec2(title_x, origin.y + (MENU_H - ts.y) * 0.5f), IM_COL32(200, 200, 205, 255), title.c_str());
+        dl->AddText(ImVec2(title_x, origin.y + (MENU_H - ts.y) * 0.5f), ImGui::GetColorU32(ImGuiCol_Text), title.c_str());
         
         if (win32.window.custom_titlebar) {
             float cluster_x = btns_x;
             float cluster_w = BTN_W * 3.0f;
-            fg->AddRectFilled(ImVec2(cluster_x, origin.y), ImVec2(cluster_x + cluster_w, origin.y + MENU_H), IM_COL32(38, 38, 44, 255));
+            fg->AddRectFilled(ImVec2(cluster_x, origin.y), ImVec2(cluster_x + cluster_w, origin.y + MENU_H), ImGui::GetColorU32(ImGuiCol_MenuBarBg));
 
             RECT rmin, rmax, rclose;
             auto client_rect = [&](float x0) -> RECT {
@@ -309,15 +312,16 @@ void EditorApplication::_draw_titlebar()
             auto ctrl = [&](float x0, int glyph, bool danger) {
                 ImVec2 p(x0, origin.y);
                 bool hovered = mouse.x >= x0 && mouse.x < x0 + BTN_W && mouse.y >= origin.y && mouse.y < origin.y + MENU_H;
-                if (hovered) fg->AddRectFilled(p, ImVec2(p.x + BTN_W, p.y + MENU_H), danger ? IM_COL32(196, 43, 28, 255) : IM_COL32(255, 255, 255, 24));
+                if (hovered) fg->AddRectFilled(p, ImVec2(p.x + BTN_W, p.y + MENU_H), danger ? IM_COL32(196, 43, 28, 255) : ImGui::GetColorU32(ImGuiCol_ButtonHovered));
                 ImVec2 c(p.x + BTN_W * 0.5f, p.y + MENU_H * 0.5f);
-                ImU32 col = IM_COL32(235, 235, 235, 255); float s = 5.0f;
+                ImU32 col = ImGui::GetColorU32(ImGuiCol_Text);
+                float s = 5.0f;
                 switch (glyph) {
                     case 0: fg->AddLine(ImVec2(c.x-s,c.y), ImVec2(c.x+s,c.y), col, 1.0f); break;
                     case 1: fg->AddRect(ImVec2(c.x-s,c.y-s), ImVec2(c.x+s,c.y+s), col, 0,0,1.0f); break;
                     case 2:
                         fg->AddRect(ImVec2(c.x-s+2,c.y-s-2), ImVec2(c.x+s+2,c.y+s-2), col, 0,0,1.0f);
-                        fg->AddRectFilled(ImVec2(c.x-s-2,c.y-s+2), ImVec2(c.x+s-2,c.y+s+2), IM_COL32(20,20,25,255));
+                        fg->AddRectFilled(ImVec2(c.x-s-2,c.y-s+2), ImVec2(c.x+s-2,c.y+s+2), ImGui::GetColorU32(ImGuiCol_MenuBarBg));
                         fg->AddRect(ImVec2(c.x-s-2,c.y-s+2), ImVec2(c.x+s-2,c.y+s+2), col, 0,0,1.0f);
                         break;
                     case 3:
@@ -377,7 +381,7 @@ void EditorApplication::_draw_titlebar()
         bool hovered = ImGui::IsItemHovered();
         if (ImGui::IsItemClicked()) popups.open("Editor Settings");
 
-        ImU32 col = hovered ? IM_COL32(255, 255, 255, 255) : IM_COL32(200, 200, 205, 255);
+        ImU32 col = hovered ? ImGui::GetColorU32(ImGuiCol_Text) : ImGui::GetColorU32(ImGuiCol_TextDisabled);
         dl->AddText(ImVec2(cog_pos.x + (box - cog_sz.x) * 0.5f, cog_pos.y + (box - cog_sz.y) * 0.5f), col, cog);
     }
 
@@ -388,7 +392,7 @@ void EditorApplication::_draw_titlebar()
         ImVec2 mn(origin.x + m, origin.y + m);
         ImVec2 mx(origin.x + LOGO - m, origin.y + H - m);
         if (logo_set) dl->AddImage(logo_set, mn, mx);
-        else dl->AddRectFilled(mn, mx, IM_COL32(255, 255, 255, 255), 4.0f);
+        else dl->AddRectFilled(mn, mx, ImGui::GetColorU32(ImGuiCol_Text), 4.0f);
         dl->PopClipRect();
     }
 
