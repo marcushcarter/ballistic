@@ -27,20 +27,22 @@ struct Project
 
     ProjectSettings settings;
 
+    void _resolve_dirs(const std::filesystem::path& p_root);
+    static Error _ensure_layout(const std::filesystem::path& p_root);
+
     Error load(const std::filesystem::path& p_root);
     Error save() const;
     void unload();
 
-    bool loaded() const { return !root.empty(); }
-
     static Error create(const std::filesystem::path& p_root, std::string_view p_name);
-    // static Error destroy(const std::filesystem::path& p_root);
+    static Error destroy(const std::filesystem::path& p_root);
+
+    static std::string peek_name(const std::filesystem::path& p_root);
 
     // Turns a serialized resources guid into a path turns the first two characters into the folder name so that we dont have thousands of binary files all in the same folder.
     std::filesystem::path content_path(Guid p_guid) const;
 
-    void _resolve_dirs(const std::filesystem::path& p_root);
-    static Error _ensure_layout(const std::filesystem::path& p_root);
+    bool loaded() const { return !root.empty(); }
 };
 
 }

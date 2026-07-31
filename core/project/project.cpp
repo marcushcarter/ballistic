@@ -76,9 +76,16 @@ Error Project::load(const std::filesystem::path& p_root)
     if (Error e = _ensure_layout(p_root); e != Ok) return e;
 
     _resolve_dirs(p_root);
-    name = parsed_name;
+    if (name.empty()) name = parsed_name;
     log_write("Project loaded: %s (%s)", name.c_str(), root.string().c_str());
     return Ok;
+}
+
+void Project::unload()
+{
+    root.clear();
+    name.clear();
+    settings = {};
 }
 
 Error Project::save() const
@@ -120,31 +127,47 @@ Error Project::create(const std::filesystem::path& p_root, std::string_view p_na
     return p.save();
 }
 
-// Error Project::destroy(const std::filesystem::path& p_root)
-// {
-//     using enum Error;
-//     std::error_code ec;
-//
-//     BALLISTIC_ERR_FAIL_COND_V_MSG(!std::filesystem::exists(p_root / FILE_NAME, ec) || ec, Failed, "Not a Ballistic project; refusing to delete.");
-//     std::filesystem::path target = std::filesystem::weakly_canonical(p_root, ec);
-//     if (ec) return Failed;
-//     BALLISTIC_ERR_FAIL_COND_V_MSG(target == target.root_path(), Failed, "Refusing to remove a filesystem root.");
-//
-//     uintmax_t removed = std::filesystem::remove_all(target, ec);
-//     if (ec || removed == static_cast<uintmax_t>(-1)) {
-//         log_write("Failed to remove '%s' (%s)", target.string().c_str(), ec.message().c_str());
-//         return Failed;
-//     }
-//
-//     log_write("Destroyed project '%s' (%llu entries)", target.string().c_str(), (unsigned long long)removed);
-//     return Ok;
-// }
-
-void Project::unload()
+Error Project::destroy(const std::filesystem::path& p_root)
 {
-    root.clear();
-    name.clear();
-    settings = {};
+    using enum Error;
+    std::error_code ec;
+
+    if (!std::filesystem::exists(p_root / FILE_NAME, ec) || ec) {
+        log_write("Project: '%s' is not a Ballistic project; refusing to delete.", p_root.string().c_str());
+        return Failed;
+    }
+
+    std::filesystem::path target = std::filesystem::weakly_canonical(p_root, ec);
+    if (ec) return Failed;
+    if (target == target.root_path()) {
+        log_write("Project: refusing to remove filesystem root '%s'.", target.string().c_str());
+        return Failed;
+    }
+
+    uintmax_t removed = std::filesystem::remove_all(target, ec);
+    if (ec || removed == static_cast<uintmax_t>(-1)) {
+        log_write("Project: failed to remove '%s' (%s)", target.string().c_str(), ec.message().c_str());
+        return Failed;
+    }
+
+    log_write("Project destroyed: '%s' (%llu entries)", target.string().c_str(), (unsigned long long)removed);
+    return Ok;
+}
+
+std::string Project::peek_name(const std::filesystem::path& p_root)
+{
+    std::ifstream f(p_root / FILE_NAME);
+    if (!f) return p_root.filename().string();
+    std::string line;
+    while (std::getline(f, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line.empty() || line[0] == '#') continue;
+        size_t sp = line.find(' ');
+        if (sp == std::string::npos) continue;
+        if (line.substr(0, sp) == "project.name")
+            return line.substr(sp + 1);
+    }
+    return p_root.filename().string();
 }
 
 }
