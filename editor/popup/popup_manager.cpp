@@ -17,16 +17,9 @@ void PopupManager::open(std::string_view p_name)
     }
 }
 
-void PopupManager::confirm(std::string title, std::string message, std::string confirm_label, std::function<void()> on_confirm)
-{
-    confirm_popup.configure(std::move(title), std::move(message), std::move(confirm_label), std::move(on_confirm));
-    confirm_popup.open = true;
-}
-
 void PopupManager::draw(EditorContext& ctx)
 {
     for (auto& p : popups) p->draw(ctx);
-    confirm_popup.draw(ctx);
 }
 
 }

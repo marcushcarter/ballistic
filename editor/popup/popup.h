@@ -10,6 +10,7 @@ struct Popup
 
     virtual ~Popup() = default;
     virtual const char* name() const = 0;
+    virtual ImVec2 initial_size() const { return ImVec2(500, 250); }
     virtual void on_open(EditorContext& ctx) { (void)ctx; }
     virtual void draw_contents(EditorContext& ctx) = 0;
 
@@ -52,7 +53,7 @@ struct Popup
 
         ImGuiViewport* vp = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(vp->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(500, 200), ImGuiCond_Appearing);
+        ImGui::SetNextWindowSize(initial_size(), ImGuiCond_Appearing);
 
         if (!ImGui::BeginPopupModal(name(), nullptr, ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings)) return;
 

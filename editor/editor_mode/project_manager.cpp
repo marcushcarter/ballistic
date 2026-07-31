@@ -1,5 +1,6 @@
 #include <editor/editor_mode/project_manager.h>
 #include <editor/popup/popup_manager.h>
+#include <editor/popup/project_delete/project_delete.h>
 #include <core/project/project.h>
 #include <core/io/path.h>
 #include <core/base/error.h>
@@ -239,21 +240,11 @@ void ProjectManager::on_update(EditorContext& ctx)
     }
 
     if (ImGui::Button("Delete", ImVec2(-1, 0))) {
-        std::filesystem::path path = recent[selected].path;
-        std::string nm = recent[selected].name;
-        ctx.popups->confirm(
-            "Delete Project?",
-            "Permanently delete \"" + nm + "\"?\n" + path.string() + "\n\nThis erases the project folder from disk and cannot be undone.",
-            "Delete",
-            [this, path]() {
-                if (Project::destroy(path) == Error::Ok) {
-                    for (size_t i = 0; i < recent.size(); ++i)
-                        if (recent[i].path == path) { recent.erase(recent.begin() + i); break; }
-                    save_recents();
-                    selected = -1;
-                }
-            }
-        );
+        if (auto* p = ctx.popups->get<DeleteProjectPopup>("Delete Project")) {
+            p->project_path = recent[selected].path;
+            p->project_name = recent[selected].name;
+        }
+        ctx.popups->open("Delete Project");
     }
 
     ImGui::BeginDisabled(true);

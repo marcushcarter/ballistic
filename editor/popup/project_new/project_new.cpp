@@ -1,4 +1,5 @@
-#include <editor/popup/new_project/new_project.h>
+#include <editor/popup/project_new/project_new.h>
+#include <editor/editor_mode/project_manager.h>
 #include <drivers/windows/dialogs_win32.h>
 #include <core/project/project.h>
 #include <core/io/path.h>
@@ -112,6 +113,7 @@ void NewProjectPopup::draw_footer(EditorContext& ctx) {
         case 0:
             if (Project::create(final_path, std::string(name_buf)) == Error::Ok) {
                 if (edit_now) ctx.open_project_callback(final_path);
+                ctx.project_manager->add_recent(final_path, name_buf);
                 open = false;
                 ImGui::CloseCurrentPopup();
             }

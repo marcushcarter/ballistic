@@ -1,8 +1,9 @@
 #include <editor/editor_application.h>
 #include <editor/popup/editor_settings/editor_settings.h>
 #include <editor/popup/project_settings/project_settings.h>
+#include <editor/popup/project_new/project_new.h>
+#include <editor/popup/project_delete/project_delete.h>
 #include <editor/popup/export/export.h>
-#include <editor/popup/new_project/new_project.h>
 #include <editor/popup/about_ballistic/about_ballistic.h>
 #include <core/io/embedded_resource.h>
 #include <core/io/path.h>
@@ -67,6 +68,7 @@ Error EditorApplication::on_init()
     popups.register_popup(std::make_unique<ProjectSettingsPopup>());
     popups.register_popup(std::make_unique<ExportPopup>());
     popups.register_popup(std::make_unique<NewProjectPopup>());
+    popups.register_popup(std::make_unique<DeleteProjectPopup>());
     popups.register_popup(std::make_unique<AboutBallisticPopup>());
 
     err = project_manager.initialize();
@@ -446,6 +448,9 @@ EditorContext EditorApplication::_make_context()
     ctx.project = &project;
     ctx.settings = &settings;
     ctx.popups = &popups;
+
+    ctx.project_manager = &project_manager;
+    ctx.editor = &editor;
 
     ctx.open_project_callback = [this](const auto& path){this->open_project(path);};
     ctx.close_project_callback = [this](){this->close_project();};

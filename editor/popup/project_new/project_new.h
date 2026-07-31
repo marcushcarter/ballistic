@@ -7,6 +7,7 @@ namespace ballistic {
 struct NewProjectPopup : Popup
 {
     const char* name() const override { return "New Project"; }
+    ImVec2 initial_size() const override { return ImVec2(500, 200); }
     void on_open(EditorContext& ctx) override;
     void draw_contents(EditorContext& ctx) override;
     void draw_footer(EditorContext& ctx) override;
