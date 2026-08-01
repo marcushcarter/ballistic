@@ -6,6 +6,11 @@
 
 namespace ballistic {
 
+void EditorSettingsPopup::before_begin()
+{
+    ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiCond_Appearing);
+}
+
 void EditorSettingsPopup::draw_contents(EditorContext& ctx)
 {    
     Theme& t = ctx.settings->theme;
@@ -38,7 +43,7 @@ void EditorSettingsPopup::draw_contents(EditorContext& ctx)
 
     if (changed) {
         t.apply();
-        ImVec4 titlebar = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+        ImVec4 titlebar = ImGui::GetStyle().Colors[ImGuiCol_MenuBarBg];
         ctx.win32->window_set_titlebar_color(RGB((BYTE)(titlebar.x * 255), (BYTE)(titlebar.y * 255), (BYTE)(titlebar.z * 255)));
     }
 

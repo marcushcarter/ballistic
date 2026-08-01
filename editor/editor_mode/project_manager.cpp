@@ -143,7 +143,7 @@ void ProjectManager::_draw_list(EditorContext& ctx)
         if (sel) dl->AddRectFilled(rmin, rmax, ImGui::GetColorU32(ImGuiCol_Button), rounding);
         else if (ImGui::IsMouseHoveringRect(rmin, rmax)) dl->AddRectFilled(rmin, rmax, ImGui::GetColorU32(ImGuiCol_ButtonHovered), rounding);
 
-        dl->AddLine(ImVec2(rmin.x + pad, rmax.y), ImVec2(rmax.x - pad, rmax.y), ImGui::GetColorU32(ImGuiCol_TextDisabled));
+        dl->AddLine(ImVec2(rmin.x + pad, rmax.y), ImVec2(rmax.x - pad, rmax.y), ImGui::GetColorU32(ImGuiCol_Button));
 
         float thumb = row_h - pad * 2;
         float thumb_x = rmin.x + pad * 4;

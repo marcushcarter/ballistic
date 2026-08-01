@@ -7,7 +7,7 @@
 
 namespace ballistic::drivers {
     
-Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_create_info)
+Error ImGuiDriver::initialize(const ImGuiDriverCreateInfo& p_create_info)
 {
     using enum Error;
 
@@ -44,7 +44,7 @@ Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_create_info)
 
     VkResult err = vkCreateDescriptorPool(device, &pool_ci, nullptr, &descriptor_pool);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed,
-        "Failed to create ImGui descriptor pool.");
+        "Failed to initialize ImGui descriptor pool.");
 
     BALLISTIC_ERR_FAIL_COND_V_MSG(!ImGui_ImplWin32_Init(p_create_info.hwnd), Failed,
         "Failed to initialize ImGui Win32 backend.");
@@ -77,12 +77,12 @@ Error ImGuiDriver::create(const ImGuiDriverCreateInfo& p_create_info)
 
     BALLISTIC_ERR_FAIL_COND_V_MSG(!ImGui_ImplVulkan_Init(&init_info), Failed, "Failed to initialize ImGui Vulkan backend.");
 
-    texture_cache.create(p_create_info.sampler);
+    texture_cache.initialize(p_create_info.sampler);
 
     return Ok;
 }
 
-void ImGuiDriver::destroy()
+void ImGuiDriver::shutdown()
 {
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplWin32_Shutdown();

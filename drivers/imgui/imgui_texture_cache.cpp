@@ -3,14 +3,14 @@
 
 namespace ballistic::drivers {
 
-Error ImGuiTextureCache::create(VkSampler p_sampler)
+Error ImGuiTextureCache::initialize(VkSampler p_sampler)
 {
     using enum Error;
     sampler = p_sampler;
     return Ok;
 }
 
-void ImGuiTextureCache::destroy()
+void ImGuiTextureCache::shutdown()
 {
     _invalidate_all();
 }

@@ -6,6 +6,11 @@
 
 namespace ballistic {
 
+void DeleteProjectPopup::before_begin()
+{
+    ImGui::SetNextWindowSize(ImVec2(500, 125), ImGuiCond_Appearing);
+}
+
 void DeleteProjectPopup::draw_contents(EditorContext&)
 {
     ImGui::Text("Permanently delete project \"%s\"?", project_name.c_str());

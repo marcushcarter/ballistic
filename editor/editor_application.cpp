@@ -22,29 +22,19 @@
 
 namespace ballistic {
 
-// void limit_fps(uint32_t fps)
-// {
-//     using clock = std::chrono::steady_clock;
-//     static auto next = clock::now();
-//     const auto frame = std::chrono::microseconds(1000000 / fps);
-//     next += frame;
-//     std::this_thread::sleep_until(next);
-//     if (clock::now() > next + frame) next = clock::now();
-// }
-
 Error EditorApplication::on_init()
 {
     using enum Error;
+    Error err;
     
     win32.window_set_title("Ballistic Editor");
 
-    ImageData<uint8_t, 4> logo = ImageIO::load_from_resource<uint8_t, 4>(L"LOGOS_ICON_PNG");
-    if (logo.valid()) logo_image = dd.image_create_texture(logo.pixels, static_cast<uint32_t>(logo.width), static_cast<uint32_t>(logo.height), "editor_logo");
-    ImageIO::free_image(logo);
-
-    Error err = win32.window_set_icon(EmbeddedResource::load_icon(L"BALLISTIC_ICON"));
+    err = logos.initialize(dd);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
-    ImVec4 titlebar = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+
+    err = win32.window_set_icon(EmbeddedResource::load_icon(L"BALLISTIC_ICON"));
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+    ImVec4 titlebar = ImGui::GetStyle().Colors[ImGuiCol_MenuBarBg];
     err = win32.window_set_titlebar_color(RGB((BYTE)(titlebar.x * 255), (BYTE)(titlebar.y * 255), (BYTE)(titlebar.z * 255)));
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     
@@ -95,18 +85,16 @@ void EditorApplication::on_update(float p_dt)
     if (project.loaded()) {
         editor.on_update(ctx, p_dt);
     } else {
-        // limit_fps(120);
         project_manager.on_update(ctx);
     }
 }
 
 void EditorApplication::on_shutdown()
 {
-    dd.device_wait_idle();
-    dd.image_free(logo_image);
+    logos.shutdown();
     
     _save_state();
-    // project_manager.save_recent();
+    project_manager.save_recents();
 
     project_manager.shutdown();
     editor.shutdown();
@@ -128,7 +116,6 @@ Error EditorApplication::open_project(const std::filesystem::path& p_root)
 void EditorApplication::close_project()
 {
     project_unload();
-
     render_path_request(new ProjectManagerRenderPath());
 }
 
@@ -386,7 +373,7 @@ void EditorApplication::_draw_titlebar()
     }
 
     {
-        VkDescriptorSet logo_set = imgui.texture_cache.get(logo_image.image_view);
+        VkDescriptorSet logo_set = imgui.texture_cache.get(logos.icon_image.image_view);
         dl->PushClipRect(origin, ImVec2(origin.x + width, origin.y + H), false);
         float m = 6.0f;
         ImVec2 mn(origin.x + m, origin.y + m);
@@ -450,11 +437,13 @@ EditorContext EditorApplication::_make_context()
     ctx.renderer = &renderer;
     ctx.render_path = static_cast<EditorRenderPath*>(render_path);
     ctx.project = &project;
+    
     ctx.settings = &settings;
-    ctx.popups = &popups;
-
+    ctx.logos = &logos;
+    
     ctx.project_manager = &project_manager;
     ctx.editor = &editor;
+    ctx.popups = &popups;
 
     ctx.open_project_callback = [this](const auto& path){this->open_project(path);};
     ctx.close_project_callback = [this](){this->close_project();};

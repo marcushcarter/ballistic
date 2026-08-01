@@ -4,7 +4,7 @@
 
 namespace ballistic {
 
-Error Renderer::create(drivers::DeviceDriverVulkan& r_dd)
+Error Renderer::initialize(drivers::DeviceDriverVulkan& r_dd)
 {
     using enum Error;
 
@@ -26,7 +26,7 @@ Error Renderer::create(drivers::DeviceDriverVulkan& r_dd)
         command_buffers[i] = dd->command_buffer_create(command_pools[i]);
     }
 
-    graph.create(r_dd, frame_count);
+    graph.initialize(r_dd, frame_count);
     graph.declare_image_format("Backbuffer", dd->swapchain.format);
 
     set_size(1, 1);
@@ -36,9 +36,9 @@ Error Renderer::create(drivers::DeviceDriverVulkan& r_dd)
     return Ok;
 }
 
-void Renderer::destroy()
+void Renderer::shutdown()
 {
-    graph.destroy();
+    graph.shutdown();
 
     for (uint32_t i = 0; i < frame_count; i++) {
         dd->fence_free(in_flight_fences[i]);

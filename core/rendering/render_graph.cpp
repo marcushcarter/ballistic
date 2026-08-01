@@ -7,7 +7,7 @@ namespace ballistic {
 /**** SETUP ****/
 /***************/
 
-Error RenderGraph::create(drivers::DeviceDriverVulkan& r_dd, uint32_t p_frame_count)
+Error RenderGraph::initialize(drivers::DeviceDriverVulkan& r_dd, uint32_t p_frame_count)
 {
     using enum Error;
 
@@ -19,16 +19,16 @@ Error RenderGraph::create(drivers::DeviceDriverVulkan& r_dd, uint32_t p_frame_co
     buffer_transient_pools.clear();
     buffer_transient_pools.resize(frame_count);
 
-    profiler.create(r_dd, p_frame_count);
+    profiler.initialize(r_dd, p_frame_count);
 
     return Ok;
 }
 
-void RenderGraph::destroy()
+void RenderGraph::shutdown()
 {
     dd->device_wait_idle();
 
-    profiler.destroy();
+    profiler.shutdown();
 
     for (auto& [k, fb] : framebuffer_cache) dd->framebuffer_free(fb);
     framebuffer_cache.clear();

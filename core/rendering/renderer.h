@@ -28,8 +28,8 @@ struct Renderer
     std::vector<VkCommandBuffer> command_buffers;
     VkCommandBuffer cmd = VK_NULL_HANDLE;
 
-    Error create(drivers::DeviceDriverVulkan& r_dd);
-    void destroy();
+    Error initialize(drivers::DeviceDriverVulkan& r_dd);
+    void shutdown();
 
     void request_size(uint32_t p_width, uint32_t p_height);
     Error apply_pending_size();

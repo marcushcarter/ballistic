@@ -32,8 +32,8 @@ struct ImGuiDriver
 
     ImGuiTextureCache texture_cache;
 
-    Error create(const ImGuiDriverCreateInfo& p_create_info);
-    void destroy();
+    Error initialize(const ImGuiDriverCreateInfo& p_create_info);
+    void shutdown();
 
     void begin_frame(uint64_t p_frame_number, uint32_t p_frame_count, uint64_t p_resize_epoch);
     void end_frame(uint64_t p_frame_number);

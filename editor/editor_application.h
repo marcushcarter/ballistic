@@ -4,6 +4,7 @@
 #include <editor/editor_mode/editor.h>
 #include <editor/editor_mode/project_manager.h>
 #include <editor/editor_settings.h>
+#include <editor/editor_logos.h>
 #include <editor/panel/panel.h>
 #include <editor/popup/popup_manager.h>
 #include <core/rendering/render_path/editor_render_path.h>
@@ -16,11 +17,10 @@ struct EditorApplication : Application
 {
     ProjectManager project_manager;
     Editor editor;
-    EditorSettings settings;
-    
     PopupManager popups;
 
-    drivers::DeviceDriverVulkan::Image logo_image;
+    EditorSettings settings;
+    EditorLogos logos;
 
     std::vector<std::string> titlebar_tabs { "Level", "Text Editor", "Particles" };
     int titlebar_active_tab = 0;

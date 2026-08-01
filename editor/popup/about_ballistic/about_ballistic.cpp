@@ -3,9 +3,6 @@
 
 namespace ballistic {
 
-void AboutBallisticPopup::draw_contents(EditorContext& ctx)
-{
-    (void)ctx;
-}
+void AboutBallisticPopup::draw_contents(EditorContext&) {}
 
 }

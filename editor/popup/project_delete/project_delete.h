@@ -7,13 +7,13 @@ namespace ballistic {
 
 struct DeleteProjectPopup : Popup
 {
-    const char* name() const override { return "Delete Project"; }
-    ImVec2 initial_size() const override { return ImVec2(500, 125); }
-    void draw_contents(EditorContext& ctx) override;
-    void draw_footer(EditorContext& ctx) override;
-
     std::filesystem::path project_path;
     std::string project_name;
+    
+    const char* name() const override { return "Delete Project"; }
+    void before_begin() override;
+    void draw_contents(EditorContext& ctx) override;
+    void draw_footer(EditorContext& ctx) override;
 };
 
 }

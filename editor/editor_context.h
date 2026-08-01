@@ -10,6 +10,7 @@ struct Renderer;
 struct Project;
 struct EditorRenderPath;
 struct EditorSettings;
+struct EditorLogos;
 struct PopupManager;
 struct ProjectManager;
 struct Editor;
@@ -21,12 +22,14 @@ struct EditorContext
     Renderer* renderer = nullptr;
     EditorRenderPath* render_path = nullptr;
     Project* project = nullptr;
+    
     EditorSettings* settings = nullptr;
-    PopupManager* popups = nullptr;
-
+    EditorLogos* logos = nullptr;
+    
     ProjectManager* project_manager = nullptr;
     Editor* editor = nullptr;
-    
+    PopupManager* popups = nullptr;
+        
     std::function<void(const std::filesystem::path&)> open_project_callback;
     std::function<void()> close_project_callback;
 };

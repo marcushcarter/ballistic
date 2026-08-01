@@ -7,7 +7,7 @@ namespace ballistic {
 /**** SETUP ****/
 /***************/
 
-Error RenderGraphProfiler::create(drivers::DeviceDriverVulkan& r_dd, uint32_t p_frame_count)
+Error RenderGraphProfiler::initialize(drivers::DeviceDriverVulkan& r_dd, uint32_t p_frame_count)
 {
     using enum Error;
 
@@ -46,7 +46,7 @@ Error RenderGraphProfiler::create(drivers::DeviceDriverVulkan& r_dd, uint32_t p_
     return Ok;
 }
 
-void RenderGraphProfiler::destroy()
+void RenderGraphProfiler::shutdown()
 {
     for (Slot& s : slots) {
         dd->query_pool_free(s.pool);

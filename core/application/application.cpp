@@ -7,7 +7,7 @@
 
 namespace ballistic {
 
-Error Application::create(const ApplicationCreateInfo& p_create_info)
+Error Application::initialize(const ApplicationCreateInfo& p_create_info)
 {
     using enum Error;
     Error err;
@@ -27,7 +27,7 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
     err = dd.initialize(cd, cd.optimal_device_index, 3);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
-    err = renderer.create(dd);
+    err = renderer.initialize(dd);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     drivers::ImGuiDriverCreateInfo imgui_ci{};
@@ -42,7 +42,7 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
     imgui_ci.sampler = dd.default_sampler.sampler;
     imgui_ci.ini_path = p_create_info.ini_path;
     imgui_ci.enable_docking = wants_docking();
-    err = imgui.create(imgui_ci);
+    err = imgui.initialize(imgui_ci);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     
     render_path = create_render_path();
@@ -55,7 +55,7 @@ Error Application::create(const ApplicationCreateInfo& p_create_info)
     return Ok;
 }
 
-void Application::destroy()
+void Application::shutdown()
 {
     dd.device_wait_idle();
 
@@ -67,8 +67,8 @@ void Application::destroy()
         render_path = nullptr;
     }
 
-    imgui.destroy();
-    renderer.destroy();
+    imgui.shutdown();
+    renderer.shutdown();
     dd.shutdown();
     cd.shutdown();
     
@@ -116,7 +116,7 @@ int Application::run()
     }
 
     on_shutdown();
-    destroy();
+    shutdown();
     return 0;
 }
 

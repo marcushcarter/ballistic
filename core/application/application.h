@@ -38,8 +38,8 @@ struct Application
 
     Project project;
 
-    Error create(const ApplicationCreateInfo& p_create_info);
-    void destroy();
+    Error initialize(const ApplicationCreateInfo& p_initialize_info);
+    void shutdown();
     int run();
 
     Error project_load(const std::filesystem::path &p_root);

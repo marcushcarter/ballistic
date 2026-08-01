@@ -20,9 +20,9 @@ struct ImGuiTextureCache
 
     VkSampler sampler = VK_NULL_HANDLE;
 
-    Error create(VkSampler p_sampler);
+    Error initialize(VkSampler p_sampler);
     void _invalidate_all();
-    void destroy();
+    void shutdown();
 
     void begin_frame(uint64_t p_frame_number, uint32_t p_frame_count, uint64_t p_resize_epoch);
 

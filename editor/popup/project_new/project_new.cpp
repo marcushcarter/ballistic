@@ -12,12 +12,17 @@
 
 namespace ballistic {
 
+void NewProjectPopup::before_begin()
+{
+    ImGui::SetNextWindowSize(ImVec2(500, 200), ImGuiCond_Appearing);
+}
+
 void NewProjectPopup::on_open(EditorContext&)
 {
     std::snprintf(name_buf, sizeof(name_buf), "Test Ballistic");
     std::snprintf(location_buf, sizeof(location_buf), "D:/");
     create_folder = true;
-    edit_now = true;
+    edit_now = false;
 }
 
 void NewProjectPopup::draw_contents(EditorContext&)

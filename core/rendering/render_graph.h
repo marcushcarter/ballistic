@@ -25,8 +25,8 @@ struct RenderGraph
     
     RenderGraphProfiler profiler;
     
-    Error create(drivers::DeviceDriverVulkan& r_dd, uint32_t frame_count);
-    void destroy();
+    Error initialize(drivers::DeviceDriverVulkan& r_dd, uint32_t frame_count);
+    void shutdown();
     Error set_size(uint32_t p_width, uint32_t p_height);
 
     /***************/

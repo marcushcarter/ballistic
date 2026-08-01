@@ -25,8 +25,8 @@ struct RenderGraphProfiler
     bool stats_enabled = false;
     bool frozen = false;
 
-    Error create(drivers::DeviceDriverVulkan& r_dd, uint32_t p_frame_count);
-    void destroy();
+    Error initialize(drivers::DeviceDriverVulkan& r_dd, uint32_t p_frame_count);
+    void shutdown();
 
     /***************/
     /**** NAMES ****/

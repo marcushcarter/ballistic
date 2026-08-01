@@ -56,7 +56,7 @@ static int run_app()
     std::string ini_storage;
     auto app = create_application(info, ini_storage);
 
-    app->create(info);
+    app->initialize(info);
     return app->run();
 }
 
