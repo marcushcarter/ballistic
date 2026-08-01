@@ -30,17 +30,14 @@ void AboutBallisticPopup::draw_contents(EditorContext& ctx)
     if (ImGui::BeginTabBar("AboutTabs")) {
         if (ImGui::BeginTabItem("License")) {
             ImGui::BeginChild("LicenseContent", ImVec2(0, 0), true);
-            {
-                ImGui::TextWrapped(ctx.resources->license_text.c_str());
-            }
+            ImGui::TextWrapped(ctx.resources->license_text.c_str());
             ImGui::EndChild();
             ImGui::EndTabItem();
         }
+
         if (ImGui::BeginTabItem("EULA")) {
             ImGui::BeginChild("EULAContent", ImVec2(0, 0), true);
-            {
-                ImGui::TextWrapped(ctx.resources->eula_text.c_str());
-            }
+            ImGui::TextWrapped(ctx.resources->eula_text.c_str());
             ImGui::EndChild();
             ImGui::EndTabItem();
         }

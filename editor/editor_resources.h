@@ -14,6 +14,7 @@ struct EditorResources
 
     std::string license_text;
     std::string eula_text;
+    std::string security_text;
     
     Error initialize(drivers::DeviceDriverVulkan& r_dd);
     void shutdown();

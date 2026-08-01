@@ -1,6 +1,7 @@
 BALLISTIC ENGINE END USER LICENSE AGREEMENT
 
 Version 1.0
+
 Copyright (c) 2026 Ballistic Studios
 All Rights Reserved.
 
@@ -80,6 +81,6 @@ To the maximum extent permitted by applicable law, Ballistic Studios shall not b
 
 For licensing questions or permissions:
 
-Ballistic Studios
+Ballistic Games
 Website: https://www.ballisticgames.com
 Email: marcuscarter@ballisticgames.ca
