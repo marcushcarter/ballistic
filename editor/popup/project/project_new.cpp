@@ -1,4 +1,4 @@
-#include <editor/popup/project_new/project_new.h>
+#include <editor/popup/project/new_project.h>
 #include <editor/editor_mode/project_manager.h>
 #include <drivers/windows/dialogs_win32.h>
 #include <core/project/project.h>
@@ -109,7 +109,6 @@ void NewProjectPopup::draw_contents(EditorContext&)
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("On: create <Location>/<ProjectName>\n" "Off: use the selected folder as the project root");
     ImGui::Checkbox("Edit Now", &edit_now);
 }
-
 
 void NewProjectPopup::draw_footer(EditorContext& ctx) {
     const char* labels[] = { "Create", "Cancel" };

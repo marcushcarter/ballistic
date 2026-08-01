@@ -16,10 +16,8 @@ struct PopupManager
     void draw(EditorContext& ctx);
 
     template <typename T>
-    T* get(std::string_view p_name)
-    {
-        for (auto& p : popups)
-            if (p_name == p->name()) return static_cast<T*>(p.get());
+    T* get(std::string_view p_name) {
+        for (auto& p : popups) if (p_name == p->name()) return static_cast<T*>(p.get());
         return nullptr;
     }
 };

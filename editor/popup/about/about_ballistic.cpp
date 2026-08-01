@@ -1,4 +1,4 @@
-#include <editor/popup/about_ballistic/about_ballistic.h>
+#include <editor/popup/about/about_ballistic.h>
 #include <imgui.h>
 
 namespace ballistic {

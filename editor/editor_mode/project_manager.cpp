@@ -1,6 +1,6 @@
 #include <editor/editor_mode/project_manager.h>
 #include <editor/popup/popup_manager.h>
-#include <editor/popup/project_delete/project_delete.h>
+#include <editor/popup/project/delete_project.h>
 #include <core/project/project.h>
 #include <core/io/path.h>
 #include <core/base/error.h>

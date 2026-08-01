@@ -46,6 +46,9 @@ struct Theme
     
     static const char* theme_preset_name(int i);
     static int theme_preset_index(std::string_view n);
+
+    // Error load();
+    // Error save();
 };
 
 struct EditorSettings

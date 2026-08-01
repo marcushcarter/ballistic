@@ -1,4 +1,4 @@
-#include <editor/popup/project_settings/project_settings.h>
+#include <editor/popup/settings/project_settings.h>
 #include <core/project/project.h>
 #include <imgui.h>
 

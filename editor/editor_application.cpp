@@ -1,10 +1,10 @@
 #include <editor/editor_application.h>
-#include <editor/popup/editor_settings/editor_settings.h>
-#include <editor/popup/project_settings/project_settings.h>
-#include <editor/popup/project_new/project_new.h>
-#include <editor/popup/project_delete/project_delete.h>
-#include <editor/popup/export/export.h>
-#include <editor/popup/about_ballistic/about_ballistic.h>
+#include <editor/popup/settings/editor_settings.h>
+#include <editor/popup/settings/project_settings.h>
+#include <editor/popup/project/new_project.h>
+#include <editor/popup/project/delete_project.h>
+#include <editor/popup/project/export.h>
+#include <editor/popup/about/about_ballistic.h>
 #include <core/io/embedded_resource.h>
 #include <core/io/path.h>
 #include <core/io/image_io.h>
