@@ -13,5 +13,5 @@ target_include_directories(imgui PUBLIC imgui implot ${Vulkan_INCLUDE_DIRS})
 add_library(IconFontCppHeaders INTERFACE)
 target_include_directories(IconFontCppHeaders INTERFACE IconFontCppHeaders)
 
-# add_library(tomlplusplus INTERFACE)
-# target_include_directories(tomlplusplus INTERFACE tomlplusplus/include)
+add_library(toml INTERFACE)
+target_include_directories(tomlplusplus INTERFACE toml/include)
