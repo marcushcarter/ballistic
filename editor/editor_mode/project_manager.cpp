@@ -148,6 +148,8 @@ void ProjectManager::_draw_list(EditorContext& ctx)
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
     ImDrawList* dl = ImGui::GetWindowDrawList();
 
+    bool hoverable = ImGui::IsWindowHovered();
+
     for (int idx : order) {
         Entry& e = recent[idx];
 
@@ -158,7 +160,7 @@ void ProjectManager::_draw_list(EditorContext& ctx)
         ImVec2 rmax = ImVec2(rmin.x + availw, rmin.y + row_h);
 
         if (sel) dl->AddRectFilled(rmin, rmax, ImGui::GetColorU32(ImGuiCol_Button), rounding);
-        else if (ImGui::IsMouseHoveringRect(rmin, rmax)) dl->AddRectFilled(rmin, rmax, ImGui::GetColorU32(ImGuiCol_ButtonHovered), rounding);
+        else if (hoverable && ImGui::IsMouseHoveringRect(rmin, rmax)) dl->AddRectFilled(rmin, rmax, ImGui::GetColorU32(ImGuiCol_ButtonHovered), rounding);
 
         dl->AddLine(ImVec2(rmin.x + pad, rmax.y), ImVec2(rmax.x - pad, rmax.y), ImGui::GetColorU32(ImGuiCol_Button));
 

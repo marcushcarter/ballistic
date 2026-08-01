@@ -10,7 +10,7 @@ struct Renderer;
 struct Project;
 struct EditorRenderPath;
 struct EditorSettings;
-struct EditorLogos;
+struct EditorResources;
 struct PopupManager;
 struct ProjectManager;
 struct Editor;
@@ -24,7 +24,7 @@ struct EditorContext
     Project* project = nullptr;
     
     EditorSettings* settings = nullptr;
-    EditorLogos* logos = nullptr;
+    EditorResources* resources = nullptr;
     
     ProjectManager* project_manager = nullptr;
     Editor* editor = nullptr;

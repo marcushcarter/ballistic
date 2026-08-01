@@ -31,7 +31,7 @@ Error EditorApplication::on_init()
     
     win32.window_set_title("Ballistic Editor");
 
-    err = logos.initialize(dd);
+    err = resources.initialize(dd);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     err = win32.window_set_icon(EmbeddedResource::load_icon(L"BALLISTIC_ICON"));
@@ -93,7 +93,7 @@ void EditorApplication::on_update(float p_dt)
 
 void EditorApplication::on_shutdown()
 {
-    logos.shutdown();
+    resources.shutdown();
     
     _save_state();
     project_manager.save_recents();
@@ -364,7 +364,7 @@ void EditorApplication::_draw_titlebar()
     }
 
     {
-        VkDescriptorSet logo_set = imgui.texture_cache.get(logos.icon_image.image_view);
+        VkDescriptorSet logo_set = imgui.texture_cache.get(resources.icon_image.image_view);
         dl->PushClipRect(origin, ImVec2(origin.x + width, origin.y + H), false);
         float m = 6.0f;
         ImVec2 mn(origin.x + m, origin.y + m);
@@ -430,7 +430,7 @@ EditorContext EditorApplication::_make_context()
     ctx.project = &project;
     
     ctx.settings = &settings;
-    ctx.logos = &logos;
+    ctx.resources = &resources;
     
     ctx.project_manager = &project_manager;
     ctx.editor = &editor;

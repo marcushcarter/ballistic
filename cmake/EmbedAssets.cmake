@@ -1,9 +1,7 @@
 function(ballistic_generate_asset_rc OUTPUT_RC)
-    set(ASSET_DIRS ${ARGN})
+    cmake_parse_arguments(ARG "" "" "FILES" ${ARGN})
+    set(ASSET_DIRS ${ARG_UNPARSED_ARGUMENTS})
     set(RC_CONTENT "")
-
-    get_filename_component(OUTPUT_NAME_WE ${OUTPUT_RC} NAME_WE)
-    string(TOUPPER "${OUTPUT_NAME_WE}" OUTPUT_PREFIX)
 
     foreach(DIR ${ASSET_DIRS})
         if(NOT EXISTS ${DIR})
@@ -19,6 +17,16 @@ function(ballistic_generate_asset_rc OUTPUT_RC)
             string(TOUPPER "${DIR_NAME}_${SAFE_NAME}" RES_NAME)
             string(APPEND RC_CONTENT "${RES_NAME} RCDATA \"${FILE}\"\n")
         endforeach()
+    endforeach()
+
+    foreach(FILE ${ARG_FILES})
+        if(NOT EXISTS ${FILE})
+            continue()
+        endif()
+        get_filename_component(FILE_NAME ${FILE} NAME)
+        string(REGEX REPLACE "[^A-Za-z0-9]" "_" SAFE_NAME ${FILE_NAME})
+        string(TOUPPER "${SAFE_NAME}" RES_NAME)
+        string(APPEND RC_CONTENT "${RES_NAME} RCDATA \"${FILE}\"\n")
     endforeach()
 
     file(WRITE ${OUTPUT_RC} "${RC_CONTENT}")
