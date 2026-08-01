@@ -52,7 +52,7 @@ ballistic_generate_asset_rc(
     ${CMAKE_SOURCE_DIR}/assets/editor/fonts
     FILES
         ${CMAKE_SOURCE_DIR}/LICENSE
-        ${CMAKE_SOURCE_DIR}/EULA
+        ${CMAKE_SOURCE_DIR}/EULA.md
 )
 
 set(BALLISTIC_SHARED_ASSETS ${BALLISTIC_GENERATED_DIR}/embedded_assets_shared.rc)

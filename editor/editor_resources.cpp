@@ -25,7 +25,7 @@ Error EditorResources::initialize(drivers::DeviceDriverVulkan& r_dd)
     }
 
     {
-        EmbeddedResource::Blob blob = EmbeddedResource::load(L"EULA");
+        EmbeddedResource::Blob blob = EmbeddedResource::load(L"EULA_MD");
         eula_text.assign((const char*)blob.data, blob.size);
         eula_text.erase(std::remove(eula_text.begin(), eula_text.end(), '\r'), eula_text.end());
     }
