@@ -1,5 +1,5 @@
 #include <editor/panel/profiler/profiler_resources.h>
-#include <editor/editor_ui.h>
+#include <drivers/imgui/imgui_helpers.h>
 #include <core/rendering/renderer.h>
 #include <vulkan/vk_enum_string_helper.h>
 #include <imgui.h>
@@ -30,10 +30,10 @@ void ProfilerResources::draw(EditorContext& ctx, const char* p_pass_name)
     for (const auto& a : node->image_accesses)  (a.is_write ? writes : reads)++;
     for (const auto& a : node->buffer_accesses) (a.is_write ? writes : reads)++;
 
-    ui::title("%s", p_pass_name);
+    imgui_title("%s", p_pass_name);
     ImGui::SameLine();
     ImGui::TextDisabled("writes %d reads %d", writes, reads);
-    ui::spacing();
+    imgui_spacing();
 
     auto name_of = [&](uint64_t id) -> const char* {
         auto it = graph.debug_names.find(id);
@@ -53,7 +53,7 @@ void ProfilerResources::draw(EditorContext& ctx, const char* p_pass_name)
     // Images.
     ImGui::BeginChild("ResLeft", ImVec2(col_w, 0), ImGuiChildFlags_None);
     {
-        ui::title("Images");
+        imgui_title("Images");
         if (ImGui::BeginTable("img", 3, tf)) {
             ImGui::TableSetupColumn("Name");
             ImGui::TableSetupColumn("Kind",   ImGuiTableColumnFlags_WidthFixed, 70.0f);
@@ -75,18 +75,18 @@ void ProfilerResources::draw(EditorContext& ctx, const char* p_pass_name)
                 
                 if (hov) {
                     ImGui::BeginTooltip();
-                    ui::title("%s", name_of(r.name_id));
+                    imgui_title("%s", name_of(r.name_id));
 
                     const char* acc = a.is_write ? (a.is_attachment ? (a.is_depth ? "Write (depth attachment)" : "Write (color attachment)") : "Write") : "Read";
-                    ui::property_row("Access", "%s", acc);
-                    ui::property_row("Layout", "%s", string_VkImageLayout(a.layout));
+                    imgui_property_row("Access", "%s", acc);
+                    imgui_property_row("Layout", "%s", string_VkImageLayout(a.layout));
                     if (a.is_attachment) {
-                        ui::property_row("Load",  "%s", string_VkAttachmentLoadOp(a.load_op));
-                        ui::property_row("Store", "%s", string_VkAttachmentStoreOp(a.store_op));
+                        imgui_property_row("Load",  "%s", string_VkAttachmentLoadOp(a.load_op));
+                        imgui_property_row("Store", "%s", string_VkAttachmentStoreOp(a.store_op));
                     }
-                    ui::spacing();
-                    ui::property_row("Producer", "%s", producer_name(r.producer));
-                    ui::property_row("Lifetime", "pass %d-%d", r.first_use, r.last_use);
+                    imgui_spacing();
+                    imgui_property_row("Producer", "%s", producer_name(r.producer));
+                    imgui_property_row("Lifetime", "pass %d-%d", r.first_use, r.last_use);
                     ImGui::EndTooltip();
                 }
                 ImGui::PopID();
@@ -101,7 +101,7 @@ void ProfilerResources::draw(EditorContext& ctx, const char* p_pass_name)
     // Buffers.
     ImGui::BeginChild("ResRight", ImVec2(0, 0), ImGuiChildFlags_None);
     {
-        ui::title("Buffers");
+        imgui_title("Buffers");
         if (ImGui::BeginTable("buf", 2, tf)) {
             ImGui::TableSetupColumn("Name");
             ImGui::TableSetupColumn("Kind", ImGuiTableColumnFlags_WidthFixed, 70.0f);
@@ -120,10 +120,10 @@ void ProfilerResources::draw(EditorContext& ctx, const char* p_pass_name)
                 
                 if (hov) {
                     ImGui::BeginTooltip();
-                    ui::title("%s", name_of(r.name_id));
-                    ui::property_row("Access", "%s", a.is_write ? "Write" : "Read");
-                    ui::property_row("Producer", "%s", producer_name(r.producer));
-                    ui::property_row("Lifetime", "pass %d-%d", r.first_use, r.last_use);
+                    imgui_title("%s", name_of(r.name_id));
+                    imgui_property_row("Access", "%s", a.is_write ? "Write" : "Read");
+                    imgui_property_row("Producer", "%s", producer_name(r.producer));
+                    imgui_property_row("Lifetime", "pass %d-%d", r.first_use, r.last_use);
                     ImGui::EndTooltip();
                 }
                 ImGui::PopID();

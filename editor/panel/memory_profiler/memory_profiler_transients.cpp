@@ -1,6 +1,7 @@
 #include <editor/panel/memory_profiler/memory_profiler_transients.h>
-#include <editor/editor_ui.h>
+#include <drivers/imgui/imgui_helpers.h>
 #include <core/rendering/renderer.h>
+#include <core/base/utils.h>
 #include <vulkan/vk_enum_string_helper.h>
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -34,7 +35,7 @@ void MemoryProfilerTransients::draw(EditorContext& ctx)
             live_bytes += r.transient_storage.mem_req.size;
         }
 
-        ui::title("Transient Image Pool");
+        imgui_title("Transient Image Pool");
         if (live_count == 0) {
             ImGui::TextDisabled("(none live)");
         } else {
@@ -55,16 +56,16 @@ void MemoryProfilerTransients::draw(EditorContext& ctx)
                     ImGui::TableSetColumnIndex(0); ImGui::Text(name);
                     ImGui::TableSetColumnIndex(1); ImGui::TextUnformatted(string_VkFormat(r.transient_storage.format));
                     ImGui::TableSetColumnIndex(2); ImGui::Text("%ux%u", r.transient_storage.extent.width, r.transient_storage.extent.height);
-                    ImGui::TableSetColumnIndex(3); ImGui::Text(ui::fmt_bytes(r.transient_storage.mem_req.size));
+                    ImGui::TableSetColumnIndex(3); ImGui::Text(fmt_bytes(r.transient_storage.mem_req.size));
                 }
                 ImGui::EndTable();
             }
             if (live_count > max_rows) ImGui::TextDisabled("... (+%u more)", live_count - max_rows);
-            ImGui::TextDisabled("live %s | retained in free-lists %s", ui::fmt_bytes(live_bytes), ui::fmt_bytes(free_bytes));
+            ImGui::TextDisabled("live %s | retained in free-lists %s", fmt_bytes(live_bytes), fmt_bytes(free_bytes));
         }
     }
     
-    ui::section_gap();
+    imgui_section_gap();
 
     // Transient buffers.
     {
@@ -86,7 +87,7 @@ void MemoryProfilerTransients::draw(EditorContext& ctx)
             live_capacity += r.transient_storage.capacity;
         }
 
-        ui::title("Transient Buffer Pool");
+        imgui_title("Transient Buffer Pool");
         if (live_count == 0) {
             ImGui::TextDisabled("(none live)");
         } else {
@@ -107,13 +108,13 @@ void MemoryProfilerTransients::draw(EditorContext& ctx)
                     ImGui::TableSetColumnIndex(0); ImGui::Text(name);
                     // ImGui::TableSetColumnIndex(1); ImGui::Text(r.transient_storage.memory == drivers::DeviceDriverVulkan::BufferCreateInfo::Memory::HostVisible ? "HostVisible" : "DeviceLocal");
                     ImGui::TableSetColumnIndex(1); ImGui::Text("NULL");
-                    ImGui::TableSetColumnIndex(2); ImGui::Text(ui::fmt_bytes(r.transient_storage.size));
-                    ImGui::TableSetColumnIndex(3); if (r.transient_storage.capacity > r.transient_storage.size * 2) ImGui::TextColored(warn_color, "%s", ui::fmt_bytes(r.transient_storage.capacity)); else ImGui::Text(ui::fmt_bytes(r.transient_storage.capacity));
+                    ImGui::TableSetColumnIndex(2); ImGui::Text(fmt_bytes(r.transient_storage.size));
+                    ImGui::TableSetColumnIndex(3); if (r.transient_storage.capacity > r.transient_storage.size * 2) ImGui::TextColored(warn_color, "%s", fmt_bytes(r.transient_storage.capacity)); else ImGui::Text(fmt_bytes(r.transient_storage.capacity));
                 }
                 ImGui::EndTable();
             }
             if (live_count > max_rows) ImGui::TextDisabled("... (+%u more)", live_count - max_rows);
-            ImGui::TextDisabled("requested %s | allocated %s | retained in free-lists %s", ui::fmt_bytes(live_logical), ui::fmt_bytes(live_capacity), ui::fmt_bytes(free_bytes));
+            ImGui::TextDisabled("requested %s | allocated %s | retained in free-lists %s", fmt_bytes(live_logical), fmt_bytes(live_capacity), fmt_bytes(free_bytes));
         }
     }
 }

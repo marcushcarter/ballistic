@@ -16,7 +16,7 @@ struct MemoryProfiler : Panel
 
     MemoryProfilerTransients transients;
 
-    const char* name() const override { return "Memory Profiler (NEW)"; }
+    const char* name() const override { return "Memory Profiler"; }
     void before_begin() override;
     void draw_contents(EditorContext& ctx) override;
 };

@@ -9,7 +9,7 @@ namespace ballistic {
 
 struct Profiler : Panel
 {
-    const char* name() const override { return "GPU Profiler (NEW)"; }
+    const char* name() const override { return "GPU Profiler"; }
 
     ProfilerTimeline timeline;
     ProfilerDistribution distribution;

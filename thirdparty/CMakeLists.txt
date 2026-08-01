@@ -14,4 +14,4 @@ add_library(IconFontCppHeaders INTERFACE)
 target_include_directories(IconFontCppHeaders INTERFACE IconFontCppHeaders)
 
 add_library(toml INTERFACE)
-target_include_directories(tomlplusplus INTERFACE toml/include)
+target_include_directories(toml INTERFACE toml/include)

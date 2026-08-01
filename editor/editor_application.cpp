@@ -5,6 +5,7 @@
 #include <editor/popup/project/delete_project.h>
 #include <editor/popup/project/export.h>
 #include <editor/popup/about/about_ballistic.h>
+#include <drivers/toml/toml_helpers.h>
 #include <core/io/embedded_resource.h>
 #include <core/io/path.h>
 #include <core/io/image_io.h>
@@ -13,6 +14,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <IconsFontAwesome6.h>
+
 #include <fstream>
 #include <cstdlib>
 #include <cstdint>
@@ -119,61 +121,35 @@ void EditorApplication::close_project()
     render_path_request(new ProjectManagerRenderPath());
 }
 
-static std::string color_to_hex(const ImVec4& c)
-{
-    auto q = [](float v) -> unsigned {
-        float x = v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
-        return (unsigned)(x * 255.0f + 0.5f);
-    };
-    char buf[8];
-    std::snprintf(buf, sizeof(buf), "#%02X%02X%02X", q(c.x), q(c.y), q(c.z));
-    return buf;
-}
-
-static bool color_from_hex(std::string_view s, ImVec4& r_out)
-{
-    if (!s.empty() && s.front() == '#') s.remove_prefix(1);
-    if (s.size() != 6 && s.size() != 8) return false;
-    uint32_t v = 0;
-    for (char ch : s) {
-        v <<= 4;
-        if (ch >= '0' && ch <= '9') v |= uint32_t(ch - '0');
-        else if (ch >= 'a' && ch <= 'f') v |= uint32_t(ch - 'a' + 10);
-        else if (ch >= 'A' && ch <= 'F') v |= uint32_t(ch - 'A' + 10);
-        else return false;
-    }
-    if (s.size() == 6) {
-        r_out = ImVec4(((v >> 16) & 0xFF) / 255.0f, ((v >> 8) & 0xFF) / 255.0f, (v & 0xFF) / 255.0f, 1.0f);
-    } else {
-        r_out = ImVec4(((v >> 24) & 0xFF) / 255.0f, ((v >> 16) & 0xFF) / 255.0f, ((v >> 8) & 0xFF) / 255.0f, (v & 0xFF) / 255.0f);
-    }
-    return true;
-}
-
 void EditorApplication::_load_state()
 {
     editor.apply_settings();
 
-    std::ifstream f(Paths::roaming_data() / "editor_state.cfg");
-    if (!f) return;
+    std::ifstream in(Paths::roaming_data() / "editor_state.cfg", std::ios::binary);
+    if (!in) return;
 
-    std::string line;
-    while (std::getline(f, line)) {
-        size_t sp = line.rfind(' ');
-        if (sp == std::string::npos) continue;
-        std::string key = line.substr(0, sp), val = line.substr(sp + 1);
+    toml::table parsed;
+    try {
+        parsed = toml::parse(in);
+    } catch (const toml::parse_error&) {
+        return;
+    }
+    const toml::table& tbl = parsed;
 
-        if (key == "interface.theme.preset") { settings.theme.preset = Theme::theme_preset_index(val); continue; }
-        if (key == "interface.theme.base") { color_from_hex(val, settings.theme.base); continue; }
-        if (key == "interface.theme.accent") { color_from_hex(val, settings.theme.accent); continue; }
-        if (key == "interface.theme.text") { color_from_hex(val, settings.theme.text); continue; }
-        if (key == "interface.theme.use_system_accent") { settings.theme.use_system_accent = std::atoi(val.c_str()) != 0; continue; }
+    settings.theme.preset = Theme::theme_preset_index(from_toml(tbl.at_path("theme.preset"), "Custom"));
+    settings.theme.base = from_toml(tbl.at_path("theme.base"), settings.theme.base);
+    settings.theme.accent = from_toml(tbl.at_path("theme.accent"), settings.theme.accent);
+    settings.theme.text = from_toml(tbl.at_path("theme.text"), settings.theme.text);
+    settings.theme.use_system_accent = tbl.at_path("theme.use_system_accent").value_or(settings.theme.use_system_accent);
 
-        if (key == "interface.window.custom_titlebar") { win32.window_set_custom_titlebar(std::atoi(val.c_str()) != 0); continue; }
+    if (auto v = tbl.at_path("window.custom_titlebar").value<bool>()) win32.window_set_custom_titlebar(*v);
 
-        if (key == "debugger.profiler.enabled") { renderer.graph.profiler.enabled = std::atoi(val.c_str()) != 0; continue; }
+    renderer.graph.profiler.enabled = tbl.at_path("debugger.profiler.enabled").value_or(renderer.graph.profiler.enabled);
 
-        if (key.size() > 5 && key.compare(key.size() - 5, 5, ".open") == 0) editor.panel_open[key.substr(0, key.size() - 5)] = std::atoi(val.c_str()) != 0;
+    if (const toml::table* panels = tbl.at_path("panels").as_table()) {
+        for (auto&& [name, node] : *panels)
+            if (auto open = node.value<bool>())
+                editor.panel_open[std::string(name.str())] = *open;
     }
 
     settings.theme.apply();
@@ -183,20 +159,35 @@ void EditorApplication::_save_state()
 {
     editor.store_settings();
 
-    std::ofstream f(Paths::roaming_data() / "editor_state.cfg");
-    if (!f) return;
+    const char* preset_name = Theme::theme_preset_name(settings.theme.preset);
 
-    f << "interface.theme.preset " << Theme::theme_preset_name(settings.theme.preset) << '\n';
-    f << "interface.theme.base " << color_to_hex(settings.theme.base) << '\n';
-    f << "interface.theme.accent " << color_to_hex(settings.theme.accent) << '\n';
-    f << "interface.theme.text " << color_to_hex(settings.theme.text) << '\n';
-    f << "interface.theme.use_system_accent " << (settings.theme.use_system_accent ? 1 : 0) << '\n';
+    toml::table theme;
+    theme.insert_or_assign("preset", preset_name ? preset_name : "");
+    theme.insert_or_assign("base", to_toml(settings.theme.base));
+    theme.insert_or_assign("accent", to_toml(settings.theme.accent));
+    theme.insert_or_assign("text", to_toml(settings.theme.text));
+    theme.insert_or_assign("use_system_accent", settings.theme.use_system_accent);
+
+    toml::table window;
+    window.insert_or_assign("custom_titlebar", static_cast<bool>(win32.window.custom_titlebar));
     
-    f << "interface.window.custom_titlebar " << (win32.window.custom_titlebar ? 1 : 0) << '\n';
+    toml::table profiler;
+    profiler.insert_or_assign("enabled", static_cast<bool>(renderer.graph.profiler.enabled));
+    toml::table debugger;
+    debugger.insert_or_assign("profiler", std::move(profiler));
 
-    f << "debugger.profiler.enabled " << (renderer.graph.profiler.enabled ? 1 : 0) << '\n';
+    toml::table panels;
+    for (const auto& [name, open] : editor.panel_open) panels.insert_or_assign(name, open);
 
-    for (const auto& [name, open] : editor.panel_open) f << name << ".open " << (open ? 1 : 0) << '\n';
+    toml::table root;
+    root.insert_or_assign("theme", std::move(theme));
+    root.insert_or_assign("window", std::move(window));
+    root.insert_or_assign("debugger", std::move(debugger));
+    root.insert_or_assign("panels", std::move(panels));
+
+    std::ofstream out(Paths::roaming_data() / "editor_state.cfg", std::ios::binary);
+    if (!out) return;
+    out << root << '\n';
 }
 
 void EditorApplication::_draw_titlebar()

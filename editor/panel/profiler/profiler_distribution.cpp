@@ -1,5 +1,5 @@
 #include <editor/panel/profiler/profiler_distribution.h>
-#include <editor/editor_ui.h>
+#include <drivers/imgui/imgui_helpers.h>
 #include <core/rendering/renderer.h>
 #include <imgui.h>
 #include <implot.h>
@@ -17,7 +17,7 @@ void ProfilerDistribution::draw(EditorContext& ctx, const RenderGraphProfiler::T
     if (selected->key != plot_key) { plot_key = selected->key; plot_hist.clear(); }
     if (!frozen) plot_hist.add(static_cast<float>(selected->raw_ms * 1000.0));
 
-    ui::title("%s · %s", selected->name, selected->type);
+    imgui_title("%s · %s", selected->name, selected->type);
 
     const int n = plot_hist.data.Size;
     double avg = 0.0, median = 0.0, tmin = 0.0, tmax = 0.0;
@@ -51,13 +51,13 @@ void ProfilerDistribution::draw(EditorContext& ctx, const RenderGraphProfiler::T
         }
     }
 
-    ui::property_row_value_aligned("Time Avg", "%.0f µs", avg);
-    ui::property_row_value_aligned("Time Median", "%.0f µs", median);
-    ui::property_row_value_aligned("Time Min", "%.0f µs", tmin);
-    ui::property_row_value_aligned("Time Max", "%.0f µs", tmax);
-    ui::property_row_value_aligned("Total time this frame", "%.0f µs", total_us);
-    ui::property_row_value_aligned("Occurrences this frame", "%d", occ);
-    ui::spacing();
+    imgui_property_row_value_aligned("Time Avg", "%.0f µs", avg);
+    imgui_property_row_value_aligned("Time Median", "%.0f µs", median);
+    imgui_property_row_value_aligned("Time Min", "%.0f µs", tmin);
+    imgui_property_row_value_aligned("Time Max", "%.0f µs", tmax);
+    imgui_property_row_value_aligned("Total time this frame", "%.0f µs", total_us);
+    imgui_property_row_value_aligned("Occurrences this frame", "%d", occ);
+    imgui_spacing();
 
     ImVec2 avail = ImGui::GetContentRegionAvail();
     const float width  = avail.x;
@@ -65,7 +65,7 @@ void ProfilerDistribution::draw(EditorContext& ctx, const RenderGraphProfiler::T
     const double y_max = (tmax > 0.0) ? tmax : 1.0;
     double ticks[2] = { 0.0, y_max };
 
-    ui::title("Time distribution");
+    imgui_title("Time distribution");
     ImPlot::PushStyleColor(ImPlotCol_FrameBg, ImVec4(0, 0, 0, 0));
     if (ImPlot::BeginPlot("##dist", ImVec2(width, height), ImPlotFlags_NoInputs | ImPlotFlags_NoLegend | ImPlotFlags_NoMenus | ImPlotFlags_NoTitle | ImPlotFlags_NoMouseText)) {
         ImPlot::SetupAxis(ImAxis_X1, nullptr, ImPlotAxisFlags_NoDecorations | ImPlotAxisFlags_AutoFit);

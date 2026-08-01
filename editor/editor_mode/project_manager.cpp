@@ -1,6 +1,7 @@
 #include <editor/editor_mode/project_manager.h>
 #include <editor/popup/popup_manager.h>
 #include <editor/popup/project/delete_project.h>
+#include <drivers/toml/toml_helpers.h>
 #include <core/project/project.h>
 #include <core/io/path.h>
 #include <core/base/error.h>
@@ -30,40 +31,56 @@ void ProjectManager::shutdown()
 void ProjectManager::load_recents()
 {
     recent.clear();
-    std::ifstream f(Paths::local_data() / "recents");
-    if (!f) return;
 
-    std::string line;
-    while (std::getline(f, line)) {
-        if (!line.empty() && line.back() == '\r') line.pop_back();
-        if (line.empty()) continue;
+    std::ifstream in(Paths::local_data() / "recents", std::ios::binary);
+    if (!in) return;
 
-        std::string path_str, fav_str, when_str;
-        size_t t1 = line.find('\t');
-        path_str = line.substr(0, t1);
-        if (t1 != std::string::npos) {
-            size_t t2 = line.find('\t', t1 + 1);
-            fav_str  = line.substr(t1 + 1, (t2 == std::string::npos) ? std::string::npos : t2 - t1 - 1);
-            if (t2 != std::string::npos) when_str = line.substr(t2 + 1);
-        }
+    toml::table parsed;
+    try {
+        parsed = toml::parse(in);
+    } catch (const toml::parse_error&) {
+        return;
+    }
 
-        std::filesystem::path path = path_str;
+    const toml::array* entries = parsed.at_path("recent").as_array();
+    if (!entries) return;
+
+    for (const toml::node& node : *entries) {
+        const toml::table* t = node.as_table();
+        if (!t) continue;
+
+        auto path_str = (*t)["path"].value<std::string>();
+        if (!path_str) continue;
+
+        std::filesystem::path path = *path_str;
         if (!std::filesystem::exists(path / Project::FILE_NAME)) continue;
 
         Entry e;
-        e.name = Project::peek_name(path);
         e.path = path;
-        e.favorite = (fav_str == "1");
-        e.last_opened = when_str;
+        e.name = Project::peek_name(path);
+        e.favorite = (*t)["favorite"].value_or(false);
+        e.last_opened = (*t)["last_opened"].value_or(std::string{});
         recent.push_back(std::move(e));
     }
 }
  
 void ProjectManager::save_recents()
-{
-    std::ofstream f(Paths::local_data() / "recents");
-    if (!f) return;
-    for (auto& e : recent) f << e.path.string() << '\t' << (e.favorite ? 1 : 0) << '\t' << e.last_opened << '\n';
+{   
+    toml::array entries;
+    for (const auto& e : recent) {
+        toml::table t;
+        t.insert_or_assign("path", e.path.string());
+        t.insert_or_assign("favorite", e.favorite);
+        t.insert_or_assign("last_opened", e.last_opened);
+        entries.push_back(std::move(t));
+    }
+
+    toml::table root;
+    root.insert_or_assign("recent", std::move(entries));
+
+    std::ofstream out(Paths::local_data() / "recents", std::ios::binary);
+    if (!out) return;
+    out << root << '\n';
 }
  
 void ProjectManager::add_recent(const std::filesystem::path& p_root, std::string_view p_name)

@@ -1,5 +1,6 @@
 #include <core/project/project.h>
 #include <core/io/path.h>
+#include <drivers/toml/toml_helpers.h>
 #include <fstream>
 #include <cstdio>
 #include <cstdlib>
@@ -45,38 +46,32 @@ Error Project::load(const std::filesystem::path& p_root)
     unload();
 
     std::filesystem::path file = p_root / FILE_NAME;
-    std::ifstream f(file);
-    if (!f) { log_write("Project: no %s in %s", FILE_NAME, p_root.string().c_str()); return Failed; }
 
-    std::string parsed_name = p_root.filename().string();
-    uint32_t parsed_version = 0;
+    std::ifstream in(file, std::ios::binary);
+    if (!in) { log_write("Project: no %s in %s", FILE_NAME, p_root.string().c_str()); return Failed; }
 
-    std::string line;
-    while (std::getline(f, line)) {
-        if (!line.empty() && line.back() == '\r') line.pop_back();
-        if (line.empty() || line[0] == '#') continue;
-
-        size_t sp = line.find(' ');
-        if (sp == std::string::npos) continue;
-        std::string key = line.substr(0, sp);
-        std::string value = line.substr(sp + 1);
-
-        if (key == "project.version") { parsed_version = (uint32_t)std::strtoul(value.c_str(), nullptr, 10); continue; }
-        if (key == "project.name") { name = value; continue; }
-
-        if (key == "window.width")  { std::from_chars(value.data(), value.data() + value.size(), settings.width);  continue; }
-        if (key == "window.height") { std::from_chars(value.data(), value.data() + value.size(), settings.height); continue; }
-    }
-
-    if (parsed_version > FORMAT_VERSION) {
-        log_write("Project: '%s' is format version %u, this build supports %u.", file.string().c_str(), parsed_version, FORMAT_VERSION);
+    toml::table tbl;
+    try {
+        tbl = toml::parse(in);
+    } catch (const toml::parse_error& e) {
+        log_write("Project: failed to parse %s (%s)", file.string().c_str(), std::string(e.description()).c_str());
         return Failed;
     }
+
+    const std::int64_t parsed_version = tbl.at_path("project.version").value_or(std::int64_t{0});
+    if (parsed_version > static_cast<std::int64_t>(FORMAT_VERSION)) {
+        log_write("Project: '%s' is format version %lld, this build supports %u.", file.string().c_str(), (long long)parsed_version, FORMAT_VERSION);
+        return Failed;
+    }
+
+    settings.width  = tbl.at_path("window.width").value_or(settings.width);
+    settings.height = tbl.at_path("window.height").value_or(settings.height);
 
     if (Error e = _ensure_layout(p_root); e != Ok) return e;
 
     _resolve_dirs(p_root);
-    if (name.empty()) name = parsed_name;
+    name = p_root.filename().string();
+
     log_write("Project loaded: %s (%s)", name.c_str(), root.string().c_str());
     return Ok;
 }
@@ -92,19 +87,26 @@ Error Project::save() const
 {
     using enum Error;
     if (root.empty()) return Failed;
-    
+
     std::error_code ec;
     std::filesystem::create_directories(root / DIR_DATA, ec);
     if (ec) return Failed;
 
-    std::ofstream f(root / FILE_NAME);
-    if (!f) return Failed;
+    toml::table project;
+    project.insert_or_assign("version", static_cast<std::int64_t>(FORMAT_VERSION));
+    project.insert_or_assign("name", name);
 
-    f << "project.version " << FORMAT_VERSION << '\n';
-    f << "project.name " << name << '\n';
+    toml::table window;
+    window.insert_or_assign("width", settings.width);
+    window.insert_or_assign("height", settings.height);
 
-    f << "window.width " << settings.width << '\n';
-    f << "window.height " << settings.height << '\n';
+    toml::table out_tbl;
+    out_tbl.insert_or_assign("project", std::move(project));
+    out_tbl.insert_or_assign("window", std::move(window));
+
+    std::ofstream out(root / FILE_NAME, std::ios::binary);
+    if (!out) return Failed;
+    out << out_tbl << '\n';
 
     return Ok;
 }

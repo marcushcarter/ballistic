@@ -1,5 +1,5 @@
 #include <editor/panel/profiler/profiler.h>
-#include <editor/editor_ui.h>
+#include <drivers/imgui/imgui_helpers.h>
 #include <core/rendering/renderer.h>
 #include <imgui.h>
 #include <implot.h>
@@ -63,15 +63,15 @@ void Profiler::draw_contents(EditorContext& ctx)
         ImGui::Checkbox("Enable Profiling", &profiler.enabled);
         ImGui::EndDisabled();
 
-        ui::title("Legend");
-        ui::property_row_value_aligned("Pan Area", "ALT + Mouse");
-        ui::property_row_value_aligned("Navigate", "Mouse Scroll");
-        ui::property_row_value_aligned("Zoom Area", "Mouse Drag");
-        ui::property_row_value_aligned("Zoom Out", "Double Click");
-        ui::property_row_value_aligned("Frame Pass", "F");
-        ui::property_row_value_aligned("Record", "Space");
-        ui::property_row_value_aligned("Resume", "ESC");
-        ui::spacing();
+        imgui_title("Legend");
+        imgui_property_row_value_aligned("Pan Area", "ALT + Mouse");
+        imgui_property_row_value_aligned("Navigate", "Mouse Scroll");
+        imgui_property_row_value_aligned("Zoom Area", "Mouse Drag");
+        imgui_property_row_value_aligned("Zoom Out", "Double Click");
+        imgui_property_row_value_aligned("Frame Pass", "F");
+        imgui_property_row_value_aligned("Record", "Space");
+        imgui_property_row_value_aligned("Resume", "ESC");
+        imgui_spacing();
 
         distribution.draw(ctx, timeline.selected_draw, profiler.frozen);
     }

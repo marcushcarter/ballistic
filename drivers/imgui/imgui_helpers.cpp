@@ -1,11 +1,11 @@
-#include <editor/editor_ui.h>
+#include <drivers/imgui/imgui_helpers.h>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdint>
 
-namespace ballistic::ui {
+namespace ballistic {
 
-void title(const char* p_fmt, ...)
+void imgui_title(const char* p_fmt, ...)
 {
     va_list args;
     va_start(args, p_fmt);
@@ -13,19 +13,19 @@ void title(const char* p_fmt, ...)
     va_end(args);
 }
     
-void spacing()
+void imgui_spacing()
 {
     ImGui::Spacing();
     ImGui::Spacing();
 }
 
-void section_gap() {
+void imgui_section_gap() {
     ImGui::Dummy(ImVec2(0, 2));
     ImGui::Separator();
     ImGui::Dummy(ImVec2(0, 2));
 }
 
-void property_row(const char* p_name, const char* p_fmt, ...)
+void imgui_property_row(const char* p_name, const char* p_fmt, ...)
 {
     constexpr float tab_width = 200.0f;
     ImGui::TextUnformatted(p_name);
@@ -36,7 +36,7 @@ void property_row(const char* p_name, const char* p_fmt, ...)
     va_end(args);
 }
 
-void property_row_value_aligned(const char* p_name, const char* p_fmt, ...)
+void imgui_property_row_value_aligned(const char* p_name, const char* p_fmt, ...)
 {
     ImGui::TextUnformatted(p_name);
 
@@ -55,7 +55,7 @@ void property_row_value_aligned(const char* p_name, const char* p_fmt, ...)
     ImGui::TextUnformatted(buffer);
 }
 
-void cell_right(const char* p_text)
+void imgui_cell_right(const char* p_text)
 {
     float w = ImGui::CalcTextSize(p_text).x;
     float avail = ImGui::GetContentRegionAvail().x;
@@ -63,16 +63,16 @@ void cell_right(const char* p_text)
     ImGui::TextUnformatted(p_text);
 }
 
-void cell_right_fmt(const char* p_fmt, ...)
+void imgui_cell_right_fmt(const char* p_fmt, ...)
 {
     char buf[64];
     va_list ap; va_start(ap, p_fmt);
     vsnprintf(buf, sizeof(buf), p_fmt, ap);
     va_end(ap);
-    cell_right(buf);
+    imgui_cell_right(buf);
 }
 
-void tri_right(ImU32 p_color)
+void imgui_tri_right(ImU32 p_color)
 {
     ImVec2 c = ImGui::GetCursorScreenPos();
     float h = ImGui::GetFontSize();
@@ -83,19 +83,7 @@ void tri_right(ImU32 p_color)
     ImGui::SameLine(0, 4.0f);
 }
 
-const char* fmt_bytes(uint64_t b)
-{
-    static char pool[8][24];
-    static uint32_t next = 0;
-    char* buf = pool[next++ & 7];
-    if (b >= (1ull << 30)) std::snprintf(buf, 24, "%.2f GiB", double(b) / double(1ull << 30));
-    else if (b >= (1ull << 20)) std::snprintf(buf, 24, "%.1f MiB", double(b) / double(1ull << 20));
-    else if (b >= (1ull << 10)) std::snprintf(buf, 24, "%.0f KiB", double(b) / double(1ull << 10));
-    else std::snprintf(buf, 24, "%llu B", (unsigned long long)b);
-    return buf;
-}
-
-ImU32 rg_category_u32(const char* cat, float alpha)
+ImU32 imgui_rg_category_u32(const char* cat, float alpha)
 {
     ImVec4 c(0.70f, 0.70f, 0.70f, alpha);
     if (cat && cat[0]) {
@@ -107,7 +95,7 @@ ImU32 rg_category_u32(const char* cat, float alpha)
     return ImGui::GetColorU32(c);
 }
 
-ImU32 pct_col(float pct)
+ImU32 imgui_pct_col(float pct)
 {
     if (pct < 0.75f) return IM_COL32( 88, 180, 120, 255);
     if (pct < 0.90f) return IM_COL32(210, 170,  70, 255);

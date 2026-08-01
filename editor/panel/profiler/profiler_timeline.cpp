@@ -1,5 +1,5 @@
 #include <editor/panel/profiler/profiler_timeline.h>
-#include <editor/editor_ui.h>
+#include <drivers/imgui/imgui_helpers.h>
 #include <core/rendering/renderer.h>
 #include <imgui.h>
 #include <vector>
@@ -261,7 +261,7 @@ void ProfilerTimeline::draw(EditorContext& ctx)
 
             auto flush = [&]() {
                 if (!run_cat) return;
-                ImVec2 x = bar(x_ms, run_ms, y_sec0, y_sec1, ui::rg_category_u32(run_cat));
+                ImVec2 x = bar(x_ms, run_ms, y_sec0, y_sec1, imgui_rg_category_u32(run_cat));
                 label_in(ImVec2(x.x, y_sec0), ImVec2(x.y, y_sec1), run_cat[0] ? run_cat : "(uncat)", IM_COL32_WHITE);
                 x_ms += run_ms;
                 run_ms = 0.0f;
@@ -286,7 +286,7 @@ void ProfilerTimeline::draw(EditorContext& ctx)
             if (t.kind != RenderGraphProfiler::MarkKind::Pass) continue;
 
             bool bar_hovered = false;
-            ImVec2 x = bar(start[i], (float)t.gpu_ms, y_pass0, y_pass1, ui::rg_category_u32(t.category), &bar_hovered);
+            ImVec2 x = bar(start[i], (float)t.gpu_ms, y_pass0, y_pass1, imgui_rg_category_u32(t.category), &bar_hovered);
             if (bar_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                 bar_click_consumed = true;
                 if (sel_pass_key == t.key) {
@@ -310,9 +310,9 @@ void ProfilerTimeline::draw(EditorContext& ctx)
             if (bar_hovered) {
                 ImGui::BeginTooltip();
                 
-                ui::title("%s", t.name);
-                ui::property_row("Time", "%.0f µs", t.gpu_ms*1000.0f);
-                ui::property_row("Pixel Count", "%llu", (unsigned long long)t.samples);
+                imgui_title("%s", t.name);
+                imgui_property_row("Time", "%.0f µs", t.gpu_ms*1000.0f);
+                imgui_property_row("Pixel Count", "%llu", (unsigned long long)t.samples);
 
                 ImGui::EndTooltip();
             }
@@ -331,7 +331,7 @@ void ProfilerTimeline::draw(EditorContext& ctx)
             const float len_ms = std::min((float)t.gpu_ms, parent_end - a_ms);
 
             bool bar_hovered = false;
-            ImVec2 x = bar(a_ms, len_ms, y_draw0, y_draw1, ui::rg_category_u32(src[p].category, 0.45f), &bar_hovered);
+            ImVec2 x = bar(a_ms, len_ms, y_draw0, y_draw1, imgui_rg_category_u32(src[p].category, 0.45f), &bar_hovered);
             if (bar_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                 bar_click_consumed = true;
                 if (sel_draw_key == t.key) {
@@ -353,25 +353,25 @@ void ProfilerTimeline::draw(EditorContext& ctx)
             if (bar_hovered) {
                 ImGui::BeginTooltip();
 
-                if (named) ui::title("%s · %s", t.name, t.type);
-                else ui::title("Draw %u", t.ordinal);
-                ui::property_row("Time", "%.0f µs", t.gpu_ms*1000.0);
-                ui::property_row("Pixel Count", "%llu", (unsigned long long)t.samples);
-                ui::spacing();
+                if (named) imgui_title("%s · %s", t.name, t.type);
+                else imgui_title("Draw %u", t.ordinal);
+                imgui_property_row("Time", "%.0f µs", t.gpu_ms*1000.0);
+                imgui_property_row("Pixel Count", "%llu", (unsigned long long)t.samples);
+                imgui_spacing();
                 
-                ui::title("Owner Object");
-                ui::property_row("Pass", "%s", src[p].name);
-                ui::property_row("Draw Index", "%u", t.ordinal);
-                ui::property_row("Name", "%s", t.name);
-                ui::property_row("Location", "%s", "n/a");
-                ui::property_row("Type", "%s", t.type);
-                ui::spacing();
+                imgui_title("Owner Object");
+                imgui_property_row("Pass", "%s", src[p].name);
+                imgui_property_row("Draw Index", "%u", t.ordinal);
+                imgui_property_row("Name", "%s", t.name);
+                imgui_property_row("Location", "%s", "n/a");
+                imgui_property_row("Type", "%s", t.type);
+                imgui_spacing();
                 
-                ui::title("Primitives");
-                ui::property_row("Triangles", "%llu", (unsigned long long)t.primitives);
-                ui::property_row("Vertices", "%llu", (unsigned long long)t.vertices);
-                ui::property_row("Instances", "%u", t.instances);
-                ui::property_row("Total Triangles", "%llu", (unsigned long long)src[p].primitives);
+                imgui_title("Primitives");
+                imgui_property_row("Triangles", "%llu", (unsigned long long)t.primitives);
+                imgui_property_row("Vertices", "%llu", (unsigned long long)t.vertices);
+                imgui_property_row("Instances", "%u", t.instances);
+                imgui_property_row("Total Triangles", "%llu", (unsigned long long)src[p].primitives);
 
                 ImGui::EndTooltip();
             }
@@ -388,9 +388,9 @@ void ProfilerTimeline::draw(EditorContext& ctx)
 
             if (bar_hovered) {
                 ImGui::BeginTooltip();
-                ui::title("Syncronization · before %s", t.name);
-                ui::property_row("Time", "%.0f µs", t.gpu_ms * 1000.0);
-                ui::property_row("Gap", "%.0f µs", t.gap_ms * 1000.0);
+                imgui_title("Syncronization · before %s", t.name);
+                imgui_property_row("Time", "%.0f µs", t.gpu_ms * 1000.0);
+                imgui_property_row("Gap", "%.0f µs", t.gap_ms * 1000.0);
                 ImGui::EndTooltip();
             }
         }

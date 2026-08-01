@@ -1,0 +1,23 @@
+#pragma once
+#include <imgui.h>
+#include <sal.h>
+#include <cstdint>
+
+namespace ballistic {
+
+void imgui_title(_Printf_format_string_ const char* p_fmt, ...);
+void imgui_spacing();
+void imgui_section_gap();
+
+void imgui_property_row(const char* p_name, _Printf_format_string_ const char* p_fmt, ...);
+void imgui_property_row_value_aligned(const char* p_name, _Printf_format_string_ const char* p_fmt, ...);
+
+void imgui_cell_right(const char* p_text);
+void imgui_cell_right_fmt(_Printf_format_string_ const char* p_fmt, ...);
+
+void imgui_tri_right(ImU32 p_color);
+
+ImU32 imgui_rg_category_u32(const char* cat, float alpha = 1.0f);
+ImU32 imgui_pct_col(float pct);
+
+}

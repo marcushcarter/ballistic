@@ -1,6 +1,7 @@
 #include <editor/panel/memory_profiler/memory_profiler.h>
-#include <editor/editor_ui.h>
+#include <drivers/imgui/imgui_helpers.h>
 #include <core/rendering/renderer.h>
+#include <core/base/utils.h>
 #include <vulkan/vk_enum_string_helper.h>
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -41,7 +42,7 @@ void MemoryProfiler::draw_contents(EditorContext& ctx)
         float gap = ImGui::GetStyle().ItemInnerSpacing.x;
         float tri = ImGui::GetFontSize() * 0.5f;
         float wA = ImGui::CalcTextSize("peak").x;
-        float wB = ImGui::CalcTextSize(ui::fmt_bytes(peak_bytes)).x;
+        float wB = ImGui::CalcTextSize(fmt_bytes(peak_bytes)).x;
         float need = wA + gap + tri + gap + wB;
         float avail = ImGui::GetContentRegionAvail().x;
         if (avail > need) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + avail - need);
@@ -53,7 +54,7 @@ void MemoryProfiler::draw_contents(EditorContext& ctx)
         ImGui::GetWindowDrawList()->AddTriangleFilled(ImVec2(c.x, c.y + h * 0.72f), ImVec2(c.x + tri, c.y + h * 0.72f), ImVec2(c.x + tri * 0.5f,c.y + h * 0.28f), IM_COL32(210,120,90,255));
         ImGui::Dummy(ImVec2(tri, h));
         ImGui::SameLine(0, gap);
-        ImGui::TextColored(ImVec4(0.90f, 0.55f, 0.40f, 1.0f), "%s", ui::fmt_bytes(peak_bytes));
+        ImGui::TextColored(ImVec4(0.90f, 0.55f, 0.40f, 1.0f), "%s", fmt_bytes(peak_bytes));
     }
     ImGui::Dummy(ImVec2(0, 4));
 
@@ -64,13 +65,13 @@ void MemoryProfiler::draw_contents(EditorContext& ctx)
 
     auto bar = [&](const char* label, uint64_t used, uint64_t total) {
         float pct = total ? float(double(used) / double(total)) : 0.0f;
-        ImGui::Text("%-30s %10s / %10s   %d%%", label, ui::fmt_bytes(used), ui::fmt_bytes(total), int(pct * 100.0f + 0.5f));
+        ImGui::Text("%-30s %10s / %10s   %d%%", label, fmt_bytes(used), fmt_bytes(total), int(pct * 100.0f + 0.5f));
         ImDrawList* dl = ImGui::GetWindowDrawList();
         ImVec2 p = ImGui::GetCursorScreenPos();
         float fullW  = ImGui::GetContentRegionAvail().x;
         float h = ImGui::GetFontSize();
         dl->AddRectFilled(p, ImVec2(p.x + fullW, p.y + h), IM_COL32(38,40,46,255), 3.0f);
-        dl->AddRectFilled(p, ImVec2(p.x + fullW * ImMin(pct, 1.0f), p.y + h), ui::pct_col(pct), 3.0f);
+        dl->AddRectFilled(p, ImVec2(p.x + fullW * ImMin(pct, 1.0f), p.y + h), imgui_pct_col(pct), 3.0f);
         ImGui::Dummy(ImVec2(fullW, h));
     };
 
@@ -84,7 +85,7 @@ void MemoryProfiler::draw_contents(EditorContext& ctx)
 
     if (!budget_ext_enabled) ImGui::TextDisabled("VK_EXT_memory_budget unavailable - totals are VMA estimates.");
 
-    ui::section_gap();
+    imgui_section_gap();
 
     ImVec2 avail = ImGui::GetContentRegionAvail();
     float left_width = (avail.x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
@@ -104,7 +105,7 @@ void MemoryProfiler::draw_contents(EditorContext& ctx)
                 heap_label(mem_props.memoryHeaps[h].flags, h, label, sizeof(label));
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0); ImGui::Text(label);
-                ImGui::TableSetColumnIndex(1); ImGui::Text(ui::fmt_bytes(budgets[h].statistics.blockBytes));
+                ImGui::TableSetColumnIndex(1); ImGui::Text(fmt_bytes(budgets[h].statistics.blockBytes));
                 ImGui::TableSetColumnIndex(2); ImGui::Text("%u", budgets[h].statistics.allocationCount);
                 ImGui::TableSetColumnIndex(3); ImGui::Text("%u", budgets[h].statistics.blockCount);
                 ImGui::TableSetColumnIndex(4); if (detailed_valid) ImGui::Text("%.1f%%", detailed_frag[h] * 100.0f); else ImGui::Text("-");
@@ -123,7 +124,7 @@ void MemoryProfiler::draw_contents(EditorContext& ctx)
             detailed_valid = true;
         }
 
-        ui::section_gap();
+        imgui_section_gap();
         struct PoolRow { const char* name; VmaPool pool; };
         const PoolRow pools[] = {
             { "Image Transient", dd->image_transient_pool },
@@ -146,19 +147,19 @@ void MemoryProfiler::draw_contents(EditorContext& ctx)
                 VmaStatistics s{};
                 vmaGetPoolStatistics(dd->allocator, row.pool, &s);
                 ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0); ui::tri_right(IM_COL32(150, 155, 165, 255)); ImGui::Text(row.name);
-                ImGui::TableSetColumnIndex(1); ImGui::Text(ui::fmt_bytes(s.allocationBytes));
-                ImGui::TableSetColumnIndex(2); if (s.blockBytes > 0 && s.allocationBytes * 4 < s.blockBytes) ImGui::TextColored(warn_color, "%s", ui::fmt_bytes(s.blockBytes)); else ImGui::Text(ui::fmt_bytes(s.blockBytes));
+                ImGui::TableSetColumnIndex(0); imgui_tri_right(IM_COL32(150, 155, 165, 255)); ImGui::Text(row.name);
+                ImGui::TableSetColumnIndex(1); ImGui::Text(fmt_bytes(s.allocationBytes));
+                ImGui::TableSetColumnIndex(2); if (s.blockBytes > 0 && s.allocationBytes * 4 < s.blockBytes) ImGui::TextColored(warn_color, "%s", fmt_bytes(s.blockBytes)); else ImGui::Text(fmt_bytes(s.blockBytes));
                 ImGui::TableSetColumnIndex(3); ImGui::Text("%u", s.allocationCount);
             }
             ImGui::EndTable();
         }
 
-        ui::section_gap();
+        imgui_section_gap();
         auto used = [](const drivers::DeviceDriverVulkan::IndexAllocator& a) { return a.high_water - (uint32_t)a.free_list.size(); };
-        ui::title("Bindless Heap");
+        imgui_title("Bindless Heap");
         ImGui::TextDisabled("sampled %u/%u | storage %u/%u | sampler %u/%u", used(dd->bindless_heap.sampled_alloc), dd->bindless_heap.sampled_alloc.cap, used(dd->bindless_heap.storage_alloc), dd->bindless_heap.storage_alloc.cap, used(dd->bindless_heap.sampler_alloc), dd->bindless_heap.sampler_alloc.cap);
-        ui::title("Free-List Depth");
+        imgui_title("Free-List Depth");
         ImGui::TextDisabled("sampled %zu | storage %zu | sampler %zu", dd->bindless_heap.sampled_alloc.free_list.size(), dd->bindless_heap.storage_alloc.free_list.size(), dd->bindless_heap.sampler_alloc.free_list.size());
     }
     ImGui::EndChild();
