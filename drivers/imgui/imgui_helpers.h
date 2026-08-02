@@ -6,6 +6,8 @@
 namespace ballistic {
 
 void imgui_title(_Printf_format_string_ const char* p_fmt, ...);
+void imgui_link(const char* label, const char* url);
+
 void imgui_spacing();
 void imgui_section_gap();
 

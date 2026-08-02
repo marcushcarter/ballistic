@@ -82,6 +82,11 @@ void EditorApplication::on_update(float p_dt)
     _draw_titlebar();
 
     EditorContext ctx = _make_context();
+
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_F12)) {   
+        EditorRenderPath* path = static_cast<EditorRenderPath*>(render_path);
+        path->screenshot.requested = true;
+    }
     
     popups.draw(ctx);
     if (project.loaded()) {
@@ -396,7 +401,7 @@ void EditorApplication::_draw_shared_menu_items()
         // }
         ImGui::Separator();
         if (ImGui::MenuItem("Quit to Project List")) close_project();
-        if (ImGui::MenuItem("Quit")) win32.window_request_close();
+        if (ImGui::MenuItem("Quit", "Alt+F4")) win32.window_request_close();
         ImGui::EndMenu();
     }
     
@@ -404,14 +409,16 @@ void EditorApplication::_draw_shared_menu_items()
         ImGui::EndMenu();
     }
 
+    ImGuiIO& io = ImGui::GetIO();
+
     if (ImGui::BeginMenu("Editor")) {
         if (ImGui::MenuItem("Editor Settings")) popups.open("Editor Settings");
         ImGui::Separator();
-        if (ImGui::MenuItem("Take Screenshot")) {
+        if (ImGui::MenuItem("Take Screenshot", "Ctrl+F12")) {   
             EditorRenderPath* path = static_cast<EditorRenderPath*>(render_path);
             path->screenshot.requested = true;
         }
-        if (ImGui::MenuItem("Toggle Fullscreen")) {}
+        if (ImGui::MenuItem("Toggle Fullscreen", "Alt+F11")) {}
         ImGui::Separator();
         if (ImGui::MenuItem("Open Editor Data Folder")) Paths::reveal_in_explorer(Paths::roaming_data());
         ImGui::EndMenu();

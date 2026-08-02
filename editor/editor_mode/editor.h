@@ -16,10 +16,11 @@ struct Editor
     Error initialize();
     void shutdown();
     
+    void _begin_dockspace();
     void on_update(EditorContext& ctx, float p_dt);
-    
-    void begin_dockspace();
     void draw_menu();
+
+    void take_screenshot(EditorContext& ctx);
 
     void apply_settings();
     void store_settings();

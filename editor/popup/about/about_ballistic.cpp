@@ -1,6 +1,8 @@
 #include <editor/popup/about/about_ballistic.h>
 #include <editor/editor_resources.h>
 #include <drivers/imgui/imgui_driver.h>
+#include <drivers/imgui/imgui_helpers.h>
+#include <core/version.h>
 
 namespace ballistic {
     
@@ -21,8 +23,8 @@ void AboutBallisticPopup::draw_contents(EditorContext& ctx)
     
         ImGui::SameLine();
         ImGui::BeginGroup();
-        ImGui::Text("Ballistic Engine");
-        ImGui::Text("Version 0.1.0");
+        imgui_link("Ballistic Engine", "https://github.com/marcushcarter/ballistic");
+        ImGui::Text("Version %s", BALLISTIC_VERSION_FULL_BUILD);
         ImGui::EndGroup();
     }
     ImGui::EndChild();

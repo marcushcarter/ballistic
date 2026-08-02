@@ -27,14 +27,7 @@ void Editor::shutdown()
     panels.clear();
 }
 
-void Editor::on_update(EditorContext& ctx, float p_dt)
-{
-    (void)p_dt;
-    begin_dockspace();
-    for (auto& p : panels) p->draw(ctx);
-}
-
-void Editor::begin_dockspace()
+void Editor::_begin_dockspace()
 {
     ImGuiViewport* imguiViewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(imguiViewport->WorkPos);
@@ -55,6 +48,12 @@ void Editor::begin_dockspace()
     ImGui::End();
 }
 
+void Editor::on_update(EditorContext& ctx, float)
+{
+    _begin_dockspace();
+    for (auto& p : panels) p->draw(ctx);
+}
+
 void Editor::draw_menu()
 {
     if (panels.empty()) return;
@@ -64,6 +63,11 @@ void Editor::draw_menu()
         if (ImGui::MenuItem("Close All")) for (auto& p : panels) p->open = false;
         ImGui::EndMenu();
     }
+}
+
+void Editor::take_screenshot(EditorContext& ctx)
+{
+    ctx.render_path->screenshot.requested = true;
 }
 
 void Editor::apply_settings()

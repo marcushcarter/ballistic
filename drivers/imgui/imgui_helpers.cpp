@@ -2,6 +2,8 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstdint>
+#include <windows.h>
+#include <shellapi.h>
 
 namespace ballistic {
 
@@ -12,7 +14,22 @@ void imgui_title(const char* p_fmt, ...)
     ImGui::TextColoredV(ImGui::GetStyleColorVec4(ImGuiCol_TextLink), p_fmt, args);
     va_end(args);
 }
-    
+
+void imgui_link(const char* label, const char* url)
+{
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.2f, 0.5f, 1.0f, 1.0f));
+    ImGui::TextUnformatted(label);
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+#ifdef _WIN32
+            ShellExecuteA(nullptr, "open", url, nullptr, nullptr, SW_SHOWNORMAL);
+#endif
+        }
+    }
+    ImGui::PopStyleColor();
+}
+
 void imgui_spacing()
 {
     ImGui::Spacing();
