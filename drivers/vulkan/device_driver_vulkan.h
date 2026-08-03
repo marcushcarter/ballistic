@@ -51,7 +51,6 @@ struct DeviceDriverVulkan
     Error _add_queue_create_info(std::vector<VkDeviceQueueCreateInfo> &r_queue_create_info);
     Error _initialize_device(const std::vector<VkDeviceQueueCreateInfo> &p_queue_create_info);
     Error _initialize_allocator();
-    Error _initialize_pipeline_cache();
     void _check_subgroup_capabilities();
 
     Error initialize(ContextDriverVulkan& r_cd, uint32_t p_device_index, uint32_t p_frame_count);
@@ -290,7 +289,6 @@ struct DeviceDriverVulkan
 	void command_render_draw_indirect(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, uint32_t p_draw_count, uint32_t p_stride);
 	void command_render_draw_indirect_count(VkCommandBuffer p_cmd, const Buffer& p_indirect_buffer, uint64_t p_offset, const Buffer& p_count_buffer, uint64_t p_count_buffer_offset, uint32_t p_max_draw_count, uint32_t p_stride);
 
-
     /*******************/
     /**** SWAPCHAIN ****/
     /*******************/
@@ -371,6 +369,17 @@ struct DeviceDriverVulkan
 	/******************/
 	/**** PIPELINE ****/
 	/******************/
+
+    // ----- CACHE -----
+
+    VkPipelineCache pipeline_cache = VK_NULL_HANDLE;
+    std::string pipeline_cache_file;
+
+    bool _pipeline_cache_header_valid(const std::vector<uint8_t>& p_data) const;
+    void _save_pipeline_cache();
+
+    Error pipeline_cache_create();
+    void pipeline_cache_free();
     
     // ----- SHADER -----
 

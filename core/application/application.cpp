@@ -117,8 +117,6 @@ int Application::run()
         TaskSystem::Handle rec = tasks.dispatch([&]{ rec_err = renderer.record(); });
         tasks.wait(rec);
         BALLISTIC_ERR_FAIL_COND_V(rec_err != Ok, (int)rec_err);
-
-        // renderer.record();
         
         renderer.end_frame();
         imgui.end_frame(renderer.frame_number);

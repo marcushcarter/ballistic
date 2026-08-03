@@ -426,13 +426,6 @@ Error DeviceDriverVulkan::_initialize_device(const std::vector<VkDeviceQueueCrea
     return Ok;
 }
 
-Error DeviceDriverVulkan::_initialize_pipeline_cache()
-{
-    using enum Error;
-
-    return Ok;
-}
-
 Error DeviceDriverVulkan::initialize(ContextDriverVulkan& r_cd, uint32_t p_device_index, uint32_t p_frame_count)
 {
     using enum Error;
@@ -466,9 +459,9 @@ Error DeviceDriverVulkan::initialize(ContextDriverVulkan& r_cd, uint32_t p_devic
     
     err = allocator_create();
 	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
-    
-    err = _initialize_pipeline_cache();
-	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+
+    err = pipeline_cache_create();
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     
     err = swapchain_create(&cd->surface);
 	BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
@@ -493,9 +486,10 @@ void DeviceDriverVulkan::shutdown()
     device_wait_idle();
 
     sampler_free(default_sampler);
-
+    
     bindless_heap_free();
     swapchain_free();
+    pipeline_cache_free();
     allocator_free();
 
     if (device) {
@@ -1880,9 +1874,113 @@ void DeviceDriverVulkan::framebuffer_free(VkFramebuffer& r_framebuffer)
 
 // ----- CACHE -----
 
+static uint32_t _read_le_u32(const uint8_t* p)
+{
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+}
+
+bool DeviceDriverVulkan::_pipeline_cache_header_valid(const std::vector<uint8_t>& p_data) const
+{
+    if (p_data.size() < 32) return false;
+
+    const uint8_t* b = p_data.data();
+    const uint32_t header_size = _read_le_u32(b + 0);
+    const uint32_t header_version = _read_le_u32(b + 4);
+    const uint32_t vendor_id = _read_le_u32(b + 8);
+    const uint32_t device_id = _read_le_u32(b + 12);
+
+    if (header_size < 32 || header_size > p_data.size()) return false;
+    if (header_version != VK_PIPELINE_CACHE_HEADER_VERSION_ONE) return false;
+    if (vendor_id != physical_device_properties.vendorID) return false;
+    if (device_id != physical_device_properties.deviceID) return false;
+    if (memcmp(b + 16, physical_device_properties.pipelineCacheUUID, VK_UUID_SIZE) != 0) return false;
+
+    return true;
+}
+
+void DeviceDriverVulkan::_save_pipeline_cache()
+{
+    if (!pipeline_cache || pipeline_cache_file.empty()) return;
+
+    size_t size = 0;
+    if (vkGetPipelineCacheData(device, pipeline_cache, &size, nullptr) != VK_SUCCESS || size == 0) return;
+
+    std::vector<uint8_t> data(size);
+    if (vkGetPipelineCacheData(device, pipeline_cache, &size, data.data()) != VK_SUCCESS) return;
+    data.resize(size);
+
+    const std::filesystem::path final_path = pipeline_cache_file;
+    std::filesystem::path temp_path = final_path;
+    temp_path += ".tmp";
+
+    {
+        std::ofstream out(temp_path, std::ios::binary | std::ios::trunc);
+        if (!out) return;
+        out.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
+        if (!out) {
+            out.close();
+            std::error_code rm;
+            std::filesystem::remove(temp_path, rm);
+            return;
+        }
+    }
+
+    std::error_code ec;
+    std::filesystem::rename(temp_path, final_path, ec);
+    if (ec) {
+        std::filesystem::remove(final_path, ec);
+        std::filesystem::rename(temp_path, final_path, ec);
+        if (ec) std::filesystem::remove(temp_path, ec);
+    }
+}
+
+Error DeviceDriverVulkan::pipeline_cache_create()
+{
+    using enum Error;
+
+    pipeline_cache_file = (Paths::pipeline_cache() / "pipeline.bin").string();
+
+    std::vector<uint8_t> initial_data;
+    if (!pipeline_cache_file.empty()) {
+        std::ifstream f(pipeline_cache_file, std::ios::binary | std::ios::ate);
+        if (f) {
+            const std::streamsize bytes = f.tellg();
+            if (bytes > 0) {
+                initial_data.resize(static_cast<size_t>(bytes));
+                f.seekg(0);
+                if (!f.read(reinterpret_cast<char*>(initial_data.data()), bytes)) {
+                    initial_data.clear();
+                }
+            }
+        }
+    }
+
+    if (!_pipeline_cache_header_valid(initial_data)) {
+        initial_data.clear();
+    }
+
+    VkPipelineCacheCreateInfo cache_ci{ VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO };
+    cache_ci.initialDataSize = initial_data.size();
+    cache_ci.pInitialData = initial_data.empty() ? nullptr : initial_data.data();
+
+    VkResult err = vkCreatePipelineCache(device, &cache_ci, nullptr, &pipeline_cache);
+    BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, Failed, "Couldn't create Vulkan pipeline cache.");
+
+    return Ok;
+}
+
+void DeviceDriverVulkan::pipeline_cache_free()
+{
+    _save_pipeline_cache();
+    if (pipeline_cache) {
+        vkDestroyPipelineCache(device, pipeline_cache, nullptr);
+        pipeline_cache = VK_NULL_HANDLE;
+    }
+}
+
 // ----- SHADER -----
 
-shaderc_shader_kind DeviceDriverVulkan::_shaderc_kind(DeviceDriverVulkan::ShaderStage p_stage)
+shaderc_shader_kind DeviceDriverVulkan::_shaderc_kind(ShaderStage p_stage)
 {
     switch (p_stage) {
         case DeviceDriverVulkan::ShaderStage::Vertex: return shaderc_vertex_shader;
@@ -1892,7 +1990,7 @@ shaderc_shader_kind DeviceDriverVulkan::_shaderc_kind(DeviceDriverVulkan::Shader
     return shaderc_vertex_shader;
 }
 
-uint64_t DeviceDriverVulkan::_shader_cache_key(const DeviceDriverVulkan::ShaderCreateInfo& p_ci, size_t p_source_len)
+uint64_t DeviceDriverVulkan::_shader_cache_key(const ShaderCreateInfo& p_ci, size_t p_source_len)
 {
     constexpr uint32_t CACHE_FORMAT = 1;
 
@@ -2134,7 +2232,7 @@ DeviceDriverVulkan::Pipeline DeviceDriverVulkan::graphics_pipeline_create(const 
 
     Pipeline pipeline;
     pipeline.bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    VkResult err = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipeline_ci, nullptr, &pipeline.pipeline);
+    VkResult err = vkCreateGraphicsPipelines(device, pipeline_cache, 1, &pipeline_ci, nullptr, &pipeline.pipeline);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan graphics pipeline.");
 
     set_object_name(VK_OBJECT_TYPE_PIPELINE, (uint64_t)pipeline.pipeline, p_ci.name);
@@ -2151,7 +2249,7 @@ DeviceDriverVulkan::Pipeline DeviceDriverVulkan::compute_pipeline_create(const C
     
     Pipeline pipeline;
     pipeline.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
-    VkResult err = vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &pipeline_ci, nullptr, &pipeline.pipeline);
+    VkResult err = vkCreateComputePipelines(device, pipeline_cache, 1, &pipeline_ci, nullptr, &pipeline.pipeline);
     BALLISTIC_ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, {}, "Couldn't create Vulkan graphics pipeline.");
 
     set_object_name(VK_OBJECT_TYPE_PIPELINE, (uint64_t)pipeline.pipeline, p_ci.name);
