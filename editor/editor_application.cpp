@@ -83,10 +83,11 @@ void EditorApplication::on_update(float p_dt)
 
     EditorContext ctx = _make_context();
 
-    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_F12)) {   
-        EditorRenderPath* path = static_cast<EditorRenderPath*>(render_path);
-        path->screenshot.requested = true;
-    }
+    // ImGuiIO& io = ImGui::GetIO();
+    // if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_F12)) {   
+    //     EditorRenderPath* path = static_cast<EditorRenderPath*>(render_path);
+    //     path->screenshot.requested = true;
+    // }
     
     popups.draw(ctx);
     if (project.loaded()) {
@@ -408,8 +409,6 @@ void EditorApplication::_draw_shared_menu_items()
     if (ImGui::BeginMenu("Scene")) {
         ImGui::EndMenu();
     }
-
-    ImGuiIO& io = ImGui::GetIO();
 
     if (ImGui::BeginMenu("Editor")) {
         if (ImGui::MenuItem("Editor Settings")) popups.open("Editor Settings");

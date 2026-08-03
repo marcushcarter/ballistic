@@ -89,14 +89,6 @@ Error Renderer::begin_frame()
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     err = dd->swapchain_acquire_next_image(image_available_semaphores[current_frame]);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
-    err = dd->command_pool_reset(command_pools[current_frame]);
-    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
-    err = dd->command_buffer_begin(command_buffers[current_frame], VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
-    cmd = command_buffers[current_frame];
-
-    dd->command_bind_graphics_uniform_sets(cmd, { dd->bindless_heap.set });
-    dd->command_bind_compute_uniform_sets(cmd, { dd->bindless_heap.set });
 
     graph.begin(current_frame);
     graph.import_image("Backbuffer", &sc.images[sc.image_index], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, 0);
@@ -104,17 +96,37 @@ Error Renderer::begin_frame()
     return Ok;
 }
 
-void Renderer::compile() { graph.compile(); }
+void Renderer::compile()
+{
+    graph.compile();
+}
 
-void Renderer::render_frame() { graph.execute(cmd); }
+Error Renderer::record()
+{
+    using enum Error;
+
+    Error err = dd->command_pool_reset(command_pools[current_frame]);
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+    err = dd->command_buffer_begin(command_buffers[current_frame], VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+    
+    VkCommandBuffer cmd = command_buffers[current_frame];
+
+    dd->command_bind_graphics_uniform_sets(cmd, { dd->bindless_heap.set });
+    dd->command_bind_compute_uniform_sets(cmd, { dd->bindless_heap.set });
+
+    graph.execute(cmd);
+    
+    err = dd->command_buffer_end(command_buffers[current_frame]);
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+
+    return Ok;
+}
 
 Error Renderer::end_frame()
 {
     using enum Error;
     auto& sc = dd->swapchain;
-    
-    Error err = dd->command_buffer_end(command_buffers[current_frame]);
-    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo submit_info{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
@@ -128,7 +140,7 @@ Error Renderer::end_frame()
 
     VkQueue graphics_queue = dd->queue_families[dd->cd->graphics_queue_family][0].queue;
     VkResult result = vkQueueSubmit(graphics_queue, 1, &submit_info, in_flight_fences[current_frame]);
-    BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS, err, "Failed to submit Vulkan queue");
+    BALLISTIC_ERR_FAIL_COND_V_MSG(result != VK_SUCCESS, Failed, "Failed to submit Vulkan queue");
 
     VkPresentInfoKHR present_info{ VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
     present_info.waitSemaphoreCount = 1;

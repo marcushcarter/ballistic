@@ -52,11 +52,15 @@ Error Application::initialize(const ApplicationCreateInfo& p_create_info)
     err = render_path->create_resources();
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
+    tasks.start(std::max(1u, std::thread::hardware_concurrency() - 1u));
+    
     return Ok;
 }
 
 void Application::shutdown()
 {
+    tasks.stop();
+
     dd.device_wait_idle();
 
     project_unload();
@@ -109,7 +113,12 @@ int Application::run()
         on_update((float)delta);
         imgui.render();
 
-        renderer.render_frame();
+        Error rec_err = Ok;
+        TaskSystem::Handle rec = tasks.dispatch([&]{ rec_err = renderer.record(); });
+        tasks.wait(rec);
+        BALLISTIC_ERR_FAIL_COND_V(rec_err != Ok, (int)rec_err);
+
+        // renderer.record();
         
         renderer.end_frame();
         imgui.end_frame(renderer.frame_number);

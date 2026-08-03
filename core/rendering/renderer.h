@@ -26,7 +26,7 @@ struct Renderer
     std::vector<VkFence> in_flight_fences;
     std::vector<drivers::DeviceDriverVulkan::CommandPool> command_pools;
     std::vector<VkCommandBuffer> command_buffers;
-    VkCommandBuffer cmd = VK_NULL_HANDLE;
+    // VkCommandBuffer cmd = VK_NULL_HANDLE;
 
     Error initialize(drivers::DeviceDriverVulkan& r_dd);
     void shutdown();
@@ -37,7 +37,7 @@ struct Renderer
 
     Error begin_frame();
     void compile();
-    void render_frame();
+    Error record();
     Error end_frame();
 };
 

@@ -6,6 +6,7 @@
 #include <core/rendering/renderer.h>
 #include <core/project/project.h>
 #include <core/scene/scenes.h>
+#include <core/base/tasks.h>
 #include <core/base/error.h>
 #include <string>
 #include <filesystem>
@@ -31,6 +32,8 @@ struct Application
     Renderer renderer;
     RenderPath* render_path = nullptr;
     RenderPath* pending_render_path = nullptr;
+
+    TaskSystem tasks;
 
     drivers::ImGuiDriver imgui;
 
