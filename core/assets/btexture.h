@@ -16,6 +16,7 @@ struct BTexturePayloadHeader {
     uint32_t flags;
     uint32_t _pad;
 };
+
 static_assert(sizeof(BTexturePayloadHeader) == 24, "BTexturePayloadHeader layout changed");
 static_assert(std::is_trivially_copyable_v<BTexturePayloadHeader>, "must be blittable");
 

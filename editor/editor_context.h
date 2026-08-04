@@ -12,6 +12,7 @@ struct TaskSystem;
 struct EditorRenderPath;
 struct EditorSettings;
 struct EditorResources;
+struct AssetImportTracker;
 struct PopupManager;
 struct ProjectManager;
 struct Editor;
@@ -27,6 +28,7 @@ struct EditorContext
     
     EditorSettings* settings = nullptr;
     EditorResources* resources = nullptr;
+    AssetImportTracker* imports = nullptr;
     
     ProjectManager* project_manager = nullptr;
     Editor* editor = nullptr;

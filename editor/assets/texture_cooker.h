@@ -1,19 +1,15 @@
 #pragma once
-#include <core/assets/guid.h>
-#include <core/base/error.h>
-#include <editor/editor_context.h>
+#include <editor/assets/asset_import.h>
 #include <filesystem>
 
 namespace ballistic {
 
 struct Project;
+struct EditorContext;
 
 struct TextureCooker
 {
-    struct CookSettings {
-        bool srgb = true;
-        bool generate_mips = true;
-    };
+    struct CookSettings { bool srgb = true; bool generate_mips = true; };
 
     struct Job {
         std::filesystem::path source;
@@ -21,9 +17,9 @@ struct TextureCooker
         std::filesystem::path content_bin;
         Guid guid;
         CookSettings settings;
+        ImportProgress progress;
     };
-
-    static Error _prepare(const Project& p_project, const std::filesystem::path& p_src, const std::filesystem::path& p_dst, const CookSettings& p_settings, Job& r_job);
+    
     static Error _cook(const Job& p_job);
 
     static Error import(const Project& p_project, const std::filesystem::path& p_src, const std::filesystem::path& p_dst, Guid& r_guid, const CookSettings& p_settings = {});

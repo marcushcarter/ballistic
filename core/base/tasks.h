@@ -15,26 +15,35 @@ struct TaskSystem
 { 
     using Handle = std::shared_ptr<std::atomic<uint32_t>>;
 
+    enum class Priority { High = 0, Normal = 1 }; 
+
     struct Task {
         std::function<void()> fn;
         Handle counter;
+        bool is_normal = false;
     };
 
     std::vector<std::thread> workers;
-    std::deque<Task> queue;
+    std::deque<Task> high;
+    std::deque<Task> normal;
     std::mutex mutex;
     std::condition_variable cv;
     bool running = false;
 
-    void start(uint32_t worker);
+    uint32_t high_reserve = 1;
+    uint32_t normal_in_flight = 0;
+
+    void start(uint32_t p_worker_count, uint32_t p_high_reserve);
     void stop();
 
-    Handle dispatch(std::function<void()> fn);
-    void parallel_for(uint32_t p_count, std::function<uint32_t(uint32_t)>& fn);
-    void wait(const Handle& handle);
-
+    bool _pop(Task& r_task);
     bool _try_run_one();
     void _worker_loop();
+    uint32_t _normal_cap() const;
+
+    Handle dispatch(std::function<void()> fn, Priority p = Priority::Normal);
+    void parallel_for(uint32_t p_count, std::function<uint32_t(uint32_t)>& fn);
+    void wait(const Handle& handle);
 };
-    
+
 }

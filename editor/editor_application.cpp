@@ -439,6 +439,7 @@ EditorContext EditorApplication::_make_context()
     
     ctx.settings = &settings;
     ctx.resources = &resources;
+    ctx.imports = &imports;
     
     ctx.project_manager = &project_manager;
     ctx.editor = &editor;

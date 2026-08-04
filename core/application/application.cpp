@@ -52,7 +52,7 @@ Error Application::initialize(const ApplicationCreateInfo& p_create_info)
     err = render_path->create_resources();
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
-    tasks.start(std::max(1u, std::thread::hardware_concurrency() - 1u));
+    tasks.start(std::max(1u, std::thread::hardware_concurrency() - 1u), 1);
     
     return Ok;
 }
@@ -114,7 +114,7 @@ int Application::run()
         imgui.render();
 
         Error rec_err = Ok;
-        TaskSystem::Handle rec = tasks.dispatch([&]{ rec_err = renderer.record(); });
+        TaskSystem::Handle rec = tasks.dispatch([&]{ rec_err = renderer.record(); }, TaskSystem::Priority::High);
         tasks.wait(rec);
         BALLISTIC_ERR_FAIL_COND_V(rec_err != Ok, (int)rec_err);
         

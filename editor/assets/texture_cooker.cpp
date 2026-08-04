@@ -1,6 +1,9 @@
 #include <editor/assets/texture_cooker.h>
 #include <core/project/project.h>
 #include <core/assets/asset_common.h>
+#include <editor/assets/asset_import.h>
+#include <editor/editor_context.h>
+#include <core/project/project.h>
 #include <core/assets/btexture.h>
 #include <core/io/image_io.h>
 #include <core/base/tasks.h>
@@ -81,30 +84,12 @@ static bool write_file_atomic(const std::filesystem::path& p_path, const void* p
     return true;
 }
 
-Error TextureCooker::_prepare(const Project& p_project, const std::filesystem::path& p_src, const std::filesystem::path& p_dst, const TextureCooker::CookSettings& p_settings, Job& r_job)
-{
-    using enum Error;
-
-    Guid guid{};
-    std::error_code ec;
-    if (std::filesystem::exists(p_dst, ec)) {
-        AssetInfo existing = read_asset_info(p_dst);
-        if (!existing.valid() || existing.type != AssetType::Texture) return Failed;
-        guid = existing.guid;
-    }
-    else guid = Guid::generate();
-
-    r_job.source = p_src;
-    r_job.dest_btexture = p_dst;
-    r_job.content_bin = p_project.content_path(guid);
-    r_job.guid = guid;
-    r_job.settings = p_settings;
-    return Ok;
-}
-
 Error TextureCooker::_cook(const Job& p_job)
 {
     using enum Error;
+
+    auto report = [&](float v){ if (p_job.progress) p_job.progress->store(v, std::memory_order_relaxed); };
+    report(0.0f);
 
     auto img = ImageIO::load_from_file<uint8_t, 4>(p_job.source.wstring());
     if (!img.valid()) return Failed;
@@ -127,6 +112,8 @@ Error TextureCooker::_cook(const Job& p_job)
         }
     }
     const uint32_t mip_count = static_cast<uint32_t>(mips.size());
+    
+    report(0.1f);
 
     std::vector<uint8_t> blocks;
     for (uint32_t m = 0; m < mip_count; ++m) {
@@ -147,6 +134,8 @@ Error TextureCooker::_cook(const Job& p_job)
         if (!enc.encode())     return Failed;
         const uint8_t* b = static_cast<const uint8_t*>(enc.get_blocks());
         blocks.insert(blocks.end(), b, b + enc.get_total_blocks_size_in_bytes());
+
+        report(0.1f + 0.8f * (float)(m + 1) / (float)mip_count);
     }
 
     BTexturePayloadHeader ph{};
@@ -167,6 +156,8 @@ Error TextureCooker::_cook(const Job& p_job)
     std::filesystem::create_directories(p_job.content_bin.parent_path(), ec);
     if (!write_file_atomic(p_job.content_bin, bin.data(), bin.size())) return Failed;
 
+    report(0.95f);
+
     toml::table tbl {
         { "asset", toml::table{
             { "version", static_cast<int64_t>(BASSET_VERSION) },
@@ -181,27 +172,35 @@ Error TextureCooker::_cook(const Job& p_job)
     std::string text; { std::ostringstream ss; ss << tbl; text = ss.str(); }
     if (!write_file_atomic(p_job.dest_btexture, text.data(), text.size())) return Failed;
 
+    report(1.0f);
     return Ok;
 }
 
-Error TextureCooker::import(const Project& r_project, const std::filesystem::path& p_src, const std::filesystem::path& p_dst, Guid& r_guid, const CookSettings& p_settings)
+Error TextureCooker::import(const Project& p_project, const std::filesystem::path& p_src, const std::filesystem::path& p_dst, Guid& r_guid, const CookSettings& p_settings)
 {
     using enum Error;
-    TextureCooker::Job job;
-    if (TextureCooker::_prepare(r_project, p_src, p_dst, p_settings, job) != Ok) return Failed;
-    if (TextureCooker::_cook(job) != Ok) return Failed;
+    Job job;
+    job.source = p_src;
+    job.dest_btexture = p_dst;
+    job.settings = p_settings;
+    if (AssetImportTracker::resolve_import(p_project, AssetType::Texture, p_dst, job.guid, job.content_bin) != Ok) return Failed;
+    if (_cook(job) != Ok) return Failed;
     r_guid = job.guid;
-    return Ok;    
+    return Ok;   
 }
 
-void TextureCooker::import_async(EditorContext& ctx, const std::filesystem::path& src, const std::filesystem::path& dst, const TextureCooker::CookSettings& p_settings)
+void TextureCooker::import_async(EditorContext& ctx, const std::filesystem::path& p_src, const std::filesystem::path& p_dst, const TextureCooker::CookSettings& p_settings)
 {
     Job job;
-    if (_prepare(*ctx.project, src, dst, p_settings, job) != Error::Ok) {
-        log_write("Texture import failed: %s", src.string().c_str());
+    job.source = p_src;
+    job.dest_btexture = p_dst;
+    job.settings = p_settings;
+    if (AssetImportTracker::resolve_import(*ctx.project, AssetType::Texture, p_dst, job.guid, job.content_bin) != Error::Ok) {
+        log_write("Texture import failed: %s", p_src.string().c_str());
         return;
     }
-    ctx.tasks->dispatch([job]{ _cook(job); });
+    job.progress = ctx.imports->add(p_dst);
+    ctx.tasks->dispatch([job]{ if (TextureCooker::_cook(job) != Error::Ok) job.progress->store(1.0f, std::memory_order_relaxed); });
 }
 
 }

@@ -1,13 +1,14 @@
 #include <editor/panel/asset_browser/asset_browser_grid.h>
 #include <editor/editor_resources.h>
 #include <drivers/imgui/imgui_driver.h>
+#include <editor/assets/asset_import.h>
 #include <core/io/path.h>
 #include <imgui.h>
 #include <cstdio>
 
 namespace ballistic {
 
-bool AssetBrowserGrid::_draw_card(ImTextureID p_texture, const char* p_name, const char* p_type, const std::filesystem::path& p_path)
+bool AssetBrowserGrid::_draw_card(ImTextureID p_texture, const char* p_name, const char* p_type, const std::filesystem::path& p_path, float p_progress)
 {
     ImDrawList* dl = ImGui::GetWindowDrawList();
 
@@ -30,7 +31,7 @@ bool AssetBrowserGrid::_draw_card(ImTextureID p_texture, const char* p_name, con
 
     const ImVec2 thumb1(p0.x + card_width, p0.y + card_width);
     const ImVec2 foot0(p0.x, thumb1.y);
-    const ImVec2 sh_off(-2.0f, 2.0f);
+    const ImVec2 sh_off(2.0f, 2.0f);
     const ImVec2 img0(p0.x + img_pad, p0.y + img_pad);
     const ImVec2 img1(thumb1.x - img_pad, thumb1.y - img_pad);
     
@@ -53,6 +54,15 @@ bool AssetBrowserGrid::_draw_card(ImTextureID p_texture, const char* p_name, con
         dl->AddText(type_pos, IM_COL32(120, 120, 128, 255), p_type);
     }
 
+    if (p_progress >= 0.0f && p_progress < 1.0f) {
+        const float bar_h = 3.0f;
+        const ImVec2 bar0(p0.x, p1.y - bar_h);
+        const ImVec2 bar1(p1.x, p1.y);
+        dl->AddRectFilled(bar0, bar1, IM_COL32(0, 0, 0, 160), rounding, ImDrawFlags_RoundCornersBottom);
+        const float w = (bar1.x - bar0.x) * (p_progress < 0.0f ? 0.0f : p_progress);
+        if (w > 0.5f) dl->AddRectFilled(bar0, ImVec2(bar0.x + w, bar1.y), ImGui::GetColorU32(ImGuiCol_Button), rounding, w >= (bar1.x - bar0.x) - rounding ? ImDrawFlags_RoundCornersBottom : ImDrawFlags_RoundCornersBottomLeft);
+    }
+
     return double_clicked;
 }
 
@@ -69,6 +79,7 @@ void AssetBrowserGrid::draw(EditorContext& ctx, std::filesystem::path& selected,
     if (columns > 1) gap = (avail - (float)columns * (float)card_width) / (float)(columns - 1);
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(min_gap, row_gap));
+    ctx.imports->tick();
 
     if (!selected.empty() && std::filesystem::exists(selected)) {
         std::vector<std::filesystem::directory_entry> entries;
@@ -86,39 +97,47 @@ void AssetBrowserGrid::draw(EditorContext& ctx, std::filesystem::path& selected,
         std::string query = search_buf;
         std::transform(query.begin(), query.end(), query.begin(), [](unsigned char c) { return (char)std::tolower(c); });
 
-        int i = 0;
-        for (const auto& entry : entries) {
-            // if (entry.is_directory()) continue;
+        auto matches = [&](const std::filesystem::path& p) {
+            if (query.empty()) return true;
+            std::string hay = p.filename().string();
+            std::transform(hay.begin(), hay.end(), hay.begin(), [](unsigned char c){ return (char)std::tolower(c); });
+            return hay.find(query) != std::string::npos;
+        };
 
-            if (!query.empty()) {
-                std::string hay = entry.path().filename().string();
-                std::transform(hay.begin(), hay.end(), hay.begin(),
-                    [](unsigned char c) { return (char)std::tolower(c); });
-                if (hay.find(query) == std::string::npos) continue;
-            }
+        int i = 0;
+
+        for (const auto& entry : entries) {
+            if (!matches(entry.path())) continue;
 
             const std::string name = entry.path().stem().string();
             std::string type = entry.path().extension().string();
             for (char& c : type) c = (char)toupper((unsigned char)c);
 
             if (i % columns != 0) ImGui::SameLine(0.0f, gap);
-            
             ImGui::PushID(i);
-            VkDescriptorSet logo_set = ctx.imgui->texture_cache.get(ctx.resources->test_thumbnail.image_view);
-            if (entry.is_directory()) logo_set = VK_NULL_HANDLE;
-            const bool activated = _draw_card((ImTextureID)logo_set, name.c_str(), type.c_str(), entry.path());
+            
+            const float progress = ctx.imports->progress(entry.path());
+            VkDescriptorSet thumb = entry.is_directory() ? VK_NULL_HANDLE : ctx.imgui->texture_cache.get(ctx.resources->test_thumbnail.image_view);
+            const bool activated = _draw_card((ImTextureID)thumb, name.c_str(), type.c_str(), entry.path(), progress);
 
             if (entry.is_directory() && ImGui::BeginDragDropTarget()) {
-                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PATH")) {
-                    Paths::asset_move((const char*)payload->Data, entry.path());
-                }
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PATH")) Paths::asset_move((const char*)payload->Data, entry.path());
                 ImGui::EndDragDropTarget();
             }
-
             if (activated && entry.is_directory()) selected = entry.path();
+            
             ImGui::PopID();
-
             i++;
+        }
+
+        std::vector<std::filesystem::path> pending = ctx.imports->pending_out(selected);
+        for (const auto& ppath : pending) {
+            if (!matches(ppath)) continue;
+            if (i % columns != 0) ImGui::SameLine(0.0f, gap);
+            ImGui::PushID(i);
+            _draw_card(0, ppath.stem().string().c_str(), "IMPORTING", ppath, ctx.imports->progress(ppath));
+            ImGui::PopID();
+            ++i;
         }
     }
     
