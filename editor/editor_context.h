@@ -8,6 +8,7 @@ namespace drivers { struct WindowDriverWin32; }
 namespace drivers { struct ImGuiDriver; }
 struct Renderer;
 struct Project;
+struct TaskSystem;
 struct EditorRenderPath;
 struct EditorSettings;
 struct EditorResources;
@@ -22,6 +23,7 @@ struct EditorContext
     Renderer* renderer = nullptr;
     EditorRenderPath* render_path = nullptr;
     Project* project = nullptr;
+    TaskSystem* tasks = nullptr;
     
     EditorSettings* settings = nullptr;
     EditorResources* resources = nullptr;

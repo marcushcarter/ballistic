@@ -121,15 +121,8 @@ void AssetBrowserGrid::draw(EditorContext& ctx, std::filesystem::path& selected,
             i++;
         }
     }
-
+    
     ImGui::PopStyleVar();
-    
-    if (ImGui::BeginPopupContextWindow("##grid_ctx", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems)) {
-        ImGui::MenuItem("New Folder", nullptr, false, /*enabled=*/false);
-        ImGui::MenuItem("Import...",  nullptr, false, /*enabled=*/false);
-        ImGui::EndPopup();
-    }
-    
 }
 
 }

@@ -1,5 +1,5 @@
 #pragma once
-#include <core/base/guid.h>
+#include <core/assets/guid.h>
 #include <core/base/error.h>
 #include <vector>
 

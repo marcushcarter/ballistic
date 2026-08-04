@@ -11,7 +11,7 @@ struct AssetBrowserToolbar
     void _folder_menu(const std::filesystem::path& dir, std::filesystem::path& selected);
 
     void draw_sidebar(const std::filesystem::path& root, std::filesystem::path& selected);
-    void draw_header(const std::filesystem::path& root, std::filesystem::path& selected, char* search_buf, size_t search_cap);
+    void draw_header(EditorContext& ctx, const std::filesystem::path& root, std::filesystem::path& selected, char* search_buf, size_t search_cap);
 };
 
 }

@@ -7,6 +7,10 @@
 #include <cstdio>
 #include <cstdint>
 
+#include <editor/assets/texture_cooker.h>
+#include <drivers/windows/dialogs_win32.h>
+#include <core/project/project.h>
+
 namespace ballistic {
 
 void AssetBrowserToolbar::_breadcrumb(const std::filesystem::path& root, std::filesystem::path& selected)
@@ -67,16 +71,29 @@ void AssetBrowserToolbar::draw_sidebar(const std::filesystem::path& root, std::f
     }
 }
 
-void AssetBrowserToolbar::draw_header(const std::filesystem::path& root, std::filesystem::path& selected, char* search_buf, size_t search_cap)
+void AssetBrowserToolbar::draw_header(EditorContext& ctx, const std::filesystem::path& root, std::filesystem::path& selected, char* search_buf, size_t search_cap)
 {
     ImGui::BeginDisabled(!(!selected.empty() && selected != root));
     if (ImGui::Button(ICON_FA_CHEVRON_LEFT)) selected = selected.parent_path();
     ImGui::EndDisabled();
     
-    // ImGui::SameLine();
-    // if (ImGui::Button(ICON_FA_ARROWS_ROTATE)) {}
-    // ImGui::SameLine();
-    // ImGui::Button(ICON_FA_XMARK);
+    ImGui::SameLine();
+    if (ImGui::Button("New Folder")) {
+        std::filesystem::create_directory(ctx.project->assets_dir / "New Folder");
+    }
+    
+    ImGui::SameLine();
+    if (ImGui::Button("+ Import")) {
+        if (!selected.empty() && std::filesystem::exists(selected)) {
+            std::wstring src = drivers::open_file_dialog_win32(L"Images\0*.png;*.jpg;*.jpeg;*.tga;*.bmp\0All Files\0*.*\0");
+
+            if (!src.empty()) {
+                const std::filesystem::path source = src;
+                const std::filesystem::path dst = selected / (source.stem().wstring() + L".btexture");
+                TextureCooker::import_async(ctx, source, dst);
+            }
+        }
+    }
     
     ImGui::SameLine();
     ImGui::InputTextWithHint("##search", "Search..", search_buf, search_cap);

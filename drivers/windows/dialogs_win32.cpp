@@ -25,6 +25,24 @@ std::wstring save_file_dialog_win32(const wchar_t* p_filter, const wchar_t* p_de
     return {};
 }
 
+std::wstring open_file_dialog_win32(const wchar_t* p_filter)
+{
+    wchar_t path[MAX_PATH] = {};
+
+    OPENFILENAMEW ofn{};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner   = GetActiveWindow();
+    ofn.lpstrFilter = p_filter;
+    ofn.lpstrFile   = path;
+    ofn.nMaxFile    = MAX_PATH;
+    ofn.Flags       = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+
+    if (GetOpenFileNameW(&ofn))
+        return std::wstring(path);
+
+    return {};
+}
+
 std::wstring open_folder_dialog_win32(const wchar_t* p_title)
 {
     std::wstring result;

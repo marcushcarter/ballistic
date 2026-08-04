@@ -15,3 +15,16 @@ target_include_directories(IconFontCppHeaders INTERFACE IconFontCppHeaders)
 
 add_library(toml INTERFACE)
 target_include_directories(toml INTERFACE toml/include)
+
+add_library(bc7enc STATIC
+    bc7enc_rdo/bc7enc.cpp
+    bc7enc_rdo/bc7decomp.cpp
+    bc7enc_rdo/bc7decomp_ref.cpp
+    bc7enc_rdo/rgbcx.cpp
+    bc7enc_rdo/rdo_bc_encoder.cpp
+    bc7enc_rdo/ert.cpp
+    bc7enc_rdo/utils.cpp
+    bc7enc_rdo/lodepng.cpp
+)
+target_include_directories(bc7enc PUBLIC bc7enc_rdo)
+target_compile_options(bc7enc PRIVATE /W1)

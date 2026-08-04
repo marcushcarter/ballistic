@@ -11,6 +11,7 @@ struct ImageData
     T* pixels = nullptr;
     int width = 0;
     int height = 0;
+    int source_channels = 0;
     [[nodiscard]] bool valid() const { return pixels != nullptr && width > 0 && height > 0; }
 };
 

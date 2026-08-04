@@ -20,6 +20,8 @@ void AssetBrowserPanel::_draw_divider_shadow(const ImVec2& region_p0, float regi
 
 void AssetBrowserPanel::draw_contents(EditorContext& ctx)
 {
+    if (selected_folder.empty()) selected_folder = ctx.project->assets_dir;
+    
     const std::filesystem::path& root = ctx.project->assets_dir;
 
     const ImVec2 region_p0 = ImGui::GetCursorScreenPos();
@@ -33,7 +35,7 @@ void AssetBrowserPanel::draw_contents(EditorContext& ctx)
 
     ImGui::BeginChild("##right", ImVec2(0, 0), true);
     {
-        toolbar.draw_header(root, selected_folder, search_buf, sizeof(search_buf));
+        toolbar.draw_header(ctx, root, selected_folder, search_buf, sizeof(search_buf));
         
         ImGui::BeginChild("##bottom_right", ImVec2(0, 0), true);
         grid.draw(ctx, selected_folder, search_buf);

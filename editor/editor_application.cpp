@@ -435,6 +435,7 @@ EditorContext EditorApplication::_make_context()
     ctx.renderer = &renderer;
     ctx.render_path = static_cast<EditorRenderPath*>(render_path);
     ctx.project = &project;
+    ctx.tasks = &tasks;
     
     ctx.settings = &settings;
     ctx.resources = &resources;

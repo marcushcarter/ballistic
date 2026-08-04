@@ -30,8 +30,7 @@ ImageData<T, Channels> ImageIO::load_from_file(const std::wstring& p_path)
     ImageData<T, Channels> image;
     FILE* file = nullptr;
     if (_wfopen_s(&file, p_path.c_str(), L"rb") != 0 || !file) return image;
-    int source_channels = 0;
-    image.pixels = reinterpret_cast<T*>(stbi_load_from_file(file, &image.width, &image.height, &source_channels, Channels));
+    image.pixels = reinterpret_cast<T*>(stbi_load_from_file(file, &image.width, &image.height, &image.source_channels, Channels));
     fclose(file);
     return image;
 }
@@ -43,8 +42,7 @@ ImageData<T, Channels> ImageIO::load_from_resource(const std::wstring& p_resourc
     const void* raw_data = nullptr;
     DWORD raw_size = 0;
     if (!get_resource_bytes(p_resource_name, raw_data, raw_size)) return image;
-    int source_channels = 0;
-    image.pixels = reinterpret_cast<T*>(stbi_load_from_memory(static_cast<const unsigned char*>(raw_data), static_cast<int>(raw_size), &image.width, &image.height, &source_channels, Channels));
+    image.pixels = reinterpret_cast<T*>(stbi_load_from_memory(static_cast<const unsigned char*>(raw_data), static_cast<int>(raw_size), &image.width, &image.height, &image.source_channels, Channels));
     return image;
 }
 

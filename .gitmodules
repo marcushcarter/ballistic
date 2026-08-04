@@ -17,3 +17,6 @@
 [submodule "thirdparty/toml"]
 	path = thirdparty/toml
 	url = https://github.com/marzer/tomlplusplus.git
+[submodule "thirdparty/bc7enc_rdo"]
+	path = thirdparty/bc7enc_rdo
+	url = https://github.com/richgel999/bc7enc_rdo
