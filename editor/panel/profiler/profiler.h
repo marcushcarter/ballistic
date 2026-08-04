@@ -7,7 +7,7 @@
 
 namespace ballistic {
 
-struct Profiler : Panel
+struct ProfilerPanel : Panel
 {
     const char* name() const override { return "GPU Profiler"; }
 

@@ -7,7 +7,7 @@
 
 namespace ballistic {
 
-void Console::draw_contents(EditorContext& ctx)
+void ConsolePanel::draw_contents(EditorContext& ctx)
 {
     (void)ctx;
     

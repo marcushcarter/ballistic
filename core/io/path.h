@@ -20,6 +20,9 @@ struct Paths
 
     static Error set_hidden(const std::filesystem::path& p_path, bool p_hidden = true);
     static void reveal_in_explorer(const std::filesystem::path& p_path);
+
+    static void asset_move(const std::filesystem::path& src, const std::filesystem::path& dst_dir);
+    static bool is_under(const std::filesystem::path& p, const std::filesystem::path& base);
 };
     
 };

@@ -11,6 +11,7 @@ struct EditorResources
     
     drivers::DeviceDriverVulkan::Image icon_image;
     drivers::DeviceDriverVulkan::Image logo_image;
+    drivers::DeviceDriverVulkan::Image test_thumbnail;
 
     std::string license_text;
     std::string eula_text;

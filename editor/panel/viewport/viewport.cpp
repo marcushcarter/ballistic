@@ -1,18 +1,17 @@
 #include <editor/panel/viewport/viewport.h>
 #include <drivers/imgui/imgui_driver.h>
 #include <core/rendering/renderer.h>
-#include <imgui.h>
 #include <IconsFontAwesome6.h>
 
 namespace ballistic {
 
-int Viewport::push_style()
+int ViewportPanel::push_style()
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     return 1;
 }
 
-void Viewport::draw_contents(EditorContext& ctx)
+void ViewportPanel::draw_contents(EditorContext& ctx)
 {
     ImVec2 size = ImGui::GetContentRegionAvail();
     ImVec2 pos = ImGui::GetCursorScreenPos();

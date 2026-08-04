@@ -6,7 +6,7 @@
 
 namespace ballistic {
 
-struct MemoryProfiler : Panel
+struct MemoryProfilerPanel : Panel
 {    
     uint64_t frame_counter = 0;
     uint64_t peak_bytes = 0;

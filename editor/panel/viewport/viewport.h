@@ -4,7 +4,7 @@
 
 namespace ballistic {
 
-struct Viewport : Panel
+struct ViewportPanel : Panel
 {
     uint64_t selected_name_id = 0;
 

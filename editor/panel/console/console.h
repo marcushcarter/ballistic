@@ -3,7 +3,7 @@
 
 namespace ballistic {
 
-struct Console : Panel
+struct ConsolePanel : Panel
 {
     const char* name() const override { return "Console"; }
     void draw_contents(EditorContext& ctx) override;

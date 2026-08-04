@@ -3,6 +3,7 @@
 #include <editor/panel/viewport/viewport.h>
 #include <editor/panel/console/console.h>
 #include <editor/panel/profiler/profiler.h>
+#include <editor/panel/asset_browser/asset_browser.h>
 #include <editor/panel/memory_profiler/memory_profiler.h>
 #include <core/rendering/render_path/editor_render_path.h>
 #include <editor/editor_settings.h>
@@ -14,10 +15,11 @@ Error Editor::initialize()
 {
     using enum Error;
 
-    panels.push_back(std::make_unique<Viewport>());
-    panels.push_back(std::make_unique<Console>());
-    panels.push_back(std::make_unique<Profiler>());
-    panels.push_back(std::make_unique<MemoryProfiler>());
+    panels.push_back(std::make_unique<ViewportPanel>());
+    panels.push_back(std::make_unique<ConsolePanel>());
+    panels.push_back(std::make_unique<ProfilerPanel>());
+    panels.push_back(std::make_unique<MemoryProfilerPanel>());
+    panels.push_back(std::make_unique<AssetBrowserPanel>());
 
     return Ok;
 }

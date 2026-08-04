@@ -29,6 +29,7 @@ Error EditorApplication::on_init()
     using enum Error;
     Error err;
     
+    win32.window_set_custom_titlebar(true);
     win32.window_set_title("Ballistic Editor");
 
     err = resources.initialize(dd);

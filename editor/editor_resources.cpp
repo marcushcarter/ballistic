@@ -18,6 +18,10 @@ Error EditorResources::initialize(drivers::DeviceDriverVulkan& r_dd)
     if (logo_data.valid()) logo_image = dd->image_create_texture(logo_data.pixels, static_cast<uint32_t>(logo_data.width), static_cast<uint32_t>(logo_data.height), "editor_logo");
     ImageIO::free_image(logo_data);
 
+    ImageData<uint8_t, 4> test_data = ImageIO::load_from_resource<uint8_t, 4>(L"LOGOS_TEST_THUMBNAIL_PNG");
+    if (test_data.valid()) test_thumbnail = dd->image_create_texture(test_data.pixels, static_cast<uint32_t>(test_data.width), static_cast<uint32_t>(test_data.height), "editor_logo");
+    ImageIO::free_image(test_data);
+
     {
         EmbeddedResource::Blob blob = EmbeddedResource::load(L"LICENSE");
         license_text.assign((const char*)blob.data, blob.size);
@@ -39,6 +43,7 @@ void EditorResources::shutdown()
 
     dd->image_free(icon_image);
     dd->image_free(logo_image);
+    dd->image_free(test_thumbnail);
 }
 
 }

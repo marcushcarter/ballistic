@@ -3,18 +3,17 @@
 #include <core/rendering/renderer.h>
 #include <core/base/utils.h>
 #include <vulkan/vk_enum_string_helper.h>
-#include <imgui.h>
 #include <imgui_internal.h>
 #include <cstdio>
 
 namespace ballistic {
 
-void MemoryProfiler::before_begin()
+void MemoryProfilerPanel::before_begin()
 {
     ImGui::SetNextWindowSize(ImVec2(620, 720), ImGuiCond_FirstUseEver);
 }
 
-void MemoryProfiler::draw_contents(EditorContext& ctx)
+void MemoryProfilerPanel::draw_contents(EditorContext& ctx)
 {
     drivers::DeviceDriverVulkan* dd = ctx.renderer->dd;
 

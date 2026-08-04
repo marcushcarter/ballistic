@@ -62,4 +62,33 @@ void Paths::reveal_in_explorer(const std::filesystem::path& p_path)
         ShellExecuteW(nullptr, nullptr, L"explorer.exe", arg.c_str(), nullptr, SW_SHOWNORMAL);
     }
 }
+
+void Paths::asset_move(const std::filesystem::path& src, const std::filesystem::path& dst_dir)
+{
+    if (src.empty() || dst_dir.empty()) return;
+    if (src.parent_path() == dst_dir) return;
+
+    auto s = src.begin();
+    auto d = dst_dir.begin();
+    bool src_is_prefix = true;
+    for (; s != src.end(); ++s, ++d) {
+        if (d == dst_dir.end() || *d != *s) { src_is_prefix = false; break; }
+    }
+    if (src_is_prefix) return;
+
+    const std::filesystem::path dst = dst_dir / src.filename();
+    if (std::filesystem::exists(dst)) return;
+
+    std::error_code ec;
+    std::filesystem::rename(src, dst, ec);
+}
+
+bool Paths::is_under(const std::filesystem::path& p, const std::filesystem::path& base)
+{
+    auto pb = p.begin();
+    auto bb = base.begin();
+    for (; bb != base.end(); ++bb, ++pb) if (pb == p.end() || *pb != *bb) return false;
+    return true;
+}
+
 };

@@ -6,12 +6,12 @@
 
 namespace ballistic {
 
-void Profiler::before_begin()
+void ProfilerPanel::before_begin()
 {
     ImGui::SetNextWindowSize(ImVec2(1100, 600), ImGuiCond_FirstUseEver);
 }
 
-void Profiler::draw_contents(EditorContext& ctx)
+void ProfilerPanel::draw_contents(EditorContext& ctx)
 {
     auto& profiler = ctx.renderer->graph.profiler;
 
