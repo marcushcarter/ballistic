@@ -858,6 +858,199 @@ void DeviceDriverVulkan::image_free(Image& r_image)
     r_image.state = {};
 }
 
+DeviceDriverVulkan::Image DeviceDriverVulkan::image_create_texture(const void* p_rgba, uint32_t p_width, uint32_t p_height, const char* p_name)
+{
+    using enum Error;
+
+    ImageCreateInfo ci{};
+    ci.format = VK_FORMAT_R8G8B8A8_UNORM;
+    ci.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    ci.mip_levels = 1;
+    ci.layers = 1;
+    ci.samples = VK_SAMPLE_COUNT_1_BIT;
+    ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    ci.pool = image_texture_pool;
+    ci.name = p_name;
+
+    Image image = image_create_dedicated(ci, { p_width, p_height });
+    BALLISTIC_ERR_FAIL_COND_V(image.image == VK_NULL_HANDLE, {});
+
+    const VkDeviceSize bytes = (VkDeviceSize)p_width * p_height * 4;
+
+    BufferCreateInfo staging_ci{};
+    staging_ci.size = bytes;
+    staging_ci.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    staging_ci.host_visible = true;
+    staging_ci.pool = upload_pool;
+    staging_ci.name = "texture_staging";
+    Buffer staging = buffer_create(staging_ci);
+    BALLISTIC_ERR_FAIL_COND_V(!staging.buffer, {});
+    buffer_update(staging, p_rgba, bytes, 0);
+    buffer_flush(staging, 0, bytes);
+
+    CommandPool pool = command_pool_create(cd->graphics_queue_family, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    VkCommandBuffer cmd = command_buffer_create(pool);
+    command_buffer_begin(cmd, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+    auto barrier = [&](VkImageLayout from, VkImageLayout to, VkPipelineStageFlags2 ss, VkAccessFlags2 sa, VkPipelineStageFlags2 ds, VkAccessFlags2 da) {
+        VkImageMemoryBarrier2 b{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+        b.srcStageMask = ss; b.srcAccessMask = sa;
+        b.dstStageMask = ds; b.dstAccessMask = da;
+        b.oldLayout = from; b.newLayout = to;
+        b.srcQueueFamilyIndex = b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        b.image = image.image;
+        b.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+        VkDependencyInfo dep{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+        dep.imageMemoryBarrierCount = 1;
+        dep.pImageMemoryBarriers = &b;
+        vkCmdPipelineBarrier2(cmd, &dep);
+    };
+
+    barrier(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+
+    VkBufferImageCopy region{};
+    region.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+    region.imageExtent = { p_width, p_height, 1 };
+    vkCmdCopyBufferToImage(cmd, staging.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+    barrier(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+
+    command_buffer_end(cmd);
+    VkCommandBufferSubmitInfo cmd_si{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO };
+    cmd_si.commandBuffer = cmd;
+    VkSubmitInfo2 submit{ VK_STRUCTURE_TYPE_SUBMIT_INFO_2 };
+    submit.commandBufferInfoCount = 1;
+    submit.pCommandBufferInfos = &cmd_si;
+
+    VkFence fence = fence_create(false);
+    vkQueueSubmit2(queue_families[cd->graphics_queue_family][0].queue, 1, &submit, fence);
+    fence_wait(fence, UINT64_MAX);
+
+    image.state.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    image.state.stage  = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+    image.state.access = VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;
+
+    fence_free(fence);
+    command_pool_free(pool);
+    buffer_free(staging);
+    
+    return image;
+}
+
+static uint32_t _bc_block_bytes(VkFormat p_format)
+{
+    switch (p_format) {
+        case VK_FORMAT_BC4_UNORM_BLOCK: return 8;
+        case VK_FORMAT_BC5_UNORM_BLOCK: return 16;
+        case VK_FORMAT_BC7_UNORM_BLOCK:
+        case VK_FORMAT_BC7_SRGB_BLOCK:  return 16;
+        default:                        return 16;
+    }
+}
+
+DeviceDriverVulkan::Image DeviceDriverVulkan::image_create_texture_compressed(VkFormat p_format, uint32_t p_width, uint32_t p_height, uint32_t p_mip_count, const void* p_blocks, VkDeviceSize p_blocks_size, const char* p_name)
+{
+    using enum Error;
+
+    const uint32_t mip_count = p_mip_count ? p_mip_count : 1;
+    const uint32_t block_bytes = _bc_block_bytes(p_format);
+
+    ImageCreateInfo ci{};
+    ci.format = p_format;
+    ci.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    ci.mip_levels = mip_count;
+    ci.layers = 1;
+    ci.samples = VK_SAMPLE_COUNT_1_BIT;
+    ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    ci.pool = image_texture_pool;
+    ci.name = p_name;
+
+    Image image = image_create_dedicated(ci, { p_width, p_height }); // auto-allocs bindless_sampled
+    BALLISTIC_ERR_FAIL_COND_V(image.image == VK_NULL_HANDLE, {});
+
+    BufferCreateInfo staging_ci{};
+    staging_ci.size = p_blocks_size;
+    staging_ci.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    staging_ci.host_visible = true;
+    staging_ci.pool = upload_pool;
+    staging_ci.name = "texture_bc_staging";
+    Buffer staging = buffer_create(staging_ci);
+    BALLISTIC_ERR_FAIL_COND_V(!staging.buffer, {});
+    buffer_update(staging, p_blocks, p_blocks_size, 0);
+    buffer_flush(staging, 0, p_blocks_size);
+
+    // One copy region per mip. Mips are concatenated tightly in blob order, no
+    // offset table — derive each mip's byte size from format + halved extent.
+    // The halving MUST match the cooker's chain (max(1, dim>>1)).
+    std::vector<VkBufferImageCopy> regions(mip_count);
+    VkDeviceSize offset = 0;
+    uint32_t mw = p_width, mh = p_height;
+    for (uint32_t m = 0; m < mip_count; ++m) {
+        const uint32_t bx = (mw + 3) / 4;
+        const uint32_t by = (mh + 3) / 4;
+
+        VkBufferImageCopy& r = regions[m];
+        r = {};
+        r.bufferOffset = offset;
+        r.bufferRowLength = 0;    // tightly packed
+        r.bufferImageHeight = 0;
+        r.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, m, 0, 1 };
+        r.imageOffset = { 0, 0, 0 };
+        r.imageExtent = { mw, mh, 1 };
+
+        offset += (VkDeviceSize)bx * by * block_bytes;
+        mw = mw > 1 ? mw >> 1 : 1;
+        mh = mh > 1 ? mh >> 1 : 1;
+    }
+
+    if (offset != p_blocks_size)
+        log_write("image_create_texture_compressed: derived %llu != blob %llu for '%s'",
+                  (unsigned long long)offset, (unsigned long long)p_blocks_size, p_name ? p_name : "<unnamed>");
+
+    CommandPool pool = command_pool_create(cd->graphics_queue_family, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    VkCommandBuffer cmd = command_buffer_create(pool);
+    command_buffer_begin(cmd, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+    auto barrier = [&](VkImageLayout from, VkImageLayout to, VkPipelineStageFlags2 ss, VkAccessFlags2 sa, VkPipelineStageFlags2 ds, VkAccessFlags2 da) {
+        VkImageMemoryBarrier2 b{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+        b.srcStageMask = ss; b.srcAccessMask = sa;
+        b.dstStageMask = ds; b.dstAccessMask = da;
+        b.oldLayout = from; b.newLayout = to;
+        b.srcQueueFamilyIndex = b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        b.image = image.image;
+        b.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, mip_count, 0, 1 };
+        VkDependencyInfo dep{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+        dep.imageMemoryBarrierCount = 1;
+        dep.pImageMemoryBarriers = &b;
+        vkCmdPipelineBarrier2(cmd, &dep);
+    };
+
+    barrier(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+    vkCmdCopyBufferToImage(cmd, staging.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mip_count, regions.data());
+    barrier(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
+
+    command_buffer_end(cmd);
+    VkCommandBufferSubmitInfo cmd_si{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO };
+    cmd_si.commandBuffer = cmd;
+    VkSubmitInfo2 submit{ VK_STRUCTURE_TYPE_SUBMIT_INFO_2 };
+    submit.commandBufferInfoCount = 1;
+    submit.pCommandBufferInfos = &cmd_si;
+
+    VkFence fence = fence_create(false);
+    vkQueueSubmit2(queue_families[cd->graphics_queue_family][0].queue, 1, &submit, fence);
+    fence_wait(fence, UINT64_MAX);
+
+    image.state.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    image.state.stage  = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+    image.state.access = VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;
+
+    fence_free(fence);
+    command_pool_free(pool);
+    buffer_free(staging);
+
+    return image;
+}
+
 /*****************/
 /**** BUFFERS ****/
 /*****************/
@@ -2427,85 +2620,6 @@ DeviceDriverVulkan::GpuDescription DeviceDriverVulkan::gpu_describe() const
     d.api_version = api;
 
     return d;
-}
-
-DeviceDriverVulkan::Image DeviceDriverVulkan::image_create_texture(const void* p_rgba, uint32_t p_width, uint32_t p_height, const char* p_name)
-{
-    using enum Error;
-
-    ImageCreateInfo ci{};
-    ci.format = VK_FORMAT_R8G8B8A8_UNORM;
-    ci.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    ci.mip_levels = 1;
-    ci.layers = 1;
-    ci.samples = VK_SAMPLE_COUNT_1_BIT;
-    ci.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    ci.pool = image_texture_pool;
-    ci.name = p_name;
-
-    Image image = image_create_dedicated(ci, { p_width, p_height });
-    BALLISTIC_ERR_FAIL_COND_V(image.image == VK_NULL_HANDLE, {});
-
-    const VkDeviceSize bytes = (VkDeviceSize)p_width * p_height * 4;
-
-    BufferCreateInfo staging_ci{};
-    staging_ci.size = bytes;
-    staging_ci.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    staging_ci.host_visible = true;
-    staging_ci.pool = upload_pool;
-    staging_ci.name = "texture_staging";
-    Buffer staging = buffer_create(staging_ci);
-    BALLISTIC_ERR_FAIL_COND_V(!staging.buffer, {});
-    buffer_update(staging, p_rgba, bytes, 0);
-    buffer_flush(staging, 0, bytes);
-
-    CommandPool pool = command_pool_create(cd->graphics_queue_family, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-    VkCommandBuffer cmd = command_buffer_create(pool);
-    command_buffer_begin(cmd, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-    auto barrier = [&](VkImageLayout from, VkImageLayout to, VkPipelineStageFlags2 ss, VkAccessFlags2 sa, VkPipelineStageFlags2 ds, VkAccessFlags2 da) {
-        VkImageMemoryBarrier2 b{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
-        b.srcStageMask = ss; b.srcAccessMask = sa;
-        b.dstStageMask = ds; b.dstAccessMask = da;
-        b.oldLayout = from; b.newLayout = to;
-        b.srcQueueFamilyIndex = b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        b.image = image.image;
-        b.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-        VkDependencyInfo dep{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
-        dep.imageMemoryBarrierCount = 1;
-        dep.pImageMemoryBarriers = &b;
-        vkCmdPipelineBarrier2(cmd, &dep);
-    };
-
-    barrier(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0, VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
-
-    VkBufferImageCopy region{};
-    region.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
-    region.imageExtent = { p_width, p_height, 1 };
-    vkCmdCopyBufferToImage(cmd, staging.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-    barrier(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_2_COPY_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT);
-
-    command_buffer_end(cmd);
-    VkCommandBufferSubmitInfo cmd_si{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO };
-    cmd_si.commandBuffer = cmd;
-    VkSubmitInfo2 submit{ VK_STRUCTURE_TYPE_SUBMIT_INFO_2 };
-    submit.commandBufferInfoCount = 1;
-    submit.pCommandBufferInfos = &cmd_si;
-
-    VkFence fence = fence_create(false);
-    vkQueueSubmit2(queue_families[cd->graphics_queue_family][0].queue, 1, &submit, fence);
-    fence_wait(fence, UINT64_MAX);
-
-    image.state.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    image.state.stage  = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-    image.state.access = VK_ACCESS_2_SHADER_SAMPLED_READ_BIT;
-
-    fence_free(fence);
-    command_pool_free(pool);
-    buffer_free(staging);
-    
-    return image;
 }
 
 }

@@ -1,4 +1,5 @@
 #include <core/rendering/renderer.h>
+#include <core/assets/asset_common.h>
 #include <core/io/embedded_resource.h>
 #include <iostream>
 
@@ -26,8 +27,12 @@ Error Renderer::initialize(drivers::DeviceDriverVulkan& r_dd)
         command_buffers[i] = dd->command_buffer_create(command_pools[i]);
     }
 
-    graph.initialize(r_dd, frame_count);
+    Error err = graph.initialize(r_dd, frame_count);
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     graph.declare_image_format("Backbuffer", dd->swapchain.format);
+
+    err = textures.initialize(r_dd);
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
 
     set_size(1, 1);
     pending_width = width;
@@ -38,6 +43,8 @@ Error Renderer::initialize(drivers::DeviceDriverVulkan& r_dd)
 
 void Renderer::shutdown()
 {
+    unload();
+    
     graph.shutdown();
 
     for (uint32_t i = 0; i < frame_count; i++) {
@@ -45,6 +52,36 @@ void Renderer::shutdown()
         dd->semaphore_free(image_available_semaphores[i]);
         dd->command_pool_free(command_pools[i]);
     }
+}
+
+Error Renderer::load(const std::filesystem::path& p_content_dir)
+{
+    using enum Error;
+
+    std::error_code ec;
+    if (!std::filesystem::exists(p_content_dir, ec)) return Ok;
+
+    for (auto it = std::filesystem::recursive_directory_iterator(p_content_dir, ec); !ec && it != std::filesystem::recursive_directory_iterator(); it.increment(ec)) {
+        if (!it->is_regular_file(ec)) continue;
+        const std::filesystem::path& path = it->path();
+        if (path.extension() != ".bin") continue;
+        BAssetHeader ah{};
+        if (!read_asset_header(path, ah)) continue;
+        switch (ah.type) {
+            case AssetType::Texture:
+                textures.load(ah.guid, path);
+                break;
+            default:
+                break;
+        }
+    }
+
+    return Ok;
+}
+
+void Renderer::unload()
+{
+    textures.clear();
 }
 
 Error Renderer::set_size(uint32_t p_width, uint32_t p_height)

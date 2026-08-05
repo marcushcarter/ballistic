@@ -47,5 +47,6 @@ static_assert(sizeof(Guid) == 8, "header assumes 8-byte Guid");
 static_assert(sizeof(BAssetHeader) == 24, "BAssetHeader layout changed");
 
 AssetInfo read_asset_info(const std::filesystem::path& p_path);
+bool read_asset_header(const std::filesystem::path& p_path, BAssetHeader& r_header);
 
 }

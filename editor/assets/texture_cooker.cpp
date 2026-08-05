@@ -88,7 +88,7 @@ Error TextureCooker::_cook(const Job& p_job)
 {
     using enum Error;
 
-    auto report = [&](float v){ if (p_job.progress) p_job.progress->store(v, std::memory_order_relaxed); };
+    auto report = [&](float v){ if (p_job.progress) p_job.progress->progress.store(v, std::memory_order_relaxed); };
     report(0.0f);
 
     auto img = ImageIO::load_from_file<uint8_t, 4>(p_job.source.wstring());
@@ -126,7 +126,7 @@ Error TextureCooker::_cook(const Job& p_job)
         }
         rdo_bc::rdo_bc_params p;
         p.m_dxgi_format = fmt.dxgi;
-        p.m_bc7_uber_level = 4; // move to 6 to have full compression
+        p.m_bc7_uber_level = 4; // move to 6 to have better compression but takes longer (around 4x)
         p.m_perceptual = fmt.srgb;
         p.m_rdo_lambda = 0.3f;
         p.m_rdo_multithreading = true;
@@ -210,8 +210,10 @@ void TextureCooker::import_async(EditorContext& ctx, const std::filesystem::path
         log_write("Texture import failed: %s", p_src.string().c_str());
         return;
     }
-    job.progress = ctx.imports->add(p_dst);
-    ctx.tasks->dispatch([job]{ if (TextureCooker::_cook(job) != Error::Ok) job.progress->store(1.0f, std::memory_order_relaxed); });
+    job.progress = ctx.imports->add(p_dst, job.guid, job.content_bin);
+    ctx.tasks->dispatch([job]{
+        if (TextureCooker::_cook(job) != Error::Ok && job.progress && !job.progress->cancel.load(std::memory_order_relaxed)) job.progress->progress.store(1.0f, std::memory_order_relaxed);
+    });
 }
 
 }

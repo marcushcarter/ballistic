@@ -1,4 +1,5 @@
 #include <editor/panel/asset_browser/asset_browser_grid.h>
+#include <core/rendering/renderer.h>
 #include <editor/editor_resources.h>
 #include <drivers/imgui/imgui_driver.h>
 #include <core/project/project.h>
@@ -33,10 +34,18 @@ void AssetBrowserGrid::_delete_folder(const Project& p_project, const std::files
     Paths::remove_to_recycle(p_folder);
 }
 
-bool AssetBrowserGrid::_draw_card(ImTextureID p_texture, const char* p_name, const char* p_type, const std::filesystem::path& p_path, float p_progress)
+Guid AssetBrowserGrid::_resolve_texture_guid(const std::filesystem::path& p_path)
+{
+    if (auto it = _thumb_guids.find(p_path); it != _thumb_guids.end()) return it->second;
+    AssetInfo info = read_asset_info(p_path);
+    if (!info.valid() || info.type != AssetType::Texture) return Guid{};
+    _thumb_guids.emplace(p_path, info.guid);
+    return info.guid;
+}
+
+bool AssetBrowserGrid::_draw_card(ImTextureID p_texture, const char* p_name, const char* p_type, const std::filesystem::path& p_path, float p_progress, bool p_importing)
 {
     ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0.0f);
-    // ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0, 0, 0, 0));
     ImGui::BeginChild("##card", ImVec2(card_width, card_height), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -52,12 +61,15 @@ bool AssetBrowserGrid::_draw_card(ImTextureID p_texture, const char* p_name, con
     ImGui::InvisibleButton("##hit", ImVec2(card_width, card_height));
 
     if (!renaming && ImGui::BeginPopupContextItem()) {
-        if (ImGui::MenuItem("Rename")) {
-            rename_target = p_path;
-            std::snprintf(rename_buf, sizeof(rename_buf), "%s",
-                std::filesystem::is_directory(p_path) ? p_path.filename().string().c_str() : p_path.stem().string().c_str());
+        if (p_importing) {
+            if (ImGui::MenuItem("Cancel Import")) cancel_request = p_path;
+        } else {
+            if (ImGui::MenuItem("Rename")) {
+                rename_target = p_path;
+                std::snprintf(rename_buf, sizeof(rename_buf), "%s", std::filesystem::is_directory(p_path) ? p_path.filename().string().c_str() : p_path.stem().string().c_str());
+            }
+            if (ImGui::MenuItem("Delete")) rename_delete_request = p_path;
         }
-        if (ImGui::MenuItem("Delete")) rename_delete_request = p_path;
         ImGui::EndPopup();
     }
 
@@ -93,7 +105,7 @@ bool AssetBrowserGrid::_draw_card(ImTextureID p_texture, const char* p_name, con
         const bool entered = ImGui::InputText("##rename", rename_buf, sizeof(rename_buf), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
         ImGui::PopStyleVar();
         const bool escaped = ImGui::IsKeyPressed(ImGuiKey_Escape);
-        if (entered || (ImGui::IsItemDeactivated() && !escaped)) Paths::rename(p_path, rename_buf);
+        if (entered || (ImGui::IsItemDeactivated() && !escaped)) { Paths::rename(p_path, rename_buf); _thumb_guids.clear(); }
         if (entered || escaped || ImGui::IsItemDeactivated()) rename_target.clear();
     } else {
         const ImVec2 name_max(p1.x - pad, name_min.y + ImGui::GetTextLineHeight());
@@ -118,7 +130,6 @@ bool AssetBrowserGrid::_draw_card(ImTextureID p_texture, const char* p_name, con
     }
 
     ImGui::EndChild();
-    // ImGui::PopStyleColor();
     ImGui::PopStyleVar();
 
     return double_clicked;
@@ -137,7 +148,6 @@ void AssetBrowserGrid::draw(EditorContext& ctx, std::filesystem::path& selected,
     if (columns > 1) gap = (avail - (float)columns * (float)card_width) / (float)(columns - 1);
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(min_gap, row_gap));
-    ctx.imports->tick();
 
     if (!selected.empty() && std::filesystem::exists(selected)) {
         std::vector<std::filesystem::directory_entry> entries;
@@ -175,8 +185,20 @@ void AssetBrowserGrid::draw(EditorContext& ctx, std::filesystem::path& selected,
             ImGui::PushID(i);
             
             const float progress = ctx.imports->progress(entry.path());
-            VkDescriptorSet thumb = entry.is_directory() ? VK_NULL_HANDLE : ctx.imgui->texture_cache.get(ctx.resources->test_thumbnail.image_view);
-            const bool activated = _draw_card((ImTextureID)thumb, name.c_str(), type.c_str(), entry.path(), progress);
+
+            VkDescriptorSet set = VK_NULL_HANDLE;
+            if (!entry.is_directory()) {
+                VkImageView view = VK_NULL_HANDLE;
+                if (entry.path().extension() == ".btexture" && ctx.renderer) {
+                    if (const BTexture* bt = ctx.renderer->textures.get(_resolve_texture_guid(entry.path()))) view = bt->image.image_view;
+                }
+
+                // if (view == VK_NULL_HANDLE) view = ctx.resources->test_thumbnail.image_view;
+
+                set = ctx.imgui->texture_cache.get(view);
+            }
+
+            const bool activated = _draw_card((ImTextureID)set, name.c_str(), type.c_str(), entry.path(), progress);
 
             if (entry.is_directory() && ImGui::BeginDragDropTarget()) {
                 if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PATH")) Paths::move((const char*)payload->Data, entry.path());
@@ -188,6 +210,7 @@ void AssetBrowserGrid::draw(EditorContext& ctx, std::filesystem::path& selected,
             if (!rename_delete_request.empty()) {
                 std::filesystem::is_directory(rename_delete_request) ? _delete_folder(*ctx.project, rename_delete_request) : _delete_asset(*ctx.project, rename_delete_request);
                 rename_delete_request.clear();
+                _thumb_guids.clear();
             }
             
             ImGui::PopID();
@@ -199,9 +222,14 @@ void AssetBrowserGrid::draw(EditorContext& ctx, std::filesystem::path& selected,
             if (!matches(ppath)) continue;
             if (i % columns != 0) ImGui::SameLine(0.0f, gap);
             ImGui::PushID(i);
-            _draw_card(0, ppath.stem().string().c_str(), "IMPORTING", ppath, ctx.imports->progress(ppath));
+            _draw_card(0, ppath.stem().string().c_str(), "IMPORTING", ppath, ctx.imports->progress(ppath), true);
             ImGui::PopID();
             ++i;
+        }
+
+        if (!cancel_request.empty()) {
+            // ctx.imports->cancel(cancel_request);
+            cancel_request.clear();
         }
     }
     

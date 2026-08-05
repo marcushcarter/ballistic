@@ -17,7 +17,7 @@ struct TextureCooker
         std::filesystem::path content_bin;
         Guid guid;
         CookSettings settings;
-        ImportProgress progress;
+        std::shared_ptr<ImportControl> progress;
     };
     
     static Error _cook(const Job& p_job);

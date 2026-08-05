@@ -3,27 +3,30 @@
 
 namespace ballistic {
 
-ImportProgress AssetImportTracker::add(const std::filesystem::path& p_dst)
+std::shared_ptr<ImportControl> AssetImportTracker::add(const std::filesystem::path& p_dst, Guid p_guid, const std::filesystem::path& p_content_bin)
 {
-    auto cell = std::make_shared<std::atomic<float>>(0.0f);
-    pending[p_dst] = cell;
-    return cell;
+    auto ctrl = std::make_shared<ImportControl>();
+    pending[p_dst] = Pending{ ctrl, p_guid, p_content_bin };
+    return ctrl;
 }
 
 float AssetImportTracker::progress(const std::filesystem::path& p_dst)
 {
     auto it = pending.find(p_dst);
-    return it == pending.end() ? -1.0f : it->second->load(std::memory_order_relaxed);
-
+    return it == pending.end() ? -1.0f : it->second.progress->progress.load(std::memory_order_relaxed);
 }
 
 void AssetImportTracker::tick()
 {
     std::error_code ec;
     for (auto it = pending.begin(); it != pending.end(); ) {
-        const float v = it->second->load(std::memory_order_relaxed);
-        if (v >= 1.0f && std::filesystem::exists(it->first, ec)) it = pending.erase(it);
-        else it++;
+        const float v = it->second.progress->progress.load(std::memory_order_relaxed);
+        if (v >= 1.0f && std::filesystem::exists(it->first, ec)) {
+            completed.push_back({ it->second.guid, it->second.content_bin });
+            it = pending.erase(it);
+        } else {
+            ++it;
+        }
     }
 }
 

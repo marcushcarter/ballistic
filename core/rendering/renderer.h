@@ -1,6 +1,7 @@
 #pragma once
 #include <drivers/vulkan/device_driver_vulkan.h>
 #include <core/rendering/render_graph.h>
+#include <core/rendering/resources/texture_cache.h>
 #include <core/base/error.h>
 
 namespace ballistic {
@@ -10,6 +11,8 @@ struct Renderer
     drivers::DeviceDriverVulkan* dd = nullptr;
 
     RenderGraph graph;
+    
+    TextureCache textures;
 
     uint32_t width = 0;
     uint32_t height = 0;
@@ -26,10 +29,12 @@ struct Renderer
     std::vector<VkFence> in_flight_fences;
     std::vector<drivers::DeviceDriverVulkan::CommandPool> command_pools;
     std::vector<VkCommandBuffer> command_buffers;
-    // VkCommandBuffer cmd = VK_NULL_HANDLE;
 
     Error initialize(drivers::DeviceDriverVulkan& r_dd);
     void shutdown();
+
+    Error load(const std::filesystem::path& p_content_dir);
+    void unload();
 
     void request_size(uint32_t p_width, uint32_t p_height);
     Error apply_pending_size();

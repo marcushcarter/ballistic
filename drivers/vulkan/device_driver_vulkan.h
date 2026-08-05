@@ -137,6 +137,9 @@ struct DeviceDriverVulkan
 
     Image image_create_dedicated(const ImageCreateInfo& p_ci, VkExtent2D p_extent);
     void image_free(Image& r_image);
+
+    Image image_create_texture(const void* p_rgba, uint32_t p_width, uint32_t p_height, const char* p_name);
+    Image image_create_texture_compressed(VkFormat p_format, uint32_t p_width, uint32_t p_height, uint32_t p_mip_count, const void* p_blocks, VkDeviceSize p_blocks_size, const char* p_name);
     
 	/*****************/
 	/**** BUFFERS ****/
@@ -494,8 +497,6 @@ struct DeviceDriverVulkan
     };
     
     GpuDescription gpu_describe() const;
-
-    Image image_create_texture(const void* p_rgba, uint32_t p_width, uint32_t p_height, const char* p_name);
 };
 
 }

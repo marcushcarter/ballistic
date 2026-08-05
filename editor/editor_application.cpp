@@ -83,15 +83,17 @@ void EditorApplication::on_update(float p_dt)
     _draw_titlebar();
 
     EditorContext ctx = _make_context();
-
-    // ImGuiIO& io = ImGui::GetIO();
-    // if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_F12)) {   
-    //     EditorRenderPath* path = static_cast<EditorRenderPath*>(render_path);
-    //     path->screenshot.requested = true;
-    // }
     
     popups.draw(ctx);
     if (project.loaded()) {
+        
+        imports.tick();
+        for (const auto& c : imports.completed) {
+            renderer.textures.unload(c.guid);
+            renderer.textures.load(c.guid, c.content_bin);
+        }
+        imports.completed.clear();
+
         editor.on_update(ctx, p_dt);
     } else {
         project_manager.on_update(ctx);

@@ -12,14 +12,29 @@ namespace ballistic {
 
 struct Project;
 
-using ImportProgress = std::shared_ptr<std::atomic<float>>;
+struct ImportControl {
+    std::atomic<float> progress{ 0.0f };
+    std::atomic<bool>  cancel{ false };
+};
 
 struct AssetImportTracker
 {
-    std::unordered_map<std::filesystem::path, ImportProgress> pending;
+    struct Pending {
+        std::shared_ptr<ImportControl> progress;
+        Guid guid;
+        std::filesystem::path content_bin;
+    };
 
-    ImportProgress add(const std::filesystem::path& p_dst);
-    float progress(const std::filesystem::path& p_dst);    
+    struct Completed {
+        Guid guid;
+        std::filesystem::path content_bin;
+    };
+
+    std::unordered_map<std::filesystem::path, Pending> pending;
+    std::vector<Completed> completed;
+
+    std::shared_ptr<ImportControl> add(const std::filesystem::path& p_dst, Guid p_guid, const std::filesystem::path& p_content_bin);
+    float progress(const std::filesystem::path& p_dst);
     void tick();
 
     std::vector<std::filesystem::path> pending_out(const std::filesystem::path& p_folder) const;

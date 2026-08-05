@@ -132,8 +132,8 @@ Error Application::project_load(const std::filesystem::path &p_root)
     using enum Error;
     Error err = project.load(p_root);
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
-    // Error err = renderer.load();
-    // BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
+    err = renderer.load(project.content_dir);
+    BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     err = scenes.load();
     BALLISTIC_ERR_FAIL_COND_V(err != Ok, err);
     return Ok;
@@ -142,8 +142,8 @@ Error Application::project_load(const std::filesystem::path &p_root)
 void Application::project_unload()
 {
     dd.device_wait_idle();
+    renderer.unload();
     scenes.unload();
-    // renderer.unload();
     project.unload();
 }
 

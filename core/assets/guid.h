@@ -37,6 +37,21 @@ static_assert(sizeof(Guid) == 8);
 static_assert(std::is_trivially_copyable_v<Guid>);
 static_assert(std::is_standard_layout_v<Guid>);
 
+struct GuidHash {
+    size_t operator()(const Guid& p_guid) const noexcept {
+        static_assert(sizeof(Guid) == 8, " GuidHash assumes 8-byte Guid");
+        uint64_t v;
+        std::memcpy(&v, &p_guid, sizeof(v));
+        return std::hash<uint64_t>{}(v);
+    }
+};
+
+struct GuidEq {
+    bool operator()(const Guid& a, const Guid& b) const noexcept {
+        return std::memcmp(&a, &b, sizeof(Guid)) == 0;
+    }
+};
+
 }
 
 template<>
