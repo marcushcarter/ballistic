@@ -7,9 +7,9 @@
 #include <cstdio>
 #include <cstdint>
 
-#include <editor/assets/texture_cooker.h>
 #include <drivers/windows/dialogs_win32.h>
 #include <core/project/project.h>
+#include <editor/assets/asset_import_any.h>
 
 namespace ballistic {
 
@@ -63,7 +63,7 @@ void AssetBrowserToolbar::draw_sidebar(const std::filesystem::path& root, std::f
         if (ImGui::Selectable(label.c_str(), active)) selected = folder;
 
         if (ImGui::BeginDragDropTarget()) {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PATH")) Paths::asset_move((const char*)payload->Data, folder);
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PATH")) Paths::move((const char*)payload->Data, folder);
             ImGui::EndDragDropTarget();
         }
 
@@ -85,12 +85,14 @@ void AssetBrowserToolbar::draw_header(EditorContext& ctx, const std::filesystem:
     ImGui::SameLine();
     if (ImGui::Button("+ Import")) {
         if (!selected.empty() && std::filesystem::exists(selected)) {
-            std::wstring src = drivers::open_file_dialog_win32(L"Images\0*.png;*.jpg;*.jpeg;*.tga;*.bmp\0All Files\0*.*\0");
-
-            if (!src.empty()) {
-                const std::filesystem::path source = src;
-                const std::filesystem::path dst = selected / (source.stem().wstring() + L".btexture");
-                TextureCooker::import_async(ctx, source, dst);
+            std::vector<std::wstring> files = drivers::Win32Dialogs::open_files(
+                L"All Supported\0*.png;*.jpg;*.jpeg;*.tga;*.bmp\0"
+                L"Images\0*.png;*.jpg;*.jpeg;*.tga;*.bmp\0"
+                L"All Files\0*.*\0"
+            );
+            for (const std::wstring& f : files) {
+                const std::filesystem::path source = f;
+                if (!asset_import_any(ctx, source, selected)) log_write("Skipped unsupported import: %s", source.string().c_str());
             }
         }
     }

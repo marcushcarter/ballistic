@@ -46,7 +46,7 @@ bool TaskSystem::_try_run_one()
     task.fn();
     task.counter->fetch_sub(1, std::memory_order_release);
     if (task.is_normal) {
-        { std::lock_guard lock(mutex); normal_in_flight--; }
+        { std::lock_guard lock(mutex); if (normal_in_flight) normal_in_flight--; }
         cv.notify_one();
     }
     return true;
@@ -70,7 +70,7 @@ void TaskSystem::_worker_loop()
         task.fn();
         task.counter->fetch_sub(1, std::memory_order_release);
         if (task.is_normal) {
-            { std::lock_guard lock(mutex); normal_in_flight--; }
+            { std::lock_guard lock(mutex); if (normal_in_flight) normal_in_flight--; }
             cv.notify_one();
         }
     }
@@ -79,7 +79,8 @@ void TaskSystem::_worker_loop()
 TaskSystem::Handle TaskSystem::dispatch(std::function<void()> fn, Priority p)
 {
     Handle counter = std::make_shared<std::atomic<uint32_t>>(1);
-    { std::lock_guard lock(mutex); (p == Priority::High ? high : normal).push_back(Task{ std::move(fn), counter }); }
+    Task t{ std::move(fn), counter, p == Priority::Normal };
+    { std::lock_guard lock(mutex); (p == Priority::High ? high : normal).push_back(std::move(t)); }   // push t
     cv.notify_one();
     return counter;
 }

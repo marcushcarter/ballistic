@@ -3,10 +3,19 @@
 
 namespace ballistic {
 
-static ImVec4 shade(const ImVec4& c, float f) { return { c.x*f, c.y*f, c.z*f, c.w }; }
+static float luminance(const ImVec4& c) { return 0.2126f*c.x + 0.7152f*c.y + 0.0722f*c.z; }
 static ImVec4 fade(const ImVec4& c, float a) { return { c.x, c.y, c.z, a }; }
 static ImVec4 mix(const ImVec4& a, const ImVec4& b, float t) { return { a.x+(b.x-a.x)*t, a.y+(b.y-a.y)*t, a.z+(b.z-a.z)*t, a.w }; }
-// static float luminance(const ImVec4& c) { return 0.2126f*c.x + 0.7152f*c.y + 0.0722f*c.z; }
+
+static ImVec4 shade(const ImVec4& c, float f)
+{
+    float lum = luminance(c);
+    float t = (lum - 0.35f) / 0.30f;
+    t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
+    t = t * t * (3.0f - 2.0f * t);
+    float k = f + (1.0f / f - f) * t;
+    return { c.x * k, c.y * k, c.z * k, c.w };
+}
 
 void Theme::apply() const
 {

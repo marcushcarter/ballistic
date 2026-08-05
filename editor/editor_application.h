@@ -5,7 +5,7 @@
 #include <editor/editor_mode/project_manager.h>
 #include <editor/editor_settings.h>
 #include <editor/editor_resources.h>
-#include <editor/assets/asset_import.h>
+#include <editor/assets/asset_import_tracker.h>
 #include <editor/panel/panel.h>
 #include <editor/popup/popup_manager.h>
 #include <core/rendering/render_path/editor_render_path.h>

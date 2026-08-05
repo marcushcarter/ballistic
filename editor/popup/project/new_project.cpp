@@ -91,7 +91,7 @@ void NewProjectPopup::draw_contents(EditorContext&)
 
     ImGui::SameLine();
     if (ImGui::Button("Browse", ImVec2(browse_w, 0))) {
-        std::wstring picked = drivers::open_folder_dialog_win32(L"Choose project location");
+        std::wstring picked = drivers::Win32Dialogs::open_folder(L"Choose project location");
         if (!picked.empty()) {
             std::string narrow = std::filesystem::path(picked).string();
             std::snprintf(location_buf, sizeof(location_buf), "%s", narrow.c_str());

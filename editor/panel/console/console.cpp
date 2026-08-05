@@ -51,7 +51,7 @@ void ConsolePanel::draw_contents(EditorContext& ctx)
 
     ImGui::SameLine();
     if (ImGui::Button("Export", ImVec2(button_w, 0))) {
-        std::wstring path = drivers::save_file_dialog_win32(L"Text Files\0*.txt\0All Files\0*.*\0\0", L"txt");
+        std::wstring path = drivers::Win32Dialogs::save_file(L"Text Files\0*.txt\0All Files\0*.*\0\0", L"txt");
         if (!path.empty()) {
             std::ofstream f(path);
             if (f) {

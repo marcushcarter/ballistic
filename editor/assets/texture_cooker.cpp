@@ -1,7 +1,7 @@
 #include <editor/assets/texture_cooker.h>
 #include <core/project/project.h>
 #include <core/assets/asset_common.h>
-#include <editor/assets/asset_import.h>
+#include <editor/assets/asset_import_tracker.h>
 #include <editor/editor_context.h>
 #include <core/project/project.h>
 #include <core/assets/btexture.h>
@@ -125,13 +125,17 @@ Error TextureCooker::_cook(const Job& p_job)
             src(x, y) = utils::color_quad_u8(px[0], px[1], px[2], px[3]);
         }
         rdo_bc::rdo_bc_params p;
-        p.m_dxgi_format = fmt.dxgi; p.m_bc7_uber_level = 6; p.m_perceptual = fmt.srgb;
-        p.m_rdo_lambda = 0.3f; p.m_rdo_multithreading = true; p.m_status_output = false;
+        p.m_dxgi_format = fmt.dxgi;
+        p.m_bc7_uber_level = 4; // move to 6 to have full compression
+        p.m_perceptual = fmt.srgb;
+        p.m_rdo_lambda = 0.3f;
+        p.m_rdo_multithreading = true;
+        p.m_status_output = false;
         if (fmt.bc45) { p.m_bc45_channel0 = 0; p.m_bc45_channel1 = 1; }
 
         rdo_bc::rdo_bc_encoder enc;
         if (!enc.init(src, p)) return Failed;
-        if (!enc.encode())     return Failed;
+        if (!enc.encode()) return Failed;
         const uint8_t* b = static_cast<const uint8_t*>(enc.get_blocks());
         blocks.insert(blocks.end(), b, b + enc.get_total_blocks_size_in_bytes());
 
@@ -139,18 +143,25 @@ Error TextureCooker::_cook(const Job& p_job)
     }
 
     BTexturePayloadHeader ph{};
-    ph.vk_format = fmt.vk; ph.width = width; ph.height = height; ph.mip_count = mip_count;
+    ph.vk_format = fmt.vk;
+    ph.width = width;
+    ph.height = height;
+    ph.mip_count = mip_count;
     ph.flags = fmt.srgb ? TEXTURE_FLAG_SRGB : 0u;
 
     BAssetHeader ah{};
-    ah.magic = BCON_MAGIC; ah.version = BASSET_VERSION;
-    ah.guid = p_job.guid; ah.type = AssetType::Texture;
+    ah.magic = BCON_MAGIC;
+    ah.version = BASSET_VERSION;
+    ah.guid = p_job.guid;
+    ah.type = AssetType::Texture;
     ah.payload_size = static_cast<uint32_t>(sizeof(ph) + blocks.size());
 
     std::vector<uint8_t> bin;
     bin.reserve(sizeof(ah) + sizeof(ph) + blocks.size());
     auto append = [&](const void* d, size_t n){ const uint8_t* p = static_cast<const uint8_t*>(d); bin.insert(bin.end(), p, p + n); };
-    append(&ah, sizeof(ah)); append(&ph, sizeof(ph)); append(blocks.data(), blocks.size());
+    append(&ah, sizeof(ah));
+    append(&ph, sizeof(ph));
+    append(blocks.data(), blocks.size());
 
     std::error_code ec;
     std::filesystem::create_directories(p_job.content_bin.parent_path(), ec);

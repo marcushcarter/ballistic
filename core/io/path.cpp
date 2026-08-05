@@ -63,24 +63,59 @@ void Paths::reveal_in_explorer(const std::filesystem::path& p_path)
     }
 }
 
-void Paths::asset_move(const std::filesystem::path& src, const std::filesystem::path& dst_dir)
+void Paths::move(const std::filesystem::path& p_src, const std::filesystem::path& p_dst)
 {
-    if (src.empty() || dst_dir.empty()) return;
-    if (src.parent_path() == dst_dir) return;
+    if (p_src.empty() || p_dst.empty()) return;
+    if (p_src.parent_path() == p_dst) return;
 
-    auto s = src.begin();
-    auto d = dst_dir.begin();
+    auto s = p_src.begin();
+    auto d = p_dst.begin();
     bool src_is_prefix = true;
-    for (; s != src.end(); ++s, ++d) {
-        if (d == dst_dir.end() || *d != *s) { src_is_prefix = false; break; }
+    for (; s != p_src.end(); ++s, ++d) {
+        if (d == p_dst.end() || *d != *s) { src_is_prefix = false; break; }
     }
     if (src_is_prefix) return;
 
-    const std::filesystem::path dst = dst_dir / src.filename();
+    const std::filesystem::path dst = p_dst / p_src.filename();
     if (std::filesystem::exists(dst)) return;
 
     std::error_code ec;
-    std::filesystem::rename(src, dst, ec);
+    std::filesystem::rename(p_src, dst, ec);
+}
+
+void Paths::rename(const std::filesystem::path& p_path, std::string_view p_new_stem)
+{
+    std::filesystem::path dst = p_path;
+    dst.replace_filename(std::string(p_new_stem) + p_path.extension().string());
+    if (dst == p_path) return;
+
+    std::error_code ec;
+    if (std::filesystem::exists(dst, ec)) return;
+    std::filesystem::rename(p_path, dst, ec);
+}
+
+void Paths::remove_to_recycle(const std::filesystem::path& p_path)
+{
+    std::error_code ec;
+    if (!std::filesystem::exists(p_path, ec)) return;
+    std::filesystem::path native = p_path;
+    native.make_preferred();
+    HRESULT init = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    const bool needs_uninit = SUCCEEDED(init);
+    if (FAILED(init) && init != RPC_E_CHANGED_MODE) return;
+    IFileOperation* op = nullptr;
+    HRESULT hr = CoCreateInstance(CLSID_FileOperation, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&op));
+    if (SUCCEEDED(hr)) {
+        op->SetOperationFlags(FOF_NO_UI | FOF_ALLOWUNDO | FOFX_RECYCLEONDELETE);
+        IShellItem* item = nullptr;
+        if (SUCCEEDED(SHCreateItemFromParsingName(native.c_str(), nullptr, IID_PPV_ARGS(&item)))) {
+            op->DeleteItem(item, nullptr);
+            op->PerformOperations();
+            item->Release();
+        }
+        op->Release();
+    }
+    if (needs_uninit) CoUninitialize();
 }
 
 bool Paths::is_under(const std::filesystem::path& p, const std::filesystem::path& base)

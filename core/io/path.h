@@ -21,8 +21,11 @@ struct Paths
     static Error set_hidden(const std::filesystem::path& p_path, bool p_hidden = true);
     static void reveal_in_explorer(const std::filesystem::path& p_path);
 
-    static void asset_move(const std::filesystem::path& src, const std::filesystem::path& dst_dir);
-    static bool is_under(const std::filesystem::path& p, const std::filesystem::path& base);
+    static void move(const std::filesystem::path& p_src, const std::filesystem::path& p_dst);
+    static void rename(const std::filesystem::path& p_path, std::string_view p_new_stem);
+    static void remove_to_recycle(const std::filesystem::path& p_src);
+
+    static bool is_under(const std::filesystem::path& p_path, const std::filesystem::path& p_base);
 };
     
 };

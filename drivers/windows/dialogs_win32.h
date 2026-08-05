@@ -1,11 +1,16 @@
 #pragma once
 #include <string>
+#include <vector>
 
 namespace ballistic::drivers {
 
-std::wstring save_file_dialog_win32(const wchar_t* p_filter, const wchar_t* p_default_ext);
-std::wstring open_file_dialog_win32(const wchar_t* p_filter);
+struct Win32Dialogs
+{
+    static std::wstring save_file(const wchar_t* p_filter, const wchar_t* p_default_ext);
+    static std::wstring open_file(const wchar_t* p_filter);
+    static std::vector<std::wstring> open_files(const wchar_t* p_filter);
 
-std::wstring open_folder_dialog_win32(const wchar_t* p_title);
+    static std::wstring open_folder(const wchar_t* p_title);
+};
 
 }

@@ -2,13 +2,13 @@
 #include <windows.h>
 #include <commdlg.h>
 #include <shobjidl.h>
+#include <filesystem>
 
 namespace ballistic::drivers {
 
-std::wstring save_file_dialog_win32(const wchar_t* p_filter, const wchar_t* p_default_ext)
+std::wstring Win32Dialogs::save_file(const wchar_t* p_filter, const wchar_t* p_default_ext)
 {
     wchar_t path[MAX_PATH] = {};
-
     OPENFILENAMEW ofn{};
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = GetActiveWindow();
@@ -17,41 +17,57 @@ std::wstring save_file_dialog_win32(const wchar_t* p_filter, const wchar_t* p_de
     ofn.nMaxFile = MAX_PATH;
     ofn.lpstrDefExt = p_default_ext;
     ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
-
-    if (GetSaveFileNameW(&ofn)) {
-        return std::wstring(path);
-    }
-
+    if (GetSaveFileNameW(&ofn)) return std::wstring(path);
     return {};
 }
 
-std::wstring open_file_dialog_win32(const wchar_t* p_filter)
+std::wstring Win32Dialogs::open_file(const wchar_t* p_filter)
 {
     wchar_t path[MAX_PATH] = {};
-
     OPENFILENAMEW ofn{};
     ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner   = GetActiveWindow();
+    ofn.hwndOwner = GetActiveWindow();
     ofn.lpstrFilter = p_filter;
-    ofn.lpstrFile   = path;
-    ofn.nMaxFile    = MAX_PATH;
-    ofn.Flags       = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
-
-    if (GetOpenFileNameW(&ofn))
-        return std::wstring(path);
-
+    ofn.lpstrFile = path;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+    if (GetOpenFileNameW(&ofn)) return std::wstring(path);
     return {};
 }
 
-std::wstring open_folder_dialog_win32(const wchar_t* p_title)
+std::vector<std::wstring> Win32Dialogs::open_files(const wchar_t* p_filter)
+{
+    std::vector<wchar_t> buf(64 * 1024, 0);
+    OPENFILENAMEW ofn{};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = GetActiveWindow();
+    ofn.lpstrFilter = p_filter;
+    ofn.lpstrFile = buf.data();
+    ofn.nMaxFile = static_cast<DWORD>(buf.size());
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR | OFN_ALLOWMULTISELECT | OFN_EXPLORER;
+    if (!GetOpenFileNameW(&ofn)) return {};
+    std::vector<std::wstring> out;
+    const wchar_t* p = buf.data();
+    std::wstring first = p;
+    p += first.size() + 1;
+    if (*p == L'\0') {
+        out.push_back(std::move(first));
+    } else {
+        const std::filesystem::path dir = first;
+        while (*p) {
+            out.push_back((dir / p).wstring());
+            p += std::wcslen(p) + 1;
+        }
+    }
+    return out;
+}
+
+std::wstring Win32Dialogs::open_folder(const wchar_t* p_title)
 {
     std::wstring result;
-
     HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
     const bool needs_uninit = SUCCEEDED(hr);
-    if (FAILED(hr) && hr != RPC_E_CHANGED_MODE)
-        return result;
-
+    if (FAILED(hr) && hr != RPC_E_CHANGED_MODE) return result;
     IFileOpenDialog* dialog = nullptr;
     hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
     if (SUCCEEDED(hr)) {
@@ -60,7 +76,6 @@ std::wstring open_folder_dialog_win32(const wchar_t* p_title)
         dialog->SetOptions(opts | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST);
         if (p_title) dialog->SetTitle(p_title);
         dialog->SetOkButtonLabel(L"Select Folder");
-
         if (dialog->Show(GetActiveWindow()) == S_OK) {
             IShellItem* item = nullptr;
             if (SUCCEEDED(dialog->GetResult(&item))) {
@@ -74,7 +89,6 @@ std::wstring open_folder_dialog_win32(const wchar_t* p_title)
         }
         dialog->Release();
     }
-
     if (needs_uninit) CoUninitialize();
     return result;
 }

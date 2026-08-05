@@ -11,6 +11,14 @@ struct AssetBrowserGrid
     float card_width = 150.0f;
     float card_height = 220.0f;
 
+    std::filesystem::path rename_target;
+    char rename_buf[256] = {};
+    std::filesystem::path rename_delete_request;
+
+    void _delete_content(const Project& p_project, const std::filesystem::path& p_asset);
+    void _delete_asset(const Project& p_project, const std::filesystem::path& p_path);
+    void _delete_folder(const Project& p_project, const std::filesystem::path& p_folder);
+
     bool _draw_card(ImTextureID p_texture, const char* p_name, const char* p_type, const std::filesystem::path& p_path, float p_progress = 0.5);
     void draw(EditorContext& ctx, std::filesystem::path& selected, const char* search_buf);
 };

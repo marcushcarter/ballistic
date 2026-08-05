@@ -1,4 +1,4 @@
-#include <editor/assets/asset_import.h>
+#include <editor/assets/asset_import_tracker.h>
 #include <core/project/project.h>
 
 namespace ballistic {
